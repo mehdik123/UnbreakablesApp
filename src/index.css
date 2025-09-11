@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Nutrition themed background */
+.nutrition-bg {
+  background-image: radial-gradient(circle at 25% 10%, rgba(220,38,38,0.08) 0, transparent 45%),
+                    radial-gradient(circle at 80% 30%, rgba(16,185,129,0.08) 0, transparent 45%),
+                    radial-gradient(circle at 20% 70%, rgba(139,92,246,0.08) 0, transparent 45%),
+                    linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.9));
+  background-attachment: fixed;
+}
+
+html, body, #root {
+  min-height: 100%;
+}

@@ -1,0 +1,307 @@
+Food (100g),KCal,Protein,Fat,Carbs
+Blueberries,64,1,0,14
+Blackberries,48,1,0,10
+Cranberries,52,0,0,12
+Raspberries,58,1,1,12
+Strawberries,36,1,0,8
+Butter,734,1,81,0
+Swiss Cheese,265,27,28,5
+Cream Cheese,196,6,34,4
+Feta Cheese,176,14,21,4
+Parmesan Cheese,304,38,29,4
+"Ricotta Cheese, whole milk",123,11,13,3
+"Cottage Cheese, 1% milkfat",79,12,1,3
+American Cheese,230,22,31,2
+Blue Cheese,222,22,29,2
+Cheddar Cheese,322,32,44,2
+Gouda Cheese,226,25,27,2
+Provolone Cheese,230,26,27,2
+"Mozzarella Cheese, whole milk",194,22,22,2
+Protein Powder,400,78,7,6
+Milk,43,3,1,5
+Whole Milk,65,3,4,5
+Plain Low-Fat Greek Yoghurt,58,10,0,4
+Plain Skyr,60,11,0,4
+"Cheese, Low-Fat Cottage",68,12,1,3
+"Cheese, Mozzarella",277,28,17,3
+"Cheese, Feta",261,14,21,4
+"Cheese, Regular",352,25,27,2
+Coconut Cream,219,4,35,7
+"Greek Yogurt, whole milk",128,18,5,4
+Sour Cream,124,2,20,4
+Heavy Cream,183,2,37,3
+Whipped Cream (unsweetened),183,2,37,3
+Soy Milk (unsweetened),38,3,2,2
+Almond Milk (unsweetened),13,0,1,1
+Coconut Milk (unsweetened),17,0,2,1
+Egg,101,13,10,1
+Egg Whites,49,11,0,1
+Eggs,145,13,10,1
+"Salmon Fillet, Raw",197,20,13,0
+"Cod, Raw",78,18,1,0
+Canned Tuna in Water,103,26,0,0
+"Shellfish, Raw",85,20,1,0
+Cavier,208,25,18,4
+Herring,140,23,12,0
+Salmon,136,22,12,0
+Mackerel,168,24,18,0
+Sardines,144,25,11,0
+Anchovy,156,29,10,0
+Bass,116,24,5,0
+Carp,120,23,7,0
+Flounder,104,24,2,0
+Haddock,100,24,1,0
+Sole,104,24,2,0
+Trout,140,27,8,0
+Burbot,104,25,1,0
+Halibut,120,27,3,0
+Tilapia,116,26,3,0
+Tuna,144,30,6,0
+Tuna (canned),148,29,8,0
+"Chicken, Legs",156,26,13,0
+Duck,188,19,28,0
+"Turkey, bacon",232,30,28,0
+"Chicken, Wings",160,21,19,0
+Goose,188,25,22,0
+Quail,156,25,14,0
+"Turkey, ground",160,27,13,0
+"Chicken, Breast",152,30,8,0
+"Turkey, breast",144,29,7,0
+Apples,58,0,0,14
+1 Avocado,240,3,22,13
+Bananas,99,1,0,23
+Dates,313,2,0,75
+Dried Fruit Mix,272,2,0,65
+Figs,82,1,0,19
+Kiwi,68,1,1,15
+Tangerines,59,1,0,13
+Mangos,72,1,0,17
+Oranges,52,1,0,12
+Peaches,44,1,0,10
+Pears,64,0,0,15
+Raisins,333,3,0,79
+Watermelon,34,1,0,8
+Lime,103,1,0,11
+Cranberry,108,0,0,12
+Raspberry,116,1,1,12
+Lemon,103,1,0,11
+Blackberry,94,1,0,10
+Rhubarb,49,1,0,5
+Tomato,40,1,0,4
+1/2 Avocado,120,2,11,7
+"Olive, green",100,1,15,4
+Watermelon,76,1,0,8
+Strawberry,76,1,0,8
+Apple,58,1,0,6
+Pomegranates,83,2,1,19
+"Plain Oats, Raw",378,16,6,65
+"Buckwheat, Raw",368,13,3,71
+"Bulgur, Raw",364,12,1,76
+"Pasta, Raw",366,13,2,75
+"Barley, Raw",363,10,1,78
+"Quinoa, Raw",368,14,6,64
+"Rice, Raw",354,7,1,80
+Whole-Wheat Wrap,271,9,7,44
+Whole-Wheat Bread,264,10,4,48
+Bun,252,9,4,45
+Rice Cakes,383,9,3,80
+Cereal,387,13,7,68
+Granola,435,9,11,75
+"Lentils, Raw",354,26,1,60
+"Beans, Raw",347,21,1,63
+"Chicken Breast, Raw",110,23,2,0
+"Lean Steak, Raw",129,21,5,0
+"Lean Ground Beef, Raw",129,21,5,0
+"Ground Turkey, Raw",129,21,5,0
+Quorn,103,15,3,5
+Tofu,87,9,5,3
+Tempeh,211,19,11,9
+"Pork, Prosciutto",224,29,18,4
+"Pork, Ham, 11%",155,23,9,3
+"Pork, Sausage",215,19,28,3
+"Pork, Liverwurst",186,14,28,2
+"Beef, Hot Dog/Frankfurter",214,31,18,2
+"Beef, Sausage",81,6,12,1
+"Pork, Bacon",321,38,40,1
+"Beef, Ground, 70% lean",176,26,18,0
+"Beef, Steak, Filet Mignon",152,20,18,0
+Pepperoni,268,23,44,0
+"Beef, Ground, 80% lean",176,27,17,0
+"Beef, Ground, 90% lean",160,28,12,0
+"Beef, Ribs",256,22,42,0
+"Beef, Roast",172,26,17,0
+"Beef, Pastrami",112,22,6,0
+"Beef, Steak, Ribeye",176,27,17,0
+"Beef, Steak, Round",176,34,10,0
+"Beef, Steak, Sirloin",164,27,14,0
+"Beef, Steak, Striploin",176,34,10,0
+"Beef, Tongue",164,19,22,0
+"Lamb, Chops",160,26,14,0
+"Pork, Chops",116,24,5,0
+"Pork, Loin",152,28,10,0
+"Beef, Corned",40,9,1,0
+Veal,160,30,10,0
+"Venison, Steak",128,30,2,0
+Almonds,620,21,51,20
+Brazil Nuts,704,14,66,12
+Cashew Nuts,588,18,44,30
+Macadamia Nuts,769,8,76,14
+Mixed Nuts,659,17,56,22
+Peanuts,611,26,49,16
+Pistachio Nuts,594,21,44,28
+Pecan Nuts,740,9,72,14
+Walnuts,703,15,65,14
+Cashews,545,18,44,33
+Pistachios,512,21,44,28
+Almonds,478,21,49,22
+Hazelnuts,470,15,62,18
+Peanuts,444,26,49,16
+Walnuts,446,15,65,14
+Coconut,279,3,33,15
+Macadamias,462,8,76,14
+Pecans,450,9,72,14
+Brazilnuts,428,14,66,12
+Canola Oil,891,0,99,0
+Coconut Oil,891,0,99,0
+Flaxseed Oil,891,0,99,0
+Olive Oil,891,0,99,0
+Sesame Oil,891,0,99,0
+Balsamic Vinegar,153,0,0,17
+Sunflower Butter,515,20,48,27
+Almond Butter,485,15,59,21
+Peanut Butter,465,24,54,17
+Mayonnaise,313,1,75,1
+Fish Oil (cod liver),400,0,100,0
+Safflower Oil,400,0,100,0
+Soybean Oil,400,0,100,0
+Walnut Oil,400,0,100,0
+Almond Oil,400,0,100,0
+Avocado Oil,400,0,100,0
+Canola Oil,400,0,100,0
+Flax Seed Oil,400,0,100,0
+Grape Seed Oil,400,0,100,0
+Hemp Seed Oil,372,0,93,0
+Macadamia Oil,400,0,100,0
+Olive Oil,400,0,100,0
+Peanut Oil,400,0,100,0
+Sesame Oil,400,0,100,0
+Butter (unsalted),316,0,79,0
+Cocoa Butter,400,0,100,0
+Coconut Oil,400,0,100,0
+Lard,400,0,100,0
+Sunflower Oil,400,0,100,0
+Vegetable Oil,400,0,100,0
+Chili Sauce,109,0,1,25
+Guacamole,171,2,14,9
+Hummus,177,5,9,20
+Ketchup,117,3,1,25
+Mayonnaise,400,1,33,24
+Mustard,75,4,3,8
+Soy Sauce,56,6,0,8
+Teriyaki Sauce,294,9,2,60
+Mixed Seeds,597,24,48,18
+Chia Seeds,515,17,31,42
+Pumpkin Seeds,565,33,42,13
+Sunflower Seeds,634,20,51,23
+Flax Seeds,568,18,42,29
+Safflower Seeds,522,16,38,34
+Pumpkin Seeds,446,25,46,18
+Sunflower Seeds,492,19,50,24
+Sesame Seeds,479,18,50,23
+Chia Seeds,584,16,31,44
+Hemp Seeds,391,37,45,7
+Flax Seeds,501,18,42,29
+Squid,172,18,7,8
+Mussels,175,24,4,7
+Oysters,99,7,2,7
+Clams,157,26,2,5
+Lobster,97,21,1,1
+Shrimp,88,21,1,0
+Crabmeat,84,19,2,0
+Honey,331,0,0,82
+Maple Syrup,270,0,0,67
+Sugar,400,0,0,100
+Candy,402,5,8,78
+Chocolate,538,8,30,59
+Soda,44,0,0,11
+Cookies,471,6,19,69
+Garlic,321,6,0,33
+Soy Bean,194,17,9,10
+Fennel bulb,67,1,0,7
+Green Bean,71,2,0,7
+Broccoli,66,3,0,6
+ Jalapeno,62,1,1,6
+Cabbage,58,1,0,6
+Parsley,70,3,1,6
+"Cauliflower, raw",53,2,0,5
+Arugula,52,3,1,4
+Asparagus,44,2,0,4
+Chard,44,2,0,4
+Spinach,48,3,0,4
+"Lettuce, Green Leaf",31,1,0,3
+White Mushrooms,22,3,0,2
+Zucchini,31,1,0,3
+Chicory Greens,53,2,0,5
+Radish,31,1,0,3
+Celery,31,1,0,3
+"Lettuce, Romaine",31,1,0,3
+Bok Choy,22,1,0,2
+Cucumber,22,1,0,2
+Broccoli Rabe,39,3,0,3
+Eggplant,31,1,0,3
+Endive,31,1,0,3
+Kale,106,3,1,10
+"Pepper, hot, red",89,2,0,9
+Onion,85,1,0,9
+Celeriac,85,1,0,9
+Spaghetti Squash,71,1,1,7
+Artichoke,111,3,0,11
+Pumpkin,58,1,0,6
+Brussel Sprouts,93,3,0,9
+"Carrots, raw",76,1,0,8
+Snow Pea,75,3,0,7
+"Pepper, sweet, yellow",58,1,0,6
+Okra,71,2,0,7
+Turnips,58,1,0,6
+"Pepper, sweet, red",58,1,0,6
+Mushrooms,53,2,0,5
+"Pepper, sweet, green",49,1,0,5
+Kohlrabi,62,2,0,6
+"Potato, Raw",77,2,0,17
+"Sweet Potato, Raw",87,2,0,20
+Corn,110,3,2,21
+Brussels Sprouts,44,1,0,9
+Cabbage,29,1,0,6
+Romaine Lettuce,21,1,0,3
+Spinach,29,3,0,4
+Asparagus,25,2,0,4
+Beets,46,2,0,10
+Broccoli,41,3,0,7
+Cauliflower,30,2,0,5
+Carrots,44,1,0,10
+Celery,16,1,0,3
+Cucumber,18,1,0,4
+Eggplant,29,1,0,6
+Green Beans,36,2,0,7
+Green Peas,80,5,0,14
+Green Peppers,24,1,0,5
+Mushrooms,29,3,0,3
+Leeks,65,2,0,14
+Onions,45,1,0,10
+Pumpkin,31,1,0,7
+Squash,39,1,0,9
+Sweet Red Peppers,31,1,0,6
+Tomatoes,21,1,0,4
+Zucchini,20,1,0,3
+"Bell Pepper, raw",23,1,0,5
+Yellow Sweet Corn,100,3,1,19
+Yellow Sweet Peppers,31,1,0,6
+Optimum Gold Standard Whey Protein Powder,380,87,4,1
+"Dark Chocolate, 45-59% Cacao",546,5,31,61
+"Dark Chocolate, 60-69% Cacao",579,6,38,52
+"Dark Chocolate, 70-85% Cacao",598,8,43,46
+Grapes,80,1,0,19
+Salt,0,0,0,0
+Water,0,0,0,0
+Ebly,355,12,1,70
+Perly,97,8,3,9
