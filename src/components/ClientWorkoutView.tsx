@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { 
   Dumbbell, 
   Clock,
@@ -56,47 +57,91 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
   const [workoutDuration, setWorkoutDuration] = useState(0);
   const [workoutProgram, setWorkoutProgram] = useState<WorkoutProgram | null>(null);
+  const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const SHARED_KEY = `client_${client.id}_assignment`;
   const [sharedVersion, setSharedVersion] = useState<number>(0);
 
-  // Real-time sync - Listen for changes from coach interface (single shared key)
+  // Real-time sync - Prefer Supabase assignment, fallback to localStorage
   useEffect(() => {
-    // Load initial from shared key
-    try {
-      const sharedRaw = localStorage.getItem(SHARED_KEY);
-      if (sharedRaw) {
-        const shared = JSON.parse(sharedRaw);
-        if (shared?.workoutAssignment?.program) {
-          setWorkoutProgram(shared.workoutAssignment.program);
-          setSharedVersion(shared.version || 0);
-        }
-      } else if (client.workoutAssignment?.program) {
-        setWorkoutProgram(client.workoutAssignment.program);
+    (async () => {
+      if (isSupabaseReady && supabase) {
+        try {
+          const { data: cRow } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('full_name', client.name)
+            .maybeSingle();
+          if (cRow?.id) {
+            const { data: asg } = await supabase
+              .from('workout_assignments')
+              .select('id, program_json, current_week, current_day, version')
+              .eq('client_id', cRow.id)
+              .eq('is_active', true)
+              .order('last_modified_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (asg?.id) {
+              setAssignmentId(asg.id);
+              if (asg.program_json) setWorkoutProgram(asg.program_json as WorkoutProgram);
+              if (asg.current_week) setCurrentWeek(asg.current_week);
+              if (typeof asg.current_day === 'number') setCurrentDay(Math.max(0, (asg.current_day || 1) - 1));
+              setSharedVersion(asg.version || 0);
+              return;
+            }
+          }
+        } catch {}
       }
-    } catch {}
-
-    // Define handler that reads fresh data from localStorage
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key !== SHARED_KEY) return;
+      // Fallback to local storage or prop
       try {
-        const shared = e.newValue ? JSON.parse(e.newValue) : null;
-        if (!shared) return;
-        if (typeof shared.version === 'number' && shared.version <= sharedVersion) return;
-        if (shared?.workoutAssignment?.program) {
-          console.log('🟢 CLIENT SYNC: Received coach update. Applying version', shared.version);
-          setWorkoutProgram(shared.workoutAssignment.program);
-          setSharedVersion(shared.version || 0);
+        const sharedRaw = localStorage.getItem(SHARED_KEY);
+        if (sharedRaw) {
+          const shared = JSON.parse(sharedRaw);
+          if (shared?.workoutAssignment?.program) {
+            setWorkoutProgram(shared.workoutAssignment.program);
+            setSharedVersion(shared.version || 0);
+          }
+        } else if (client.workoutAssignment?.program) {
+          setWorkoutProgram(client.workoutAssignment.program);
         }
       } catch {}
-    };
+    })();
 
-    // Listen for storage events
-    window.addEventListener('storage', handleStorageChange);
+    if (!isSupabaseReady || !supabase || !assignmentId) {
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key !== SHARED_KEY) return;
+        try {
+          const shared = e.newValue ? JSON.parse(e.newValue) : null;
+          if (!shared) return;
+          if (typeof shared.version === 'number' && shared.version <= sharedVersion) return;
+          if (shared?.workoutAssignment?.program) {
+            setWorkoutProgram(shared.workoutAssignment.program);
+            setSharedVersion(shared.version || 0);
+          }
+        } catch {}
+      };
+      window.addEventListener('storage', handleStorageChange);
+      return () => window.removeEventListener('storage', handleStorageChange);
+    }
+  }, [client.id, client.name, assignmentId, SHARED_KEY, sharedVersion]);
 
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [client.id, client.workoutAssignment?.lastModifiedAt, SHARED_KEY, sharedVersion]);
+  // Supabase realtime subscription
+  useEffect(() => {
+    if (isSupabaseReady && supabase && assignmentId) {
+      const channel = supabase
+        .channel(`assignment-${assignmentId}-client`)
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'workout_assignments',
+          filter: `id=eq.${assignmentId}`
+        }, (payload) => {
+          const row: any = payload.new;
+          if (row?.program_json) setWorkoutProgram(row.program_json as WorkoutProgram);
+        })
+        .subscribe();
+      return () => { supabase.removeChannel(channel); };
+    }
+  }, [assignmentId]);
 
   // Use assigned workout program or fallback to mock data
   const currentWorkoutProgram = workoutProgram || client.workoutAssignment?.program || {
@@ -209,10 +254,11 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
     }));
 
     // Update the actual workout program structure for real-time sync with coach
-    if (client.workoutAssignment && client.workoutAssignment.program) {
+    const baseProgram = workoutProgram || client.workoutAssignment?.program;
+    if (baseProgram) {
       const updatedProgram = {
-        ...client.workoutAssignment.program,
-        days: client.workoutAssignment.program.days.map((day, dayIndex) => 
+        ...baseProgram,
+        days: baseProgram.days.map((day, dayIndex) => 
           dayIndex === currentDay 
             ? {
                 ...day,
@@ -233,42 +279,49 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
         )
       };
 
-      const updatedAssignment = {
-        ...client.workoutAssignment,
-        program: updatedProgram,
-        lastModifiedBy: 'client' as const,
-        lastModifiedAt: new Date(),
-        clientPerformance: [
-          ...(client.workoutAssignment.clientPerformance || []),
-          {
-            weekNumber: currentWeek,
-            dayNumber: currentDay + 1,
-            exerciseId: exerciseId,
-            actualReps: field === 'reps' ? value : (exerciseData[exerciseId]?.[setIndex]?.reps || 0),
-            actualWeight: field === 'weight' ? value : (exerciseData[exerciseId]?.[setIndex]?.weight || 0),
-            completedAt: new Date()
-          }
-        ]
-      };
+      setWorkoutProgram(updatedProgram);
 
-      // Auto-save to single shared key for real-time sync with coach
-      try {
-        const existing = localStorage.getItem(SHARED_KEY);
-        const prev = existing ? JSON.parse(existing) : {};
-        const nextVersion = (prev?.version || 0) + 1;
-        const sharedData = {
-          clientName: client.name,
-          clientId: client.id,
-          workoutAssignment: updatedAssignment,
-          lastModifiedBy: 'client' as const,
-          lastModifiedAt: new Date().toISOString(),
-          version: nextVersion
-        };
-        localStorage.setItem(SHARED_KEY, JSON.stringify(sharedData));
-        setSharedVersion(nextVersion);
-        // Notify same-tab listeners
-        window.dispatchEvent(new StorageEvent('storage', { key: SHARED_KEY, newValue: JSON.stringify(sharedData) }));
-      } catch {}
+      if (isSupabaseReady && supabase && assignmentId) {
+        supabase
+          .from('workout_assignments')
+          .update({
+            program_json: updatedProgram as unknown as any,
+            current_week: currentWeek,
+            current_day: currentDay + 1,
+            last_modified_by: 'client'
+          })
+          .eq('id', assignmentId)
+          .then(() => {})
+          .catch(() => {});
+        // Optional: log performance
+        supabase.from('performance_logs').insert({
+          assignment_id: assignmentId,
+          week_number: currentWeek,
+          day_number: currentDay + 1,
+          exercise_id: exerciseId,
+          set_index: setIndex,
+          actual_reps: field === 'reps' ? value : (exerciseData[exerciseId]?.[setIndex]?.reps || 0),
+          actual_weight: field === 'weight' ? value : (exerciseData[exerciseId]?.[setIndex]?.weight || 0)
+        }).then(() => {}).catch(() => {});
+      } else {
+        // Fallback to shared key
+        try {
+          const existing = localStorage.getItem(SHARED_KEY);
+          const prev = existing ? JSON.parse(existing) : {};
+          const nextVersion = (prev?.version || 0) + 1;
+          const sharedData = {
+            clientName: client.name,
+            clientId: client.id,
+            workoutAssignment: { ...client.workoutAssignment, program: updatedProgram },
+            lastModifiedBy: 'client' as const,
+            lastModifiedAt: new Date().toISOString(),
+            version: nextVersion
+          };
+          localStorage.setItem(SHARED_KEY, JSON.stringify(sharedData));
+          setSharedVersion(nextVersion);
+          window.dispatchEvent(new StorageEvent('storage', { key: SHARED_KEY, newValue: JSON.stringify(sharedData) }));
+        } catch {}
+      }
     }
   };
 

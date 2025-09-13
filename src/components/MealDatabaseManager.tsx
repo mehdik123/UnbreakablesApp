@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Plus, 
   Search, 
@@ -7,71 +7,133 @@ import {
   Eye, 
   X, 
   ChefHat, 
-  Clock, 
-  Flame,
+  Clock,
   Utensils,
   ChevronDown,
   Grid3X3,
-  List
+  List,
 } from 'lucide-react';
-import { Meal, Ingredient } from '../types';
-import { foods } from '../data/foods';
+import { dbListMeals, dbListIngredients, dbAddMeal, dbUpdateMeal, dbDeleteMeal, dbAddMealItem, dbDeleteMealItem } from '../lib/db';
+
+interface DBMeal {
+  id: string;
+  name: string;
+  category?: string;
+  image?: string;
+  cooking_instructions?: string;
+  is_template?: boolean;
+  kcal_target?: number;
+  meal_items?: Array<{
+    id: string;
+    quantity: number;
+    ingredients: {
+      name: string;
+      kcal: number;
+      protein: number;
+      fat: number;
+      carbs: number;
+    };
+  }>;
+}
+
+interface DBIngredient {
+  id: string;
+  name: string;
+  kcal: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+}
 
 interface MealDatabaseManagerProps {
-  meals: Meal[];
-  onUpdateMeals: (meals: Meal[]) => void;
   onBack: () => void;
 }
 
-const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
-  meals,
-  onUpdateMeals,
-  onBack
-}) => {
+const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => {
+  const [meals, setMeals] = useState<DBMeal[]>([]);
+  const [ingredients, setIngredients] = useState<DBIngredient[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [isCreating, setIsCreating] = useState(false);
-  const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
-  const [viewingMeal, setViewingMeal] = useState<Meal | null>(null);
+  const [viewingMeal, setViewingMeal] = useState<DBMeal | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [editingMeal, setEditingMeal] = useState<DBMeal | null>(null);
+  const [loading, setLoading] = useState(false);
 
   // Form state for creating/editing meals
   const [formData, setFormData] = useState({
     name: '',
-    category: 'breakfast' as Meal['category'],
     image: '',
-    cookingInstructions: '',
-    ingredients: [] as Ingredient[]
+    cooking_instructions: '',
+    is_template: true,
+    kcal_target: 800,
+    selectedIngredients: [] as Array<{ ingredient: DBIngredient; quantity: number }>
   });
+
+  // Load data from Supabase
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    const [mealsResult, ingredientsResult] = await Promise.all([
+      dbListMeals(),
+      dbListIngredients()
+    ]);
+    
+    if (mealsResult.data) {
+      setMeals(mealsResult.data);
+    }
+    if (ingredientsResult.data) {
+      setIngredients(ingredientsResult.data);
+    }
+    setLoading(false);
+  };
 
   // Filter and search meals
   const filteredMeals = useMemo(() => {
     return meals.filter(meal => {
       const matchesSearch = meal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        meal.ingredients.some(ing => ing.food.name.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchesCategory = selectedCategory === 'all' || meal.category === selectedCategory;
-      return matchesSearch && matchesCategory;
+        (meal.meal_items || []).some(item => item.ingredients.name.toLowerCase().includes(searchTerm.toLowerCase()));
+      return matchesSearch;
     });
-  }, [meals, searchTerm, selectedCategory]);
+  }, [meals, searchTerm]);
 
-  // Categories for filtering
-  const categories = [
-    { value: 'all', label: 'All Meals', icon: Grid3X3 },
-    { value: 'breakfast', label: 'Breakfast', icon: Utensils },
-    { value: 'lunch', label: 'Lunch', icon: ChefHat },
-    { value: 'dinner', label: 'Dinner', icon: Clock },
-    { value: 'snack', label: 'Snacks', icon: Flame }
-  ];
+
+  // Calculate meal nutrition from meal_items
+  const calculateMealNutrition = (mealItems: DBMeal['meal_items']) => {
+    if (!mealItems || mealItems.length === 0) {
+      return { calories: 0, protein: 0, fat: 0, carbs: 0 };
+    }
+    
+    return mealItems.reduce((total, item) => {
+      // Handle potential undefined values
+      const ingredient = item.ingredients || {};
+      const quantity = item.quantity_g || item.quantity || 0;
+      const kcal = ingredient.kcal || 0;
+      const protein = ingredient.protein || 0;
+      const fat = ingredient.fat || 0;
+      const carbs = ingredient.carbs || 0;
+      
+      return {
+        calories: total.calories + (kcal * quantity / 100),
+        protein: total.protein + (protein * quantity / 100),
+        fat: total.fat + (fat * quantity / 100),
+        carbs: total.carbs + (carbs * quantity / 100)
+      };
+    }, { calories: 0, protein: 0, fat: 0, carbs: 0 });
+  };
 
   // Reset form
   const resetForm = () => {
     setFormData({
       name: '',
-      category: 'breakfast',
       image: '',
-      cookingInstructions: '',
-      ingredients: []
+      cooking_instructions: '',
+      is_template: true,
+      kcal_target: 800,
+      selectedIngredients: []
     });
     setIsCreating(false);
     setEditingMeal(null);
@@ -84,70 +146,135 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
   };
 
   // Start editing meal
-  const handleEditMeal = (meal: Meal) => {
+  const handleEditMeal = (meal: DBMeal) => {
     setFormData({
       name: meal.name,
-      category: meal.category,
-      image: meal.image,
-      cookingInstructions: meal.cookingInstructions,
-      ingredients: meal.ingredients
+      image: meal.image || '',
+      cooking_instructions: meal.cooking_instructions || '',
+      is_template: meal.is_template ?? true,
+      kcal_target: meal.kcal_target || 800,
+      selectedIngredients: (meal.meal_items || []).map(item => ({
+        ingredient: {
+          id: item.ingredients.name, // Using name as id for simplicity
+          name: item.ingredients.name,
+          kcal: item.ingredients.kcal,
+          protein: item.ingredients.protein,
+          fat: item.ingredients.fat,
+          carbs: item.ingredients.carbs
+        },
+        quantity: item.quantity_g || item.quantity || 100
+      }))
     });
     setEditingMeal(meal);
     setIsCreating(false);
   };
 
   // Save meal (create or update)
-  const handleSaveMeal = () => {
+  const handleSaveMeal = async () => {
     if (!formData.name.trim()) return;
 
-    const mealData: Meal = {
-      id: editingMeal?.id || `meal-${Date.now()}`,
-      name: formData.name.trim(),
-      category: formData.category,
-      image: formData.image || '/api/placeholder/300/200',
-      cookingInstructions: formData.cookingInstructions.trim(),
-      ingredients: formData.ingredients
-    };
+    setLoading(true);
+    try {
+      if (editingMeal) {
+        // Update existing meal
+        await dbUpdateMeal(editingMeal.id, {
+          name: formData.name.trim(),
+          image: formData.image || undefined,
+          cooking_instructions: formData.cooking_instructions.trim() || undefined,
+          is_template: formData.is_template,
+          kcal_target: formData.kcal_target
+        });
+        
+        // Update meal items (delete all and re-add)
+        // Note: This is simplified - in production you'd want to diff and update
+        for (const item of editingMeal.meal_items || []) {
+          await dbDeleteMealItem(item.id);
+        }
+        
+        for (const selectedIng of formData.selectedIngredients) {
+          const ingredient = ingredients.find(i => i.name === selectedIng.ingredient.name);
+          if (ingredient) {
+            await dbAddMealItem(editingMeal.id, ingredient.id, selectedIng.quantity);
+          }
+        }
+      } else {
+        // Create new meal
+        const mealResult = await dbAddMeal({
+          name: formData.name.trim(),
+          image: formData.image || undefined,
+          cooking_instructions: formData.cooking_instructions.trim() || undefined,
+          is_template: formData.is_template,
+          kcal_target: formData.kcal_target
+        });
 
-    if (editingMeal) {
-      // Update existing meal
-      const updatedMeals = meals.map(meal => 
-        meal.id === editingMeal.id ? mealData : meal
-      );
-      onUpdateMeals(updatedMeals);
-    } else {
-      // Create new meal
-      onUpdateMeals([...meals, mealData]);
+        if (mealResult.data) {
+          console.log('✅ Meal created successfully:', mealResult.data);
+          console.log('🥗 Adding meal items:', formData.selectedIngredients);
+          
+          // Add meal items
+          for (const selectedIng of formData.selectedIngredients) {
+            const ingredient = ingredients.find(i => i.name === selectedIng.ingredient.name);
+            if (ingredient) {
+              console.log(`📝 Adding ingredient: ${ingredient.name} (${selectedIng.quantity}g)`);
+              const itemResult = await dbAddMealItem(mealResult.data.id, ingredient.id, selectedIng.quantity);
+              console.log(`📋 Item result:`, itemResult);
+              
+              if (itemResult.error) {
+                console.error('❌ Error adding meal item:', itemResult.error);
+                alert(`Error adding ingredient ${ingredient.name}: ${itemResult.error.message}`);
+              }
+            } else {
+              console.error('❌ Ingredient not found:', selectedIng.ingredient.name);
+            }
+          }
+        }
+      }
+
+      // Reload data
+      await loadData();
+      resetForm();
+    } catch (error) {
+      console.error('Error saving meal:', error);
+      alert('Failed to save meal. Please try again.');
+    } finally {
+      setLoading(false);
     }
-
-    resetForm();
   };
 
   // Delete meal
-  const handleDeleteMeal = (mealId: string) => {
-    const updatedMeals = meals.filter(meal => meal.id !== mealId);
-    onUpdateMeals(updatedMeals);
-    setShowDeleteConfirm(null);
+  const handleDeleteMeal = async (mealId: string) => {
+    setLoading(true);
+    try {
+      await dbDeleteMeal(mealId);
+      await loadData();
+      setShowDeleteConfirm(null);
+    } catch (error) {
+      console.error('Error deleting meal:', error);
+      alert('Failed to delete meal. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Add ingredient to form
   const handleAddIngredient = () => {
-    const newIngredient: Ingredient = {
-      food: foods[0], // Default to first food
-      quantity: 100
-    };
+    if (ingredients.length === 0) return;
+    
     setFormData(prev => ({
       ...prev,
-      ingredients: [...prev.ingredients, newIngredient]
+      selectedIngredients: [...prev.selectedIngredients, {
+        ingredient: ingredients[0],
+        quantity: 100
+      }]
     }));
   };
 
   // Update ingredient in form
-  const handleUpdateIngredient = (index: number, field: 'food' | 'quantity', value: any) => {
+  const handleUpdateIngredient = (index: number, field: 'ingredient' | 'quantity', value: any) => {
     setFormData(prev => ({
       ...prev,
-      ingredients: prev.ingredients.map((ing, idx) => 
-        idx === index ? { ...ing, [field]: value } : ing
+      selectedIngredients: prev.selectedIngredients.map((item, idx) => 
+        idx === index ? { ...item, [field]: value } : item
       )
     }));
   };
@@ -156,22 +283,8 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
   const handleRemoveIngredient = (index: number) => {
     setFormData(prev => ({
       ...prev,
-      ingredients: prev.ingredients.filter((_, idx) => idx !== index)
+      selectedIngredients: prev.selectedIngredients.filter((_, idx) => idx !== index)
     }));
-  };
-
-  // Calculate meal nutrition
-  const calculateMealNutrition = (ingredients: Ingredient[]) => {
-    return ingredients.reduce((total, ingredient) => {
-      const food = ingredient.food;
-      const quantity = ingredient.quantity;
-      return {
-        calories: total.calories + (food.kcal * quantity / 100),
-        protein: total.protein + (food.protein * quantity / 100),
-        fat: total.fat + (food.fat * quantity / 100),
-        carbs: total.carbs + (food.carbs * quantity / 100)
-      };
-    }, { calories: 0, protein: 0, fat: 0, carbs: 0 });
   };
 
   return (
@@ -189,7 +302,7 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-white">Meal Database</h1>
-                <p className="text-slate-400 text-sm">Manage your meal collection</p>
+                <p className="text-slate-400 text-sm">Template meals with calculated ingredient portions (800 kcal target)</p>
               </div>
             </div>
             
@@ -230,26 +343,6 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
               </div>
             </div>
 
-            {/* Category Filter */}
-            <div className="flex space-x-2">
-              {categories.map((category) => {
-                const Icon = category.icon;
-                return (
-                  <button
-                    key={category.value}
-                    onClick={() => setSelectedCategory(category.value)}
-                    className={`flex items-center space-x-2 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
-                      selectedCategory === category.value
-                        ? 'bg-red-600 text-white shadow-lg shadow-red-500/25'
-                        : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 hover:text-white'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span className="hidden sm:block">{category.label}</span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </div>
 
@@ -317,7 +410,7 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
             : 'grid-cols-1'
         }`}>
           {filteredMeals.map((meal) => {
-            const nutrition = calculateMealNutrition(meal.ingredients);
+            const nutrition = calculateMealNutrition(meal.meal_items);
             return (
               <div
                 key={meal.id}
@@ -326,18 +419,12 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
                 {/* Meal Image */}
                 <div className="relative h-48 overflow-hidden">
                   <img
-                    src={meal.image}
+                    src={meal.image || '/api/placeholder/300/200'}
                     alt={meal.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
                   
-                  {/* Category Badge */}
-                  <div className="absolute top-4 left-4">
-                    <span className="px-3 py-1 bg-red-600/90 text-white text-xs font-bold rounded-full uppercase tracking-wide">
-                      {meal.category}
-                    </span>
-                  </div>
 
                   {/* Actions */}
                   <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -366,9 +453,10 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
 
                 {/* Meal Content */}
                 <div className="p-6">
-                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-red-400 transition-colors duration-200">
+                        <h3 className="text-xl font-bold text-white mb-2 group-hover:text-red-400 transition-colors duration-200">
                     {meal.name}
                   </h3>
+                  <p className="text-slate-400 capitalize mb-4">{meal.category || 'uncategorized'}</p>
                   
                   {/* Nutrition Info */}
                   <div className="grid grid-cols-2 gap-3 mb-4">
@@ -386,28 +474,28 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
                   <div className="mb-4">
                     <p className="text-slate-400 text-sm font-medium mb-2">Ingredients:</p>
                     <div className="flex flex-wrap gap-1">
-                      {meal.ingredients.slice(0, 3).map((ingredient, idx) => (
+                      {(meal.meal_items || []).slice(0, 3).map((item, idx) => (
                         <span
                           key={idx}
                           className="px-2 py-1 bg-slate-700/50 text-slate-300 text-xs rounded-full"
                         >
-                          {ingredient.food.name}
+                          {item.ingredients.name}
                         </span>
                       ))}
-                      {meal.ingredients.length > 3 && (
+                      {(meal.meal_items || []).length > 3 && (
                         <span className="px-2 py-1 bg-slate-700/50 text-slate-400 text-xs rounded-full">
-                          +{meal.ingredients.length - 3} more
+                          +{(meal.meal_items || []).length - 3} more
                         </span>
                       )}
                     </div>
                   </div>
 
                   {/* Cooking Instructions Preview */}
-                  {meal.cookingInstructions && (
+                  {meal.cooking_instructions && (
                     <div className="mb-4">
                       <p className="text-slate-400 text-sm font-medium mb-1">Instructions:</p>
                       <p className="text-slate-300 text-sm line-clamp-2">
-                        {meal.cookingInstructions}
+                        {meal.cooking_instructions}
                       </p>
                     </div>
                   )}
@@ -425,22 +513,95 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
             </div>
             <h3 className="text-xl font-bold text-white mb-2">No meals found</h3>
             <p className="text-slate-400 mb-6">
-              {searchTerm || selectedCategory !== 'all' 
-                ? 'Try adjusting your search or filters'
-                : 'Start building your meal database'
+              {searchTerm 
+                ? 'Try adjusting your search'
+                : 'No meals available in the database'
               }
             </p>
-            {!searchTerm && selectedCategory === 'all' && (
-              <button
-                onClick={handleCreateMeal}
-                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-red-500/25"
-              >
-                Add Your First Meal
-              </button>
-            )}
           </div>
         )}
       </div>
+
+      {/* View Meal Modal */}
+      {viewingMeal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-slate-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white">{viewingMeal.name}</h2>
+                <button
+                  onClick={() => setViewingMeal(null)}
+                  className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors duration-200"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {/* Meal Image */}
+              <div className="mb-6">
+                <img
+                  src={viewingMeal.image || '/api/placeholder/400/300'}
+                  alt={viewingMeal.name}
+                  className="w-full h-48 object-cover rounded-xl"
+                />
+              </div>
+
+              {/* Nutrition Info */}
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-white mb-4">Nutrition Information</h3>
+                <div className="grid grid-cols-4 gap-4">
+                  {Object.entries(calculateMealNutrition(viewingMeal.meal_items)).map(([key, value]) => (
+                    <div key={key} className="text-center p-4 bg-slate-700/50 rounded-xl">
+                      <p className="text-2xl font-bold text-red-400">{Math.round(value)}</p>
+                      <p className="text-sm text-slate-400 capitalize">{key}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Ingredients */}
+              <div className="mb-6">
+                <h3 className="text-lg font-bold text-white mb-4">Ingredients & Portions</h3>
+                <div className="space-y-2">
+                  {(viewingMeal.meal_items || []).map((item, index) => {
+                    const ingredientKcal = (item.ingredients.kcal * item.quantity / 100);
+                    const ingredientProtein = (item.ingredients.protein * item.quantity / 100);
+                    return (
+                      <div key={index} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+                        <div className="flex-1">
+                          <span className="text-white font-medium">{item.ingredients.name}</span>
+                          <div className="text-xs text-slate-400 mt-1">
+                            {Math.round(ingredientKcal)} kcal • {Math.round(ingredientProtein)}g protein
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-slate-300 font-medium">{item.quantity}g</span>
+                          <div className="text-xs text-slate-400">portion</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="mt-4 p-3 bg-red-600/10 border border-red-600/20 rounded-lg">
+                  <p className="text-red-400 text-sm font-medium">
+                    💡 These portions are calculated to achieve the target {viewingMeal.kcal_target || 800} kcal
+                  </p>
+                </div>
+              </div>
+
+              {/* Cooking Instructions */}
+              {viewingMeal.cooking_instructions && (
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-4">Cooking Instructions</h3>
+                  <p className="text-slate-300 leading-relaxed">{viewingMeal.cooking_instructions}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create/Edit Meal Modal */}
       {(isCreating || editingMeal) && (
@@ -476,20 +637,40 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
                   />
                 </div>
 
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Category
+                    Target Calories
                   </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as Meal['category'] }))}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
-                  >
-                    <option value="breakfast">Breakfast</option>
-                    <option value="lunch">Lunch</option>
-                    <option value="dinner">Dinner</option>
-                    <option value="snack">Snack</option>
-                  </select>
+                  <input
+                    type="number"
+                    value={formData.kcal_target}
+                    onChange={(e) => setFormData(prev => ({ ...prev, kcal_target: parseInt(e.target.value) || 800 }))}
+                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
+                    min="100"
+                    max="2000"
+                    step="50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Template Meal
+                  </label>
+                  <div className="flex items-center space-x-3 h-12">
+                    <input
+                      type="checkbox"
+                      id="is_template"
+                      checked={formData.is_template}
+                      onChange={(e) => setFormData(prev => ({ ...prev, is_template: e.target.checked }))}
+                      className="w-4 h-4 text-red-600 bg-slate-700 border-slate-600 rounded focus:ring-red-500 focus:ring-2"
+                    />
+                    <label htmlFor="is_template" className="text-slate-300 text-sm">
+                      Use as template for client meal plans
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -511,8 +692,8 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
                   Cooking Instructions
                 </label>
                 <textarea
-                  value={formData.cookingInstructions}
-                  onChange={(e) => setFormData(prev => ({ ...prev, cookingInstructions: e.target.value }))}
+                  value={formData.cooking_instructions}
+                  onChange={(e) => setFormData(prev => ({ ...prev, cooking_instructions: e.target.value }))}
                   rows={4}
                   className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
                   placeholder="Enter cooking instructions..."
@@ -535,20 +716,22 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
                 </div>
 
                 <div className="space-y-3">
-                  {formData.ingredients.map((ingredient, index) => (
+                  {formData.selectedIngredients.map((item, index) => (
                     <div key={index} className="flex items-center space-x-4 p-4 bg-slate-700/50 rounded-xl">
                       <div className="flex-1">
                         <select
-                          value={ingredient.food.name}
+                          value={item.ingredient.name}
                           onChange={(e) => {
-                            const food = foods.find(f => f.name === e.target.value) || foods[0];
-                            handleUpdateIngredient(index, 'food', food);
+                            const ingredient = ingredients.find(i => i.name === e.target.value);
+                            if (ingredient) {
+                              handleUpdateIngredient(index, 'ingredient', ingredient);
+                            }
                           }}
                           className="w-full px-3 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500/50"
                         >
-                          {foods.map(food => (
-                            <option key={food.name} value={food.name}>
-                              {food.name}
+                          {ingredients.map(ingredient => (
+                            <option key={ingredient.id} value={ingredient.name}>
+                              {ingredient.name}
                             </option>
                           ))}
                         </select>
@@ -556,7 +739,7 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
                       <div className="flex items-center space-x-2">
                         <input
                           type="number"
-                          value={ingredient.quantity}
+                          value={item.quantity}
                           onChange={(e) => handleUpdateIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
                           className="w-20 px-3 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-red-500/50"
                           min="0"
@@ -576,16 +759,47 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
               </div>
 
               {/* Nutrition Preview */}
-              {formData.ingredients.length > 0 && (
+              {formData.selectedIngredients.length > 0 && (
                 <div className="p-4 bg-slate-700/30 rounded-xl">
-                  <h4 className="text-lg font-bold text-white mb-3">Nutrition Preview</h4>
-                  <div className="grid grid-cols-4 gap-4">
-                    {Object.entries(calculateMealNutrition(formData.ingredients)).map(([key, value]) => (
-                      <div key={key} className="text-center">
-                        <p className="text-2xl font-bold text-red-400">{Math.round(value)}</p>
-                        <p className="text-xs text-slate-400 capitalize">{key}</p>
-                      </div>
-                    ))}
+                  <h4 className="text-lg font-bold text-white mb-3">Nutrition Calculator</h4>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    {(() => {
+                      const nutrition = formData.selectedIngredients.reduce((total, item) => ({
+                        calories: total.calories + (item.ingredient.kcal * item.quantity / 100),
+                        protein: total.protein + (item.ingredient.protein * item.quantity / 100),
+                        fat: total.fat + (item.ingredient.fat * item.quantity / 100),
+                        carbs: total.carbs + (item.ingredient.carbs * item.quantity / 100)
+                      }), { calories: 0, protein: 0, fat: 0, carbs: 0 });
+
+                      const targetKcal = formData.kcal_target;
+                      const currentKcal = nutrition.calories;
+                      const isCloseToTarget = Math.abs(currentKcal - targetKcal) <= 50;
+                      
+                      return (
+                        <>
+                          {Object.entries(nutrition).map(([key, value]) => (
+                            <div key={key} className="text-center">
+                              <p className={`text-2xl font-bold ${key === 'calories' ? 
+                                (isCloseToTarget ? 'text-green-400' : 'text-red-400') : 'text-slate-300'}`}>
+                                {Math.round(value)}{key === 'calories' ? '' : 'g'}
+                              </p>
+                              <p className="text-xs text-slate-400 capitalize">{key}</p>
+                            </div>
+                          ))}
+                        </>
+                      );
+                    })()}
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-slate-600/30 rounded-lg">
+                    <span className="text-slate-300">Target vs Current:</span>
+                    <span className={`font-bold ${(() => {
+                      const current = formData.selectedIngredients.reduce((total, item) => 
+                        total + (item.ingredient.kcal * item.quantity / 100), 0);
+                      const diff = Math.abs(current - formData.kcal_target);
+                      return diff <= 50 ? 'text-green-400' : diff <= 100 ? 'text-yellow-400' : 'text-red-400';
+                    })()}`}>
+                      {formData.kcal_target} kcal target
+                    </span>
                   </div>
                 </div>
               )}
@@ -600,75 +814,12 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
               </button>
               <button
                 onClick={handleSaveMeal}
-                disabled={!formData.name.trim() || formData.ingredients.length === 0}
-                className="px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all duration-200"
+                disabled={!formData.name.trim() || formData.selectedIngredients.length === 0 || loading}
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all duration-200 flex items-center space-x-2"
               >
-                {editingMeal ? 'Update Meal' : 'Create Meal'}
+                {loading && <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
+                <span>{editingMeal ? 'Update Meal' : 'Create Meal'}</span>
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* View Meal Modal */}
-      {viewingMeal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-slate-700">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-white">{viewingMeal.name}</h2>
-                <button
-                  onClick={() => setViewingMeal(null)}
-                  className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors duration-200"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6">
-              {/* Meal Image */}
-              <div className="mb-6">
-                <img
-                  src={viewingMeal.image}
-                  alt={viewingMeal.name}
-                  className="w-full h-48 object-cover rounded-xl"
-                />
-              </div>
-
-              {/* Nutrition Info */}
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-white mb-4">Nutrition Information</h3>
-                <div className="grid grid-cols-4 gap-4">
-                  {Object.entries(calculateMealNutrition(viewingMeal.ingredients)).map(([key, value]) => (
-                    <div key={key} className="text-center p-4 bg-slate-700/50 rounded-xl">
-                      <p className="text-2xl font-bold text-red-400">{Math.round(value)}</p>
-                      <p className="text-sm text-slate-400 capitalize">{key}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Ingredients */}
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-white mb-4">Ingredients</h3>
-                <div className="space-y-2">
-                  {viewingMeal.ingredients.map((ingredient, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
-                      <span className="text-white font-medium">{ingredient.food.name}</span>
-                      <span className="text-slate-400">{ingredient.quantity}g</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Cooking Instructions */}
-              {viewingMeal.cookingInstructions && (
-                <div>
-                  <h3 className="text-lg font-bold text-white mb-4">Cooking Instructions</h3>
-                  <p className="text-slate-300 leading-relaxed">{viewingMeal.cookingInstructions}</p>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -691,9 +842,11 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({
               </button>
               <button
                 onClick={() => handleDeleteMeal(showDeleteConfirm)}
-                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-all duration-200"
+                disabled={loading}
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-slate-600 text-white rounded-xl font-medium transition-all duration-200 flex items-center space-x-2"
               >
-                Delete
+                {loading && <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
+                <span>Delete</span>
               </button>
             </div>
           </div>

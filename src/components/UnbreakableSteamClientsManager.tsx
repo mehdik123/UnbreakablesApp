@@ -227,6 +227,8 @@ interface UnbreakableSteamClientsManagerProps {
   onDuplicateClient: (client: Client) => void;
   onNavigateToMealDatabase: () => void;
   onNavigateToExerciseDatabase: () => void;
+  onNavigateToIngredients: () => void;
+  onNavigateToTemplates: () => void;
 }
 
 export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsManagerProps> = ({
@@ -239,7 +241,9 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   onNavigateToClientPlan,
   onDuplicateClient,
   onNavigateToMealDatabase,
-  onNavigateToExerciseDatabase
+  onNavigateToExerciseDatabase,
+  onNavigateToIngredients,
+  onNavigateToTemplates
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGoal, setFilterGoal] = useState<string>('all');
@@ -387,20 +391,36 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                   className="w-80 pl-10 pr-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200"
                 />
               </div>
-              <button
-                onClick={onNavigateToMealDatabase}
-                className="flex items-center space-x-2 px-6 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium transition-all duration-200 shadow-lg"
-              >
-                <Utensils className="w-4 h-4" />
-                <span>Meal Database</span>
-              </button>
-              <button
-                onClick={onNavigateToExerciseDatabase}
-                className="flex items-center space-x-2 px-6 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium transition-all duration-200 shadow-lg"
-              >
-                <Dumbbell className="w-4 h-4" />
-                <span>Exercise Database</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={onNavigateToMealDatabase}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium transition-all duration-200"
+                >
+                  <Utensils className="w-4 h-4" />
+                  <span className="hidden md:block">Meal Database</span>
+                </button>
+                <button
+                  onClick={onNavigateToIngredients}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium transition-all duration-200"
+                >
+                  <Utensils className="w-4 h-4" />
+                  <span className="hidden md:block">Ingredients</span>
+                </button>
+                <button
+                  onClick={onNavigateToExerciseDatabase}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium transition-all duration-200"
+                >
+                  <Dumbbell className="w-4 h-4" />
+                  <span className="hidden md:block">Exercise Database</span>
+                </button>
+                <button
+                  onClick={onNavigateToTemplates}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-medium transition-all duration-200"
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                  <span className="hidden md:block">Templates</span>
+                </button>
+              </div>
               <button
                 onClick={() => setShowAddModal(true)}
                 className="flex items-center space-x-2 px-6 py-2 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white font-medium hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg"

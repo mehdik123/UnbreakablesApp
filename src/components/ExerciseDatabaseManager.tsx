@@ -25,182 +25,148 @@ import {
   Clock,
   Zap
 } from 'lucide-react';
-import { Exercise } from '../types';
-import { exercises, muscleGroups, equipment, difficulties, categories } from '../data/exercises';
+import { dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise } from '../lib/db';
+import { supabase, isSupabaseReady } from '../lib/supabaseClient';
+
+// Simplified exercise type matching Supabase schema
+interface DBExercise {
+  id: string;
+  name: string;
+  muscle_group: string;
+  video_url?: string;
+}
 
 interface ExerciseDatabaseManagerProps {
-  exercises: Exercise[];
-  onUpdateExercises: (exercises: Exercise[]) => void;
-  isDark: boolean;
   onBack: () => void;
 }
 
-export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = ({
-  exercises,
-  onUpdateExercises,
-  isDark,
-  onBack
-}) => {
-  const [exercisesList, setExercisesList] = useState<Exercise[]>(exercises);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+const muscleGroups = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio'];
 
-  // Update local state when exercises prop changes
+export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = ({ onBack }) => {
+  const [exercisesList, setExercisesList] = useState<DBExercise[]>([]);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [loading, setLoading] = useState(true);
+
+  // Load exercises from Supabase on mount
   useEffect(() => {
-    setExercisesList(exercises);
-  }, [exercises]);
+    loadExercises();
+  }, []);
+
+  const loadExercises = async () => {
+    setLoading(true);
+    console.log('Loading exercises...');
+    console.log('Supabase connection test:', { isSupabaseReady, supabase: !!supabase });
+    
+    // Test direct Supabase query
+    if (supabase) {
+      console.log('Testing direct Supabase query...');
+      const directResult = await supabase.from('exercises').select('*').limit(5);
+      console.log('Direct Supabase result:', directResult);
+    }
+    
+    const { data, error } = await dbListExercises();
+    console.log('Exercise load result:', { data, error, count: data?.length });
+    if (data) setExercisesList(data);
+    setLoading(false);
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState<string>('all');
-  const [selectedEquipment, setSelectedEquipment] = useState<string>('all');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [showFilters, setShowFilters] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
+  const [editingExercise, setEditingExercise] = useState<DBExercise | null>(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [selectedVideoUrl, setSelectedVideoUrl] = useState('');
 
-  const [newExercise, setNewExercise] = useState<Partial<Exercise>>({
+  const [newExercise, setNewExercise] = useState<Partial<DBExercise>>({
     name: '',
-    muscleGroup: '',
-    equipment: '',
-    instructions: '',
-    videoUrl: '',
-    imageUrl: '',
-    difficulty: 'beginner',
-    category: 'strength',
-    primaryMuscles: [],
-    secondaryMuscles: []
+    muscle_group: '',
+    video_url: ''
   });
 
   const filteredExercises = useMemo(() => {
     return exercisesList.filter(exercise => {
       const matchesSearch = searchTerm === '' || 
         exercise.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        exercise.muscleGroup.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (exercise.instructions || '').toLowerCase().includes(searchTerm.toLowerCase());
+        (exercise.muscle_group || '').toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesMuscleGroup = selectedMuscleGroup === 'all' || exercise.muscleGroup === selectedMuscleGroup;
-      const matchesEquipment = selectedEquipment === 'all' || exercise.equipment === selectedEquipment;
-      const matchesDifficulty = selectedDifficulty === 'all' || exercise.difficulty === selectedDifficulty;
-      const matchesCategory = selectedCategory === 'all' || exercise.category === selectedCategory;
+      const matchesMuscleGroup = selectedMuscleGroup === 'all' || exercise.muscle_group === selectedMuscleGroup;
       
-      return matchesSearch && matchesMuscleGroup && matchesEquipment && matchesDifficulty && matchesCategory;
+      return matchesSearch && matchesMuscleGroup;
     });
-  }, [exercisesList, searchTerm, selectedMuscleGroup, selectedEquipment, selectedDifficulty, selectedCategory]);
+  }, [exercisesList, searchTerm, selectedMuscleGroup]);
 
-  const handleAddExercise = () => {
-    if (!newExercise.name || !newExercise.muscleGroup || !newExercise.equipment) {
+  const handleAddExercise = async () => {
+    if (!newExercise.name || !newExercise.muscle_group) {
       alert('Please fill in all required fields');
       return;
     }
 
-    const exercise: Exercise = {
-      id: `exercise-${Date.now()}`,
-      name: newExercise.name!,
-      muscleGroup: newExercise.muscleGroup!,
-      equipment: newExercise.equipment!,
-      instructions: newExercise.instructions || '',
-      videoUrl: newExercise.videoUrl || '',
-      imageUrl: newExercise.imageUrl || '',
-      difficulty: newExercise.difficulty as 'beginner' | 'intermediate' | 'advanced',
-      category: newExercise.category as 'strength' | 'cardio' | 'flexibility' | 'sports',
-      primaryMuscles: newExercise.primaryMuscles || [],
-      secondaryMuscles: newExercise.secondaryMuscles || [],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    const updatedExercises = [...exercisesList, exercise];
-    setExercisesList(updatedExercises);
-    onUpdateExercises(updatedExercises);
-    setNewExercise({
-      name: '',
-      muscleGroup: '',
-      equipment: '',
-      instructions: '',
-      videoUrl: '',
-      imageUrl: '',
-      difficulty: 'beginner',
-      category: 'strength',
-      primaryMuscles: [],
-      secondaryMuscles: []
+    const { data } = await dbAddExercise({
+      name: newExercise.name,
+      muscle_group: newExercise.muscle_group,
+      video_url: newExercise.video_url || ''
     });
-    setShowAddModal(false);
+
+    if (data) {
+      await loadExercises(); // Refresh list
+      setNewExercise({ name: '', muscle_group: '', video_url: '' });
+      setShowAddModal(false);
+    }
   };
 
-  const handleEditExercise = (exercise: Exercise) => {
+  const handleEditExercise = (exercise: DBExercise) => {
     setEditingExercise(exercise);
     setShowEditModal(true);
   };
 
-  const handleUpdateExercise = () => {
+  const handleUpdateExercise = async () => {
     if (!editingExercise) return;
 
-    const updatedExercises = exercisesList.map(exercise => 
-      exercise.id === editingExercise.id 
-        ? { ...editingExercise, updatedAt: new Date() }
-        : exercise
-    );
-    
-    setExercisesList(updatedExercises);
-    onUpdateExercises(updatedExercises);
-    setEditingExercise(null);
-    setShowEditModal(false);
+    const { data } = await dbUpdateExercise(editingExercise.id, {
+      name: editingExercise.name,
+      muscle_group: editingExercise.muscle_group,
+      video_url: editingExercise.video_url || ''
+    });
+
+    if (data) {
+      await loadExercises(); // Refresh list
+      setEditingExercise(null);
+      setShowEditModal(false);
+    }
   };
 
-  const handleDeleteExercise = (exerciseId: string) => {
+  const handleDeleteExercise = async (exerciseId: string) => {
     if (window.confirm('Are you sure you want to delete this exercise?')) {
-      const updatedExercises = exercisesList.filter(exercise => exercise.id !== exerciseId);
-      setExercisesList(updatedExercises);
-      onUpdateExercises(updatedExercises);
+      await dbDeleteExercise(exerciseId);
+      await loadExercises(); // Refresh list
     }
   };
 
-  const handleDuplicateExercise = (exercise: Exercise) => {
-    const duplicatedExercise: Exercise = {
-      ...exercise,
-      id: `exercise-${Date.now()}`,
+  const handleDuplicateExercise = async (exercise: DBExercise) => {
+    const { data } = await dbAddExercise({
       name: `${exercise.name} (Copy)`,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    const updatedExercises = [...exercisesList, duplicatedExercise];
-    setExercisesList(updatedExercises);
-    onUpdateExercises(updatedExercises);
-  };
+      muscle_group: exercise.muscle_group,
+      video_url: exercise.video_url || ''
+    });
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'beginner': return 'text-green-600 bg-green-100';
-      case 'intermediate': return 'text-blue-600 bg-blue-100';
-      case 'advanced': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+    if (data) {
+      await loadExercises(); // Refresh list
     }
   };
 
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'strength': return 'text-purple-600 bg-purple-100';
-      case 'cardio': return 'text-orange-600 bg-orange-100';
-      case 'flexibility': return 'text-blue-600 bg-blue-100';
-      case 'sports': return 'text-green-600 bg-green-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
 
   const ExerciseForm = ({ exercise, onSave, onCancel, title }: {
-    exercise: Partial<Exercise>;
+    exercise: Partial<DBExercise>;
     onSave: () => void;
     onCancel: () => void;
     title: string;
   }) => (
     <div className="space-y-6">
-      <h3 className="text-2xl font-bold text-purple-600">{title}</h3>
+      <h3 className="text-2xl font-bold text-red-400">{title}</h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-semibold mb-2">Exercise Name *</label>
+          <label className="block text-sm font-semibold mb-2 text-slate-300">Exercise Name *</label>
           <input
             type="text"
             value={exercise.name || ''}
@@ -211,31 +177,23 @@ export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = (
                 setNewExercise({ ...newExercise, name: e.target.value });
               }
             }}
-            className={`w-full px-4 py-3 rounded-2xl border-2 text-lg font-semibold ${
-              isDark 
-                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-            }`}
+            className="w-full px-4 py-3 rounded-xl border bg-slate-700 border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50"
             placeholder="e.g., Bench Press"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold mb-2">Muscle Group *</label>
+          <label className="block text-sm font-semibold mb-2 text-slate-300">Muscle Group *</label>
           <select
-            value={exercise.muscleGroup || ''}
+            value={exercise.muscle_group || ''}
             onChange={(e) => {
               if (editingExercise) {
-                setEditingExercise({ ...editingExercise, muscleGroup: e.target.value });
+                setEditingExercise({ ...editingExercise, muscle_group: e.target.value });
               } else {
-                setNewExercise({ ...newExercise, muscleGroup: e.target.value });
+                setNewExercise({ ...newExercise, muscle_group: e.target.value });
               }
             }}
-            className={`w-full px-4 py-3 rounded-2xl border-2 text-lg font-semibold ${
-              isDark 
-                ? 'bg-gray-700 border-gray-600 text-white' 
-                : 'bg-white border-gray-300 text-gray-900'
-            }`}
+            className="w-full px-4 py-3 rounded-xl border bg-slate-700 border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50"
           >
             <option value="">Select Muscle Group</option>
             {muscleGroups.map(group => (
@@ -244,133 +202,34 @@ export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = (
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold mb-2">Equipment *</label>
-          <select
-            value={exercise.equipment || ''}
-            onChange={(e) => {
-              if (editingExercise) {
-                setEditingExercise({ ...editingExercise, equipment: e.target.value });
-              } else {
-                setNewExercise({ ...newExercise, equipment: e.target.value });
-              }
-            }}
-            className={`w-full px-4 py-3 rounded-2xl border-2 text-lg font-semibold ${
-              isDark 
-                ? 'bg-gray-700 border-gray-600 text-white' 
-                : 'bg-white border-gray-300 text-gray-900'
-            }`}
-          >
-            <option value="">Select Equipment</option>
-            {equipment.map(eq => (
-              <option key={eq} value={eq}>{eq}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold mb-2">Difficulty</label>
-          <select
-            value={exercise.difficulty || 'beginner'}
-            onChange={(e) => {
-              if (editingExercise) {
-                setEditingExercise({ ...editingExercise, difficulty: e.target.value as any });
-              } else {
-                setNewExercise({ ...newExercise, difficulty: e.target.value as any });
-              }
-            }}
-            className={`w-full px-4 py-3 rounded-2xl border-2 text-lg font-semibold ${
-              isDark 
-                ? 'bg-gray-700 border-gray-600 text-white' 
-                : 'bg-white border-gray-300 text-gray-900'
-            }`}
-          >
-            {difficulties.map(diff => (
-              <option key={diff} value={diff}>{diff.charAt(0).toUpperCase() + diff.slice(1)}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold mb-2">Category</label>
-          <select
-            value={exercise.category || 'strength'}
-            onChange={(e) => {
-              if (editingExercise) {
-                setEditingExercise({ ...editingExercise, category: e.target.value as any });
-              } else {
-                setNewExercise({ ...newExercise, category: e.target.value as any });
-              }
-            }}
-            className={`w-full px-4 py-3 rounded-2xl border-2 text-lg font-semibold ${
-              isDark 
-                ? 'bg-gray-700 border-gray-600 text-white' 
-                : 'bg-white border-gray-300 text-gray-900'
-            }`}
-          >
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold mb-2">Video URL</label>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-semibold mb-2 text-slate-300">Video URL</label>
           <input
             type="url"
-            value={exercise.videoUrl || ''}
+            value={exercise.video_url || ''}
             onChange={(e) => {
               if (editingExercise) {
-                setEditingExercise({ ...editingExercise, videoUrl: e.target.value });
+                setEditingExercise({ ...editingExercise, video_url: e.target.value });
               } else {
-                setNewExercise({ ...newExercise, videoUrl: e.target.value });
+                setNewExercise({ ...newExercise, video_url: e.target.value });
               }
             }}
-            className={`w-full px-4 py-3 rounded-2xl border-2 text-lg font-semibold ${
-              isDark 
-                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-            }`}
+            className="w-full px-4 py-3 rounded-xl border bg-slate-700 border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50"
             placeholder="https://youtube.com/watch?v=..."
           />
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-semibold mb-2">Instructions</label>
-        <textarea
-          value={exercise.instructions || ''}
-          onChange={(e) => {
-            if (editingExercise) {
-              setEditingExercise({ ...editingExercise, instructions: e.target.value });
-            } else {
-              setNewExercise({ ...newExercise, instructions: e.target.value });
-            }
-          }}
-          rows={4}
-          className={`w-full px-4 py-3 rounded-2xl border-2 text-lg font-semibold ${
-            isDark 
-              ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-              : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
-          }`}
-          placeholder="Detailed exercise instructions..."
-        />
-      </div>
-
       <div className="flex justify-end space-x-4">
         <button
           onClick={onCancel}
-          className={`px-6 py-3 rounded-2xl text-lg font-semibold ${
-            isDark 
-              ? 'bg-gray-600 hover:bg-gray-500 text-white' 
-              : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-          }`}
+          className="px-6 py-3 rounded-xl font-medium bg-slate-700 hover:bg-slate-600 text-white transition-all duration-200"
         >
           Cancel
         </button>
         <button
           onClick={onSave}
-          className="px-6 py-3 rounded-2xl text-lg font-semibold bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white"
+          className="px-6 py-3 rounded-xl font-medium bg-red-600 hover:bg-red-700 text-white transition-all duration-200"
         >
           Save Exercise
         </button>
@@ -435,76 +294,23 @@ export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = (
               </div>
             </div>
 
-            {/* Filter Button */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center space-x-2 px-4 py-3 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white rounded-xl font-medium transition-all duration-200"
-            >
-              <Filter className="w-4 h-4" />
-              <span>Filters</span>
-              {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
           </div>
 
-          {showFilters && (
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Muscle Group</label>
-                <select
-                  value={selectedMuscleGroup}
-                  onChange={(e) => setSelectedMuscleGroup(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
-                >
-                  <option value="all">All Muscle Groups</option>
-                  {muscleGroups.map(group => (
-                    <option key={group} value={group}>{group}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Equipment</label>
-                <select
-                  value={selectedEquipment}
-                  onChange={(e) => setSelectedEquipment(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
-                >
-                  <option value="all">All Equipment</option>
-                  {equipment.map(eq => (
-                    <option key={eq} value={eq}>{eq}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Difficulty</label>
-                <select
-                  value={selectedDifficulty}
-                  onChange={(e) => setSelectedDifficulty(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
-                >
-                <option value="all">All Levels</option>
-                {difficulties.map(diff => (
-                  <option key={diff} value={diff}>{diff.charAt(0).toUpperCase() + diff.slice(1)}</option>
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-2">Muscle Group</label>
+              <select
+                value={selectedMuscleGroup}
+                onChange={(e) => setSelectedMuscleGroup(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
+              >
+                <option value="all">All Muscle Groups</option>
+                {muscleGroups.map(group => (
+                  <option key={group} value={group}>{group}</option>
                 ))}
               </select>
             </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Category</label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
-                >
-                  <option value="all">All Categories</option>
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1)}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Exercise Grid */}
@@ -515,7 +321,13 @@ export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = (
             </h3>
           </div>
 
-          {filteredExercises.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12">
+              <RefreshCw className="w-16 h-16 text-slate-400 mx-auto mb-4 animate-spin" />
+              <h4 className="text-xl font-semibold text-slate-300 mb-2">Loading exercises...</h4>
+              <p className="text-slate-400">Please wait</p>
+            </div>
+          ) : filteredExercises.length === 0 ? (
             <div className="text-center py-12">
               <Dumbbell className="w-16 h-16 text-slate-400 mx-auto mb-4" />
               <h4 className="text-xl font-semibold text-slate-300 mb-2">No exercises found</h4>
@@ -532,22 +344,19 @@ export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = (
                     <div>
                       <h4 className="text-lg font-semibold text-white mb-2">{exercise.name}</h4>
                       <div className="flex items-center space-x-2 mb-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(exercise.difficulty)}`}>
-                          {exercise.difficulty}
-                        </span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(exercise.category)}`}>
-                          {exercise.category}
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-600/20 text-red-400">
+                          {exercise.muscle_group || 'No muscle group'}
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center space-x-1">
                       <button
                         onClick={() => {
-                          setSelectedVideoUrl(exercise.videoUrl || '');
+                          setSelectedVideoUrl(exercise.video_url || '');
                           setShowVideoModal(true);
                         }}
                         className="p-2 rounded-lg bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white transition-all duration-200"
-                        disabled={!exercise.videoUrl}
+                        disabled={!exercise.video_url}
                       >
                         <Play className="w-4 h-4" />
                       </button>
@@ -569,33 +378,19 @@ export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = (
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center space-x-2">
                       <Target className="w-4 h-4 text-slate-400" />
-                      <span className="text-sm font-medium text-slate-300">{exercise.muscleGroup}</span>
+                      <span className="text-sm font-medium text-slate-300">{exercise.muscle_group || 'No muscle group'}</span>
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Dumbbell className="w-4 h-4 text-slate-400" />
-                      <span className="text-sm text-slate-300">{exercise.equipment}</span>
-                    </div>
+                    {exercise.video_url && (
+                      <div className="flex items-center space-x-2">
+                        <Video className="w-4 h-4 text-slate-400" />
+                        <span className="text-sm text-slate-300">Video available</span>
+                      </div>
+                    )}
                   </div>
 
-                  <p className="text-sm mb-4 text-slate-400">
-                    {exercise.instructions && exercise.instructions.length > 100 
-                      ? `${exercise.instructions.substring(0, 100)}...` 
-                      : exercise.instructions || 'No instructions available'
-                    }
-                  </p>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex space-x-2">
-                      {(exercise.primaryMuscles || []).slice(0, 2).map(muscle => (
-                        <span key={muscle} className="px-2 py-1 rounded-full text-xs font-medium bg-slate-700/50 text-slate-300">
-                          {muscle}
-                        </span>
-                      ))}
-                      {(exercise.primaryMuscles || []).length > 2 && (
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-slate-700/50 text-slate-300">
-                          +{(exercise.primaryMuscles || []).length - 2}
-                        </span>
-                      )}
+                  <div className="flex items-center justify-between pt-4">
+                    <div className="text-xs text-slate-500">
+                      From database
                     </div>
                     <button
                       onClick={() => handleDuplicateExercise(exercise)}
@@ -613,9 +408,7 @@ export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = (
       {/* Add Exercise Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`p-8 rounded-3xl shadow-2xl max-w-4xl w-full mx-6 max-h-[90vh] overflow-y-auto ${
-            isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-          }`}>
+          <div className="p-8 rounded-2xl shadow-2xl max-w-2xl w-full mx-6 max-h-[90vh] overflow-y-auto bg-slate-800 border border-slate-700">
             <ExerciseForm
               exercise={newExercise}
               onSave={handleAddExercise}
@@ -629,9 +422,7 @@ export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = (
       {/* Edit Exercise Modal */}
       {showEditModal && editingExercise && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`p-8 rounded-3xl shadow-2xl max-w-4xl w-full mx-6 max-h-[90vh] overflow-y-auto ${
-            isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-          }`}>
+          <div className="p-8 rounded-2xl shadow-2xl max-w-2xl w-full mx-6 max-h-[90vh] overflow-y-auto bg-slate-800 border border-slate-700">
             <ExerciseForm
               exercise={editingExercise}
               onSave={handleUpdateExercise}
@@ -648,21 +439,19 @@ export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = (
       {/* Video Modal */}
       {showVideoModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`p-8 rounded-3xl shadow-2xl max-w-4xl w-full mx-6 ${
-            isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-          }`}>
+          <div className="p-8 rounded-2xl shadow-2xl max-w-4xl w-full mx-6 bg-slate-800 border border-slate-700">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-bold text-purple-600">Exercise Video</h3>
+              <h3 className="text-2xl font-bold text-red-400">Exercise Video</h3>
               <button
                 onClick={() => setShowVideoModal(false)}
-                className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white hover:bg-purple-700 transition-all duration-200"
+                className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white hover:bg-red-700 transition-all duration-200"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             
             {selectedVideoUrl ? (
-              <div className="aspect-video rounded-2xl overflow-hidden">
+              <div className="aspect-video rounded-xl overflow-hidden">
                 <iframe
                   src={selectedVideoUrl.replace('watch?v=', 'embed/')}
                   className="w-full h-full"
@@ -671,9 +460,9 @@ export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = (
               </div>
             ) : (
               <div className="text-center py-12">
-                <Video className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h4 className="text-xl font-semibold text-gray-500 mb-2">No video available</h4>
-                <p className="text-gray-400">This exercise doesn't have a video demonstration</p>
+                <Video className="w-16 h-16 text-slate-400 mx-auto mb-4" />
+                <h4 className="text-xl font-semibold text-slate-300 mb-2">No video available</h4>
+                <p className="text-slate-400">This exercise doesn't have a video demonstration</p>
               </div>
             )}
           </div>

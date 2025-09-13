@@ -44,6 +44,7 @@ import { IngredientEditor } from './IngredientEditor';
 import { Client, NutritionPlan, SelectedMeal, Meal, Food } from '../types';
 import { calculateTotalNutrition } from '../utils/nutritionCalculator';
 import { exportToPDF } from '../utils/pdfExport';
+import { dbUpsertNutritionPlan, dbGetNutritionPlan, dbListMeals } from '../lib/db';
 
 interface NutritionTemplate {
   id: string;
@@ -84,6 +85,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
     { id: '2', name: 'Lunch', selectedMeals: [] },
     { id: '3', name: 'Dinner', selectedMeals: [] }
   ]);
+  const [dbMeals, setDbMeals] = useState<any[]>([]);
   const [mealsPerDay, setMealsPerDay] = useState(3);
   const [showMealCountSelector, setShowMealCountSelector] = useState(false);
   const [showMealSelector, setShowMealSelector] = useState(false);
@@ -103,6 +105,12 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   const [showIngredientSearch, setShowIngredientSearch] = useState<string | null>(null);
   const [ingredientSearchTerm, setIngredientSearchTerm] = useState('');
 
+  // Load database meals and existing nutrition plan
+  useEffect(() => {
+    loadDbMeals();
+    loadExistingNutritionPlan();
+  }, [client.id]);
+
   // Load templates from localStorage
   useEffect(() => {
     const savedTemplates = localStorage.getItem('nutritionTemplates');
@@ -110,6 +118,34 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
       setTemplates(JSON.parse(savedTemplates));
     }
   }, []);
+
+  const loadDbMeals = async () => {
+    try {
+      const result = await dbListMeals();
+      if (result.data) {
+        setDbMeals(result.data);
+        console.log('Loaded DB meals:', result.data);
+      }
+    } catch (error) {
+      console.error('Failed to load meals from database:', error);
+    }
+  };
+
+  const loadExistingNutritionPlan = async () => {
+    try {
+      const result = await dbGetNutritionPlan(client.id);
+      if (result.data) {
+        console.log('Loading existing nutrition plan:', result.data);
+        // Convert DB plan back to UI state
+        if (result.data.mealSlots) {
+          setMealSlots(result.data.mealSlots);
+          setMealsPerDay(result.data.mealsPerDay || 3);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load existing nutrition plan:', error);
+    }
+  };
 
   // Load meal slots from client's existing nutrition plan or localStorage
   useEffect(() => {
@@ -179,12 +215,38 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
     }
   };
 
-  const handleMealSelect = (meal: Meal) => {
+  // Convert DB meal to UI meal format with copy-on-assign
+  const convertDbMealToUiMeal = (dbMeal: any): Meal => {
+    const ingredients = (dbMeal.meal_items || []).map((item: any) => ({
+      food: {
+        name: item.ingredients.name,
+        kcal: item.ingredients.kcal,
+        protein: item.ingredients.protein,
+        fat: item.ingredients.fat,
+        carbs: item.ingredients.carbs
+      },
+      quantity: item.quantity
+    }));
+
+    return {
+      id: dbMeal.id,
+      name: dbMeal.name,
+      ingredients: ingredients,
+      cookingInstructions: dbMeal.cooking_instructions || '',
+      image: dbMeal.image || '/api/placeholder/300/200',
+      category: dbMeal.category as 'breakfast' | 'lunch' | 'dinner' | 'snack'
+    };
+  };
+
+  const handleMealSelect = (dbMeal: any) => {
     if (!selectedSlot) return;
 
+    // Convert DB meal to UI format (this creates a copy)
+    const uiMeal = convertDbMealToUiMeal(dbMeal);
+    
     const selectedMeal: SelectedMeal = {
       id: `${Date.now()}`,
-      meal: meal,
+      meal: uiMeal,
       quantity: 1,
       customizations: []
     };
@@ -256,12 +318,12 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
       ),
       supplements: ['Whey Protein', 'Multivitamin', 'Omega-3'],
       waterIntake: 3
-    };
+    } as any;
 
     onSavePlan(plan);
   };
 
-  const handleAssignToClient = () => {
+  const handleAssignToClient = async () => {
     const plan: NutritionPlan = {
       id: Date.now().toString(),
       clientId: client.id,
@@ -296,10 +358,16 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
       ),
       supplements: ['Whey Protein', 'Multivitamin', 'Omega-3'],
       waterIntake: 3
-    };
+    } as any;
 
-    console.log('UltraModernNutritionEditor - Assigning plan:', plan);
-    onAssignPlan(plan);
+    try {
+      const planJson = JSON.parse(JSON.stringify(plan));
+      await dbUpsertNutritionPlan(client.id, planJson);
+    } catch (err) {
+      console.warn('Failed to persist nutrition plan to Supabase, falling back to local only.', err);
+    }
+
+    onSavePlan(plan);
     alert(`Nutrition plan assigned to ${client.name}!`);
   };
 
@@ -1001,30 +1069,31 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
             </div>
             <div className="p-6 overflow-y-auto max-h-[60vh]">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {meals.map((meal) => {
+                {dbMeals.map((dbMeal) => {
                   try {
-                    const nutrition = meal.ingredients.reduce((total, ingredient) => ({
-                      calories: total.calories + (ingredient.food.kcal * ingredient.quantity / 100),
-                      protein: total.protein + (ingredient.food.protein * ingredient.quantity / 100),
-                      carbs: total.carbs + (ingredient.food.carbs * ingredient.quantity / 100),
-                      fat: total.fat + (ingredient.food.fat * ingredient.quantity / 100)
+                    // Calculate nutrition from DB meal structure
+                    const nutrition = (dbMeal.meal_items || []).reduce((total: any, item: any) => ({
+                      calories: total.calories + (item.ingredients.kcal * item.quantity / 100),
+                      protein: total.protein + (item.ingredients.protein * item.quantity / 100),
+                      carbs: total.carbs + (item.ingredients.carbs * item.quantity / 100),
+                      fat: total.fat + (item.ingredients.fat * item.quantity / 100)
                     }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
                     
                     return (
                       <button
-                        key={meal.id}
-                        onClick={() => handleMealSelect(meal)}
+                        key={dbMeal.id}
+                        onClick={() => handleMealSelect(dbMeal)}
                         className="text-left p-6 rounded-2xl bg-slate-700/30 backdrop-blur-sm border border-slate-600/50 hover:bg-slate-600/40 transition-all duration-200 shadow-lg hover:shadow-xl group"
                       >
                         <div className="w-full h-40 rounded-xl overflow-hidden mb-4 shadow-lg">
                           <img 
-                            src={meal.image} 
-                            alt={meal.name} 
+                            src={dbMeal.image || '/api/placeholder/300/200'} 
+                            alt={dbMeal.name} 
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                           />
                         </div>
-                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-red-400 transition-colors duration-200">{meal.name}</h3>
-                        <p className="text-slate-400 capitalize mb-4">{meal.category}</p>
+                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-red-400 transition-colors duration-200">{dbMeal.name}</h3>
+                        <p className="text-slate-400 capitalize mb-4">{dbMeal.category}</p>
                         
                         {/* Nutrition Info */}
                         <div className="grid grid-cols-2 gap-3 mb-4">
@@ -1042,14 +1111,14 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                         <div className="mb-4">
                           <p className="text-slate-400 text-sm mb-2">Ingredients:</p>
                           <div className="flex flex-wrap gap-1">
-                            {meal.ingredients.slice(0, 2).map((ingredient, idx) => (
+                            {(dbMeal.meal_items || []).slice(0, 2).map((item: any, idx: number) => (
                               <span key={idx} className="px-2 py-1 rounded-full bg-slate-600/50 text-slate-300 text-xs">
-                                {ingredient.food.name}
+                                {item.ingredients.name}
                               </span>
                             ))}
-                            {meal.ingredients.length > 2 && (
+                            {(dbMeal.meal_items || []).length > 2 && (
                               <span className="px-2 py-1 rounded-full bg-slate-600/50 text-slate-300 text-xs">
-                                +{meal.ingredients.length - 2} more
+                                +{(dbMeal.meal_items || []).length - 2} more
                               </span>
                             )}
                           </div>
@@ -1064,22 +1133,22 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                       </button>
                     );
                   } catch (error) {
-                    console.error('Error calculating nutrition for meal:', meal.name, error);
+                    console.error('Error calculating nutrition for meal:', dbMeal.name, error);
                     return (
                       <button
-                        key={meal.id}
-                        onClick={() => handleMealSelect(meal)}
+                        key={dbMeal.id}
+                        onClick={() => handleMealSelect(dbMeal)}
                         className="text-left p-6 rounded-2xl bg-slate-700/30 backdrop-blur-sm border border-slate-600/50 hover:bg-slate-600/40 transition-all duration-200 shadow-lg hover:shadow-xl group"
                       >
                         <div className="w-full h-40 rounded-xl overflow-hidden mb-4 shadow-lg">
                           <img 
-                            src={meal.image} 
-                            alt={meal.name} 
+                            src={dbMeal.image || '/api/placeholder/300/200'} 
+                            alt={dbMeal.name} 
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                           />
                         </div>
-                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-red-400 transition-colors duration-200">{meal.name}</h3>
-                        <p className="text-slate-400 capitalize mb-4">{meal.category}</p>
+                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-red-400 transition-colors duration-200">{dbMeal.name}</h3>
+                        <p className="text-slate-400 capitalize mb-4">{dbMeal.category}</p>
                         <div className="text-center text-slate-500 text-sm">
                           Error calculating nutrition
                         </div>

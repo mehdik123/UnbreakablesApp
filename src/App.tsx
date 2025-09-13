@@ -4,6 +4,7 @@ import { ModernClientPlanView } from './components/ModernClientPlanView';
 import { ClientCompleteView } from './components/ClientCompleteView';
 import { ModernLoadingScreen } from './components/ModernLoadingScreen';
 import MealDatabaseManager from './components/MealDatabaseManager';
+import IngredientsManager from './components/IngredientsManager';
 import { ExerciseDatabaseManager } from './components/ExerciseDatabaseManager';
 import { SimpleWorkoutEditor } from './components/SimpleWorkoutEditor';
 import './styles/mobile.css';
@@ -19,6 +20,9 @@ import { loadFoodDatabase } from './utils/csvParser';
 import { foods as defaultFoods } from './data/foods';
 import { meals as defaultMeals } from './data/meals';
 import { exercises as defaultExercises } from './data/exercises';
+import { isSupabaseReady } from './lib/supabaseClient';
+import { dbListClients, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise } from './lib/db';
+import TemplatesBuilder from './components/TemplatesBuilder';
 
 function App() {
   const [appState, setAppState] = useState<AppState>({
@@ -50,23 +54,44 @@ function App() {
     
     loadDatabase();
 
-    // Load clients from localStorage
-    const savedClients = localStorage.getItem('clients');
-    if (savedClients) {
-      try {
-        const clients = JSON.parse(savedClients).map((client: any) => ({
-          ...client,
-          startDate: new Date(client.startDate),
-          weightLog: client.weightLog?.map((entry: any) => ({
-            ...entry,
-            date: new Date(entry.date)
-          })) || []
-        }));
-        setAppState(prev => ({ ...prev, clients }));
-      } catch (error) {
-        console.error('Error loading clients:', error);
+    // Load clients from Supabase if available; fallback to localStorage
+    (async () => {
+      if (isSupabaseReady) {
+        const { data } = await dbListClients();
+        if (data) {
+          const mapped: Client[] = data.map((row: any) => ({
+            id: row.id,
+            name: row.full_name,
+            email: '',
+            phone: '',
+            goal: 'maintenance',
+            numberOfWeeks: 12,
+            startDate: new Date(),
+            isActive: true,
+            favorites: [],
+            weightLog: []
+          }));
+          setAppState(prev => ({ ...prev, clients: mapped }));
+        }
+      } else {
+        const savedClients = localStorage.getItem('clients');
+        if (savedClients) {
+          try {
+            const clients = JSON.parse(savedClients).map((client: any) => ({
+              ...client,
+              startDate: new Date(client.startDate),
+              weightLog: client.weightLog?.map((entry: any) => ({
+                ...entry,
+                date: new Date(entry.date)
+              })) || []
+            }));
+            setAppState(prev => ({ ...prev, clients }));
+          } catch (error) {
+            console.error('Error loading clients:', error);
+          }
+        }
       }
-    }
+    })();
 
     // Handle shared client view URLs
     const urlParams = new URLSearchParams(window.location.search);
@@ -122,24 +147,34 @@ function App() {
   }, []);
 
   // Client Management Functions
-  const handleAddClient = (client: Client) => {
-    const newClients = [...appState.clients, client];
-    setAppState(prev => ({ ...prev, clients: newClients }));
-    localStorage.setItem('clients', JSON.stringify(newClients));
+  const handleAddClient = async (client: Client) => {
+    if (isSupabaseReady) {
+      const { data } = await dbAddClient({ full_name: client.name });
+      if (data) {
+        const mapped: Client = { ...client, id: data.id };
+        setAppState(prev => ({ ...prev, clients: [...prev.clients, mapped] }));
+      }
+    } else {
+      const newClients = [...appState.clients, client];
+      setAppState(prev => ({ ...prev, clients: newClients }));
+      localStorage.setItem('clients', JSON.stringify(newClients));
+    }
   };
 
-  const handleUpdateClient = (clientId: string, updates: Partial<Client>) => {
-    const updatedClients = appState.clients.map(client => 
-      client.id === clientId ? { ...client, ...updates } : client
-    );
+  const handleUpdateClient = async (clientId: string, updates: Partial<Client>) => {
+    if (isSupabaseReady) {
+      if (updates.name) await dbUpdateClient(clientId, { full_name: updates.name });
+    }
+    const updatedClients = appState.clients.map(client => client.id === clientId ? { ...client, ...updates } : client);
     setAppState(prev => ({ ...prev, clients: updatedClients }));
-    localStorage.setItem('clients', JSON.stringify(updatedClients));
+    if (!isSupabaseReady) localStorage.setItem('clients', JSON.stringify(updatedClients));
   };
 
-  const handleDeleteClient = (clientId: string) => {
+  const handleDeleteClient = async (clientId: string) => {
+    if (isSupabaseReady) await dbDeleteClient(clientId);
     const filteredClients = appState.clients.filter(client => client.id !== clientId);
     setAppState(prev => ({ ...prev, clients: filteredClients }));
-    localStorage.setItem('clients', JSON.stringify(filteredClients));
+    if (!isSupabaseReady) localStorage.setItem('clients', JSON.stringify(filteredClients));
   };
 
   const handleArchiveClient = (clientId: string) => {
@@ -352,10 +387,29 @@ function App() {
   };
 
   // Exercise Database Handlers
-  const handleUpdateExercises = (updatedExercises: Exercise[]) => {
-    setExercises(updatedExercises);
-    // Save to localStorage
-    localStorage.setItem('exercises', JSON.stringify(updatedExercises));
+  const handleUpdateExercises = async (updatedExercises: Exercise[]) => {
+    if (isSupabaseReady) {
+      // diff with current exercises state
+      const prevById = new Map(exercises.map(e => [e.id, e]));
+      const nextById = new Map(updatedExercises.map(e => [e.id, e]));
+      // deletes
+      for (const [id] of prevById) {
+        if (!nextById.has(id)) await dbDeleteExercise(id);
+      }
+      // upserts
+      for (const ex of updatedExercises) {
+        if (!prevById.has(ex.id) || ex.id.length < 10) {
+          await dbAddExercise({ name: ex.name, video_url: (ex as any).videoUrl || (ex as any).video_url, muscle_group: (ex as any).muscleGroup || (ex as any).muscle_group });
+        } else {
+          await dbUpdateExercise(ex.id, { name: ex.name, video_url: (ex as any).videoUrl || (ex as any).video_url, muscle_group: (ex as any).muscleGroup || (ex as any).muscle_group });
+        }
+      }
+      const { data } = await dbListExercises();
+      if (data) setExercises(data.map((r: any) => ({ id: r.id, name: r.name, muscleGroup: r.muscle_group || '', equipment: '', instructions: '', videoUrl: r.video_url, imageUrl: '', difficulty: 'beginner', category: 'strength', primaryMuscles: [], secondaryMuscles: [], createdAt: new Date(), updatedAt: new Date() })));
+    } else {
+      setExercises(updatedExercises);
+      localStorage.setItem('exercises', JSON.stringify(updatedExercises));
+    }
   };
 
   const handleNavigateToExerciseDatabase = () => {
@@ -364,6 +418,10 @@ function App() {
 
   const handleBackFromExerciseDatabase = () => {
     setAppState(prev => ({ ...prev, currentView: 'clients' }));
+  };
+
+  const handleNavigateToIngredients = () => {
+    setAppState(prev => ({ ...prev, currentView: 'ingredients' }));
   };
 
   if (isLoading) {
@@ -388,6 +446,8 @@ function App() {
               onDuplicateClient={handleDuplicateClient}
               onNavigateToMealDatabase={handleNavigateToMealDatabase}
               onNavigateToExerciseDatabase={handleNavigateToExerciseDatabase}
+              onNavigateToIngredients={handleNavigateToIngredients}
+              onNavigateToTemplates={() => setAppState(prev => ({ ...prev, currentView: 'templates' }))}
             />
         )}
 
@@ -432,12 +492,19 @@ function App() {
           />
         )}
 
+        {appState.currentView === 'ingredients' && (
+          <IngredientsManager onBack={() => setAppState(prev => ({ ...prev, currentView: 'clients' }))} />
+        )}
+
         {appState.currentView === 'exercise-database' && (
           <ExerciseDatabaseManager
-            exercises={exercises}
-            onUpdateExercises={handleUpdateExercises}
             onBack={handleBackFromExerciseDatabase}
-            isDark={appState.isDark}
+          />
+        )}
+
+        {appState.currentView === 'templates' && (
+          <TemplatesBuilder
+            onBack={() => setAppState(prev => ({ ...prev, currentView: 'clients' }))}
           />
         )}
       </div>
