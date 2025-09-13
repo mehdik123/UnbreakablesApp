@@ -158,7 +158,18 @@ export async function dbDeleteMealItem(id: string): Promise<DBResult<null>> {
 // We store the entire client-specific plan as JSON to guarantee copy-on-assign semantics.
 export async function dbUpsertNutritionPlan(clientId: string, planJson: any): Promise<DBResult<any>> {
   if (!isSupabaseReady || !supabase) return { data: null };
-  const payload = { client_id: clientId, plan_json: planJson, updated_at: new Date().toISOString() } as any;
+  
+  // Calculate total daily kcal from plan
+  const dailyKcal = planJson.dailyCalories || planJson.meals?.reduce((total: number, meal: any) => total + (meal.calories || 0), 0) || 0;
+  
+  const payload = { 
+    client_id: clientId, 
+    plan_json: planJson, 
+    updated_at: new Date().toISOString(),
+    name: planJson.clientName ? `${planJson.clientName}'s Nutrition Plan` : 'Nutrition Plan',
+    daily_kcal_goal: dailyKcal
+  } as any;
+  
   const { data, error } = await supabase
     .from('nutrition_plans')
     .upsert(payload, { onConflict: 'client_id' })

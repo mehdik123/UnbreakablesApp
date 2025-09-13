@@ -88,6 +88,38 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   const [dbMeals, setDbMeals] = useState<any[]>([]);
   const [mealsPerDay, setMealsPerDay] = useState(3);
   const [showMealCountSelector, setShowMealCountSelector] = useState(false);
+
+  // Update meal slots when mealsPerDay changes
+  useEffect(() => {
+    const generateMealSlots = (count: number) => {
+      const getMealNames = (mealCount: number) => {
+        switch (mealCount) {
+          case 2: return ['Breakfast', 'Dinner'];
+          case 3: return ['Breakfast', 'Lunch', 'Dinner'];
+          case 4: return ['Breakfast', 'Lunch', 'Dinner', 'Evening Snack'];
+          case 5: return ['Breakfast', 'Morning Snack', 'Lunch', 'Dinner', 'Evening Snack'];
+          case 6: return ['Breakfast', 'Morning Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'Evening Snack'];
+          default: return Array.from({length: mealCount}, (_, i) => `Meal ${i + 1}`);
+        }
+      };
+      
+      const mealNames = getMealNames(count);
+      const newSlots = [];
+      
+      for (let i = 0; i < count; i++) {
+        const existingSlot = mealSlots.find(slot => slot.id === (i + 1).toString());
+        newSlots.push({
+          id: (i + 1).toString(),
+          name: mealNames[i],
+          selectedMeals: existingSlot?.selectedMeals || []
+        });
+      }
+      
+      return newSlots;
+    };
+
+    setMealSlots(generateMealSlots(mealsPerDay));
+  }, [mealsPerDay]);
   const [showMealSelector, setShowMealSelector] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -225,7 +257,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
         fat: item.ingredients.fat,
         carbs: item.ingredients.carbs
       },
-      quantity: item.quantity
+      quantity: item.quantity_g || item.quantity || 100
     }));
 
     return {
@@ -234,7 +266,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
       ingredients: ingredients,
       cookingInstructions: dbMeal.cooking_instructions || '',
       image: dbMeal.image || '/api/placeholder/300/200',
-      category: dbMeal.category as 'breakfast' | 'lunch' | 'dinner' | 'snack'
+      category: 'lunch' as 'breakfast' | 'lunch' | 'dinner' | 'snack' // Default category since we removed it
     };
   };
 
@@ -362,9 +394,20 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
 
     try {
       const planJson = JSON.parse(JSON.stringify(plan));
-      await dbUpsertNutritionPlan(client.id, planJson);
+      console.log('🍽️ Saving nutrition plan to Supabase:', { clientId: client.id, planJson });
+      
+      const result = await dbUpsertNutritionPlan(client.id, planJson);
+      console.log('🍽️ Supabase save result:', result);
+      
+      if (result.error) {
+        console.error('❌ Supabase save error:', result.error);
+        alert(`Error saving nutrition plan: ${result.error.message}`);
+      } else {
+        console.log('✅ Nutrition plan saved successfully to Supabase');
+      }
     } catch (err) {
-      console.warn('Failed to persist nutrition plan to Supabase, falling back to local only.', err);
+      console.error('❌ Failed to persist nutrition plan to Supabase:', err);
+      alert(`Failed to save nutrition plan: ${err.message || err}`);
     }
 
     onSavePlan(plan);
@@ -944,7 +987,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                                 const ingredientCalories = Math.round((ingredient.food.kcal * currentQuantity / 100) * selectedMeal.quantity);
                                 
                                 return (
-                                  <div key={idx} className="flex items-center justify-between bg-slate-600/20 rounded-xl p-4">
+                                  <div key={`${selectedMeal.id}-ingredient-${idx}-${ingredient.food.name}`} className="flex items-center justify-between bg-slate-600/20 rounded-xl p-4">
                                     <div className="flex-1">
                                       <button
                                         onClick={() => setShowIngredientSearch(`${selectedMeal.id}-${idx}`)}
@@ -1072,12 +1115,15 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                 {dbMeals.map((dbMeal) => {
                   try {
                     // Calculate nutrition from DB meal structure
-                    const nutrition = (dbMeal.meal_items || []).reduce((total: any, item: any) => ({
-                      calories: total.calories + (item.ingredients.kcal * item.quantity / 100),
-                      protein: total.protein + (item.ingredients.protein * item.quantity / 100),
-                      carbs: total.carbs + (item.ingredients.carbs * item.quantity / 100),
-                      fat: total.fat + (item.ingredients.fat * item.quantity / 100)
-                    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+                    const nutrition = (dbMeal.meal_items || []).reduce((total: any, item: any) => {
+                      const quantity = item.quantity_g || item.quantity || 100;
+                      return {
+                        calories: total.calories + (item.ingredients.kcal * quantity / 100),
+                        protein: total.protein + (item.ingredients.protein * quantity / 100),
+                        carbs: total.carbs + (item.ingredients.carbs * quantity / 100),
+                        fat: total.fat + (item.ingredients.fat * quantity / 100)
+                      };
+                    }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
                     
                     return (
                       <button
@@ -1279,8 +1325,8 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
             <div className="p-6">
               <div className="mb-6">
                 <label className="block text-sm font-medium text-slate-300 mb-4">How many meals per day?</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[3, 4, 5, 6].map((count) => (
+                <div className="grid grid-cols-2 gap-3">
+                  {[2, 3, 4, 5, 6].map((count) => (
                     <button
                       key={count}
                       onClick={() => {
