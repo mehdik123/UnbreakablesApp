@@ -65,6 +65,8 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [showStats, setShowStats] = useState(true);
   const [showProgressTracker, setShowProgressTracker] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string>('');
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -72,6 +74,23 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
     }, 800);
     return () => clearTimeout(timer);
   }, []);
+
+  // Generate unique client share link
+  const handleShareClient = () => {
+    // Create a unique share ID that remains consistent for this client
+    const clientShareId = `${client.name.toLowerCase().replace(/\s+/g, '-')}-${client.id}`;
+    const shareUrl = `${window.location.origin}/?client=${clientShareId}`;
+    
+    setShareUrl(shareUrl);
+    setShowShareModal(true);
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      console.log('Share URL copied to clipboard');
+    }).catch(() => {
+      console.log('Failed to copy URL to clipboard');
+    });
+  };
 
   const getGoalColor = (goal: string) => {
     switch (goal) {
@@ -149,7 +168,11 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
               >
                 <BarChart3 className="w-5 h-5" />
               </button>
-              <button className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200">
+              <button 
+                onClick={handleShareClient}
+                className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200"
+                title="Share client link"
+              >
                 <Share2 className="w-5 h-5" />
               </button>
               <button className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200">
@@ -307,6 +330,42 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
               onBack={() => {}}
               isDark={isDark}
             />
+          </div>
+        )}
+
+        {/* Share Modal */}
+        {showShareModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+                Share Client Link
+              </h3>
+              <p className="text-slate-600 dark:text-slate-400 mb-4">
+                Share this link with {client.name} to give them access to their personalized plan:
+              </p>
+              <div className="bg-slate-100 dark:bg-slate-700 rounded-lg p-3 mb-4">
+                <code className="text-sm text-slate-800 dark:text-slate-200 break-all">
+                  {shareUrl}
+                </code>
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(shareUrl);
+                    setShowShareModal(false);
+                  }}
+                  className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors duration-200"
+                >
+                  Copy Link
+                </button>
+                <button
+                  onClick={() => setShowShareModal(false)}
+                  className="flex-1 bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200 px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors duration-200"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

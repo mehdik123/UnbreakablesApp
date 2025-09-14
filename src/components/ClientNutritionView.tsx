@@ -63,171 +63,8 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
     loadNutritionPlan();
   }, [client.id, client.nutritionPlan, propNutritionPlan]);
 
-  // Use loaded nutrition plan or fallback to mock data
-  const displayNutritionPlan: NutritionPlan = nutritionPlan || {
-    id: '1',
-    clientId: client.id,
-    clientName: client.name,
-    mealsPerDay: 3,
-    mealSlots: [],
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    dailyCalories: 2200,
-    macronutrients: {
-      protein: { grams: 165, percentage: 30 },
-      carbohydrates: { grams: 275, percentage: 50 },
-      fats: { grams: 73, percentage: 20 }
-    },
-    meals: [
-      {
-        id: 'breakfast',
-        name: 'Protein Pancakes',
-        time: '08:00',
-        calories: 450,
-        macronutrients: {
-          protein: { grams: 35, percentage: 31 },
-          carbohydrates: { grams: 45, percentage: 40 },
-          fats: { grams: 12, percentage: 24 }
-        },
-        ingredients: [
-          '1 cup oat flour',
-          '2 scoops vanilla protein powder',
-          '2 eggs',
-          '1/2 cup almond milk',
-          '1 tsp baking powder',
-          '1 tbsp honey'
-        ],
-        instructions: [
-          'Mix all dry ingredients in a bowl',
-          'Add wet ingredients and whisk until smooth',
-          'Heat a non-stick pan over medium heat',
-          'Pour 1/4 cup batter for each pancake',
-          'Cook until bubbles form on surface, then flip',
-          'Serve with fresh berries and maple syrup'
-        ],
-        notes: 'High protein breakfast to fuel your morning workout'
-      },
-      {
-        id: 'snack1',
-        name: 'Greek Yogurt with Berries',
-        time: '10:30',
-        calories: 200,
-        macronutrients: {
-          protein: { grams: 20, percentage: 40 },
-          carbohydrates: { grams: 15, percentage: 30 },
-          fats: { grams: 5, percentage: 22 }
-        },
-        ingredients: [
-          '1 cup Greek yogurt (0% fat)',
-          '1/2 cup mixed berries',
-          '1 tbsp chia seeds',
-          '1 tsp honey'
-        ],
-        instructions: [
-          'Mix Greek yogurt with honey',
-          'Top with fresh berries',
-          'Sprinkle chia seeds on top',
-          'Refrigerate for 30 minutes before serving'
-        ],
-        notes: 'Perfect mid-morning snack with antioxidants'
-      },
-      {
-        id: 'lunch',
-        name: 'Grilled Chicken Salad',
-        time: '13:00',
-        calories: 500,
-        macronutrients: {
-          protein: { grams: 45, percentage: 36 },
-          carbohydrates: { grams: 30, percentage: 24 },
-          fats: { grams: 20, percentage: 36 }
-        },
-        ingredients: [
-          '150g grilled chicken breast',
-          '2 cups mixed greens',
-          '1/2 avocado',
-          '1/4 cup cherry tomatoes',
-          '1/4 cup cucumber',
-          '2 tbsp olive oil',
-          '1 tbsp balsamic vinegar',
-          '1 tbsp pumpkin seeds'
-        ],
-        instructions: [
-          'Season chicken breast with herbs and grill for 6-7 minutes per side',
-          'Let chicken rest for 5 minutes, then slice',
-          'Prepare salad with mixed greens, tomatoes, and cucumber',
-          'Add sliced avocado and grilled chicken',
-          'Drizzle with olive oil and balsamic vinegar',
-          'Top with pumpkin seeds'
-        ],
-        notes: 'Balanced lunch with lean protein and healthy fats'
-      },
-      {
-        id: 'snack2',
-        name: 'Protein Smoothie',
-        time: '16:00',
-        calories: 300,
-        macronutrients: {
-          protein: { grams: 25, percentage: 33 },
-          carbohydrates: { grams: 35, percentage: 47 },
-          fats: { grams: 8, percentage: 24 }
-        },
-        ingredients: [
-          '1 scoop chocolate protein powder',
-          '1 banana',
-          '1 cup almond milk',
-          '1 tbsp almond butter',
-          '1 tsp cocoa powder',
-          '1 cup ice'
-        ],
-        instructions: [
-          'Add all ingredients to a blender',
-          'Blend on high for 60 seconds',
-          'Add more ice if too thin',
-          'Pour into a glass and serve immediately'
-        ],
-        notes: 'Pre-workout fuel for energy and muscle support'
-      },
-      {
-        id: 'dinner',
-        name: 'Salmon with Sweet Potato',
-        time: '19:00',
-        calories: 600,
-        macronutrients: {
-          protein: { grams: 40, percentage: 27 },
-          carbohydrates: { grams: 55, percentage: 37 },
-          fats: { grams: 20, percentage: 30 }
-        },
-        ingredients: [
-          '180g salmon fillet',
-          '1 medium sweet potato',
-          '1 cup broccoli',
-          '1 tbsp olive oil',
-          '1 tsp garlic powder',
-          '1 tsp paprika',
-          'Salt and pepper to taste'
-        ],
-        instructions: [
-          'Preheat oven to 400°F (200°C)',
-          'Season salmon with garlic powder, paprika, salt, and pepper',
-          'Cut sweet potato into cubes and toss with olive oil',
-          'Place salmon and sweet potato on a baking sheet',
-          'Bake for 20-25 minutes until salmon flakes easily',
-          'Steam broccoli for 5-7 minutes until tender',
-          'Serve salmon with sweet potato and broccoli'
-        ],
-        notes: 'Post-workout meal with omega-3s and complex carbs'
-      }
-    ],
-    waterIntake: 3.0,
-    supplements: [
-      'Whey Protein Powder',
-      'Creatine Monohydrate',
-      'Omega-3 Fish Oil',
-      'Multivitamin',
-      'Vitamin D3'
-    ],
-    restrictions: ['Gluten-free', 'Dairy-free options available']
-  };
+  // Use loaded nutrition plan - no fallback mock data
+  const displayNutritionPlan: NutritionPlan | null = nutritionPlan;
 
   const toggleFavorite = (mealId: string) => {
     setFavoriteMeals(prev => 
@@ -273,23 +110,50 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Success Indicator - Show when nutrition plan is assigned */}
-      {displayNutritionPlan && (
-        <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
-          <div className="flex items-center justify-center space-x-2 text-green-400">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium">✅ Nutrition Plan Active - Assigned at: {new Date(displayNutritionPlan.assignedAt || displayNutritionPlan.createdAt).toLocaleString()}</span>
+  // If no nutrition plan is available, show empty state
+  if (!displayNutritionPlan) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-xl p-8 text-center">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="w-16 h-16 bg-slate-200 dark:bg-slate-700 rounded-full flex items-center justify-center">
+              <Utensils className="w-8 h-8 text-slate-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                No Nutrition Plan Assigned
+              </h3>
+              <p className="text-slate-600 dark:text-slate-400 max-w-md mx-auto">
+                Your coach hasn't assigned a nutrition plan yet. Once they create and assign your personalized meal plan, it will appear here.
+              </p>
+            </div>
             <button 
               onClick={() => window.location.reload()}
-              className="ml-2 px-2 py-1 bg-green-500/20 hover:bg-green-500/30 rounded text-xs transition-colors"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-medium"
             >
-              🔄 Refresh
+              🔄 Check for Updates
             </button>
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Success Indicator - Show when nutrition plan is assigned */}
+      <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
+        <div className="flex items-center justify-center space-x-2 text-green-400">
+          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+          <span className="text-sm font-medium">✅ Nutrition Plan Active - Assigned at: {new Date(displayNutritionPlan.assignedAt || displayNutritionPlan.createdAt).toLocaleString()}</span>
+          <button 
+            onClick={() => window.location.reload()}
+            className="ml-2 px-2 py-1 bg-green-500/20 hover:bg-green-500/30 rounded text-xs transition-colors"
+          >
+            🔄 Refresh
+          </button>
+        </div>
+      </div>
       
       {/* Nutrition Overview */}
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">

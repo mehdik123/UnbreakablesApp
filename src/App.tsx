@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { UnbreakableSteamClientsManager } from './components/UnbreakableSteamClientsManager';
 import { ModernClientPlanView } from './components/ModernClientPlanView';
 import { ClientCompleteView } from './components/ClientCompleteView';
+import { ClientInterface } from './components/ClientInterface';
 import { ModernLoadingScreen } from './components/ModernLoadingScreen';
 import MealDatabaseManager from './components/MealDatabaseManager';
 import IngredientsManager from './components/IngredientsManager';
@@ -21,7 +22,7 @@ import { foods as defaultFoods } from './data/foods';
 import { meals as defaultMeals } from './data/meals';
 import { exercises as defaultExercises } from './data/exercises';
 import { isSupabaseReady } from './lib/supabaseClient';
-import { dbListClients, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise } from './lib/db';
+import { dbListClients, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment } from './lib/db';
 import TemplatesBuilder from './components/TemplatesBuilder';
 
 function App() {
@@ -54,12 +55,19 @@ function App() {
     
     loadDatabase();
 
-    // Load clients from Supabase if available; fallback to localStorage
+    // Handle client share URLs first
+    const urlParams = new URLSearchParams(window.location.search);
+    const clientShareId = urlParams.get('client');
+    
+    // Load clients and handle share URLs
     (async () => {
+      let clients: Client[] = [];
+      
+      // Load clients from Supabase if available; fallback to localStorage
       if (isSupabaseReady) {
         const { data } = await dbListClients();
         if (data) {
-          const mapped: Client[] = data.map((row: any) => ({
+          clients = data.map((row: any) => ({
             id: row.id,
             name: row.full_name,
             email: '',
@@ -71,13 +79,13 @@ function App() {
             favorites: [],
             weightLog: []
           }));
-          setAppState(prev => ({ ...prev, clients: mapped }));
+          setAppState(prev => ({ ...prev, clients }));
         }
       } else {
         const savedClients = localStorage.getItem('clients');
         if (savedClients) {
           try {
-            const clients = JSON.parse(savedClients).map((client: any) => ({
+            clients = JSON.parse(savedClients).map((client: any) => ({
               ...client,
               startDate: new Date(client.startDate),
               weightLog: client.weightLog?.map((entry: any) => ({
@@ -91,28 +99,36 @@ function App() {
           }
         }
       }
-    })();
-
-    // Handle shared client view URLs
-    const urlParams = new URLSearchParams(window.location.search);
-    const shareId = urlParams.get('share');
-    const clientId = urlParams.get('client');
-    const viewType = urlParams.get('type'); // 'nutrition', 'workout', 'plan', or 'complete'
-    
-    if (shareId && clientId && viewType) {
-      try {
-        const storageKey = `client_${clientId}_${viewType}_${shareId}`;
-        const sharedData = localStorage.getItem(storageKey);
-        if (sharedData) {
-          const parsed = JSON.parse(sharedData);
-          setClientViewData(parsed);
-          setAppState(prev => ({ ...prev, currentView: 'client-view' }));
-          
+      
+      // Handle client share URL after clients are loaded
+      if (clientShareId) {
+        // Extract client ID from share ID (format: "name-uuid" where uuid has dashes)
+        // For UUID format: el-mehdi-kamal-c621ad4e-4643-496b-a9da-95a0d3d6b7ef
+        // We need to extract: c621ad4e-4643-496b-a9da-95a0d3d6b7ef
+        const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+        const uuidMatch = clientShareId.match(uuidPattern);
+        const extractedClientId = uuidMatch ? uuidMatch[1] : clientShareId;
+        
+        console.log('🔍 Extracting client ID:', { clientShareId, extractedClientId });
+        
+        // Find client in loaded data
+        const foundClient = clients.find((c: any) => c.id === extractedClientId);
+        
+        if (foundClient) {
+          console.log('🔗 Loading client interface for shared link:', foundClient.name);
+          setAppState(prev => ({ 
+            ...prev, 
+            currentView: 'client-interface',
+            selectedClient: foundClient
+          }));
+        } else {
+          console.error('❌ Client not found for share ID:', clientShareId);
+          console.log('📋 Available clients:', clients.map(c => ({ id: c.id, name: c.name })));
+          // Fallback to clients view if client not found
+          setAppState(prev => ({ ...prev, currentView: 'clients' }));
         }
-      } catch (error) {
-        console.error('Error loading shared client view:', error);
       }
-    }
+    })();
   }, []);
 
   // Set up periodic refresh for client view data
@@ -273,34 +289,63 @@ function App() {
   };
 
   // Workout Assignment Functions
-  const handleAssignWorkoutPlan = (clientId: string, assignment: ClientWorkoutAssignment) => {
-    
-    // Add timestamp to track when the assignment was made
-    const assignmentWithTimestamp = {
-      ...assignment,
-      assignedAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString()
-    };
-    
-    const updatedClients = appState.clients.map(client => 
-      client.id === clientId ? { ...client, workoutAssignment: assignmentWithTimestamp } : client
-    );
-    
-    // Update selected client if it's the same client
-    const updatedSelectedClient = appState.selectedClient?.id === clientId 
-      ? { ...appState.selectedClient, workoutAssignment: assignmentWithTimestamp }
-      : appState.selectedClient;
-    
-    
-    setAppState(prev => ({ 
-      ...prev, 
-      clients: updatedClients,
-      selectedClient: updatedSelectedClient
-    }));
-    localStorage.setItem('clients', JSON.stringify(updatedClients));
-    
-    // Update shared data if client has an active share link
-    updateClientSharedData(clientId, updatedClients);
+  const handleAssignWorkoutPlan = async (clientId: string, assignment: ClientWorkoutAssignment) => {
+    try {
+      console.log('🏋️ Assigning workout plan to client:', { clientId, assignment });
+      
+      // Save to Supabase first
+      const { data: assignmentResult, error } = await dbCreateWorkoutAssignment({
+        client_id: clientId,
+        program_id: assignment.program?.id, // Pass the program ID
+        program_json: assignment.program,
+        duration_weeks: assignment.duration,
+        current_week: assignment.currentWeek,
+        current_day: assignment.currentDay,
+        is_active: true,
+        last_modified_by: 'coach'
+      });
+      
+      if (error) {
+        console.error('❌ Failed to save workout assignment to Supabase:', error);
+        alert(`Error assigning workout: ${error.message}`);
+        return;
+      }
+      
+      console.log('✅ Workout assignment saved to Supabase:', assignmentResult);
+      
+      // Add timestamp to track when the assignment was made
+      const assignmentWithTimestamp = {
+        ...assignment,
+        id: assignmentResult?.id || assignment.id,
+        assignedAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
+      };
+      
+      const updatedClients = appState.clients.map(client => 
+        client.id === clientId ? { ...client, workoutAssignment: assignmentWithTimestamp } : client
+      );
+      
+      // Update selected client if it's the same client
+      const updatedSelectedClient = appState.selectedClient?.id === clientId 
+        ? { ...appState.selectedClient, workoutAssignment: assignmentWithTimestamp }
+        : appState.selectedClient;
+      
+      setAppState(prev => ({ 
+        ...prev, 
+        clients: updatedClients,
+        selectedClient: updatedSelectedClient
+      }));
+      localStorage.setItem('clients', JSON.stringify(updatedClients));
+      
+      // Update shared data if client has an active share link
+      updateClientSharedData(clientId, updatedClients);
+      
+      alert(`Workout plan successfully assigned to client!`);
+      
+    } catch (err) {
+      console.error('❌ Failed to assign workout plan:', err);
+      alert(`Failed to assign workout plan: ${err.message || err}`);
+    }
   };
 
   // Update shared data for existing client links
@@ -461,6 +506,18 @@ function App() {
             onSaveWorkoutPlan={handleAssignWorkoutPlan}
             onAssignWorkout={handleAssignWorkoutPlan}
             isDark={appState.isDark}
+          />
+        )}
+
+        {appState.currentView === 'client-interface' && appState.selectedClient && (
+          <ClientInterface
+            client={appState.selectedClient}
+            isDark={appState.isDark}
+            onBack={() => {
+              // Clear URL parameters when going back
+              window.history.replaceState({}, document.title, window.location.pathname);
+              setAppState(prev => ({ ...prev, currentView: 'clients', selectedClient: null }));
+            }}
           />
         )}
 

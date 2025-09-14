@@ -34,6 +34,12 @@ interface ClientWorkoutViewProps {
   isDark: boolean;
 }
 
+interface ClientWorkoutAssignment {
+  program: WorkoutProgram;
+  weeks?: any[];
+  lastModifiedBy?: string;
+}
+
 interface ClientWorkoutViewCombinedProps {
   clientView: {
     clientName: string;
@@ -61,6 +67,79 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   const SHARED_KEY = `client_${client.id}_assignment`;
   const [sharedVersion, setSharedVersion] = useState<number>(0);
 
+  // Function to enrich program with video URLs from Supabase exercises table
+  const enrichProgramWithVideoUrls = async (program: any) => {
+    try {
+      if (!isSupabaseReady || !supabase) return program;
+      
+      // Get all exercises from Supabase
+      const { data: dbExercises } = await supabase
+        .from('exercises')
+        .select('name, video_url, muscle_group');
+      
+      if (!dbExercises) return program;
+      
+      // Create a map for quick lookup
+      const exerciseMap = new Map();
+      dbExercises.forEach(ex => {
+        exerciseMap.set(ex.name, ex);
+      });
+      
+      // Enrich the program
+      const enrichedProgram = {
+        ...program,
+        days: program.days.map((day: any) => ({
+          ...day,
+          exercises: day.exercises.map((workoutEx: any) => {
+            const dbExercise = exerciseMap.get(workoutEx.exercise.name);
+            if (dbExercise) {
+              return {
+                ...workoutEx,
+                exercise: {
+                  ...workoutEx.exercise,
+                  videoUrl: dbExercise.video_url,
+                  muscleGroup: dbExercise.muscle_group
+                }
+              };
+            }
+            return workoutEx;
+          })
+        }))
+      };
+      
+      return enrichedProgram;
+    } catch (error) {
+      console.error('❌ Failed to enrich program with video URLs:', error);
+      return program;
+    }
+  };
+
+  // Function to preserve video URLs when updating program
+  const preserveVideoUrlsInProgram = (updatedProgram: any, originalProgram: WorkoutProgram | null) => {
+    if (!originalProgram) return updatedProgram;
+    
+    return {
+      ...updatedProgram,
+      days: updatedProgram.days.map((day: any, dayIndex: number) => ({
+        ...day,
+        exercises: day.exercises.map((exercise: any, exerciseIndex: number) => {
+          const originalExercise = originalProgram.days[dayIndex]?.exercises[exerciseIndex];
+          if (originalExercise?.exercise?.videoUrl) {
+            return {
+              ...exercise,
+              exercise: {
+                ...exercise.exercise,
+                videoUrl: originalExercise.exercise.videoUrl,
+                muscleGroup: originalExercise.exercise.muscleGroup
+              }
+            };
+          }
+          return exercise;
+        })
+      }))
+    };
+  };
+
   // Real-time sync - Prefer Supabase assignment, fallback to localStorage
   useEffect(() => {
     (async () => {
@@ -82,8 +161,12 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
               .maybeSingle();
             if (asg?.id) {
               setAssignmentId(asg.id);
-              if (asg.program_json) setWorkoutProgram(asg.program_json as WorkoutProgram);
-              if (asg.current_week) setCurrentWeek(asg.current_week);
+              if (asg.program_json) {
+                // Enrich exercise data with video URLs from Supabase exercises table
+                const enrichedProgram = await enrichProgramWithVideoUrls(asg.program_json);
+                setWorkoutProgram(enrichedProgram as WorkoutProgram);
+              }
+              // Current week is managed by parent component
               if (typeof asg.current_day === 'number') setCurrentDay(Math.max(0, (asg.current_day || 1) - 1));
               setSharedVersion(asg.version || 0);
               return;
@@ -124,24 +207,36 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
     }
   }, [client.id, client.name, assignmentId, SHARED_KEY, sharedVersion]);
 
-  // Supabase realtime subscription
+  // Supabase realtime subscription for automatic updates
   useEffect(() => {
     if (isSupabaseReady && supabase && assignmentId) {
-      const channel = supabase
+      const channel = supabase!
         .channel(`assignment-${assignmentId}-client`)
         .on('postgres_changes', {
           event: 'UPDATE',
           schema: 'public',
           table: 'workout_assignments',
           filter: `id=eq.${assignmentId}`
-        }, (payload) => {
+        }, async (payload) => {
           const row: any = payload.new;
-          if (row?.program_json) setWorkoutProgram(row.program_json as WorkoutProgram);
+          if (row.program_json && row.last_modified_by !== 'client') {
+            // Enrich the updated program with video URLs
+            const enrichedProgram = await enrichProgramWithVideoUrls(row.program_json);
+            setWorkoutProgram(enrichedProgram as WorkoutProgram);
+            setSharedVersion(row.version || 0);
+            
+            // Update current week/day if changed
+            if (typeof row.current_day === 'number' && row.current_day !== currentDay + 1) {
+              setCurrentDay(Math.max(0, (row.current_day || 1) - 1));
+            }
+          }
         })
         .subscribe();
-      return () => { supabase.removeChannel(channel); };
+      return () => { 
+        supabase.removeChannel(channel); 
+      };
     }
-  }, [assignmentId]);
+  }, [assignmentId, currentWeek, currentDay]);
 
   // Use assigned workout program or fallback to mock data
   const currentWorkoutProgram = workoutProgram || client.workoutAssignment?.program || {
@@ -154,9 +249,12 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   };
   
   // Heuristic: detect obviously old data (fallback sample IDs or missing videoUrl)
-  const isUsingOldData = currentWorkoutProgram.days.some(day =>
+  // Only show old data warning if we have exercises but no video URLs AND no Supabase assignment
+  const hasSupabaseAssignment = assignmentId && workoutProgram;
+  const isUsingOldData = !hasSupabaseAssignment && currentWorkoutProgram.days.some(day =>
     day.exercises?.some(ex => !ex.exercise?.videoUrl)
   );
+  
   
   // Check if using old data (not CSV data)
 
@@ -164,13 +262,13 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   const isDayUnlocked = unlockedWeeks.includes(currentWeek);
 
   // If no workout program is assigned, show a message
-  if (!client.workoutAssignment?.program) {
+  if (!workoutProgram && !client.workoutAssignment?.program) {
   return (
       <div className="space-y-6">
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 text-center">
           <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
             <Dumbbell className="w-8 h-8 text-slate-400" />
-          </div>
+            </div>
           <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
             No Workout Plan Assigned
           </h3>
@@ -188,8 +286,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
               Clear Cache & Reload
             </button>
           </div>
-        </div>
-      </div>
+            </div>
+          </div>
     );
   }
 
@@ -209,7 +307,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
             The coach needs to re-assign the workout plan to use the correct exercise names and video links.
           </p>
           <div className="space-x-2">
-            <button 
+            <button
               onClick={() => {
                 localStorage.clear();
                 window.location.reload();
@@ -279,16 +377,19 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
         )
       };
 
-      setWorkoutProgram(updatedProgram);
+      // Preserve video URLs from the original program
+      const updatedProgramWithVideos = preserveVideoUrlsInProgram(updatedProgram, workoutProgram);
+      setWorkoutProgram(updatedProgramWithVideos);
 
       if (isSupabaseReady && supabase && assignmentId) {
         supabase
           .from('workout_assignments')
           .update({
-            program_json: updatedProgram as unknown as any,
+            program_json: updatedProgramWithVideos as unknown as any,
             current_week: currentWeek,
             current_day: currentDay + 1,
-            last_modified_by: 'client'
+            last_modified_by: 'client',
+            version: (sharedVersion || 0) + 1
           })
           .eq('id', assignmentId)
           .then(() => {})
@@ -386,8 +487,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
           : clients;
         localStorage.setItem('clients', JSON.stringify(updated));
       }
+      
+      // Reload the page to refresh data
+      window.location.reload();
     } catch {}
-    window.location.reload();
   };
 
   return (
@@ -397,7 +500,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
       {isUsingOldData && (
         <div className="px-4 py-3 bg-amber-600/20 border-b border-amber-600/30 text-amber-200 flex items-center justify-between">
           <span className="text-sm">Old cached workout data detected. Clear and reload to use latest video links.</span>
-          <button
+            <button
             onClick={clearClientCachedWorkout}
             className="px-3 py-1 bg-amber-500/30 hover:bg-amber-500/40 rounded text-xs"
           >
@@ -431,18 +534,18 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
                 <svg className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                 </svg>
-              </button>
-            </div>
+            </button>
           </div>
-          
+        </div>
+
           {/* Workout Status - Responsive */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-3">
               <div className="flex items-center space-x-1.5 sm:space-x-2">
                 <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400" />
                 <span className="text-xs sm:text-sm text-slate-300">Warmups</span>
-              </div>
-            </div>
+          </div>
+      </div>
             <div className="flex items-center space-x-1.5 sm:space-x-2">
               {isWorkoutActive ? (
             <button
@@ -453,16 +556,16 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
                   <span className="hidden xs:inline">Pause</span>
             </button>
               ) : (
-            <button
+                <button
                   onClick={startWorkout}
                   disabled={!isDayUnlocked}
                   className="px-3 sm:px-4 py-1.5 sm:py-2 bg-green-500 hover:bg-green-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg flex items-center space-x-1.5 sm:space-x-2 text-xs sm:text-sm font-medium transition-all duration-200"
-            >
+                >
                   <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden xs:inline">Start</span>
-            </button>
+                </button>
               )}
-          </div>
+            </div>
         </div>
 
           {/* Performance tracking indicator */}

@@ -26,6 +26,7 @@ import { Client, NutritionPlan, WorkoutPlan, WorkoutProgram, WorkoutDay, Workout
 import { ClientNutritionView } from './ClientNutritionView';
 import { ClientWorkoutView } from './ClientWorkoutView';
 import { ClientProgressView } from './ClientProgressView';
+import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 
 interface ClientInterfaceProps {
   client: Client;
@@ -51,24 +52,59 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
-  // Load nutrition plan from localStorage on component mount
+  // Load nutrition plan from Supabase first, then fallback to localStorage
   useEffect(() => {
-    const loadNutritionPlan = () => {
-      // First try to get from client object
-      if (client.nutritionPlan) {
-        setNutritionPlan(client.nutritionPlan);
-        return;
-      }
-
-      // If not in client object, try to load from localStorage
-      const savedNutritionPlan = localStorage.getItem(`nutrition_plan_${client.id}`);
-      if (savedNutritionPlan) {
-        try {
-          const parsed = JSON.parse(savedNutritionPlan);
-          setNutritionPlan(parsed);
-        } catch (error) {
-          console.error('Error loading nutrition plan from localStorage:', error);
+    const loadNutritionPlan = async () => {
+      try {
+        // First try to load from Supabase
+        if (isSupabaseReady && supabase) {
+          const { data: cRow } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('full_name', client.name)
+            .maybeSingle();
+          
+          if (cRow?.id) {
+            const { data: nutritionPlan } = await supabase
+              .from('nutrition_plans')
+              .select('plan_json, updated_at')
+              .eq('client_id', cRow.id)
+              .order('updated_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            
+            if (nutritionPlan?.plan_json) {
+              console.log('🍽️ Client loaded nutrition plan from Supabase:', nutritionPlan.plan_json);
+              setNutritionPlan(nutritionPlan.plan_json);
+              return;
+            }
+          }
         }
+        
+        // Fallback: try to get from client object
+        if (client.nutritionPlan) {
+          console.log('🍽️ Client loaded nutrition plan from client object:', client.nutritionPlan);
+          setNutritionPlan(client.nutritionPlan);
+          return;
+        }
+
+        // Last resort: try to load from localStorage
+        const savedNutritionPlan = localStorage.getItem(`nutrition_plan_${client.id}`);
+        if (savedNutritionPlan) {
+          try {
+            const parsed = JSON.parse(savedNutritionPlan);
+            console.log('🍽️ Client loaded nutrition plan from localStorage:', parsed);
+            setNutritionPlan(parsed);
+          } catch (error) {
+            console.error('Error loading nutrition plan from localStorage:', error);
+            setNutritionPlan(null);
+          }
+        } else {
+          console.log('🍽️ No nutrition plan found for client');
+          setNutritionPlan(null);
+        }
+      } catch (error) {
+        console.error('❌ Failed to load nutrition plan:', error);
       }
     };
 
@@ -244,12 +280,6 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
           </div>
         </div>
 
-        {/* Debug Panel */}
-        <div className="mb-4 p-4 bg-slate-800 text-white rounded-lg text-xs">
-          <div>Unlocked weeks: {JSON.stringify(unlockedWeeks)}</div>
-          <div>Current week: {currentWeek}</div>
-          <div>Workout assignment weeks: {client.workoutAssignment?.weeks ? JSON.stringify(client.workoutAssignment.weeks.map(w => ({ week: w.weekNumber, unlocked: w.isUnlocked, completed: w.isCompleted }))) : 'None'}</div>
-        </div>
 
         {/* Week Navigation */}
         {client.workoutAssignment && (

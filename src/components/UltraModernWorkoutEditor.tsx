@@ -23,7 +23,7 @@ import {
 import { Client, ClientWorkoutAssignment, WorkoutProgram, WorkoutExercise, Exercise } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { exercises } from '../data/exercises';
-import { workoutTemplates } from '../data/workoutTemplates';
+import { dbListWorkoutPrograms } from '../lib/db';
 
 interface UltraModernWorkoutEditorProps {
   client: Client;
@@ -32,21 +32,73 @@ interface UltraModernWorkoutEditorProps {
   onBack: () => void;
 }
 
-// Use the imported workout templates - cast to WorkoutProgram
-const workoutPrograms: WorkoutProgram[] = workoutTemplates.map(template => ({
-  id: template.id,
-  name: template.name,
-  description: template.description,
-  days: template.days,
-  createdAt: template.createdAt,
-  updatedAt: template.updatedAt
-}));
-
-
 export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> = ({
   client,
-  onSaveAssignment
+  onSaveAssignment,
+  onBack
 }) => {
+  // Load workout templates from database
+  const [workoutPrograms, setWorkoutPrograms] = useState<WorkoutProgram[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  // Load workout templates from database
+  useEffect(() => {
+    loadWorkoutTemplates();
+  }, []);
+
+  const loadWorkoutTemplates = async () => {
+    try {
+      setLoadingTemplates(true);
+      const { data } = await dbListWorkoutPrograms();
+      if (data) {
+        // Convert database programs to WorkoutProgram format
+        const programs: WorkoutProgram[] = data.map((program: any) => ({
+          id: program.id,
+          name: program.name,
+          description: program.description || '',
+          days: (program.workout_days || []).map((day: any) => ({
+            id: day.id,
+            name: day.name,
+            exercises: (day.workout_exercises || []).map((workoutExercise: any) => ({
+              id: `${day.id}-${workoutExercise.id}`,
+              exercise: {
+                id: workoutExercise.exercises?.id || workoutExercise.exercise_id,
+                name: workoutExercise.exercises?.name || workoutExercise.exercise_id || 'Unknown Exercise',
+                muscleGroup: workoutExercise.exercises?.muscle_group || '',
+                videoUrl: workoutExercise.exercises?.video_url || '',
+                equipment: '',
+                instructions: '',
+                difficulty: 'intermediate' as const,
+                category: 'strength' as const,
+                primaryMuscles: [],
+                secondaryMuscles: [],
+                createdAt: new Date(),
+                updatedAt: new Date()
+              },
+              sets: (workoutExercise.workout_sets || []).map((set: any) => ({
+                id: `${workoutExercise.id}-set-${set.set_order}`,
+                reps: set.reps,
+                weight: set.weight,
+                completed: false,
+                restPeriod: set.rest_seconds || 90
+              })),
+              rest: workoutExercise.rest || '90 seconds',
+              restPeriod: parseInt(workoutExercise.rest?.replace(/[^0-9]/g, '') || '90'),
+              notes: workoutExercise.notes || '',
+              order: workoutExercise.ex_order
+            }))
+          })),
+          createdAt: new Date(program.created_at || Date.now()),
+          updatedAt: new Date(program.updated_at || Date.now())
+        }));
+        setWorkoutPrograms(programs);
+        console.log('Loaded workout programs:', programs);
+      }
+    } catch (error) {
+      console.error('Failed to load workout programs:', error);
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
   const [selectedProgram, setSelectedProgram] = useState<WorkoutProgram | null>(null);
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   // Single shared storage key so coach and client edit the same instance
@@ -120,6 +172,17 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               setAssignmentId(asg.id);
               if (asg.program_json) {
                 setSelectedProgram(asg.program_json as unknown as WorkoutProgram);
+                setShowProgramSelection(false); // Hide template selection, show workout editor
+                
+                // Generate weeks based on the loaded program
+                const generatedWeeks = Array.from({ length: client.numberOfWeeks }, (_, index) => ({
+                  weekNumber: index + 1,
+                  isUnlocked: index === 0, // Only first week unlocked initially
+                  isCompleted: false,
+                  exercises: asg.program_json.days[0]?.exercises || []
+                }));
+                setWeeks(generatedWeeks);
+                setOriginalWeeks(JSON.parse(JSON.stringify(generatedWeeks)));
               }
               if (asg.current_week) setCurrentWeek(asg.current_week);
               if (typeof asg.current_day === 'number') setCurrentDay(Math.max(0, (asg.current_day || 1) - 1));
@@ -143,10 +206,10 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       }
     })();
 
-    // Supabase realtime subscribe
+    // Supabase realtime subscribe for coach
     if (isSupabaseReady && supabase && assignmentId) {
       const channel = supabase
-        .channel(`assignment-${assignmentId}`)
+        .channel(`assignment-${assignmentId}-coach`)
         .on('postgres_changes', {
           event: 'UPDATE',
           schema: 'public',
@@ -154,12 +217,23 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
           filter: `id=eq.${assignmentId}`
         }, (payload) => {
           const row: any = payload.new;
-          if (row?.program_json) {
+          if (row?.program_json && row.last_modified_by === 'client') {
             setSelectedProgram(row.program_json as WorkoutProgram);
+            setSharedVersion(row.version || 0);
+            
+            // Update current week/day if changed
+            if (row.current_week && row.current_week !== currentWeek) {
+              setCurrentWeek(row.current_week);
+            }
+            if (typeof row.current_day === 'number' && row.current_day !== currentDay + 1) {
+              setCurrentDay(Math.max(0, (row.current_day || 1) - 1));
+            }
           }
         })
         .subscribe();
-      return () => { supabase.removeChannel(channel); };
+      return () => { 
+        supabase.removeChannel(channel); 
+      };
     } else {
       // Local storage sync
       const handleStorageChange = (e: StorageEvent) => {
@@ -440,25 +514,12 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   };
 
   const handleUpdateReps = (weekNumber: number, exerciseId: string, setId: string, change: number) => {
-    console.log('🔴 handleUpdateReps called:', { weekNumber, exerciseId, setId, change });
-    
     if (selectedProgram && selectedProgram.days && selectedProgram.days[currentDay] && selectedProgram.days[currentDay].exercises) {
       // Find the current set to get old value
       const currentExercise = selectedProgram.days[currentDay]?.exercises?.find(ex => ex.id === exerciseId);
       const currentSet = currentExercise?.sets?.find(set => set.id === setId);
       const oldReps = currentSet?.reps || 0;
       const newReps = Math.max(1, oldReps + change);
-      
-      console.log('🔴 OLD VALUES:', { 
-        currentDay, 
-        exerciseId, 
-        setId, 
-        oldReps, 
-        newReps, 
-        change,
-        currentExercise: currentExercise?.exercise?.name,
-        currentSet
-      });
       
       // First update the selectedProgram (source of truth)
       const updatedProgram = {
@@ -484,47 +545,21 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         )
       };
       
-      console.log('🔴 UPDATED PROGRAM:', {
-        before: selectedProgram.days[currentDay]?.exercises?.find(ex => ex.id === exerciseId)?.sets?.find(set => set.id === setId),
-        after: updatedProgram.days[currentDay]?.exercises?.find(ex => ex.id === exerciseId)?.sets?.find(set => set.id === setId)
-      });
       
       // Update source of truth only; weeks derive from selectedProgram effect
       setSelectedProgram(updatedProgram);
-      // Save latest program explicitly to avoid boomerang
-      setTimeout(() => handleSaveAssignment(updatedProgram), 25);
-      
-      console.log('🔴 handleUpdateReps completed successfully');
-    } else {
-      console.log('🔴 ERROR: selectedProgram or required data is missing:', {
-        selectedProgram: !!selectedProgram,
-        days: selectedProgram?.days?.length,
-        currentDay: currentDay,
-        exercises: selectedProgram?.days?.[currentDay]?.exercises?.length
-      });
+      // Auto-save the changes
+      handleSaveAssignment(updatedProgram);
     }
   };
 
   const handleUpdateWeight = (weekNumber: number, exerciseId: string, setId: string, change: number) => {
-    console.log('🔵 handleUpdateWeight called:', { weekNumber, exerciseId, setId, change });
-    
     if (selectedProgram && selectedProgram.days && selectedProgram.days[currentDay] && selectedProgram.days[currentDay].exercises) {
       // Find the current set to get old value
       const currentExercise = selectedProgram.days[currentDay]?.exercises?.find(ex => ex.id === exerciseId);
       const currentSet = currentExercise?.sets?.find(set => set.id === setId);
       const oldWeight = currentSet?.weight || 0;
       const newWeight = Math.max(0, oldWeight + change);
-      
-      console.log('🔵 OLD VALUES:', { 
-        currentDay, 
-        exerciseId, 
-        setId, 
-        oldWeight, 
-        newWeight, 
-        change,
-        currentExercise: currentExercise?.exercise?.name,
-        currentSet
-      });
       
       // First update the selectedProgram (source of truth)
       const updatedProgram = {
@@ -572,27 +607,55 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   };
 
 
-  const handleSaveAssignment = (programOverride?: WorkoutProgram) => {
-    console.log('💾 handleSaveAssignment called');
+  const handleSaveAssignment = async (programOverride?: WorkoutProgram) => {
     const programRef = programOverride || selectedProgram;
     if (!programRef) {
-      console.log('💾 ERROR: selectedProgram is null/undefined');
       return;
     }
 
-    console.log('💾 Current state before save:', {
-      currentWeek,
-      currentDay,
-      weeksLength: weeks.length,
-      selectedProgramDays: programRef.days.length
-    });
+    // Enrich the program with video URLs before saving
+    let enrichedProgram = programRef;
+    if (isSupabaseReady && supabase) {
+      try {
+        const { data: dbExercises } = await supabase
+          .from('exercises')
+          .select('name, video_url, muscle_group');
+        
+        if (dbExercises) {
+          const exerciseMap = new Map();
+          dbExercises.forEach(ex => {
+            exerciseMap.set(ex.name, ex);
+          });
+          
+          enrichedProgram = {
+            ...programRef,
+            days: programRef.days.map((day: any) => ({
+              ...day,
+              exercises: day.exercises.map((workoutEx: any) => {
+                const dbExercise = exerciseMap.get(workoutEx.exercise.name);
+                if (dbExercise) {
+                  return {
+                    ...workoutEx,
+                    exercise: {
+                      ...workoutEx.exercise,
+                      videoUrl: dbExercise.video_url,
+                      muscleGroup: dbExercise.muscle_group
+                    }
+                  };
+                }
+                return workoutEx;
+              })
+            }))
+          };
+        }
+      } catch (error) {
+        console.error('❌ Coach failed to enrich program with video URLs:', error);
+      }
+    }
 
-    // Use the already-updated selectedProgram as the source of truth
-    const updatedProgram = programRef;
+    // Use the enriched program as the source of truth
+    const updatedProgram = enrichedProgram;
 
-    console.log('💾 Using selectedProgram as source of truth:', {
-      exercises: updatedProgram.days[currentDay]?.exercises?.length
-    });
 
     const assignment: ClientWorkoutAssignment = {
       id: client.workoutAssignment?.id || Date.now().toString(),
@@ -624,7 +687,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
           program_json: updatedProgram as unknown as any,
           current_week: currentWeek,
           current_day: currentDay + 1,
-          last_modified_by: 'coach'
+          last_modified_by: 'coach',
+          version: (sharedVersion || 0) + 1
         })
         .eq('id', assignmentId)
         .then(() => {})
@@ -738,15 +802,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
             {/* Assignment Controls - Only show when program is selected */}
             {selectedProgram && !showProgramSelection && (
               <div className="flex items-center space-x-4">
-                {/* Refresh Button */}
-              <button
-                  onClick={() => window.location.reload()}
-                  className="flex items-center space-x-2 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white rounded-xl font-medium transition-all duration-200"
-                  title="Refresh to see latest client data"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Refresh</span>
-              </button>
 
                 {/* Week Selection Dropdown for Modifications */}
                 {hasModifications && (
@@ -855,6 +910,17 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               <p className="text-slate-400 text-lg">Choose the perfect program for {client.name}</p>
             </div>
             
+            {loadingTemplates ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+                <p className="text-slate-400 text-lg">Loading workout templates...</p>
+              </div>
+            ) : workoutPrograms.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-slate-400 text-lg">No workout programs found.</p>
+                <p className="text-slate-500 text-sm mt-2">Please run the database migration scripts to populate templates.</p>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {workoutPrograms.map(program => (
                 <div
@@ -898,6 +964,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
 
