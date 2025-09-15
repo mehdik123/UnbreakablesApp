@@ -14,7 +14,6 @@ import {
   Lock,
   Unlock,
   Play,
-  RotateCcw,
   Zap,
   Activity,
   Trash2,
@@ -24,6 +23,7 @@ import { Client, ClientWorkoutAssignment, WorkoutProgram, WorkoutExercise, Exerc
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { exercises } from '../data/exercises';
 import { dbListWorkoutPrograms } from '../lib/db';
+import { WeekProgressionManager } from '../utils/weekProgressionManager';
 
 interface UltraModernWorkoutEditorProps {
   client: Client;
@@ -37,6 +37,9 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   onSaveAssignment,
   onBack
 }) => {
+  // Tab management
+  const [activeTab, setActiveTab] = useState<'workout' | 'progression'>('workout');
+  
   // Load workout templates from database
   const [workoutPrograms, setWorkoutPrograms] = useState<WorkoutProgram[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
@@ -175,12 +178,10 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                 setShowProgramSelection(false); // Hide template selection, show workout editor
                 
                 // Generate weeks based on the loaded program
-                const generatedWeeks = Array.from({ length: client.numberOfWeeks }, (_, index) => ({
-                  weekNumber: index + 1,
-                  isUnlocked: index === 0, // Only first week unlocked initially
-                  isCompleted: false,
-                  exercises: asg.program_json.days[0]?.exercises || []
-                }));
+                const generatedWeeks = WeekProgressionManager.initializeWeeks(
+                  client.numberOfWeeks, 
+                  asg.program_json.days || []
+                );
                 setWeeks(generatedWeeks);
                 setOriginalWeeks(JSON.parse(JSON.stringify(generatedWeeks)));
               }
@@ -232,7 +233,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         })
         .subscribe();
       return () => { 
-        supabase.removeChannel(channel); 
+        supabase?.removeChannel(channel); 
       };
     } else {
       // Local storage sync
@@ -350,19 +351,21 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     
     for (let week = 1; week <= numberOfWeeks; week++) {
       // Create exercises for the current day only (not all days)
-      const currentDayExercises: WorkoutExercise[] = program.days[currentDay]?.exercises.map((exercise, exerciseIndex) => ({
-        ...exercise,
-        id: `${exercise.exercise.id}-day-${currentDay}-week-${week}-exercise-${exerciseIndex}`,
-        // Preserve the original exercise data including videoUrl
-        exercise: exercise.exercise,
-        sets: exercise.sets.map((set, setIndex) => ({
-          ...set,
-          id: `${exercise.exercise.id}-day-${currentDay}-week-${week}-exercise-${exerciseIndex}-set-${setIndex}`,
-          // Apply progression based on week number
-          reps: week === 1 ? set.reps : set.reps + (week - 1) * 2,
-          weight: week === 1 ? set.weight : set.weight + (week - 1) * 2.5
-        }))
-      })) || [];
+      const currentDayExercises: WorkoutExercise[] = program.days && program.days[currentDay]?.exercises 
+        ? program.days[currentDay].exercises.map((exercise, exerciseIndex) => ({
+            ...exercise,
+            id: `${exercise.exercise.id}-day-${currentDay}-week-${week}-exercise-${exerciseIndex}`,
+            // Preserve the original exercise data including videoUrl
+            exercise: exercise.exercise,
+            sets: exercise.sets.map((set, setIndex) => ({
+              ...set,
+              id: `${exercise.exercise.id}-day-${currentDay}-week-${week}-exercise-${exerciseIndex}-set-${setIndex}`,
+              // Apply progression based on week number
+              reps: week === 1 ? set.reps : set.reps + (week - 1) * 2,
+              weight: week === 1 ? set.weight : set.weight + (week - 1) * 2.5
+            }))
+          }))
+        : [];
       
       weekData.push({
         weekNumber: week,
@@ -670,7 +673,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         weekNumber: week.weekNumber,
         isUnlocked: week.isUnlocked,
         isCompleted: week.isCompleted,
-        days: [], // Add empty days array to match WorkoutWeek interface
+        exercises: week.exercises || [], // Required by WorkoutWeek interface
+        days: [], // Add days array to match WorkoutWeek interface
         progressionNotes: week.weekNumber > 1 ? `Week ${week.weekNumber} progression applied` : undefined
       })),
       progressionRules: [],
@@ -681,18 +685,27 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     };
 
     if (isSupabaseReady && supabase && assignmentId) {
-      supabase
-        .from('workout_assignments')
-        .update({
-          program_json: updatedProgram as unknown as any,
-          current_week: currentWeek,
-          current_day: currentDay + 1,
-          last_modified_by: 'coach',
-          version: (sharedVersion || 0) + 1
-        })
-        .eq('id', assignmentId)
-        .then(() => {})
-        .catch(() => {});
+      // Include the complete assignment data with weeks progression
+      const completeAssignmentData = {
+        ...assignment,
+        program: updatedProgram
+      };
+      
+      try {
+        await supabase
+          .from('workout_assignments')
+          .update({
+            program_json: completeAssignmentData as unknown as any,
+            current_week: assignment.currentWeek,
+            current_day: assignment.currentDay,
+            last_modified_by: 'coach',
+            version: (sharedVersion || 0) + 1
+          })
+          .eq('id', assignmentId);
+        console.log('✅ Assignment with week progression saved to Supabase');
+      } catch (error: any) {
+        console.error('❌ Error saving assignment to Supabase:', error);
+      }
     } else {
       // Save to single shared key for real-time sync
       try {
@@ -738,19 +751,21 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 
 
   const currentWeekData = weeks.find(w => w.weekNumber === currentWeek);
-  const currentDayData = selectedProgram?.days[currentDay];
-  const totalSets = currentDayData?.exercises.reduce((total, exercise) => total + exercise.sets.length, 0) || 0;
-  const completedSets = currentDayData?.exercises.reduce((total, exercise) => 
+  const currentDayData = selectedProgram?.days && currentDay >= 0 && currentDay < selectedProgram.days.length 
+    ? selectedProgram.days[currentDay] 
+    : null;
+  const totalSets = currentDayData?.exercises?.reduce((total, exercise) => total + exercise.sets.length, 0) || 0;
+  const completedSets = currentDayData?.exercises?.reduce((total, exercise) => 
     total + exercise.sets.filter(set => set.completed).length, 0) || 0;
 
 
-  // Safety check: only block when not in selection/modification and program is missing
-  if (!showProgramSelection && !showModificationInterface && (!selectedProgram || !selectedProgram.days || selectedProgram.days.length === 0)) {
+  // Only show loading when templates are being loaded
+  if (loadingTemplates) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
-          <p className="text-slate-300">Loading workout program...</p>
+          <p className="text-slate-300">Loading workout templates...</p>
         </div>
       </div>
     );
@@ -799,35 +814,48 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               </div>
             </div>
             
+            {/* Tab Navigation - Show when client has workout assignment */}
+            {client.workoutAssignment && (
+              <div className="flex items-center space-x-1 bg-slate-700/30 rounded-lg p-1">
+                <button
+                  onClick={() => setActiveTab('workout')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    activeTab === 'workout'
+                      ? 'bg-red-600 text-white shadow-sm'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-600/50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Dumbbell className="w-4 h-4" />
+                    <span>Workout</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab('progression')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                    activeTab === 'progression'
+                      ? 'bg-red-600 text-white shadow-sm'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-600/50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-4 h-4" />
+                    <span>Week Progress</span>
+                  </div>
+                </button>
+              </div>
+            )}
+            
             {/* Assignment Controls - Only show when program is selected */}
             {selectedProgram && !showProgramSelection && (
               <div className="flex items-center space-x-4">
-
-                {/* Week Selection Dropdown for Modifications */}
-                {hasModifications && (
-                  <div className="flex items-center space-x-2">
-                    <label className="text-sm text-slate-300">Assign to Week:</label>
-                    <select
-                      value={currentWeek}
-                      onChange={(e) => setCurrentWeek(parseInt(e.target.value))}
-                      className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      {Array.from({ length: client.numberOfWeeks }, (_, i) => i + 1).map(week => (
-                        <option key={week} value={week}>
-                          Week {week}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-              <button
-                onClick={handleSaveAssignment}
+                <button
+                  onClick={() => handleSaveAssignment()}
                   className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-all duration-200"
-              >
-                <Save className="w-4 h-4" />
+                >
+                  <Save className="w-4 h-4" />
                   <span>Assign to Client</span>
-              </button>
+                </button>
                 
                 {/* Show modification indicator if there are changes */}
                 {hasModifications && (
@@ -844,6 +872,61 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 
       <div className="max-w-7xl mx-auto px-6 py-6">
         
+        {/* Week Progression Tab Content */}
+        {activeTab === 'progression' && client.workoutAssignment ? (
+          <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-white mb-4">Week Progression</h2>
+              <p className="text-slate-400 text-lg">Manage {client.name}'s weekly progress</p>
+            </div>
+            
+            <div className="max-w-md mx-auto">
+              <div className="bg-slate-700/30 rounded-xl p-6 mb-6">
+                <div className="text-center">
+                  <div className="text-4xl font-bold text-blue-400 mb-2">
+                    Week {client.workoutAssignment ? WeekProgressionManager.getCurrentWeek(client.workoutAssignment.weeks) : 1}
+                  </div>
+                  <div className="text-slate-300">Current Active Week</div>
+                </div>
+              </div>
+              
+              <button
+                onClick={() => {
+                  if (!client.workoutAssignment) return;
+                  const currentWeek = WeekProgressionManager.getCurrentWeek(client.workoutAssignment.weeks);
+                  const result = WeekProgressionManager.markWeekComplete(
+                    client.workoutAssignment.weeks,
+                    currentWeek,
+                    client.workoutAssignment.duration
+                  );
+                  
+                  if (result.success) {
+                    const updatedAssignment: ClientWorkoutAssignment = {
+                      ...client.workoutAssignment!,
+                      weeks: result.updatedWeeks,
+                      currentWeek: result.currentWeek,
+                      lastModifiedBy: 'coach' as const,
+                      lastModifiedAt: new Date()
+                    };
+                    onSaveAssignment(updatedAssignment);
+                    alert(result.message);
+                  } else {
+                    alert(`Error: ${result.message}`);
+                  }
+                }}
+                className="w-full flex items-center justify-center space-x-3 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-all duration-200 text-lg"
+              >
+                <CheckCircle className="w-6 h-6" />
+                <span>Mark Week Complete for {client.name}</span>
+              </button>
+              
+              <p className="text-slate-400 text-sm text-center mt-4">
+                This will advance the client to the next week and unlock new content for them.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
         {/* Client Performance Indicator */}
         {client.workoutAssignment?.lastModifiedBy === 'client' && (
           <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 mb-6">
@@ -1452,7 +1535,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
                 <h3 className="text-lg font-bold text-white mb-4">Day Navigation</h3>
                 <div className="flex space-x-2 overflow-x-auto pb-2">
-                  {selectedProgram.days.map((day, index) => (
+                  {selectedProgram?.days?.map((day, index) => (
                     <button
                       key={day.id}
                       onClick={() => setCurrentDay(index)}
@@ -1467,15 +1550,15 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                   ))}
                 </div>
                 <div className="mt-4 text-sm text-slate-400">
-                  Day {currentDay + 1} of {selectedProgram.days.length} • {selectedProgram?.days[currentDay]?.exercises.length || 0} exercises
+                  Day {currentDay + 1} of {selectedProgram?.days?.length || 0} • {currentDayData?.exercises?.length || 0} exercises
                 </div>
               </div>
             )}
 
             {/* Exercises */}
             <div className="space-y-4">
-              {selectedProgram?.days[currentDay]?.exercises?.length > 0 ? (
-                selectedProgram.days[currentDay].exercises.map((exercise) => (
+              {currentDayData?.exercises && currentDayData.exercises.length > 0 ? (
+                currentDayData.exercises.map((exercise) => (
                 <div key={exercise.id} className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-4">
@@ -1864,6 +1947,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               </div>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
     </div>

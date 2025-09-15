@@ -3,6 +3,7 @@ import { UnbreakableSteamClientsManager } from './components/UnbreakableSteamCli
 import { ModernClientPlanView } from './components/ModernClientPlanView';
 import { ClientCompleteView } from './components/ClientCompleteView';
 import { ClientInterface } from './components/ClientInterface';
+import { ModernClientInterface } from './components/ModernClientInterface';
 import { ModernLoadingScreen } from './components/ModernLoadingScreen';
 import MealDatabaseManager from './components/MealDatabaseManager';
 import IngredientsManager from './components/IngredientsManager';
@@ -510,14 +511,9 @@ function App() {
         )}
 
         {appState.currentView === 'client-interface' && appState.selectedClient && (
-          <ClientInterface
+          <ModernClientInterface
             client={appState.selectedClient}
             isDark={appState.isDark}
-            onBack={() => {
-              // Clear URL parameters when going back
-              window.history.replaceState({}, document.title, window.location.pathname);
-              setAppState(prev => ({ ...prev, currentView: 'clients', selectedClient: null }));
-            }}
           />
         )}
 

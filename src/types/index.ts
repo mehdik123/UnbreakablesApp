@@ -149,6 +149,9 @@ export interface WorkoutWeek {
   isCompleted: boolean;
   exercises: WorkoutExercise[];
   progressionNotes?: string;
+  completedAt?: Date;
+  startDate?: Date;
+  days: WorkoutDay[];
 }
 
 export interface ClientWorkoutAssignment {
@@ -164,6 +167,11 @@ export interface ClientWorkoutAssignment {
   progressionRules: ProgressionRule[];
   isActive: boolean;
   shareUrl?: string;
+  lastModifiedBy?: 'coach' | 'client';
+  lastModifiedAt?: Date;
+  assignedAt?: string;
+  lastUpdated?: string;
+  clientPerformance?: any[];
 }
 
 export interface ProgressionRule {

@@ -9,6 +9,7 @@ import {
   Circle,
   RotateCcw,
   Target,
+  Zap,
   Flame,
   Award,
   Lock,
@@ -71,6 +72,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   const enrichProgramWithVideoUrls = async (program: any) => {
     try {
       if (!isSupabaseReady || !supabase) return program;
+      if (!program || !program.days || !Array.isArray(program.days)) return program;
       
       // Get all exercises from Supabase
       const { data: dbExercises } = await supabase
@@ -88,9 +90,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
       // Enrich the program
       const enrichedProgram = {
         ...program,
-        days: program.days.map((day: any) => ({
+        days: program.days?.map((day: any) => ({
           ...day,
-          exercises: day.exercises.map((workoutEx: any) => {
+          exercises: day.exercises?.map((workoutEx: any) => {
             const dbExercise = exerciseMap.get(workoutEx.exercise.name);
             if (dbExercise) {
               return {
@@ -103,8 +105,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
               };
             }
             return workoutEx;
-          })
-        }))
+          }) || []
+        })) || []
       };
       
       return enrichedProgram;
@@ -258,7 +260,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   
   // Check if using old data (not CSV data)
 
-  const currentDayData = currentWorkoutProgram.days[currentDay];
+  const currentDayData = currentWorkoutProgram?.days?.[currentDay];
   const isDayUnlocked = unlockedWeeks.includes(currentWeek);
 
   // If no workout program is assigned, show a message
@@ -604,7 +606,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
             <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
           </div>
           <div className="flex space-x-1.5 sm:space-x-2 overflow-x-auto pb-1 sm:pb-2 scrollbar-hide max-w-full">
-            {currentWorkoutProgram.days.map((day, index) => {
+            {currentWorkoutProgram?.days?.map((day, index) => {
               const status = getDayStatus(index);
               const isCurrentDay = index === currentDay;
               
@@ -649,23 +651,29 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
             {/* Exercises */}
             <div className="space-y-3 sm:space-y-4">
               {currentDayData.exercises.map((exercise, exerciseIndex) => (
-                <div key={exercise.id} className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-3 sm:p-4 max-w-full overflow-hidden">
-                  {/* Exercise Header - Ultra Responsive */}
-                  <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-xs sm:text-sm">
-                      {exerciseIndex + 1}
+                <div key={exercise.id} className="bg-gradient-to-br from-slate-800/60 to-slate-900/40 backdrop-blur-sm rounded-2xl border border-slate-600/30 p-4 sm:p-6 shadow-xl hover:shadow-purple-500/10 transition-all duration-300">
+                  {/* Exercise Header - Enhanced Design */}
+                  <div className="flex items-center space-x-3 sm:space-x-4 mb-4 sm:mb-6">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 rounded-xl flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-lg relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
+                      <span className="relative z-10">{exerciseIndex + 1}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h5 className="text-sm sm:text-base font-semibold text-white mb-1 truncate">
+                      <h5 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent mb-2 truncate">
                         {exercise.exercise.name}
                       </h5>
-                      <div className="flex items-center space-x-2 sm:space-x-3 flex-wrap gap-1 sm:gap-0">
-                        <span className="text-xs text-slate-400 bg-slate-700/50 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-center">
-                          {exercise.exercise.muscleGroup}
-                        </span>
-                        <span className="text-xs text-slate-400 bg-slate-700/50 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-center">
-                          {exercise.exercise.equipment}
-                        </span>
+                      <div className="flex items-center space-x-2 flex-wrap gap-2">
+                        <div className="flex items-center space-x-1.5 bg-purple-500/20 border border-purple-400/30 px-2.5 py-1 rounded-full">
+                          <Target className="w-3 h-3 text-purple-400" />
+                          <span className="text-xs font-medium text-purple-200">{exercise.exercise.muscleGroup}</span>
+                        </div>
+                        <div className="flex items-center space-x-1.5 bg-blue-500/20 border border-blue-400/30 px-2.5 py-1 rounded-full">
+                          <Zap className="w-3 h-3 text-blue-400" />
+                          <span className="text-xs font-medium text-blue-200">{exercise.exercise.equipment}</span>
+                        </div>
+                        <div className="flex items-center space-x-1.5 bg-emerald-500/20 border border-emerald-400/30 px-2.5 py-1 rounded-full">
+                          <span className="text-xs font-medium text-emerald-200">{exercise.sets.length} sets</span>
+                        </div>
                       </div>
             </div>
           </div>
@@ -750,64 +758,77 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
                   {/* Sets & Reps Section - Only show if not completed */}
                   {!completedExercises[exercise.id] && (
                     <div className="space-y-3">
-                      <h6 className="text-sm font-semibold text-white mb-3 flex items-center space-x-2">
-                        <Dumbbell className="w-4 h-4 text-purple-400" />
-                        <span>Sets & Reps</span>
-                      </h6>
+                      <div className="flex items-center justify-between mb-4">
+                        <h6 className="text-base sm:text-lg font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                            <Dumbbell className="w-3 h-3 text-white" />
+                          </div>
+                          <span>Sets & Reps</span>
+                        </h6>
+                        <div className="text-xs text-slate-400 bg-slate-700/50 px-3 py-1 rounded-full">
+                          Track your progress
+                        </div>
+                      </div>
 
                       {/* Set-based organization - Redesigned to match attached image */}
                   <div className="space-y-3">
                     {exercise.sets.map((set, setIndex) => (
-                          <div key={setIndex} className="bg-slate-700/30 rounded-xl p-4 border border-slate-600/50 max-w-full overflow-hidden">
-                            <div className="flex items-center space-x-4">
-                              {/* Set Number */}
+                          <div key={setIndex} className="bg-gradient-to-r from-slate-800/40 to-slate-700/40 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-slate-600/30 shadow-lg">
+                            <div className="flex items-center justify-between">
+                              {/* Set Number with Icon */}
                               <div className="flex items-center space-x-2">
-                                <span className="text-white text-sm font-medium w-8">Set {setIndex + 1}</span>
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-400/30 flex items-center justify-center">
+                                  <span className="text-purple-300 text-xs font-bold">{setIndex + 1}</span>
+                                </div>
+                                <span className="text-slate-300 text-xs sm:text-sm font-medium">Set</span>
                               </div>
                               
-                              {/* Reps Section */}
-                        <div className="flex items-center space-x-2">
-                          <button
-                                  onClick={() => updateExerciseData(exercise.id, setIndex, 'reps', Math.max(0, (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps) - 1))}
-                                  className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                                <span className="text-white font-bold text-lg min-w-[2rem] text-center">
-                                  {exerciseData[exercise.id]?.[setIndex]?.reps || set.reps}
-                                </span>
-                          <button
-                                  onClick={() => updateExerciseData(exercise.id, setIndex, 'reps', (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps) + 1)}
-                                  className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                                <span className="text-slate-400 text-sm">reps</span>
-                        </div>
+                              {/* Reps & Weight Controls */}
+                              <div className="flex items-center space-x-3 sm:space-x-4">
+                                {/* Reps Section */}
+                                <div className="flex items-center space-x-1 bg-black/20 rounded-lg px-1.5 py-1">
+                                  <button
+                                    onClick={() => updateExerciseData(exercise.id, setIndex, 'reps', Math.max(0, (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps) - 1))}
+                                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#dc1e3a] hover:bg-[#c11a33] text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                  >
+                                    <Minus className="w-2.5 h-2.5" />
+                                  </button>
+                                  <div className="flex flex-col items-center">
+                                    <span className="text-white font-bold text-sm min-w-[1.25rem] text-center">
+                                      {exerciseData[exercise.id]?.[setIndex]?.reps || set.reps}
+                                    </span>
+                                    <span className="text-white/70 text-xs font-medium">reps</span>
+                                  </div>
+                                  <button
+                                    onClick={() => updateExerciseData(exercise.id, setIndex, 'reps', (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps) + 1)}
+                                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#dc1e3a] hover:bg-[#c11a33] text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                  >
+                                    <Plus className="w-2.5 h-2.5" />
+                                  </button>
+                                </div>
 
-                              {/* Weight Section */}
-                        <div className="flex items-center space-x-2">
-                          <button
-                                  onClick={() => updateExerciseData(exercise.id, setIndex, 'weight', Math.max(0, (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) - 2.5))}
-                                  className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                                <span className="text-white font-bold text-lg min-w-[3rem] text-center">
-                                  {exerciseData[exercise.id]?.[setIndex]?.weight || set.weight}kg
-                                </span>
-                          <button
-                                  onClick={() => updateExerciseData(exercise.id, setIndex, 'weight', (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) + 2.5)}
-                                  className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-
-                              {/* Delete Button */}
-                              <button className="w-8 h-8 rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300 transition-all duration-200 flex items-center justify-center ml-auto">
-                                <Trash2 className="w-4 h-4" />
-                        </button>
+                                {/* Weight Section */}
+                                <div className="flex items-center space-x-1 bg-black/20 rounded-lg px-1.5 py-1">
+                                  <button
+                                    onClick={() => updateExerciseData(exercise.id, setIndex, 'weight', Math.max(0, (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) - 2.5))}
+                                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#dc1e3a] hover:bg-[#c11a33] text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                  >
+                                    <Minus className="w-2.5 h-2.5" />
+                                  </button>
+                                  <div className="flex flex-col items-center">
+                                    <span className="text-white font-bold text-sm min-w-[2rem] text-center">
+                                      {exerciseData[exercise.id]?.[setIndex]?.weight || set.weight}kg
+                                    </span>
+                                    <span className="text-white/70 text-xs font-medium">weight</span>
+                                  </div>
+                                  <button
+                                    onClick={() => updateExerciseData(exercise.id, setIndex, 'weight', (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) + 2.5)}
+                                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#dc1e3a] hover:bg-[#c11a33] text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                  >
+                                    <Plus className="w-2.5 h-2.5" />
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                       </div>
                     ))}

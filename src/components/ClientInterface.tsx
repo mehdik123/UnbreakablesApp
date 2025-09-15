@@ -27,6 +27,7 @@ import { ClientNutritionView } from './ClientNutritionView';
 import { ClientWorkoutView } from './ClientWorkoutView';
 import { ClientProgressView } from './ClientProgressView';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
+import { WeekProgressionManager } from '../utils/weekProgressionManager';
 
 interface ClientInterfaceProps {
   client: Client;
@@ -40,8 +41,20 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
   onBack
 }) => {
   const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress'>('nutrition');
-  const [currentWeek, setCurrentWeek] = useState(1);
-  const [unlockedWeeks, setUnlockedWeeks] = useState<number[]>([1]); // Only week 1 unlocked by default
+  const [currentWeek, setCurrentWeek] = useState(() => {
+    if (client.workoutAssignment?.weeks) {
+      return WeekProgressionManager.getCurrentWeek(client.workoutAssignment.weeks);
+    }
+    return 1;
+  });
+  const [unlockedWeeks, setUnlockedWeeks] = useState<number[]>(() => {
+    if (client.workoutAssignment?.weeks) {
+      return client.workoutAssignment.weeks
+        .filter(week => week.isUnlocked)
+        .map(week => week.weekNumber);
+    }
+    return [1];
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
 
@@ -111,29 +124,82 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
     loadNutritionPlan();
   }, [client.id, client.nutritionPlan]);
 
-  // Update unlocked weeks based on workout assignment
+  // Update unlocked weeks and current week based on workout assignment
   useEffect(() => {
     if (client.workoutAssignment?.weeks) {
       const unlocked = client.workoutAssignment.weeks
         .filter(week => week.isUnlocked)
         .map(week => week.weekNumber);
       setUnlockedWeeks(unlocked.length > 0 ? unlocked : [1]);
+      
+      // Update current week using WeekProgressionManager
+      const newCurrentWeek = WeekProgressionManager.getCurrentWeek(client.workoutAssignment.weeks);
+      setCurrentWeek(newCurrentWeek);
     }
   }, [client.workoutAssignment]);
 
-  // Force refresh every 5 seconds to catch updates
+  // Force refresh every 3 seconds to catch coach updates
   useEffect(() => {
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
+      try {
+        // Try to reload workout assignment from Supabase
+        if (isSupabaseReady && supabase && client.id) {
+          const { data: cRow } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('full_name', client.name)
+            .maybeSingle();
+          
+          if (cRow?.id) {
+            const { data: assignment } = await supabase
+              .from('workout_assignments')
+              .select('*')
+              .eq('client_id', cRow.id)
+              .eq('is_active', true)
+              .order('updated_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            
+            if (assignment?.program_json) {
+              // Update weeks from fresh data
+              const freshWeeks = assignment.program_json.weeks || [];
+              if (freshWeeks.length > 0) {
+                const unlocked = freshWeeks
+                  .filter((week: any) => week.isUnlocked)
+                  .map((week: any) => week.weekNumber);
+                setUnlockedWeeks(unlocked.length > 0 ? unlocked : [1]);
+                
+                // Update current week
+                const newCurrentWeek = WeekProgressionManager.getCurrentWeek(freshWeeks);
+                setCurrentWeek(newCurrentWeek);
+                
+                console.log('🔄 Client refreshed week data:', { 
+                  currentWeek: newCurrentWeek, 
+                  unlockedWeeks: unlocked 
+                });
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error refreshing workout assignment:', error);
+      }
+      
+      // Fallback to existing client data
       if (client.workoutAssignment?.weeks) {
         const unlocked = client.workoutAssignment.weeks
           .filter(week => week.isUnlocked)
           .map(week => week.weekNumber);
         setUnlockedWeeks(unlocked.length > 0 ? unlocked : [1]);
+        
+        // Update current week
+        const newCurrentWeek = WeekProgressionManager.getCurrentWeek(client.workoutAssignment.weeks);
+        setCurrentWeek(newCurrentWeek);
       }
-    }, 5000);
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, [client.workoutAssignment]);
+  }, [client.id, client.name]);
 
   const getGoalColor = (goal: string) => {
     switch (goal) {
@@ -159,12 +225,13 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
     }
   };
 
-  const getWeekStatus = (week: number) => {
-    const isUnlocked = unlockedWeeks.includes(week);
-    if (isUnlocked) {
-      return 'unlocked';
-    }
-    return 'locked';
+  const getWeekStatus = (weekNumber: number): 'locked' | 'active' | 'completed' => {
+    if (!client.workoutAssignment?.weeks) return 'locked';
+    
+    const week = client.workoutAssignment.weeks.find(w => w.weekNumber === weekNumber);
+    if (!week) return 'locked';
+    
+    return WeekProgressionManager.getWeekStatus(week);
   };
 
   if (isLoading) {
@@ -269,9 +336,18 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Current Week</p>
-                <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
-                  {currentWeek}/{client.numberOfWeeks}
-                </p>
+                <div className="flex items-center space-x-3">
+                  <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+                    {currentWeek}/{client.numberOfWeeks}
+                  </p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-2 py-1 bg-blue-100 dark:bg-blue-900/20 hover:bg-blue-200 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 text-xs rounded-md transition-colors"
+                    title="Refresh to check for updates"
+                  >
+                    🔄
+                  </button>
+                </div>
               </div>
               <div className="w-12 h-12 rounded-lg bg-purple-50 dark:bg-purple-950/20 flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-purple-600 dark:text-purple-400" />
@@ -325,6 +401,8 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
                       className={`flex-shrink-0 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
                         status === 'locked'
                           ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                          : status === 'completed'
+                          ? 'bg-green-600 text-white shadow-sm'
                           : isCurrentWeek
                           ? 'bg-indigo-600 text-white shadow-sm'
                           : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
@@ -333,6 +411,8 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
                       <div className="flex items-center space-x-2">
                         {status === 'locked' ? (
                           <Lock className="w-4 h-4" />
+                        ) : status === 'completed' ? (
+                          <CheckCircle className="w-4 h-4" />
                         ) : (
                           <Unlock className="w-4 h-4" />
                         )}
