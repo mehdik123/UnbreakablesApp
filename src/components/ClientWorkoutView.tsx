@@ -7,26 +7,17 @@ import {
   Pause,
   CheckCircle,
   Circle,
-  RotateCcw,
   Target,
   Zap,
   Flame,
-  Award,
   Lock,
-  Unlock,
-  ChevronLeft, 
-  ChevronRight,
   Calendar,
-  Timer,
   Plus,
   Minus,
-  Heart,
-  Camera,
-  Upload,
-  Image,
-  Trash2
+  Heart
 } from 'lucide-react';
-import { Client, WorkoutProgram, WorkoutDay, WorkoutExercise, WorkoutSet } from '../types';
+import { Client, WorkoutProgram } from '../types';
+import { logExercisePerformance } from '../lib/progressTracking';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -235,7 +226,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
         })
         .subscribe();
       return () => { 
-        supabase.removeChannel(channel); 
+        supabase?.removeChannel(channel); 
       };
     }
   }, [assignmentId, currentWeek, currentDay]);
@@ -395,17 +386,54 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
           })
           .eq('id', assignmentId)
           .then(() => {})
-          .catch(() => {});
-        // Optional: log performance
-        supabase.from('performance_logs').insert({
-          assignment_id: assignmentId,
-          week_number: currentWeek,
-          day_number: currentDay + 1,
-          exercise_id: exerciseId,
-          set_index: setIndex,
-          actual_reps: field === 'reps' ? value : (exerciseData[exerciseId]?.[setIndex]?.reps || 0),
-          actual_weight: field === 'weight' ? value : (exerciseData[exerciseId]?.[setIndex]?.weight || 0)
-        }).then(() => {}).catch(() => {});
+          .catch(() => {}) as Promise<void>;
+        // Enhanced progress tracking
+        setTimeout(async () => {
+          try {
+            // Find the exercise details
+            const exercise = currentWorkoutProgram?.days?.[currentDay]?.exercises?.find(ex => ex.id === exerciseId);
+            if (!exercise || !client.workoutAssignment) return;
+
+            const currentSet = exercise.sets[setIndex];
+            if (!currentSet) return;
+
+            // Get current values
+            const currentData = exerciseData[exerciseId]?.[setIndex] || {};
+            const actualReps = field === 'reps' ? value : (currentData.reps || currentSet.reps);
+            const actualWeight = field === 'weight' ? value : (currentData.weight || currentSet.weight);
+
+            // Map exercise name to muscle group
+            const muscleGroupMap: { [key: string]: string } = {
+              'chest': 'chest',
+              'back': 'back', 
+              'legs': 'legs',
+              'shoulders': 'shoulders',
+              'arms': 'arms',
+              'core': 'core'
+            };
+
+            const muscleGroup = muscleGroupMap[exercise.exercise.muscleGroup.toLowerCase()] || 'other';
+
+            // Log the performance using our enhanced tracking
+            await logExercisePerformance({
+              clientId: client.id,
+              workoutAssignmentId: client.workoutAssignment.id,
+              exerciseName: exercise.exercise.name.toLowerCase().replace(/\s+/g, '_'),
+              muscleGroup: muscleGroup,
+              weekNumber: currentWeek,
+              dayNumber: currentDay + 1,
+              setNumber: setIndex + 1,
+              plannedReps: currentSet.reps,
+              actualReps: actualReps,
+              plannedWeight: currentSet.weight,
+              actualWeight: actualWeight
+            });
+
+            console.log(`📊 Logged performance: ${exercise.exercise.name} - Week ${currentWeek}, Day ${currentDay + 1}, Set ${setIndex + 1}`);
+          } catch (error) {
+            console.error('Error logging exercise performance:', error);
+          }
+        }, 300);
       } else {
         // Fallback to shared key
         try {
@@ -694,7 +722,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling.style.display = 'flex';
+                              const nextSibling = e.currentTarget.nextElementSibling as HTMLElement;
+                              if (nextSibling) {
+                                nextSibling.style.display = 'flex';
+                              }
                             }}
                           />
                         ) : (
@@ -935,17 +966,25 @@ export const ClientWorkoutViewCombined: React.FC<ClientWorkoutViewCombinedProps>
 
   // Create a client object from clientView
   const client: Client = {
-    id: clientView.clientId,
+    id: clientView.clientName, // Use clientName as fallback for id
     name: clientView.clientName,
     email: '',
     phone: '',
-    goal: 'general_fitness',
+    goal: 'maintenance' as const,
     numberOfWeeks: clientView.workoutAssignment?.duration || 12,
     startDate: new Date(),
+    isActive: true,
+    favorites: [],
     weightLog: [],
-    physiqueImages: {},
-    workoutAssignment: clientView.workoutAssignment,
-    nutritionPlan: clientView.nutritionPlan
+    workoutAssignment: {
+      ...clientView.workoutAssignment,
+      id: clientView.workoutAssignment.id || 'temp-id',
+      clientId: clientView.clientName,
+      clientName: clientView.clientName,
+      startDate: new Date(),
+      duration: clientView.workoutAssignment.duration || 12
+    },
+    nutritionPlan: undefined // Will be loaded separately
   };
 
   return (

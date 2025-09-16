@@ -27,7 +27,8 @@ import {
 import { Client, NutritionPlan } from '../types';
 import { ClientNutritionView } from './ClientNutritionView';
 import { ClientWorkoutView } from './ClientWorkoutView';
-import { ClientProgressView } from './ClientProgressView';
+import ClientProgressTracker from './ClientProgressTracker';
+import WeeklyWeightLogger from './WeeklyWeightLogger';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
 
@@ -42,10 +43,8 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress'>('workout');
   const [currentWeek, setCurrentWeek] = useState(() => {
-    if (client.workoutAssignment?.weeks) {
-      return WeekProgressionManager.getCurrentWeek(client.workoutAssignment.weeks);
-    }
-    return 1;
+    // Use currentWeek from the workout assignment set by coach
+    return client.workoutAssignment?.currentWeek || 1;
   });
   const [unlockedWeeks, setUnlockedWeeks] = useState<number[]>(() => {
     if (client.workoutAssignment?.weeks) {
@@ -69,7 +68,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
   const todayQuote = motivationQuotes[new Date().getDay() % motivationQuotes.length];
 
-  // Load nutrition plan
+  // Load nutrition plan and sync current week
   useEffect(() => {
     const loadNutritionPlan = async () => {
       try {
@@ -105,7 +104,13 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     };
 
     loadNutritionPlan();
-  }, [client.id, client.nutritionPlan]);
+
+    // Sync current week from coach's assignment
+    if (client.workoutAssignment?.currentWeek) {
+      console.log('🔄 Initial sync - setting currentWeek to:', client.workoutAssignment.currentWeek);
+      setCurrentWeek(client.workoutAssignment.currentWeek);
+    }
+  }, [client.id, client.nutritionPlan, client.workoutAssignment?.currentWeek]);
 
   // Update weeks with real-time sync
   useEffect(() => {
@@ -124,7 +129,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               .select('*')
               .eq('client_id', cRow.id)
               .eq('is_active', true)
-              .order('updated_at', { ascending: false })
+              .order('last_modified_at', { ascending: false })
               .limit(1)
               .maybeSingle();
             
@@ -136,8 +141,18 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                   .map((week: any) => week.weekNumber);
                 setUnlockedWeeks(unlocked.length > 0 ? unlocked : [1]);
                 
-                const newCurrentWeek = WeekProgressionManager.getCurrentWeek(freshWeeks);
-                setCurrentWeek(newCurrentWeek);
+                // Simple: Use the current_week field directly from the assignment
+                const newCurrentWeek = assignment.current_week || 1;
+                console.log('🔄 Raw assignment data:', assignment);
+                console.log('🔄 Extracted current_week:', newCurrentWeek);
+                console.log('🔄 Previous currentWeek state:', currentWeek);
+                
+                if (newCurrentWeek !== currentWeek) {
+                  setCurrentWeek(newCurrentWeek);
+                  console.log('✅ Updated currentWeek to:', newCurrentWeek);
+                } else {
+                  console.log('⚪ No change needed, already on week:', currentWeek);
+                }
               }
             }
           }
@@ -145,7 +160,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       } catch (error) {
         console.error('Error refreshing workout assignment:', error);
       }
-    }, 3000);
+    }, 1000); // Check every 1 second for faster sync
 
     return () => clearInterval(interval);
   }, [client.id, client.name]);
@@ -202,6 +217,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 <div className="text-2xl font-bold text-yellow-400">{progressPercentage}%</div>
                 <div className="text-purple-300 text-sm">Progress</div>
               </div>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-3 py-1 bg-purple-600/20 hover:bg-purple-600/30 rounded-lg text-purple-300 text-sm transition-colors"
+              >
+                🔄 Refresh
+              </button>
             </div>
           </div>
         </div>
@@ -360,10 +381,19 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             isDark={isDark}
           />
         ) : (
-          <ClientProgressView
-            client={client}
-            isDark={isDark}
-          />
+          <div className="space-y-6">
+            <WeeklyWeightLogger
+              client={client}
+              currentWeek={currentWeek}
+              maxWeeks={client.numberOfWeeks}
+              isDark={isDark}
+            />
+            <ClientProgressTracker
+              client={client}
+              currentWeek={currentWeek}
+              isDark={isDark}
+            />
+          </div>
         )}
       </div>
     </div>

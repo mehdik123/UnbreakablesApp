@@ -75,6 +75,78 @@ export interface WeightEntry {
   notes?: string;
 }
 
+// Progress Tracking Types
+export interface TrainingVolumeData {
+  id: string;
+  clientId: string;
+  weekNumber: number;
+  muscleGroup: 'chest' | 'back' | 'legs' | 'shoulders' | 'arms' | 'core';
+  totalSets: number;
+  totalReps: number;
+  totalVolume: number; // weight * reps total
+  volumeChangePercent?: number; // percentage change from previous week
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PersonalRecord {
+  id: string;
+  clientId: string;
+  exerciseName: 'bench_press' | 'squat' | 'deadlift' | 'pull_ups' | 'dips' | 'bicep_curls';
+  weekNumber: number;
+  bestSetWeight: number;
+  bestSetReps: number;
+  totalVolume: number; // weight * reps for the best set
+  dateAchieved: Date;
+  notes?: string;
+  createdAt: Date;
+}
+
+export interface WeeklyPerformanceSummary {
+  id: string;
+  clientId: string;
+  weekNumber: number;
+  startDate: Date;
+  endDate: Date;
+  isCompleted: boolean;
+  completedAt?: Date;
+  totalWorkoutsCompleted: number;
+  totalSetsCompleted: number;
+  totalVolume: number;
+  averageWeight?: number; // average weight for the week
+  weightChange?: number; // weight change from previous week
+  prCount: number; // number of PRs achieved this week
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ExercisePerformanceLog {
+  id: string;
+  clientId: string;
+  workoutAssignmentId?: string;
+  exerciseName: string;
+  muscleGroup: string;
+  weekNumber: number;
+  dayNumber: number;
+  setNumber: number;
+  plannedReps: number;
+  actualReps: number;
+  plannedWeight: number;
+  actualWeight: number;
+  rpe?: number; // Rate of Perceived Exertion (1-10)
+  notes?: string;
+  loggedAt: Date;
+}
+
+export interface ProgressTrackingData {
+  weightLogs: WeightEntry[];
+  trainingVolume: TrainingVolumeData[];
+  personalRecords: PersonalRecord[];
+  weeklyPerformance: WeeklyPerformanceSummary[];
+  exerciseLogs: ExercisePerformanceLog[];
+}
+
 // Workout Types
 export interface Exercise {
   id: string;

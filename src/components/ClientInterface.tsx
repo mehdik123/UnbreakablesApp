@@ -156,7 +156,7 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
               .select('*')
               .eq('client_id', cRow.id)
               .eq('is_active', true)
-              .order('updated_at', { ascending: false })
+              .order('last_modified_at', { ascending: false })
               .limit(1)
               .maybeSingle();
             

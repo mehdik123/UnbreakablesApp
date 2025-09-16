@@ -22,20 +22,18 @@ import {
 import { Client, ClientWorkoutAssignment, WorkoutProgram, WorkoutExercise, Exercise } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { exercises } from '../data/exercises';
-import { dbListWorkoutPrograms } from '../lib/db';
+import { dbListWorkoutPrograms, dbUpdateWorkoutAssignment } from '../lib/db';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
 
 interface UltraModernWorkoutEditorProps {
   client: Client;
   isDark: boolean;
   onSaveAssignment: (assignment: ClientWorkoutAssignment) => void;
-  onBack: () => void;
 }
 
 export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> = ({
   client,
-  onSaveAssignment,
-  onBack
+  onSaveAssignment
 }) => {
   // Tab management
   const [activeTab, setActiveTab] = useState<'workout' | 'progression'>('workout');
@@ -402,6 +400,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         weekNumber: week.weekNumber,
         isUnlocked: week.isUnlocked,
         isCompleted: week.isCompleted,
+        exercises: [], // Add empty exercises array to match WorkoutWeek interface
         days: [], // Add empty days array to match WorkoutWeek interface
         progressionNotes: week.weekNumber > 1 ? `Week ${week.weekNumber} progression applied` : undefined
       })),
@@ -876,53 +875,171 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         {activeTab === 'progression' && client.workoutAssignment ? (
           <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-8">
             <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-4">Week Progression</h2>
-              <p className="text-slate-400 text-lg">Manage {client.name}'s weekly progress</p>
+              <h2 className="text-3xl font-bold text-white mb-4">Week Progression Control</h2>
+              <p className="text-slate-400 text-lg">Control which week {client.name} is currently on</p>
             </div>
             
-            <div className="max-w-md mx-auto">
-              <div className="bg-slate-700/30 rounded-xl p-6 mb-6">
-                <div className="text-center">
-                  <div className="text-4xl font-bold text-blue-400 mb-2">
-                    Week {client.workoutAssignment ? WeekProgressionManager.getCurrentWeek(client.workoutAssignment.weeks) : 1}
-                  </div>
-                  <div className="text-slate-300">Current Active Week</div>
+            <div className="max-w-2xl mx-auto space-y-6">
+              {/* Current Week Display */}
+              <div className="bg-slate-700/30 rounded-xl p-6 text-center">
+                <div className="text-4xl font-bold text-blue-400 mb-2">
+                  Week {client.workoutAssignment.currentWeek}
                 </div>
+                <div className="text-slate-300">Client's Current Active Week</div>
               </div>
-              
-              <button
-                onClick={() => {
-                  if (!client.workoutAssignment) return;
-                  const currentWeek = WeekProgressionManager.getCurrentWeek(client.workoutAssignment.weeks);
-                  const result = WeekProgressionManager.markWeekComplete(
-                    client.workoutAssignment.weeks,
-                    currentWeek,
-                    client.workoutAssignment.duration
-                  );
-                  
-                  if (result.success) {
+
+              {/* Week Control Buttons */}
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={async () => {
+                    if (!client.workoutAssignment || client.workoutAssignment.currentWeek <= 1) return;
+                    
+                    const newWeek = client.workoutAssignment.currentWeek - 1;
+                    
+                    // Update database first
+                    if (client.workoutAssignment.id) {
+                      const { error } = await dbUpdateWorkoutAssignment(client.workoutAssignment.id, {
+                        current_week: newWeek,
+                        last_modified_by: 'coach'
+                      });
+                      
+                      if (error) {
+                        console.error('❌ Failed to update week in database:', error);
+                        alert('Failed to update week. Please try again.');
+                        return;
+                      }
+                    }
+                    
                     const updatedAssignment: ClientWorkoutAssignment = {
-                      ...client.workoutAssignment!,
-                      weeks: result.updatedWeeks,
-                      currentWeek: result.currentWeek,
+                      ...client.workoutAssignment,
+                      currentWeek: newWeek,
                       lastModifiedBy: 'coach' as const,
                       lastModifiedAt: new Date()
                     };
-                    onSaveAssignment(updatedAssignment);
-                    alert(result.message);
-                  } else {
-                    alert(`Error: ${result.message}`);
-                  }
-                }}
-                className="w-full flex items-center justify-center space-x-3 px-6 py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-all duration-200 text-lg"
-              >
-                <CheckCircle className="w-6 h-6" />
-                <span>Mark Week Complete for {client.name}</span>
-              </button>
-              
-              <p className="text-slate-400 text-sm text-center mt-4">
-                This will advance the client to the next week and unlock new content for them.
-              </p>
+                    
+                    await onSaveAssignment(updatedAssignment);
+                    alert(`${client.name} moved back to Week ${newWeek}`);
+                  }}
+                  disabled={!client.workoutAssignment || client.workoutAssignment.currentWeek <= 1}
+                  className="flex items-center justify-center space-x-3 px-6 py-4 bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:opacity-50 text-white rounded-xl font-medium transition-all duration-200"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                  <span>Previous Week</span>
+                </button>
+
+                <button
+                  onClick={async () => {
+                    if (!client.workoutAssignment || client.workoutAssignment.currentWeek >= client.workoutAssignment.duration) return;
+                    
+                    const newWeek = client.workoutAssignment.currentWeek + 1;
+                    
+                    // Update database first
+                    if (client.workoutAssignment.id) {
+                      console.log('🔄 Coach updating week in database (Next):', {
+                        assignmentId: client.workoutAssignment.id,
+                        newWeek: newWeek,
+                        clientName: client.name
+                      });
+                      
+                      const { data, error } = await dbUpdateWorkoutAssignment(client.workoutAssignment.id, {
+                        current_week: newWeek,
+                        last_modified_by: 'coach'
+                      });
+                      
+                      if (error) {
+                        console.error('❌ Failed to update week in database:', error);
+                        alert('Failed to update week. Please try again.');
+                        return;
+                      }
+                      
+                      console.log('✅ Database updated successfully (Next):', data);
+                    }
+                    
+                    const updatedAssignment: ClientWorkoutAssignment = {
+                      ...client.workoutAssignment,
+                      currentWeek: newWeek,
+                      lastModifiedBy: 'coach' as const,
+                      lastModifiedAt: new Date()
+                    };
+                    
+                    await onSaveAssignment(updatedAssignment);
+                    alert(`${client.name} advanced to Week ${newWeek}`);
+                  }}
+                  disabled={!client.workoutAssignment || client.workoutAssignment.currentWeek >= client.workoutAssignment.duration}
+                  className="flex items-center justify-center space-x-3 px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-slate-700 disabled:opacity-50 text-white rounded-xl font-medium transition-all duration-200"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                  <span>Next Week</span>
+                </button>
+              </div>
+
+              {/* Direct Week Selection */}
+              <div className="bg-slate-700/20 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-white mb-4 text-center">Jump to Specific Week</h3>
+                <div className="flex items-center justify-center space-x-4">
+                  <label className="text-slate-300 font-medium">Week:</label>
+                  <select
+                    value={client.workoutAssignment.currentWeek}
+                    onChange={async (e) => {
+                      const newWeek = parseInt(e.target.value);
+                      if (!client.workoutAssignment) return;
+                      
+                      // Update database first
+                      if (client.workoutAssignment.id) {
+                        const { error } = await dbUpdateWorkoutAssignment(client.workoutAssignment.id, {
+                          current_week: newWeek,
+                          last_modified_by: 'coach'
+                        });
+                        
+                        if (error) {
+                          console.error('❌ Failed to update week in database:', error);
+                          alert('Failed to update week. Please try again.');
+                          return;
+                        }
+                      }
+                      
+                      const updatedAssignment: ClientWorkoutAssignment = {
+                        ...client.workoutAssignment,
+                        currentWeek: newWeek,
+                        lastModifiedBy: 'coach' as const,
+                        lastModifiedAt: new Date()
+                      };
+                      
+                      await onSaveAssignment(updatedAssignment);
+                      alert(`${client.name} moved to Week ${newWeek}`);
+                    }}
+                    className="px-4 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {Array.from({ length: client.workoutAssignment.duration }, (_, i) => i + 1).map(week => (
+                      <option key={week} value={week}>Week {week}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Program Info */}
+              <div className="bg-slate-700/20 rounded-xl p-6">
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-blue-400">
+                      {client.workoutAssignment.duration}
+                    </div>
+                    <div className="text-slate-300 text-sm">Total Weeks</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-green-400">
+                      {Math.round((client.workoutAssignment.currentWeek / client.workoutAssignment.duration) * 100)}%
+                    </div>
+                    <div className="text-slate-300 text-sm">Progress</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <p className="text-slate-400 text-sm">
+                  Changes are immediately reflected in the client's interface. The client will see Week {client.workoutAssignment.currentWeek} content.
+                </p>
+              </div>
             </div>
           </div>
         ) : (
