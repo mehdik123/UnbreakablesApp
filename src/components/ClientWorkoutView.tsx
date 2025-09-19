@@ -14,7 +14,9 @@ import {
   Calendar,
   Plus,
   Minus,
-  Heart
+  Heart,
+  Trophy,
+  Activity
 } from 'lucide-react';
 import { Client, WorkoutProgram } from '../types';
 import { logExercisePerformance } from '../lib/progressTracking';
@@ -52,8 +54,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   const [completedExercises, setCompletedExercises] = useState<{ [exerciseId: string]: boolean }>({});
   const [exerciseData, setExerciseData] = useState<{ [exerciseId: string]: { [setIndex: number]: { reps: number; weight: number } } }>({});
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
-  const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
-  const [workoutDuration, setWorkoutDuration] = useState(0);
   const [workoutProgram, setWorkoutProgram] = useState<WorkoutProgram | null>(null);
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const SHARED_KEY = `client_${client.id}_assignment`;
@@ -318,7 +318,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
 
   const startWorkout = () => {
     setIsWorkoutActive(true);
-    setWorkoutStartTime(new Date());
+        // Workout started
   };
 
   const pauseWorkout = () => {
@@ -385,8 +385,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
             version: (sharedVersion || 0) + 1
           })
           .eq('id', assignmentId)
-          .then(() => {})
-          .catch(() => {}) as Promise<void>;
+        .then(() => {});
         // Enhanced progress tracking
         setTimeout(async () => {
           try {
@@ -456,13 +455,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
     }
   };
 
-  const resetWorkout = () => {
-    setCompletedExercises({});
-    setExerciseData({});
-    setIsWorkoutActive(false);
-    setWorkoutStartTime(null);
-    setWorkoutDuration(0);
-  };
 
   const getDayStatus = (dayIndex: number) => {
     const dayExercises = currentWorkoutProgram.days[dayIndex].exercises;
@@ -474,13 +466,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
     return 'in-progress';
   };
 
-  const getDayStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return 'text-green-600 bg-green-50 dark:bg-green-900/20';
-      case 'in-progress': return 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20';
-      default: return 'text-slate-600 bg-slate-50 dark:bg-slate-700';
-    }
-  };
 
   const getDayStatusIcon = (status: string) => {
     switch (status) {
@@ -610,116 +595,198 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
         </div>
       </div>
 
-      <div className="px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4 pb-20 max-w-full overflow-x-hidden">
+      <div className="px-3 sm:px-4 py-3 sm:py-4 space-y-4 sm:space-y-6 pb-20 max-w-full overflow-x-hidden">
         {/* Success Indicator - Show when using fresh CSV data */}
         {client.workoutAssignment?.program && !isUsingOldData && (
-          <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
+          <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-2xl p-4 text-center backdrop-blur-sm">
             <div className="flex items-center justify-center space-x-2 text-green-400">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
               <span className="text-sm font-medium">✅ Using Fresh CSV Data - All Exercise Names & Video Links Updated</span>
-                <button
-                onClick={() => window.location.reload()}
-                className="ml-2 px-2 py-1 bg-green-500/20 hover:bg-green-500/30 rounded text-xs transition-colors"
-                >
-                🔄 Refresh
-                </button>
         </div>
       </div>
         )}
         
-        {/* Day Navigation - Ultra Responsive */}
-        <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-3 sm:p-4">
-          <div className="flex items-center justify-between mb-2 sm:mb-3">
-            <h4 className="text-sm sm:text-base font-semibold text-white">Workout Days</h4>
-            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
+        {/* Day Navigation - Ultra Modern Design with Theme Colors */}
+        <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-4 sm:p-6 shadow-2xl">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-xl flex items-center justify-center shadow-lg border border-[#dc1e3a]/30">
+                <Calendar className="w-5 h-5 text-[#dc1e3a]" />
+              </div>
+              <div>
+                <h4 className="text-lg sm:text-xl font-bold text-white">Workout Days</h4>
+                <p className="text-gray-400 text-xs sm:text-sm">Select your training day</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-[#dc1e3a] rounded-full animate-pulse"></div>
+              <span className="text-xs text-gray-400">Active</span>
+            </div>
           </div>
-          <div className="flex space-x-1.5 sm:space-x-2 overflow-x-auto pb-1 sm:pb-2 scrollbar-hide max-w-full">
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4">
             {currentWorkoutProgram?.days?.map((day, index) => {
               const status = getDayStatus(index);
               const isCurrentDay = index === currentDay;
+              const isCompleted = status === 'completed';
+              const isInProgress = status === 'in-progress';
               
               return (
             <button
               key={day.id}
               onClick={() => setCurrentDay(index)}
                   disabled={!isDayUnlocked}
-                  className={`flex-shrink-0 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 ${
+                  className={`group relative flex flex-col items-center space-y-2 p-3 sm:p-4 rounded-2xl font-medium transition-all duration-300 transform hover:scale-105 ${
                     isCurrentDay
-                      ? 'bg-blue-500 text-white shadow-lg'
+                      ? 'bg-gradient-to-br from-[#dc1e3a]/30 to-red-500/20 text-white shadow-2xl scale-105 border border-[#dc1e3a]/50'
                       : isDayUnlocked
-                      ? 'bg-slate-700/50 text-slate-300 border border-slate-600/50'
-                      : 'bg-slate-700/30 text-slate-500 cursor-not-allowed border border-slate-600/30'
+                      ? isCompleted
+                        ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/10 text-green-300 border border-green-400/30 hover:from-green-500/30 hover:to-emerald-500/20'
+                        : isInProgress
+                        ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/10 text-blue-300 border border-blue-400/30 hover:from-blue-500/30 hover:to-cyan-500/20'
+                        : 'bg-gradient-to-br from-gray-700/50 to-gray-800/50 text-gray-300 border border-gray-600/50 hover:from-gray-600/50 hover:to-gray-700/50'
+                      : 'bg-gradient-to-br from-gray-700/30 to-gray-800/30 text-gray-500 border border-gray-600/30 cursor-not-allowed'
                   }`}
                 >
-                  <div className="flex items-center space-x-1.5 sm:space-x-2">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 group-hover:bg-white/20 transition-all duration-300">
                     {isDayUnlocked ? (
                       getDayStatusIcon(status)
                     ) : (
-                      <Lock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      <Lock className="w-4 h-4" />
                     )}
-                    <span className="text-xs sm:text-sm font-medium">{day.name}</span>
                   </div>
+                  <span className="text-xs sm:text-sm font-semibold text-center">{day.name}</span>
+                  
+                  {/* Status indicator */}
+                  {isDayUnlocked && (
+                    <div className={`w-2 h-2 rounded-full ${
+                      isCompleted ? 'bg-green-400' : 
+                      isInProgress ? 'bg-blue-400' : 
+                      'bg-gray-400'
+                    }`}></div>
+                  )}
+                  
+                  {/* Current day indicator */}
+                  {isCurrentDay && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-[#dc1e3a] rounded-full"></div>
+                    </div>
+                  )}
             </button>
               );
             })}
           </div>
+          
           {!isDayUnlocked && (
-            <div className="mt-2 sm:mt-3 p-2.5 sm:p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-              <p className="text-yellow-300 text-xs flex items-center space-x-1.5 sm:space-x-2">
-                <Lock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                <span>This week is locked. Complete previous weeks to unlock.</span>
-              </p>
+            <div className="mt-4 sm:mt-6 p-4 bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/30 rounded-2xl backdrop-blur-sm">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center">
+                  <Lock className="w-4 h-4 text-yellow-400" />
+                </div>
+                <div>
+                  <p className="text-yellow-300 text-sm font-medium">Week Locked</p>
+                  <p className="text-yellow-400/80 text-xs">Complete previous weeks to unlock this training week</p>
+                </div>
+              </div>
         </div>
           )}
       </div>
 
         {/* Current Day Workout */}
         {isDayUnlocked && currentDayData && (
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-6 sm:space-y-8">
+            {/* Workout Header */}
+            <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-6 sm:p-8 shadow-2xl">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-2xl flex items-center justify-center shadow-lg border border-[#dc1e3a]/30">
+                    <Dumbbell className="w-6 h-6 text-[#dc1e3a]" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl sm:text-2xl font-bold text-white">{currentDayData.name}</h3>
+                    <p className="text-gray-400 text-sm sm:text-base">Week {currentWeek} • {currentDayData.exercises.length} exercises</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl sm:text-3xl font-bold text-[#dc1e3a]">
+                    {Object.values(completedExercises).filter(Boolean).length}/{currentDayData.exercises.length}
+                  </div>
+                  <div className="text-gray-400 text-xs sm:text-sm">Completed</div>
+                </div>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="w-full bg-gray-700/50 rounded-full h-3 overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-[#dc1e3a] to-red-600 rounded-full transition-all duration-500 ease-out"
+                  style={{ 
+                    width: `${(Object.values(completedExercises).filter(Boolean).length / currentDayData.exercises.length) * 100}%` 
+                  }}
+                ></div>
+              </div>
+            </div>
+
             {/* Exercises */}
-            <div className="space-y-3 sm:space-y-4">
+            <div className="space-y-6 sm:space-y-8">
               {currentDayData.exercises.map((exercise, exerciseIndex) => (
-                <div key={exercise.id} className="bg-gradient-to-br from-slate-800/60 to-slate-900/40 backdrop-blur-sm rounded-2xl border border-slate-600/30 p-4 sm:p-6 shadow-xl hover:shadow-purple-500/10 transition-all duration-300">
-                  {/* Exercise Header - Enhanced Design */}
-                  <div className="flex items-center space-x-3 sm:space-x-4 mb-4 sm:mb-6">
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 rounded-xl flex items-center justify-center text-white font-bold text-sm sm:text-base shadow-lg relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent"></div>
-                      <span className="relative z-10">{exerciseIndex + 1}</span>
+                <div key={exercise.id} className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-6 sm:p-8 shadow-2xl hover:shadow-[#dc1e3a]/10 transition-all duration-300 group">
+                  {/* Exercise Header - Premium Design with Theme Colors */}
+                  <div className="flex items-start space-x-4 mb-6">
+                    <div className="relative">
+                      <div className="w-12 h-12 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-xl flex items-center justify-center text-white font-bold text-lg border border-[#dc1e3a]/30">
+                        <span>{exerciseIndex + 1}</span>
+                      </div>
+                      {completedExercises[exercise.id] && (
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                          <CheckCircle className="w-3 h-3 text-white" />
+                        </div>
+                      )}
                     </div>
+                    
                     <div className="flex-1 min-w-0">
-                      <h5 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent mb-2 truncate">
+                      <h5 className="text-lg font-bold text-white mb-3 truncate">
                         {exercise.exercise.name}
                       </h5>
-                      <div className="flex items-center space-x-2 flex-wrap gap-2">
-                        <div className="flex items-center space-x-1.5 bg-purple-500/20 border border-purple-400/30 px-2.5 py-1 rounded-full">
-                          <Target className="w-3 h-3 text-purple-400" />
-                          <span className="text-xs font-medium text-purple-200">{exercise.exercise.muscleGroup}</span>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <div className="flex items-center space-x-1 bg-gradient-to-r from-blue-500/10 to-blue-600/5 border border-blue-500/20 px-3 py-1 rounded-lg">
+                          <Target className="w-3 h-3 text-blue-400" />
+                          <span className="text-xs font-medium text-blue-300">{exercise.exercise.muscleGroup}</span>
                         </div>
-                        <div className="flex items-center space-x-1.5 bg-blue-500/20 border border-blue-400/30 px-2.5 py-1 rounded-full">
-                          <Zap className="w-3 h-3 text-blue-400" />
-                          <span className="text-xs font-medium text-blue-200">{exercise.exercise.equipment}</span>
+                        <div className="flex items-center space-x-1 bg-gradient-to-r from-purple-500/10 to-purple-600/5 border border-purple-500/20 px-3 py-1 rounded-lg">
+                          <Zap className="w-3 h-3 text-purple-400" />
+                          <span className="text-xs font-medium text-purple-300">{exercise.exercise.equipment}</span>
                         </div>
-                        <div className="flex items-center space-x-1.5 bg-emerald-500/20 border border-emerald-400/30 px-2.5 py-1 rounded-full">
-                          <span className="text-xs font-medium text-emerald-200">{exercise.sets.length} sets</span>
+                        <div className="flex items-center space-x-1 bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 px-3 py-1 rounded-lg">
+                          <Dumbbell className="w-3 h-3 text-emerald-400" />
+                          <span className="text-xs font-medium text-emerald-300">{exercise.sets.length} sets</span>
                         </div>
                       </div>
-            </div>
-          </div>
+                    </div>
+                  </div>
 
-                  {/* Video Player - Enhanced */}
-                  <div className="mb-4">
+                  {/* Video Player - Premium Design with Theme Colors */}
+                  <div className="mb-6">
+                    <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/40 rounded-2xl p-4 border border-gray-700/50">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="w-8 h-8 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
+                          <Play className="w-4 h-4 text-[#dc1e3a]" />
+                        </div>
+                        <h6 className="text-base font-semibold text-white">Exercise Demonstration</h6>
+                      </div>
+                      
                     <a 
                       href={exercise.exercise.videoUrl || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="block relative bg-slate-900 rounded-lg overflow-hidden group"
+                        className="block relative bg-gray-900 rounded-xl overflow-hidden group shadow-2xl"
                     >
                       <div className="aspect-video relative">
                         {getYouTubeThumbnail(exercise.exercise.videoUrl || '') ? (
                           <img 
                             src={getYouTubeThumbnail(exercise.exercise.videoUrl || '') || ''} 
                             alt={`${exercise.exercise.name} demonstration`}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
                               const nextSibling = e.currentTarget.nextElementSibling as HTMLElement;
@@ -729,47 +796,55 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
                             }}
                           />
                         ) : (
-                          <div className="w-full h-full bg-slate-800 flex items-center justify-center">
-                            <div className="text-center text-slate-400">
-                              <div className="text-4xl mb-2">...</div>
-                              <div className="text-sm">No video available</div>
+                            <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
+                              <div className="text-center text-gray-400">
+                                <div className="text-6xl mb-4">🎥</div>
+                                <div className="text-lg font-medium">No video available</div>
+                                <div className="text-sm text-gray-500 mt-2">Video demonstration coming soon</div>
                             </div>
                           </div>
                         )}
+                          
                         <div 
-                          className="w-full h-full bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center group-hover:from-slate-700 group-hover:to-slate-800 transition-all duration-300" 
+                            className="w-full h-full bg-gray-800 flex items-center justify-center group-hover:bg-gray-700 transition-all duration-300" 
                           style={{ display: getYouTubeThumbnail(exercise.exercise.videoUrl || '') ? 'none' : 'flex' }}
                         >
                           <div className="text-center">
-                            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mb-2 mx-auto group-hover:bg-white/30 transition-all duration-300">
-                              <Play className="w-6 h-6 text-white ml-1" />
+                              <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center mb-3 mx-auto group-hover:bg-gray-600 transition-all duration-300">
+                                <Play className="w-5 h-5 text-white ml-1" />
                             </div>
-                            <p className="text-white/80 text-sm group-hover:text-white transition-colors duration-300">Video Demonstration</p>
-                            <p className="text-white/60 text-xs mt-1 group-hover:text-white/80 transition-colors duration-300">Click to watch on YouTube</p>
+                              <p className="text-white text-sm font-medium">Watch Demonstration</p>
+                              <p className="text-gray-400 text-xs mt-1">Click to open on YouTube</p>
                           </div>
                         </div>
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
-                          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-                            <Play className="w-6 h-6 text-white ml-1" />
+                          
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
+                            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-sm">
+                              <Play className="w-8 h-8 text-white ml-1" />
                           </div>
             </div>
-                        <div className="absolute bottom-2 right-2">
-                          <div className="bg-black/70 text-white text-xs px-2 py-1 rounded">
-                            1:00
+                          
+                          <div className="absolute bottom-4 right-4">
+                            <div className="bg-black/80 text-white text-sm px-3 py-2 rounded-lg backdrop-blur-sm">
+                              <div className="flex items-center space-x-2">
+                                <Play className="w-4 h-4" />
+                                <span>Watch Now</span>
+                              </div>
                     </div>
                     </div>
                       </div>
                     </a>
+                    </div>
                   </div>
 
-                  {/* Mark Complete Button */}
-                  <div className="flex justify-center mb-4">
+                  {/* Mark Complete Button - Premium Design with Theme Colors */}
+                  <div className="flex justify-center mb-6 sm:mb-8">
                     <button
                       onClick={() => completeExercise(exercise.id)}
-                      className={`px-6 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      className={`px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                         completedExercises[exercise.id]
-                          ? 'bg-green-500 text-white'
-                          : 'bg-slate-700/50 text-slate-300 border border-slate-600/50'
+                          ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/10 text-green-400 border border-green-500/30 hover:from-green-500/30 hover:to-emerald-500/20'
+                          : 'bg-gradient-to-r from-[#dc1e3a]/20 to-red-500/10 text-[#dc1e3a] border border-[#dc1e3a]/30 hover:from-[#dc1e3a]/30 hover:to-red-500/20 hover:text-white'
                       }`}
                     >
                       {completedExercises[exercise.id] ? (
@@ -781,82 +856,100 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
                         <div className="flex items-center space-x-2">
                           <Circle className="w-4 h-4" />
                           <span>Mark Complete</span>
-                    </div>
-                  )}
+                        </div>
+                      )}
                     </button>
                   </div>
 
-                  {/* Sets & Reps Section - Only show if not completed */}
+                  {/* Sets & Reps Section - Ultra Modern Design */}
                   {!completedExercises[exercise.id] && (
-                    <div className="space-y-3">
+                    <div className="space-y-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h6 className="text-base sm:text-lg font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent flex items-center space-x-2">
-                          <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                            <Dumbbell className="w-3 h-3 text-white" />
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
+                            <Dumbbell className="w-4 h-4 text-[#dc1e3a]" />
                           </div>
-                          <span>Sets & Reps</span>
-                        </h6>
-                        <div className="text-xs text-slate-400 bg-slate-700/50 px-3 py-1 rounded-full">
-                          Track your progress
+                          <div>
+                            <h6 className="text-lg font-bold text-white">Sets & Reps</h6>
+                            <p className="text-gray-400 text-xs">Track your performance</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-[#dc1e3a]">{exercise.sets.length}</div>
+                          <div className="text-gray-400 text-xs">Sets</div>
                         </div>
                       </div>
 
-                      {/* Set-based organization - Redesigned to match attached image */}
-                  <div className="space-y-3">
-                    {exercise.sets.map((set, setIndex) => (
-                          <div key={setIndex} className="bg-gradient-to-r from-slate-800/40 to-slate-700/40 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-slate-600/30 shadow-lg">
-                            <div className="flex items-center justify-between">
-                              {/* Set Number with Icon */}
-                              <div className="flex items-center space-x-2">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-400/30 flex items-center justify-center">
-                                  <span className="text-purple-300 text-xs font-bold">{setIndex + 1}</span>
+                      {/* Set-based organization - Ultra Modern */}
+                      <div className="space-y-4">
+                        {exercise.sets.map((set, setIndex) => (
+                          <div key={setIndex} className="bg-gradient-to-br from-gray-800/60 to-gray-900/40 rounded-2xl p-4 border border-gray-700/50 hover:border-[#dc1e3a]/20 transition-all duration-300">
+                            <div className="flex items-center justify-between mb-4">
+                              {/* Set Number */}
+                              <div className="flex items-center space-x-3">
+                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 flex items-center justify-center border border-[#dc1e3a]/30">
+                                  <span className="text-[#dc1e3a] text-sm font-bold">{setIndex + 1}</span>
                                 </div>
-                                <span className="text-slate-300 text-xs sm:text-sm font-medium">Set</span>
+                                <div>
+                                  <span className="text-white text-sm font-semibold">Set {setIndex + 1}</span>
+                                </div>
                               </div>
+                            </div>
                               
-                              {/* Reps & Weight Controls */}
-                              <div className="flex items-center space-x-3 sm:space-x-4">
-                                {/* Reps Section */}
-                                <div className="flex items-center space-x-1 bg-black/20 rounded-lg px-1.5 py-1">
+                            {/* Reps & Weight Controls - Mobile Optimized */}
+                            <div className="space-y-4">
+                              {/* Reps Section */}
+                              <div className="bg-gradient-to-br from-blue-500/5 to-blue-600/5 rounded-2xl p-4 border border-blue-500/20">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h6 className="text-sm font-semibold text-blue-300">Repetitions</h6>
+                                  <Target className="w-4 h-4 text-blue-400" />
+                                </div>
+                                <div className="flex items-center justify-between max-w-xs mx-auto">
                                   <button
                                     onClick={() => updateExerciseData(exercise.id, setIndex, 'reps', Math.max(0, (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps) - 1))}
-                                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#dc1e3a] hover:bg-[#c11a33] text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                    className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
                                   >
-                                    <Minus className="w-2.5 h-2.5" />
+                                    <Minus className="w-4 h-4" />
                                   </button>
-                                  <div className="flex flex-col items-center">
-                                    <span className="text-white font-bold text-sm min-w-[1.25rem] text-center">
+                                  <div className="text-center px-4">
+                                    <div className="text-2xl font-bold text-blue-300">
                                       {exerciseData[exercise.id]?.[setIndex]?.reps || set.reps}
-                                    </span>
-                                    <span className="text-white/70 text-xs font-medium">reps</span>
+                                    </div>
+                                    <div className="text-blue-400 text-xs">reps</div>
                                   </div>
                                   <button
                                     onClick={() => updateExerciseData(exercise.id, setIndex, 'reps', (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps) + 1)}
-                                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#dc1e3a] hover:bg-[#c11a33] text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                    className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
                                   >
-                                    <Plus className="w-2.5 h-2.5" />
+                                    <Plus className="w-4 h-4" />
                                   </button>
                                 </div>
+                              </div>
 
-                                {/* Weight Section */}
-                                <div className="flex items-center space-x-1 bg-black/20 rounded-lg px-1.5 py-1">
+                              {/* Weight Section */}
+                              <div className="bg-gradient-to-br from-purple-500/5 to-purple-600/5 rounded-2xl p-4 border border-purple-500/20">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h6 className="text-sm font-semibold text-purple-300">Weight</h6>
+                                  <Zap className="w-4 h-4 text-purple-400" />
+                                </div>
+                                <div className="flex items-center justify-between max-w-xs mx-auto">
                                   <button
                                     onClick={() => updateExerciseData(exercise.id, setIndex, 'weight', Math.max(0, (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) - 2.5))}
-                                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#dc1e3a] hover:bg-[#c11a33] text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                    className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
                                   >
-                                    <Minus className="w-2.5 h-2.5" />
+                                    <Minus className="w-4 h-4" />
                                   </button>
-                                  <div className="flex flex-col items-center">
-                                    <span className="text-white font-bold text-sm min-w-[2rem] text-center">
+                                  <div className="text-center px-4">
+                                    <div className="text-2xl font-bold text-purple-300">
                                       {exerciseData[exercise.id]?.[setIndex]?.weight || set.weight}kg
-                                    </span>
-                                    <span className="text-white/70 text-xs font-medium">weight</span>
+                                    </div>
+                                    <div className="text-purple-400 text-xs">weight</div>
                                   </div>
                                   <button
                                     onClick={() => updateExerciseData(exercise.id, setIndex, 'weight', (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) + 2.5)}
-                                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#dc1e3a] hover:bg-[#c11a33] text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                    className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
                                   >
-                                    <Plus className="w-2.5 h-2.5" />
+                                    <Plus className="w-4 h-4" />
                                   </button>
                                 </div>
                               </div>
@@ -868,8 +961,16 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
                   )}
 
                   {exercise.notes && (
-                    <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                      <p className="text-sm text-blue-300 italic font-medium">{exercise.notes}</p>
+                    <div className="mt-6 p-6 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-2xl backdrop-blur-sm">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Heart className="w-4 h-4 text-blue-400" />
+                        </div>
+                        <div>
+                          <h6 className="text-sm font-semibold text-blue-300 mb-2">Exercise Notes</h6>
+                          <p className="text-blue-200 text-sm leading-relaxed">{exercise.notes}</p>
+                        </div>
+                      </div>
             </div>
           )}
                 </div>
@@ -878,31 +979,74 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
         </div>
       )}
 
-        {/* Workout Summary */}
+        {/* Workout Summary - Ultra Modern */}
         {isDayUnlocked && currentDayData && (
-          <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-4">
-            <h4 className="text-base font-semibold text-white mb-4 flex items-center space-x-2">
-              <Target className="w-4 h-4 text-green-400" />
-              <span>Workout Summary</span>
-            </h4>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="text-center bg-slate-700/30 rounded-lg p-3 border border-slate-600/50">
-                <div className="text-lg font-bold text-green-400 mb-1">
+          <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-6 sm:p-8 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg">
+                  <Trophy className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h4 className="text-xl sm:text-2xl font-bold text-white">Workout Summary</h4>
+                  <p className="text-gray-400 text-sm sm:text-base">Track your progress and achievements</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl sm:text-4xl font-bold text-[#dc1e3a]">
+                  {Math.round((Object.values(completedExercises).filter(Boolean).length / currentDayData.exercises.length) * 100)}%
+                </div>
+                <div className="text-gray-400 text-sm">Complete</div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+              <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
+                <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle className="w-6 h-6 text-green-400" />
+                </div>
+                <div className="text-3xl sm:text-4xl font-bold text-green-400 mb-2">
                   {Object.values(completedExercises).filter(Boolean).length}
                 </div>
-                <div className="text-slate-300 text-xs">Completed</div>
+                <div className="text-green-300 text-sm font-medium">Completed</div>
               </div>
-              <div className="text-center bg-slate-700/30 rounded-lg p-3 border border-slate-600/50">
-                <div className="text-lg font-bold text-blue-400 mb-1">
+              
+              <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
+                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Target className="w-6 h-6 text-blue-400" />
+                </div>
+                <div className="text-3xl sm:text-4xl font-bold text-blue-400 mb-2">
                   {currentDayData.exercises.length}
                 </div>
-                <div className="text-slate-300 text-xs">Total</div>
+                <div className="text-blue-300 text-sm font-medium">Total Exercises</div>
               </div>
-              <div className="text-center bg-slate-700/30 rounded-lg p-3 border border-slate-600/50">
-                <div className="text-lg font-bold text-purple-400 mb-1">
-                  {Math.round((Object.values(completedExercises).filter(Boolean).length / currentDayData.exercises.length) * 100)}%
+              
+              <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
+                <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Activity className="w-6 h-6 text-purple-400" />
           </div>
-                <div className="text-slate-300 text-xs">Progress</div>
+                <div className="text-3xl sm:text-4xl font-bold text-purple-400 mb-2">
+                  {currentDayData.exercises.reduce((total, exercise) => total + exercise.sets.length, 0)}
+                </div>
+                <div className="text-purple-300 text-sm font-medium">Total Sets</div>
+              </div>
+            </div>
+            
+            {/* Progress Bar */}
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-gray-300">Overall Progress</span>
+                <span className="text-sm font-bold text-[#dc1e3a]">
+                  {Object.values(completedExercises).filter(Boolean).length}/{currentDayData.exercises.length}
+                </span>
+              </div>
+              <div className="w-full bg-gray-700/50 rounded-full h-4 overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-[#dc1e3a] to-red-600 rounded-full transition-all duration-1000 ease-out shadow-lg"
+                  style={{ 
+                    width: `${(Object.values(completedExercises).filter(Boolean).length / currentDayData.exercises.length) * 100}%` 
+                  }}
+                ></div>
           </div>
         </div>
           </div>
@@ -937,7 +1081,6 @@ export const ClientWorkoutViewCombined: React.FC<ClientWorkoutViewCombinedProps>
   clientView,
   isDark
 }) => {
-  const [currentWeek, setCurrentWeek] = useState(1);
   const [unlockedWeeks, setUnlockedWeeks] = useState<number[]>([1]);
 
   // Update unlocked weeks based on workout assignment
@@ -971,18 +1114,24 @@ export const ClientWorkoutViewCombined: React.FC<ClientWorkoutViewCombinedProps>
     email: '',
     phone: '',
     goal: 'maintenance' as const,
-    numberOfWeeks: clientView.workoutAssignment?.duration || 12,
+    numberOfWeeks: 12,
     startDate: new Date(),
     isActive: true,
     favorites: [],
     weightLog: [],
     workoutAssignment: {
       ...clientView.workoutAssignment,
-      id: clientView.workoutAssignment.id || 'temp-id',
+      id: 'temp-id',
       clientId: clientView.clientName,
       clientName: clientView.clientName,
       startDate: new Date(),
-      duration: clientView.workoutAssignment.duration || 12
+      duration: 12,
+      currentWeek: 1,
+      currentDay: 0,
+      progressionRules: [],
+      isActive: true,
+      weeks: clientView.workoutAssignment.weeks || [],
+      lastModifiedBy: clientView.workoutAssignment.lastModifiedBy as 'client' | 'coach' | undefined
     },
     nutritionPlan: undefined // Will be loaded separately
   };
@@ -990,7 +1139,7 @@ export const ClientWorkoutViewCombined: React.FC<ClientWorkoutViewCombinedProps>
   return (
     <ClientWorkoutView
       client={client}
-      currentWeek={currentWeek}
+      currentWeek={1}
       unlockedWeeks={unlockedWeeks}
       isDark={isDark}
     />

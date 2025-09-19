@@ -370,13 +370,6 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
                 </p>
               </div>
               <div className="flex items-center space-x-2">
-                <button
-                  onClick={loadWeightData}
-                  disabled={isLoading}
-                  className="px-3 py-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white text-xs rounded-lg transition-colors"
-                >
-                  Refresh
-                </button>
                 {isLoading && (
                   <div className="w-4 h-4 border-2 border-[#dc1e3a] border-t-transparent rounded-full animate-spin"></div>
                 )}
