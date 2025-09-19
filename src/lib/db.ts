@@ -315,21 +315,31 @@ export async function dbCreateWorkoutAssignment(payload: {
     programId = tempProgram?.id;
   }
   
+  const insertPayload = {
+    client_id: payload.client_id,
+    program_id: programId,
+    program_json: payload.program_json,
+    start_date: payload.start_date || new Date().toISOString().split('T')[0],
+    duration_weeks: payload.duration_weeks,
+    current_week: payload.current_week || 1,
+    current_day: payload.current_day || 1,
+    is_active: payload.is_active !== false,
+    last_modified_by: payload.last_modified_by || 'coach'
+  };
+  
+  console.log('🗄️ DB CREATE DEBUG - Insert payload:', insertPayload);
+  console.log('🗄️ DB CREATE DEBUG - program_json in payload:', insertPayload.program_json);
+  console.log('🗄️ DB CREATE DEBUG - weeks in program_json:', insertPayload.program_json?.weeks);
+  
   const { data, error } = await supabase
     .from('workout_assignments')
-    .insert({
-      client_id: payload.client_id,
-      program_id: programId,
-      program_json: payload.program_json,
-      start_date: payload.start_date || new Date().toISOString().split('T')[0],
-      duration_weeks: payload.duration_weeks,
-      current_week: payload.current_week || 1,
-      current_day: payload.current_day || 1,
-      is_active: payload.is_active !== false,
-      last_modified_by: payload.last_modified_by || 'coach'
-    })
+    .insert(insertPayload)
     .select('*')
     .single();
+    
+  console.log('🗄️ DB CREATE DEBUG - Insert result:', { data, error });
+  console.log('🗄️ DB CREATE DEBUG - Created program_json:', data?.program_json);
+  console.log('🗄️ DB CREATE DEBUG - Weeks in created result:', data?.program_json?.weeks);
   return { data, error };
 }
 
@@ -340,16 +350,42 @@ export async function dbUpdateWorkoutAssignment(id: string, payload: {
   is_active?: boolean;
   last_modified_by?: string;
 }): Promise<DBResult<any>> {
-  if (!isSupabaseReady || !supabase) return { data: null };
+  console.log('🗄️ DB UPDATE DEBUG - Updating workout assignment:', {
+    id,
+    payload,
+    isSupabaseReady,
+    hasSupabase: !!supabase
+  });
+  
+  if (!isSupabaseReady || !supabase) {
+    console.log('❌ DB UPDATE DEBUG - Supabase not ready');
+    return { data: null };
+  }
+  
+  const updatePayload = {
+    ...payload,
+    last_modified_at: new Date().toISOString()
+  };
+  
+  console.log('🗄️ DB UPDATE DEBUG - Final update payload:', updatePayload);
+  console.log('🗄️ DB UPDATE DEBUG - program_json in payload:', updatePayload.program_json);
+  console.log('🗄️ DB UPDATE DEBUG - weeks in program_json:', updatePayload.program_json?.weeks);
+  
+  console.log('🗄️ DB UPDATE DEBUG - About to execute update query');
+  console.log('🗄️ DB UPDATE DEBUG - Table: workout_assignments');
+  console.log('🗄️ DB UPDATE DEBUG - ID filter:', id);
+  
   const { data, error } = await supabase
     .from('workout_assignments')
-    .update({
-      ...payload,
-      last_modified_at: new Date().toISOString()
-    })
+    .update(updatePayload)
     .eq('id', id)
     .select('*')
     .single();
+    
+  console.log('🗄️ DB UPDATE DEBUG - Update result:', { data, error });
+  console.log('🗄️ DB UPDATE DEBUG - Updated program_json in result:', data?.program_json);
+  console.log('🗄️ DB UPDATE DEBUG - Weeks in updated result:', data?.program_json?.weeks);
+  
   return { data, error };
 }
 

@@ -710,9 +710,9 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-gray-900">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50">
+      <div className="sticky top-0 z-50 bg-gray-800 backdrop-blur-xl border-b border-gray-700">
         <div className="w-full px-4 lg:px-6">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">

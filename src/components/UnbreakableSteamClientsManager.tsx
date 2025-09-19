@@ -334,7 +334,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
           <div className="relative">
             <div className="w-16 h-16 border-4 border-slate-700 border-t-red-500 rounded-full animate-spin"></div>
@@ -348,9 +348,9 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-gray-900">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50">
+      <div className="sticky top-0 z-50 bg-gray-800 backdrop-blur-xl border-b border-gray-700">
         <div className="w-full px-4 lg:px-6">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}

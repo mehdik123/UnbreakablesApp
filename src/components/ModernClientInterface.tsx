@@ -22,13 +22,14 @@ import {
   Flame,
   Crown,
   Sparkles,
-  ChevronDown
+  ChevronDown,
+  Scale
 } from 'lucide-react';
 import { Client, NutritionPlan } from '../types';
 import { ClientNutritionView } from './ClientNutritionView';
 import { ClientWorkoutView } from './ClientWorkoutView';
 import ClientProgressTracker from './ClientProgressTracker';
-import WeeklyWeightLogger from './WeeklyWeightLogger';
+import { UltraModernWeeklyWeightLogger } from './UltraModernWeeklyWeightLogger';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
 
@@ -41,7 +42,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   client,
   isDark
 }) => {
-  const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress'>('workout');
+  const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress' | 'weight'>('workout');
   const [currentWeek, setCurrentWeek] = useState(() => {
     // Use currentWeek from the workout assignment set by coach
     return client.workoutAssignment?.currentWeek || 1;
@@ -112,10 +113,77 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     }
   }, [client.id, client.nutritionPlan, client.workoutAssignment?.currentWeek]);
 
+  // Real-time sync for current week from database
+  useEffect(() => {
+    if (!isSupabaseReady || !supabase) return;
+
+    const syncCurrentWeek = async () => {
+      try {
+        const { data: cRow } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('full_name', client.name)
+          .maybeSingle();
+        
+        if (cRow?.id) {
+          const { data: assignment } = await supabase
+            .from('workout_assignments')
+            .select('current_week')
+            .eq('client_id', cRow.id)
+            .eq('is_active', true)
+            .order('last_modified_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (assignment?.current_week && assignment.current_week !== currentWeek) {
+            console.log('🔄 REALTIME SYNC - Updating currentWeek:', assignment.current_week);
+            setCurrentWeek(assignment.current_week);
+          }
+        }
+      } catch (error) {
+        console.error('Error syncing current week:', error);
+      }
+    };
+
+    // Initial sync
+    syncCurrentWeek();
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel(`client-${client.id}-week-sync`)
+      .on('postgres_changes', 
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'workout_assignments',
+          filter: `client_id=eq.${client.id}`
+        }, 
+        (payload) => {
+          console.log('🔄 REALTIME UPDATE - Assignment updated:', payload);
+          if (payload.new.current_week && payload.new.current_week !== currentWeek) {
+            setCurrentWeek(payload.new.current_week);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [client.id, client.name, currentWeek]);
+
   // Update weeks with real-time sync
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
+        console.log('🔄 CLIENT SYNC DEBUG - Starting sync check...', {
+          isSupabaseReady,
+          hasSupabase: !!supabase,
+          clientId: client.id,
+          clientName: client.name,
+          currentWeek: currentWeek
+        });
+        
         if (isSupabaseReady && supabase && client.id) {
           const { data: cRow } = await supabase
             .from('clients')
@@ -123,8 +191,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             .eq('full_name', client.name)
             .maybeSingle();
           
+          console.log('🔄 CLIENT SYNC DEBUG - Client row:', cRow);
+          
           if (cRow?.id) {
-            const { data: assignment } = await supabase
+            const { data: assignment, error: assignmentError } = await supabase
               .from('workout_assignments')
               .select('*')
               .eq('client_id', cRow.id)
@@ -133,37 +203,74 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               .limit(1)
               .maybeSingle();
             
+            console.log('🔄 CLIENT SYNC DEBUG - Assignment query result:', {
+              assignment,
+              assignmentError,
+              hasProgramJson: !!assignment?.program_json,
+              programJson: assignment?.program_json,
+              currentWeek: assignment?.current_week,
+              lastModifiedAt: assignment?.last_modified_at
+            });
+            
+            if (assignmentError) {
+              console.error('❌ CLIENT SYNC ERROR - Assignment query failed:', assignmentError);
+              return;
+            }
+            
             if (assignment?.program_json) {
+              console.log('🔄 CLIENT SYNC DEBUG - Full program_json from DB:', assignment.program_json);
+              console.log('🔄 CLIENT SYNC DEBUG - program_json keys:', Object.keys(assignment.program_json));
+              console.log('🔄 CLIENT SYNC DEBUG - program_json.weeks:', assignment.program_json.weeks);
+              
               const freshWeeks = assignment.program_json.weeks || [];
+              console.log('🔄 CLIENT SYNC DEBUG - Fresh weeks from DB:', freshWeeks);
+              
               if (freshWeeks.length > 0) {
                 const unlocked = freshWeeks
                   .filter((week: any) => week.isUnlocked)
                   .map((week: any) => week.weekNumber);
+                console.log('🔄 CLIENT SYNC DEBUG - Unlocked weeks:', unlocked);
                 setUnlockedWeeks(unlocked.length > 0 ? unlocked : [1]);
                 
                 // Simple: Use the current_week field directly from the assignment
                 const newCurrentWeek = assignment.current_week || 1;
-                console.log('🔄 Raw assignment data:', assignment);
-                console.log('🔄 Extracted current_week:', newCurrentWeek);
-                console.log('🔄 Previous currentWeek state:', currentWeek);
+                console.log('🔄 CLIENT SYNC DEBUG - Raw assignment data:', {
+                  current_week: assignment.current_week,
+                  program_json_weeks: assignment.program_json.weeks,
+                  last_modified_at: assignment.last_modified_at
+                });
+                console.log('🔄 CLIENT SYNC DEBUG - Extracted current_week:', newCurrentWeek);
+                console.log('🔄 CLIENT SYNC DEBUG - Previous currentWeek state:', currentWeek);
                 
                 if (newCurrentWeek !== currentWeek) {
+                  console.log('✅ CLIENT SYNC - Updating currentWeek from', currentWeek, 'to', newCurrentWeek);
                   setCurrentWeek(newCurrentWeek);
-                  console.log('✅ Updated currentWeek to:', newCurrentWeek);
                 } else {
-                  console.log('⚪ No change needed, already on week:', currentWeek);
+                  console.log('⚪ CLIENT SYNC - No change needed, already on week:', currentWeek);
                 }
+              } else {
+                console.log('⚠️ CLIENT SYNC - No weeks found in program_json');
               }
+            } else {
+              console.log('⚠️ CLIENT SYNC - No program_json found in assignment');
             }
+          } else {
+            console.log('⚠️ CLIENT SYNC - No client row found for name:', client.name);
           }
+        } else {
+          console.log('⚠️ CLIENT SYNC - Missing requirements:', {
+            isSupabaseReady,
+            hasSupabase: !!supabase,
+            clientId: client.id
+          });
         }
       } catch (error) {
-        console.error('Error refreshing workout assignment:', error);
+        console.error('❌ CLIENT SYNC ERROR - Error refreshing workout assignment:', error);
       }
     }, 1000); // Check every 1 second for faster sync
 
     return () => clearInterval(interval);
-  }, [client.id, client.name]);
+  }, [client.id, client.name, currentWeek]);
 
   const getWeekStatus = (weekNumber: number): 'locked' | 'active' | 'completed' => {
     if (!client.workoutAssignment?.weeks) return 'locked';
@@ -174,11 +281,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     return WeekProgressionManager.getWeekStatus(week);
   };
 
-  const completedWeeks = client.workoutAssignment?.weeks?.filter(w => w.isCompleted).length || 0;
-  const progressPercentage = Math.round((completedWeeks / (client.numberOfWeeks || 12)) * 100);
+  // Dynamic progress calculation based on current week
+  const completedWeeks = Math.max(0, currentWeek - 1); // Weeks before current week are considered completed
+  const progressPercentage = Math.round((currentWeek / (client.numberOfWeeks || 12)) * 100);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-slate-900">
+    <div className="min-h-screen bg-gray-900">
       {/* Animated Background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse"></div>
@@ -186,19 +294,19 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       </div>
 
       {/* Header */}
-      <div className="relative z-10 bg-gradient-to-r from-slate-900/80 to-purple-900/80 backdrop-blur-xl border-b border-purple-500/20">
-        <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="relative z-10 bg-gray-800 backdrop-blur-xl border-b border-gray-700">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-2xl">
-                  <Crown className="w-8 h-8 text-white" />
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl md:rounded-2xl flex items-center justify-center shadow-2xl">
+                  <Crown className="w-6 h-6 md:w-8 md:h-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                  <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
                     Welcome back, {client.name.split(' ')[0]}!
                   </h1>
-                  <p className="text-purple-300/80 text-lg">Ready to crush your goals? 🔥</p>
+                  <p className="text-purple-300/80 text-sm md:text-lg">Ready to crush your goals? 🔥</p>
                 </div>
               </div>
             </div>
@@ -306,7 +414,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-white font-medium">Weekly Progress</span>
-              <span className="text-purple-300 text-sm">{completedWeeks}/{client.numberOfWeeks} weeks</span>
+              <span className="text-purple-300 text-sm">Week {currentWeek} of {client.numberOfWeeks}</span>
             </div>
             <div className="w-full bg-slate-700/50 rounded-full h-3 overflow-hidden">
               <div
@@ -323,11 +431,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       {/* Navigation Tabs */}
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-6">
         <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-2">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
             {[
               { id: 'workout', label: 'Workouts', icon: Dumbbell, gradient: 'from-red-500 to-orange-500' },
               { id: 'nutrition', label: 'Nutrition', icon: Utensils, gradient: 'from-green-500 to-emerald-500' },
-              { id: 'progress', label: 'Progress', icon: TrendingUp, gradient: 'from-blue-500 to-purple-500' }
+              { id: 'progress', label: 'Progress', icon: TrendingUp, gradient: 'from-blue-500 to-purple-500' },
+              { id: 'weight', label: 'Weight', icon: Scale, gradient: 'from-purple-500 to-pink-500' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -380,14 +489,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             unlockedWeeks={unlockedWeeks}
             isDark={isDark}
           />
+        ) : activeTab === 'weight' ? (
+          <UltraModernWeeklyWeightLogger
+            client={client}
+            currentWeek={currentWeek}
+            maxWeeks={client.numberOfWeeks}
+            isDark={isDark}
+          />
         ) : (
           <div className="space-y-6">
-            <WeeklyWeightLogger
-              client={client}
-              currentWeek={currentWeek}
-              maxWeeks={client.numberOfWeeks}
-              isDark={isDark}
-            />
             <ClientProgressTracker
               client={client}
               currentWeek={currentWeek}

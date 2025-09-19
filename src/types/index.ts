@@ -70,8 +70,11 @@ export interface Client {
 
 export interface WeightEntry {
   id: string;
+  clientId: string;
   date: Date;
   weight: number;
+  weekNumber?: number;
+  dayKey?: string;
   notes?: string;
 }
 

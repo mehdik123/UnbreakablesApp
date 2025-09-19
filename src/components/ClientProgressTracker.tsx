@@ -106,7 +106,7 @@ export default function ClientProgressTracker({ client, currentWeek, isDark }: C
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen p-4 flex items-center justify-center">
+      <div className="bg-gray-900 min-h-screen p-4 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-4"></div>
           <p className="text-white text-lg">Loading your progress...</p>
@@ -120,9 +120,9 @@ export default function ClientProgressTracker({ client, currentWeek, isDark }: C
   const volumeChanges = getVolumeChanges();
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen">
+    <div className="bg-gray-900 min-h-screen">
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-900/80 to-purple-900/80 backdrop-blur-xl border-b border-purple-500/20 p-6">
+      <div className="bg-gray-800 backdrop-blur-xl border-b border-gray-700 p-4 md:p-6">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent mb-2">
             Progress Tracking

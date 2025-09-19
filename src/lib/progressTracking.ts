@@ -10,28 +10,73 @@ import {
 
 // ========== Weight Logging Functions ==========
 
-export async function logClientWeight(clientId: string, weight: number, date?: Date, notes?: string) {
+export async function logClientWeight(params: {
+  clientId: string;
+  weight: number;
+  date?: string;
+  weekNumber?: number;
+  dayKey?: string;
+  notes?: string;
+}) {
+  console.log('💾 WEIGHT LOG DEBUG - Starting weight log:', {
+    clientId: params.clientId,
+    weight: params.weight,
+    date: params.date,
+    notes: params.notes,
+    hasSupabase: !!supabase
+  });
+  
   if (!supabase) throw new Error('Supabase not initialized');
   
-  const logDate = date || new Date();
+  const logDate = params.date || new Date().toISOString().split('T')[0];
+  const logPayload = {
+    client_id: params.clientId,
+    date: logDate,
+    weight: params.weight,
+    notes: params.notes || null
+  };
+  
+  console.log('💾 WEIGHT LOG DEBUG - Log payload:', logPayload);
+  
   const { data, error } = await supabase
     .from('client_weight_logs')
-    .upsert({
-      client_id: clientId,
-      date: logDate.toISOString().split('T')[0],
-      weight: weight,
-      notes: notes || null
-    }, {
+    .upsert(logPayload, {
       onConflict: 'client_id,date'
     })
     .select('*')
     .single();
 
-  if (error) throw error;
+  console.log('💾 WEIGHT LOG DEBUG - Database result:', { data, error });
+  console.log('💾 WEIGHT LOG DEBUG - Upsert payload:', logPayload);
+  console.log('💾 WEIGHT LOG DEBUG - Conflict resolution:', 'client_id,date');
+
+  if (error) {
+    console.error('❌ WEIGHT LOG DEBUG - Database error:', error);
+    throw error;
+  }
+  
+  console.log('✅ WEIGHT LOG DEBUG - Weight logged successfully:', data);
+  
+  // Verify the update by fetching the record again
+  const { data: verifyData, error: verifyError } = await supabase
+    .from('client_weight_logs')
+    .select('*')
+    .eq('client_id', params.clientId)
+    .eq('date', logDate)
+    .single();
+    
+  console.log('🔍 VERIFY DEBUG - Verification query result:', { verifyData, verifyError });
+  
   return data;
 }
 
 export async function getClientWeightLogs(clientId: string, limit?: number): Promise<WeightEntry[]> {
+  console.log('📊 WEIGHT FETCH DEBUG - Fetching weight logs:', {
+    clientId,
+    limit,
+    hasSupabase: !!supabase
+  });
+  
   if (!supabase) throw new Error('Supabase not initialized');
   
   let query = supabase
@@ -45,14 +90,24 @@ export async function getClientWeightLogs(clientId: string, limit?: number): Pro
   }
 
   const { data, error } = await query;
-  if (error) throw error;
+  
+  console.log('📊 WEIGHT FETCH DEBUG - Database query result:', { data, error });
+  
+  if (error) {
+    console.error('❌ WEIGHT FETCH DEBUG - Database error:', error);
+    throw error;
+  }
 
-  return (data || []).map(log => ({
+  const mappedData = (data || []).map(log => ({
     id: log.id,
+    clientId: log.client_id,
     date: new Date(log.date),
     weight: parseFloat(log.weight),
     notes: log.notes
   }));
+  
+  console.log('📊 WEIGHT FETCH DEBUG - Mapped data:', mappedData);
+  return mappedData;
 }
 
 export async function getWeightAverage(clientId: string, weekNumber: number): Promise<number | null> {

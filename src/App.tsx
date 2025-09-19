@@ -23,7 +23,7 @@ import { foods as defaultFoods } from './data/foods';
 import { meals as defaultMeals } from './data/meals';
 import { exercises as defaultExercises } from './data/exercises';
 import { isSupabaseReady } from './lib/supabaseClient';
-import { dbListClients, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment } from './lib/db';
+import { dbListClients, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment } from './lib/db';
 import TemplatesBuilder from './components/TemplatesBuilder';
 
 function App() {
@@ -294,17 +294,95 @@ function App() {
     try {
       console.log('🏋️ Assigning workout plan to client:', { clientId, assignment });
       
-      // Save to Supabase first
-      const { data: assignmentResult, error } = await dbCreateWorkoutAssignment({
-        client_id: clientId,
-        program_id: assignment.program?.id, // Pass the program ID
-        program_json: assignment.program,
-        duration_weeks: assignment.duration,
-        current_week: assignment.currentWeek,
-        current_day: assignment.currentDay,
-        is_active: true,
-        last_modified_by: 'coach'
-      });
+      // Initialize weeks array if it doesn't exist
+      let weeksArray = assignment.weeks || [];
+      console.log('🔧 WEEKS DEBUG - assignment.weeks:', assignment.weeks);
+      console.log('🔧 WEEKS DEBUG - weeksArray length:', weeksArray.length);
+      console.log('🔧 WEEKS DEBUG - weeksArray with isUnlocked true:', weeksArray.filter(w => w.isUnlocked).map(w => w.weekNumber));
+      if (weeksArray.length === 0) {
+        console.log('🔧 Initializing weeks array for new assignment, duration:', assignment.duration);
+        weeksArray = Array.from({ length: assignment.duration }, (_, index) => ({
+          weekNumber: index + 1,
+          isUnlocked: index === 0, // Only week 1 is unlocked by default
+          isCompleted: false,
+          exercises: [],
+          days: []
+        }));
+      }
+      
+      let assignmentResult;
+      let error;
+      
+      // Check if assignment already exists in database
+      const existingAssignment = await dbGetClientWorkoutAssignment(clientId);
+      
+      console.log('🔍 EXISTING ASSIGNMENT DEBUG - clientId:', clientId);
+      console.log('🔍 EXISTING ASSIGNMENT DEBUG - existingAssignment:', existingAssignment);
+      console.log('🔍 EXISTING ASSIGNMENT DEBUG - hasExistingAssignment:', !!existingAssignment);
+      console.log('🔍 EXISTING ASSIGNMENT DEBUG - existingAssignment.id:', existingAssignment?.id);
+      
+      if (existingAssignment && existingAssignment.id) {
+        console.log('🔄 Updating existing assignment:', existingAssignment.id);
+        console.log('🔄 Assignment data being sent:', {
+          assignmentId: existingAssignment.id,
+          currentWeek: assignment.currentWeek,
+          weeksArray: weeksArray,
+          programData: assignment.program,
+          hasWeeks: !!assignment.weeks,
+          weeksLength: assignment.weeks?.length
+        });
+        
+        const programJsonToSave = {
+          ...assignment.program,
+          weeks: weeksArray
+        };
+        
+        console.log('🔄 Program JSON being saved:', programJsonToSave);
+        console.log('🔄 Weeks in program JSON:', programJsonToSave.weeks);
+        
+        // Update existing assignment
+        const updateResult = await dbUpdateWorkoutAssignment(existingAssignment.id, {
+          program_json: programJsonToSave,
+          current_week: assignment.currentWeek,
+          current_day: assignment.currentDay,
+          last_modified_by: 'coach'
+        });
+        assignmentResult = updateResult.data;
+        error = updateResult.error;
+      } else {
+        console.log('🆕 Creating new assignment - NO EXISTING ASSIGNMENT FOUND');
+        console.log('🆕 Assignment data being sent:', {
+          clientId: clientId,
+          currentWeek: assignment.currentWeek,
+          weeksArray: weeksArray,
+          programData: assignment.program,
+          hasWeeks: !!assignment.weeks,
+          weeksLength: assignment.weeks?.length
+        });
+        
+        const programJsonToSave = {
+          ...assignment.program,
+          weeks: weeksArray
+        };
+        
+        console.log('🆕 Program JSON being saved:', programJsonToSave);
+        console.log('🆕 Weeks in program JSON:', programJsonToSave.weeks);
+        console.log('🆕 WEEKS DEBUG - programJsonToSave.weeks with isUnlocked true:', programJsonToSave.weeks.filter(w => w.isUnlocked).map(w => w.weekNumber));
+        
+        // Create new assignment
+        const createResult = await dbCreateWorkoutAssignment({
+          client_id: clientId,
+          program_id: assignment.program?.id,
+          program_json: programJsonToSave,
+          duration_weeks: assignment.duration,
+          current_week: assignment.currentWeek,
+          current_day: assignment.currentDay,
+          is_active: true,
+          last_modified_by: 'coach'
+        });
+        assignmentResult = createResult.data;
+        error = createResult.error;
+      }
       
       if (error) {
         console.error('❌ Failed to save workout assignment to Supabase:', error);
@@ -313,10 +391,13 @@ function App() {
       }
       
       console.log('✅ Workout assignment saved to Supabase:', assignmentResult);
+      console.log('✅ Saved program_json:', assignmentResult?.program_json);
+      console.log('✅ Weeks in saved result:', assignmentResult?.program_json?.weeks);
       
       // Add timestamp to track when the assignment was made
       const assignmentWithTimestamp = {
         ...assignment,
+        weeks: weeksArray, // Include the initialized weeks array
         id: assignmentResult?.id || assignment.id,
         assignedAt: new Date().toISOString(),
         lastUpdated: new Date().toISOString()
@@ -475,7 +556,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-gray-900">
       <div className="relative z-10">
         {appState.currentView === 'clients' && (
           <UnbreakableSteamClientsManager

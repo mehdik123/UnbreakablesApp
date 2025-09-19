@@ -11,6 +11,9 @@ import {
 } from 'lucide-react';
 import { WeightEntry, Client } from '../types';
 import { logClientWeight, getClientWeightLogs } from '../lib/progressTracking';
+import { UltraModernWeightChart } from './UltraModernWeightChart';
+import { WeightStatsGrid } from './WeightStatsCards';
+import { WeeklyWeightOverview } from './WeeklyWeightOverview';
 
 interface WeeklyWeightLoggerProps {
   client: Client;
@@ -51,8 +54,11 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
 
   const loadWeightData = async () => {
     try {
+      console.log('📊 WEIGHT LOAD DEBUG - Starting to load weight data for client:', client.id);
       setLoading(true);
       const weightLogs = await getClientWeightLogs(client.id);
+      
+      console.log('📊 WEIGHT LOAD DEBUG - Raw weight logs from DB:', weightLogs);
       
       // Group weight logs by week and day
       const groupedData: { [week: number]: WeeklyWeightData } = {};
@@ -60,6 +66,13 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
       weightLogs.forEach(log => {
         const weekNumber = getWeekNumberFromDate(log.date);
         const dayKey = getDayKeyFromDate(log.date);
+        
+        console.log('📊 WEIGHT LOAD DEBUG - Processing log:', {
+          log,
+          weekNumber,
+          dayKey,
+          date: log.date
+        });
         
         if (!groupedData[weekNumber]) {
           groupedData[weekNumber] = initializeWeekData();
@@ -72,9 +85,10 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
         };
       });
       
+      console.log('📊 WEIGHT LOAD DEBUG - Grouped data:', groupedData);
       setWeeklyData(groupedData);
     } catch (error) {
-      console.error('Error loading weight data:', error);
+      console.error('❌ WEIGHT LOAD DEBUG - Error loading weight data:', error);
     } finally {
       setLoading(false);
     }
@@ -133,27 +147,43 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
     const { week, day } = editingCell;
     const weight = parseFloat(tempValue);
     
+    console.log('💾 WEIGHT SAVE DEBUG - Starting save:', {
+      editingCell,
+      weight,
+      tempValue,
+      clientId: client.id
+    });
+    
     if (isNaN(weight) || weight <= 0) {
+      console.log('❌ WEIGHT SAVE DEBUG - Invalid weight:', weight);
       setEditingCell(null);
       return;
     }
 
     try {
       const date = getDateForWeekAndDay(week, day);
-      await logClientWeight(client.id, weight, date);
+      console.log('💾 WEIGHT SAVE DEBUG - Calculated date:', date);
+      
+      const result = await logClientWeight(client.id, weight, date);
+      console.log('💾 WEIGHT SAVE DEBUG - Database save result:', result);
       
       // Update local state
-      setWeeklyData(prev => ({
-        ...prev,
-        [week]: {
-          ...prev[week],
-          [day]: { weight, notes: '' }
-        }
-      }));
+      setWeeklyData(prev => {
+        const newData = {
+          ...prev,
+          [week]: {
+            ...prev[week],
+            [day]: { weight, notes: '' }
+          }
+        };
+        console.log('💾 WEIGHT SAVE DEBUG - Updated weekly data:', newData);
+        return newData;
+      });
       
       setEditingCell(null);
+      console.log('✅ WEIGHT SAVE DEBUG - Save completed successfully');
     } catch (error) {
-      console.error('Error saving weight:', error);
+      console.error('❌ WEIGHT SAVE DEBUG - Error saving weight:', error);
       alert('Failed to save weight. Please try again.');
     }
   };
@@ -210,8 +240,79 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
   const weekAverage = calculateWeekAverage(selectedWeek);
   const weekTrend = getWeekTrend(selectedWeek);
 
+  // Helper functions for new components
+  const getAllWeightEntries = () => {
+    const entries: Array<{date: string, weight: number, weekNumber: number, dayKey: string}> = [];
+    Object.keys(weeklyData).forEach(week => {
+      const weekNum = parseInt(week);
+      Object.keys(weeklyData[weekNum]).forEach(day => {
+        const weight = weeklyData[weekNum][day]?.weight;
+        if (weight !== undefined) {
+          const date = getDateForWeekAndDay(weekNum, day);
+          entries.push({
+            date: date.toISOString().split('T')[0],
+            weight,
+            weekNumber: weekNum,
+            dayKey: day
+          });
+        }
+      });
+    });
+    return entries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  };
+
+  const getCurrentWeight = () => {
+    const entries = getAllWeightEntries();
+    return entries.length > 0 ? entries[entries.length - 1].weight : 0;
+  };
+
+  const getWeeklyChange = () => {
+    const entries = getAllWeightEntries();
+    if (entries.length < 2) return 0;
+    const currentWeek = selectedWeek;
+    const lastWeek = currentWeek - 1;
+    
+    const currentWeekEntries = entries.filter(e => e.weekNumber === currentWeek);
+    const lastWeekEntries = entries.filter(e => e.weekNumber === lastWeek);
+    
+    if (currentWeekEntries.length === 0 || lastWeekEntries.length === 0) return 0;
+    
+    const currentAvg = currentWeekEntries.reduce((sum, e) => sum + e.weight, 0) / currentWeekEntries.length;
+    const lastAvg = lastWeekEntries.reduce((sum, e) => sum + e.weight, 0) / lastWeekEntries.length;
+    
+    return currentAvg - lastAvg;
+  };
+
+  const getMonthlyChange = () => {
+    const entries = getAllWeightEntries();
+    if (entries.length < 2) return 0;
+    
+    const now = new Date();
+    const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+    
+    const recentEntries = entries.filter(e => new Date(e.date) >= oneMonthAgo);
+    const oldEntries = entries.filter(e => new Date(e.date) < oneMonthAgo);
+    
+    if (recentEntries.length === 0 || oldEntries.length === 0) return 0;
+    
+    const recentAvg = recentEntries.reduce((sum, e) => sum + e.weight, 0) / recentEntries.length;
+    const oldAvg = oldEntries.reduce((sum, e) => sum + e.weight, 0) / oldEntries.length;
+    
+    return recentAvg - oldAvg;
+  };
+
+  const getTotalEntries = () => {
+    return getAllWeightEntries().length;
+  };
+
+  const getAverageWeight = () => {
+    const entries = getAllWeightEntries();
+    if (entries.length === 0) return 0;
+    return entries.reduce((sum, e) => sum + e.weight, 0) / entries.length;
+  };
+
   return (
-    <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
@@ -296,7 +397,7 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
                 className={`relative h-20 rounded-xl border-2 transition-all duration-200 cursor-pointer ${
                   isToday 
                     ? 'border-blue-500 bg-blue-500/10' 
-                    : dayData.weight
+                    : dayData?.weight
                     ? 'border-green-500/50 bg-green-500/10 hover:bg-green-500/20'
                     : 'border-slate-600 bg-slate-700/30 hover:bg-slate-600/30'
                 }`}
@@ -321,7 +422,7 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
                   </div>
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    {dayData.weight ? (
+                    {dayData?.weight ? (
                       <>
                         <div className="text-white font-bold text-sm">
                           {dayData.weight.toFixed(1)}
@@ -357,59 +458,116 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
       </div>
 
       {/* Weight Progress Line Chart */}
-      {Object.keys(weeklyData).length > 0 && (
-        <div className="mt-8 bg-slate-700/30 rounded-xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h4 className="text-lg font-semibold text-white">Weight Progress Line Chart</h4>
-            <TrendingUp className="w-5 h-5 text-blue-400" />
-          </div>
-          
-          {/* Line Chart */}
-          <div className="h-64 bg-slate-800/50 rounded-lg p-6 relative overflow-hidden">
-            <svg className="w-full h-full" viewBox="0 0 400 200">
-              {/* Background Grid */}
-              <defs>
-                <pattern id="grid" width="40" height="20" patternUnits="userSpaceOnUse">
-                  <path d="M 40 0 L 0 0 0 20" fill="none" stroke="rgb(71 85 105)" strokeWidth="0.5" opacity="0.3"/>
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#grid)" />
-              
-              {(() => {
-                const sortedWeeks = Object.keys(weeklyData)
-                  .map(w => parseInt(w))
-                  .sort((a, b) => a - b)
-                  .slice(-10); // Show last 10 weeks
+      {(() => {
+        console.log('📊 WEIGHT CHART DEBUG - Weekly data:', weeklyData);
+        console.log('📊 WEIGHT CHART DEBUG - Object keys:', Object.keys(weeklyData));
+        console.log('📊 WEIGHT CHART DEBUG - Keys length:', Object.keys(weeklyData).length);
+        
+        const sortedWeeks = Object.keys(weeklyData)
+          .map(w => parseInt(w))
+          .sort((a, b) => a - b)
+          .slice(-10); // Show last 10 weeks
+        
+        console.log('📊 WEIGHT CHART DEBUG - Sorted weeks:', sortedWeeks);
+        
+        const weights = sortedWeeks.map(w => {
+          const avg = calculateWeekAverage(w);
+          console.log(`📊 WEIGHT CHART DEBUG - Week ${w} average:`, avg);
+          return avg;
+        }).filter(w => w !== null) as number[];
+        
+        console.log('📊 WEIGHT CHART DEBUG - Weights array:', weights);
+        console.log('📊 WEIGHT CHART DEBUG - Weights length:', weights.length);
+        
+        return Object.keys(weeklyData).length > 0 && (
+          <div className="mt-8 bg-slate-700/30 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h4 className="text-lg font-semibold text-white">Weight Progress Line Chart</h4>
+              <TrendingUp className="w-5 h-5 text-blue-400" />
+            </div>
+            
+            {/* Debug Info */}
+            <div className="mb-4 p-3 bg-slate-800/50 rounded text-xs text-slate-300">
+              <div>Weekly Data Keys: {Object.keys(weeklyData).join(', ')}</div>
+              <div>Sorted Weeks: {sortedWeeks.join(', ')}</div>
+              <div>Weights: {weights.join(', ')}</div>
+              <div>Chart Status: {weights.length === 0 ? 'No data' : weights.length === 1 ? 'Single point' : 'Multiple points'}</div>
+            </div>
+            
+            {/* Line Chart */}
+            <div className="h-64 bg-slate-800/50 rounded-lg p-6 relative overflow-hidden">
+              <svg className="w-full h-full" viewBox="0 0 400 200">
+                {/* Background Grid */}
+                <defs>
+                  <pattern id="grid" width="40" height="20" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 20" fill="none" stroke="rgb(71 85 105)" strokeWidth="0.5" opacity="0.3"/>
+                  </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid)" />
                 
-                if (sortedWeeks.length < 2) return null;
-                
-                const weights = sortedWeeks.map(w => calculateWeekAverage(w)).filter(w => w !== null) as number[];
-                if (weights.length < 2) return null;
+                {(() => {
+                  // Real-time chart: Show as soon as there's at least one weight entry
+                  if (weights.length === 0) {
+                    console.log('📊 WEIGHT CHART DEBUG - No weight data yet');
+                    return (
+                      <text x="200" y="100" textAnchor="middle" className="text-slate-400">
+                        Start logging weights to see your progress chart
+                      </text>
+                    );
+                  }
                 
                 const minWeight = Math.min(...weights);
                 const maxWeight = Math.max(...weights);
-                const weightRange = maxWeight - minWeight || 1;
+                // For single data point, create a reasonable range around it
+                const weightRange = maxWeight - minWeight || (weights[0] * 0.1) || 1;
                 
                 const points = weights.map((weight, index) => {
-                  const x = (index / (weights.length - 1)) * 360 + 20;
+                  // For single data point, center it; for multiple points, spread them out
+                  const x = weights.length === 1 ? 200 : (index / Math.max(1, weights.length - 1)) * 360 + 20;
                   const y = 180 - ((weight - minWeight) / weightRange) * 160;
                   return { x, y, weight, week: sortedWeeks[index] };
                 });
                 
-                const pathData = points.map((point, index) => 
+                // Only create line if there are multiple points
+                const pathData = weights.length > 1 ? points.map((point, index) => 
                   `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
-                ).join(' ');
+                ).join(' ') : '';
                 
                 return (
                   <g>
-                    {/* Line */}
-                    <path
-                      d={pathData}
-                      fill="none"
-                      stroke="url(#lineGradient)"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                    />
+                    {/* Y-axis labels */}
+                    {(() => {
+                      const yLabels = [];
+                      const numLabels = 5;
+                      for (let i = 0; i <= numLabels; i++) {
+                        const weight = minWeight + (weightRange * i / numLabels);
+                        const y = 180 - (i / numLabels) * 160;
+                        yLabels.push(
+                          <text
+                            key={i}
+                            x="10"
+                            y={y + 4}
+                            fontSize="10"
+                            fill="#94a3b8"
+                            className="font-medium"
+                          >
+                            {weight.toFixed(1)}
+                          </text>
+                        );
+                      }
+                      return yLabels;
+                    })()}
+                    
+                    {/* Line - only show if there are multiple points */}
+                    {weights.length > 1 && (
+                      <path
+                        d={pathData}
+                        fill="none"
+                        stroke="url(#lineGradient)"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                      />
+                    )}
                     
                     {/* Gradient Definition */}
                     <defs>
@@ -480,7 +638,29 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
             </div>
           </div>
         </div>
-      )}
+      );
+      })()}
+
+      {/* Ultra-Modern Weight Tracking Interface */}
+      <div className="mt-8 space-y-8">
+        {/* Weekly Overview */}
+        <WeeklyWeightOverview 
+          entries={getAllWeightEntries()} 
+          currentWeek={selectedWeek} 
+        />
+
+        {/* Stats Cards */}
+        <WeightStatsGrid
+          currentWeight={getCurrentWeight()}
+          weeklyChange={getWeeklyChange()}
+          monthlyChange={getMonthlyChange()}
+          totalEntries={getTotalEntries()}
+          averageWeight={getAverageWeight()}
+        />
+
+        {/* Weight Progress Chart */}
+        <UltraModernWeightChart entries={getAllWeightEntries()} />
+      </div>
     </div>
   );
 }
