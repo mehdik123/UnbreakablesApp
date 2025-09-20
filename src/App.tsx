@@ -22,8 +22,8 @@ import { loadFoodDatabase } from './utils/csvParser';
 import { foods as defaultFoods } from './data/foods';
 import { meals as defaultMeals } from './data/meals';
 import { exercises as defaultExercises } from './data/exercises';
-import { isSupabaseReady } from './lib/supabaseClient';
-import { dbListClients, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment } from './lib/db';
+import { supabase, isSupabaseReady } from './lib/supabaseClient';
+import { dbListClients, dbListClientsWithWorkoutAssignments, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment } from './lib/db';
 import TemplatesBuilder from './components/TemplatesBuilder';
 
 function App() {
@@ -39,7 +39,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [clientViewData, setClientViewData] = useState<any>(null);
 
-  // Load real food database and handle shared client views
+  // Load real food database and exercises from database
   useEffect(() => {
     const loadDatabase = async () => {
       try {
@@ -49,7 +49,77 @@ function App() {
         }
       } catch (error) {
         console.log('Using default food database');
-      } finally {
+      }
+
+      // Load exercises from database
+      if (isSupabaseReady) {
+        try {
+          const { data: dbExercises, error } = await dbListExercises();
+          if (error) {
+            console.error('Error loading exercises from database:', error);
+          } else if (dbExercises && dbExercises.length > 0) {
+            console.log('📊 EXERCISES DB - Loaded exercises from database:', dbExercises.length);
+            const mappedExercises = dbExercises.map((r: any) => ({ 
+              id: r.id, 
+              name: r.name, 
+              muscleGroup: r.muscle_group || '', 
+              equipment: '', 
+              instructions: '', 
+              videoUrl: r.video_url, 
+              imageUrl: '', 
+              difficulty: 'beginner' as const, 
+              category: 'strength' as const, 
+              primaryMuscles: [], 
+              secondaryMuscles: [], 
+              createdAt: new Date(), 
+              updatedAt: new Date() 
+            }));
+            setExercises(mappedExercises);
+            console.log('📊 EXERCISES DB - Mapped exercises:', mappedExercises.length);
+          } else {
+            console.log('📊 EXERCISES DB - No exercises found in database, populating with static data');
+            // Populate database with static exercises
+            try {
+              for (const exercise of defaultExercises) {
+                await dbAddExercise({
+                  name: exercise.name,
+                  video_url: exercise.videoUrl || '',
+                  muscle_group: exercise.muscleGroup || ''
+                });
+              }
+              console.log('📊 EXERCISES DB - Populated database with static exercises');
+              
+              // Reload exercises from database
+              const { data: reloadedExercises } = await dbListExercises();
+              if (reloadedExercises && reloadedExercises.length > 0) {
+                const mappedExercises = reloadedExercises.map((r: any) => ({ 
+                  id: r.id, 
+                  name: r.name, 
+                  muscleGroup: r.muscle_group || '', 
+                  equipment: '', 
+                  instructions: '', 
+                  videoUrl: r.video_url, 
+                  imageUrl: '', 
+                  difficulty: 'beginner' as const, 
+                  category: 'strength' as const, 
+                  primaryMuscles: [], 
+                  secondaryMuscles: [], 
+                  createdAt: new Date(), 
+                  updatedAt: new Date() 
+                }));
+                setExercises(mappedExercises);
+                console.log('📊 EXERCISES DB - Reloaded exercises from database:', mappedExercises.length);
+              }
+            } catch (populateError) {
+              console.error('Error populating exercises database:', populateError);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading exercises from database:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
         setIsLoading(false);
       }
     };
@@ -66,21 +136,134 @@ function App() {
       
       // Load clients from Supabase if available; fallback to localStorage
       if (isSupabaseReady) {
-        const { data } = await dbListClients();
-        if (data) {
-          clients = data.map((row: any) => ({
-            id: row.id,
-            name: row.full_name,
-            email: '',
-            phone: '',
-            goal: 'maintenance',
-            numberOfWeeks: 12,
-            startDate: new Date(),
-            isActive: true,
-            favorites: [],
-            weightLog: []
+        console.log('🔍 APP DEBUG - Loading clients with workout assignments...');
+        const { data, error } = await dbListClientsWithWorkoutAssignments();
+        console.log('🔍 APP DEBUG - Raw data from database:', data);
+        console.log('🔍 APP DEBUG - Database error:', error);
+        
+        if (data && data.length > 0) {
+          clients = await Promise.all(data.map(async (row: any) => {
+            console.log('🔍 APP DEBUG - Processing client:', {
+              id: row.id,
+              name: row.full_name,
+              hasWorkoutAssignments: !!row.workout_assignments,
+              workoutAssignmentsCount: row.workout_assignments?.length || 0,
+              firstAssignment: row.workout_assignments?.[0]
+            });
+            
+            // Map workout assignment data
+            let workoutAssignment: ClientWorkoutAssignment | undefined = undefined;
+            if (row.workout_assignments && row.workout_assignments.length > 0) {
+              const assignment = row.workout_assignments[0]; // Get the first active assignment
+              
+              // Enrich the program with muscle groups from the database
+              let enrichedProgram = assignment.program_json;
+              if (enrichedProgram && enrichedProgram.days && supabase) {
+                try {
+                  const { data: dbExercises } = await supabase
+                    .from('exercises')
+                    .select('name, video_url, muscle_group');
+                  
+                  if (dbExercises) {
+                    const exerciseMap = new Map();
+                    dbExercises.forEach((ex: any) => {
+                      exerciseMap.set(ex.name, ex);
+                    });
+                    
+                    enrichedProgram = {
+                      ...enrichedProgram,
+                      days: enrichedProgram.days.map((day: any) => ({
+                        ...day,
+                        exercises: day.exercises?.map((workoutEx: any) => {
+                          const dbExercise = exerciseMap.get(workoutEx.exercise?.name);
+                          if (dbExercise) {
+                            return {
+                              ...workoutEx,
+                              exercise: {
+                                ...workoutEx.exercise,
+                                videoUrl: dbExercise.video_url,
+                                muscleGroup: dbExercise.muscle_group
+                              }
+                            };
+                          }
+                          return workoutEx;
+                        }) || []
+                      })) || []
+                    };
+                    
+                    console.log('🔍 APP DEBUG - Enriched program with muscle groups for:', row.full_name);
+                    console.log('🔍 APP DEBUG - Sample enriched exercise:', JSON.stringify(enrichedProgram.days?.[0]?.exercises?.[0], null, 2));
+                  }
+                } catch (error) {
+                  console.error('❌ Failed to enrich program with muscle groups:', error);
+                }
+              }
+              
+              workoutAssignment = {
+                id: assignment.id,
+                clientId: row.id,
+                clientName: row.full_name,
+                startDate: new Date(assignment.start_date),
+                duration: assignment.duration_weeks,
+                currentWeek: assignment.current_week || 1,
+                currentDay: assignment.current_day || 1,
+                program: enrichedProgram,
+                weeks: enrichedProgram?.weeks || [],
+                progressionRules: enrichedProgram?.progressionRules || [],
+                isActive: assignment.is_active,
+                lastModifiedBy: assignment.last_modified_by
+              };
+              
+              console.log('🔍 APP DEBUG - Mapped workout assignment:', {
+                id: workoutAssignment.id,
+                hasProgram: !!workoutAssignment.program,
+                programName: workoutAssignment.program?.name,
+                weeksCount: workoutAssignment.weeks?.length || 0
+              });
+            }
+            
+            return {
+              id: row.id,
+              name: row.full_name,
+              email: '',
+              phone: '',
+              goal: 'maintenance',
+              numberOfWeeks: 12,
+              startDate: new Date(),
+              isActive: true,
+              favorites: [],
+              weightLog: [],
+              workoutAssignment
+            };
           }));
+          
+          console.log('🔍 APP DEBUG - Final clients array:', clients.map(c => ({
+            id: c.id,
+            name: c.name,
+            hasWorkoutAssignment: !!c.workoutAssignment,
+            programName: c.workoutAssignment?.program?.name
+          })));
+          
           setAppState(prev => ({ ...prev, clients }));
+        } else {
+          console.log('🔍 APP DEBUG - No clients with workout assignments found, loading basic clients...');
+          // Fallback to loading basic clients without workout assignments
+          const { data: basicClients } = await dbListClients();
+          if (basicClients) {
+            clients = basicClients.map((row: any) => ({
+              id: row.id,
+              name: row.full_name,
+              email: '',
+              phone: '',
+              goal: 'maintenance',
+              numberOfWeeks: 12,
+              startDate: new Date(),
+              isActive: true,
+              favorites: [],
+              weightLog: []
+            }));
+            setAppState(prev => ({ ...prev, clients }));
+          }
         }
       } else {
         const savedClients = localStorage.getItem('clients');
@@ -319,12 +502,12 @@ function App() {
       console.log('🔍 EXISTING ASSIGNMENT DEBUG - clientId:', clientId);
       console.log('🔍 EXISTING ASSIGNMENT DEBUG - existingAssignment:', existingAssignment);
       console.log('🔍 EXISTING ASSIGNMENT DEBUG - hasExistingAssignment:', !!existingAssignment);
-      console.log('🔍 EXISTING ASSIGNMENT DEBUG - existingAssignment.id:', existingAssignment?.id);
+      console.log('🔍 EXISTING ASSIGNMENT DEBUG - existingAssignment.id:', existingAssignment?.data?.id);
       
-      if (existingAssignment && existingAssignment.id) {
-        console.log('🔄 Updating existing assignment:', existingAssignment.id);
+      if (existingAssignment?.data && existingAssignment.data.id) {
+        console.log('🔄 Updating existing assignment:', existingAssignment.data.id);
         console.log('🔄 Assignment data being sent:', {
-          assignmentId: existingAssignment.id,
+          assignmentId: existingAssignment.data.id,
           currentWeek: assignment.currentWeek,
           weeksArray: weeksArray,
           programData: assignment.program,
@@ -341,7 +524,7 @@ function App() {
         console.log('🔄 Weeks in program JSON:', programJsonToSave.weeks);
         
         // Update existing assignment
-        const updateResult = await dbUpdateWorkoutAssignment(existingAssignment.id, {
+        const updateResult = await dbUpdateWorkoutAssignment(existingAssignment.data.id, {
           program_json: programJsonToSave,
           current_week: assignment.currentWeek,
           current_day: assignment.currentDay,
@@ -425,8 +608,8 @@ function App() {
       alert(`Workout plan successfully assigned to client!`);
       
     } catch (err) {
-      console.error('❌ Failed to assign workout plan:', err);
-      alert(`Failed to assign workout plan: ${err.message || err}`);
+      console.error('❌ Failed to assign workout plan:', err as Error);
+      alert(`Failed to assign workout plan: ${(err as Error).message || err}`);
     }
   };
 

@@ -92,6 +92,12 @@ export interface TrainingVolumeData {
   updatedAt: Date;
 }
 
+export interface CurrentWeekVolume {
+  weekNumber: number;
+  totalVolume: number;
+  muscleGroupVolumes: { [muscleGroup: string]: number };
+}
+
 export interface PersonalRecord {
   id: string;
   clientId: string;
@@ -259,7 +265,7 @@ export interface ProgressionRule {
 
 // App State Types
 export interface AppState {
-  currentView: 'clients' | 'client-plan' | 'client-view' | 'meal-database';
+  currentView: 'clients' | 'client-plan' | 'client-view' | 'client-interface' | 'meal-database' | 'ingredients' | 'exercise-database' | 'templates';
   selectedClient: Client | null;
   clients: Client[];
   isDark: boolean;

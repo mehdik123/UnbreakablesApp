@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Client, WorkoutProgram } from '../types';
 import { logExercisePerformance } from '../lib/progressTracking';
+import { usePerformanceTracking } from '../hooks/usePerformanceTracking';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -58,6 +59,16 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const SHARED_KEY = `client_${client.id}_assignment`;
   const [sharedVersion, setSharedVersion] = useState<number>(0);
+
+  // Performance tracking
+  const { recordExercise } = usePerformanceTracking({
+    clientId: client.id,
+    workoutAssignmentId: assignmentId || 'temp-id',
+    onVolumeUpdate: (data) => {
+      console.log('📊 WORKOUT VIEW - Volume updated:', data);
+      // Trigger re-render of progress chart
+    }
+  });
 
   // Function to enrich program with video URLs from Supabase exercises table
   const enrichProgramWithVideoUrls = async (program: any) => {
@@ -326,10 +337,49 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   };
 
   const completeExercise = (exerciseId: string) => {
+    const isCurrentlyCompleted = completedExercises[exerciseId];
+    const newCompletedState = !isCurrentlyCompleted;
+    
     setCompletedExercises(prev => ({
       ...prev,
-      [exerciseId]: !prev[exerciseId]
+      [exerciseId]: newCompletedState
     }));
+
+    // Record performance data when exercise is completed
+    if (newCompletedState && workoutProgram) {
+      const currentDayData = workoutProgram.days[currentDay];
+      const exercise = currentDayData?.exercises.find(ex => ex.id === exerciseId);
+      
+      if (exercise) {
+        const actualSets = exercise.sets.map((set, setIndex) => {
+          const exerciseDataForSet = exerciseData[exerciseId]?.[setIndex];
+          return {
+            setId: set.id,
+            actualReps: exerciseDataForSet?.reps || set.reps,
+            actualWeight: exerciseDataForSet?.weight || set.weight,
+            completed: true
+          };
+        });
+
+        recordExercise(
+          currentWeek,
+          currentDay + 1, // dayNumber is 1-based
+          exerciseId,
+          exercise.exercise.name,
+          exercise.exercise.muscleGroup,
+          actualSets,
+          exercise.sets
+        );
+
+        console.log('📊 WORKOUT VIEW - Exercise completed and performance recorded:', {
+          exerciseName: exercise.exercise.name,
+          muscleGroup: exercise.exercise.muscleGroup,
+          weekNumber: currentWeek,
+          dayNumber: currentDay + 1,
+          actualSets: actualSets.length
+        });
+      }
+    }
   };
 
   const updateExerciseData = (exerciseId: string, setIndex: number, field: 'reps' | 'weight', value: number) => {

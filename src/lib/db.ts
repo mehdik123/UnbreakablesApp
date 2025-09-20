@@ -9,6 +9,24 @@ export async function dbListClients(): Promise<DBResult<any[]>> {
   return { data: data || [], error };
 }
 
+export async function dbListClientsWithWorkoutAssignments(): Promise<DBResult<any[]>> {
+  if (!isSupabaseReady || !supabase) return { data: [] };
+  
+  const { data, error } = await supabase
+    .from('clients')
+    .select(`
+      *,
+      workout_assignments(
+        *,
+        workout_programs(*)
+      )
+    `)
+    .eq('workout_assignments.is_active', true)
+    .order('full_name', { ascending: true });
+  
+  return { data: data || [], error };
+}
+
 export async function dbAddClient(payload: { full_name: string }): Promise<DBResult<any>> {
   if (!isSupabaseReady || !supabase) return { data: null };
   const { data, error } = await supabase.from('clients').insert({ full_name: payload.full_name }).select('*').single();

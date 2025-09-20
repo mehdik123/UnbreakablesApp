@@ -29,6 +29,11 @@ import {
   calculateAndSavePRs,
   updateWeeklyPerformanceSummary
 } from '../lib/progressTracking';
+import { UltraModernMuscleVolumeChart } from './UltraModernMuscleVolumeChart';
+import { IndividualMuscleVolumeChart } from './IndividualMuscleVolumeChart';
+import { CurrentWeekVolumeDisplay } from './CurrentWeekVolumeDisplay';
+import { useRealtimeVolumeTracking } from '../hooks/useRealtimeVolumeTracking';
+import { getMuscleGroupsFromProgram, getMuscleGroupsFromProgramSync } from '../utils/realtimeVolumeTracker';
 
 interface ClientProgressTrackerProps {
   client: Client;
@@ -44,15 +49,66 @@ interface ChartVisibility {
 export default function ClientProgressTracker({ client, currentWeek, isDark }: ClientProgressTrackerProps) {
   const [progressData, setProgressData] = useState<ProgressTrackingData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [muscleGroups, setMuscleGroups] = useState<string[]>([]);
   const [chartVisibility, setChartVisibility] = useState<ChartVisibility>({
     volume: true,
     prs: true
   });
 
+  // Debug: Log essential client data
+  console.log('🔍 CLIENT PROGRESS - Client:', client.name, 'Program:', client.workoutAssignment?.program?.name, 'Days:', client.workoutAssignment?.program?.days?.length);
+
+  // Real-time volume tracking
+  const { 
+    currentWeekVolume, 
+    volumeData: realtimeVolumeData, 
+    isLoading: volumeLoading 
+  } = useRealtimeVolumeTracking({
+    clientId: client.id,
+    workoutAssignmentId: client.workoutAssignment?.id || 'temp-id',
+    workoutProgram: client.workoutAssignment?.program,
+    workoutAssignment: client.workoutAssignment, // Pass the full assignment data
+    currentWeekNumber: currentWeek
+  });
+
+  // Debug the volume data
+  console.log('🔍 CLIENT PROGRESS - Volume data from hook:', {
+    currentWeekVolume,
+    realtimeVolumeData: realtimeVolumeData?.length || 0,
+    volumeLoading,
+    hasProgram: !!client.workoutAssignment?.program
+  });
+
+  // Debug currentWeekVolume structure
+  if (currentWeekVolume) {
+    console.log('🔍 CLIENT PROGRESS - currentWeekVolume structure:', {
+      totalVolume: currentWeekVolume.totalVolume,
+      muscleGroupVolumes: currentWeekVolume.muscleGroupVolumes,
+      muscleGroupKeys: Object.keys(currentWeekVolume.muscleGroupVolumes || {}),
+      weekNumber: currentWeekVolume.weekNumber
+    });
+  }
+
   // Load progress data
   useEffect(() => {
     loadProgressData();
   }, [client.id, currentWeek]);
+
+  // Recalculate muscle volume when workout assignment changes
+  useEffect(() => {
+    const loadMuscleGroups = async () => {
+      if (client.workoutAssignment?.program) {
+        console.log('📊 VOLUME - Calculating for program:', client.workoutAssignment.program.name);
+        const muscleGroups = await getMuscleGroupsFromProgram(client.workoutAssignment.program);
+        setMuscleGroups(muscleGroups);
+        // Volume data will be handled by the realtime hook
+      } else {
+        setMuscleGroups([]);
+      }
+    };
+    
+    loadMuscleGroups();
+  }, [client.workoutAssignment?.program]);
 
   const loadProgressData = async () => {
     try {
@@ -285,6 +341,62 @@ export default function ClientProgressTracker({ client, currentWeek, isDark }: C
           </div>
         )}
 
+        {/* Current Week Volume Display */}
+        {client.workoutAssignment?.program && (
+          <div className="mb-8">
+            <CurrentWeekVolumeDisplay 
+              volume={currentWeekVolume}
+              isLoading={volumeLoading}
+            />
+          </div>
+        )}
+
+        {/* Individual Muscle Group Charts */}
+        {realtimeVolumeData.length > 0 && currentWeekVolume && (
+          <div className="mb-8">
+            <div className="mb-6">
+              <h3 className="text-xl font-bold text-white mb-2">Muscle Group Progress</h3>
+              <p className="text-gray-400 text-sm">Individual volume progression for each muscle group</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Object.keys(currentWeekVolume.muscleGroupVolumes).map((muscleGroup, index) => {
+                const colors = ['#dc1e3a', '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316', '#ec4899'];
+                return (
+                  <IndividualMuscleVolumeChart
+                    key={muscleGroup}
+                    data={realtimeVolumeData}
+                    muscleGroup={muscleGroup}
+                    color={colors[index % colors.length]}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Overall Muscle Volume Chart */}
+        {realtimeVolumeData.length > 0 && muscleGroups.length > 0 ? (
+          <div className="mb-8">
+            <UltraModernMuscleVolumeChart 
+              data={realtimeVolumeData}
+              muscleGroups={muscleGroups}
+            />
+          </div>
+        ) : !client.workoutAssignment?.program && (
+          <div className="mb-8">
+            <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 text-center">
+              <div className="w-16 h-16 bg-gradient-to-br from-[#dc1e3a]/20 to-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-[#dc1e3a]/30">
+                <Activity className="w-8 h-8 text-[#dc1e3a]" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">No Workout Program Assigned</h3>
+              <p className="text-gray-400 text-sm leading-relaxed max-w-md mx-auto">
+                Assign a workout program to this client to see their muscle volume progress. 
+                The chart will show real volume data based on unlocked weeks and completed workouts.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Empty State */}
         {(!progressData?.weightLogs?.length && !progressData?.personalRecords?.length) && (
           <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-12 border border-slate-700/50 text-center">
@@ -294,7 +406,6 @@ export default function ClientProgressTracker({ client, currentWeek, isDark }: C
               Log your first weight and complete workouts to see your progress here.
             </p>
             <button
-              onClick={() => setShowWeightForm(true)}
               className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors"
             >
               Log Your First Weight

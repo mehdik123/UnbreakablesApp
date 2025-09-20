@@ -11,9 +11,9 @@ import {
   Heart,
   Zap,
   Star,
-  TrendingUp,
   Play,
   ChevronRight,
+  TrendingUp,
   Fire,
   Activity,
   Timer,
@@ -28,8 +28,8 @@ import {
 import { Client, NutritionPlan } from '../types';
 import { ClientNutritionView } from './ClientNutritionView';
 import { ClientWorkoutView } from './ClientWorkoutView';
-import ClientProgressTracker from './ClientProgressTracker';
 import { UltraModernWeeklyWeightLogger } from './UltraModernWeeklyWeightLogger';
+import ProgressTracker from './ProgressTracker';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
 
@@ -489,21 +489,19 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             unlockedWeeks={unlockedWeeks}
             isDark={isDark}
           />
-        ) : activeTab === 'weight' ? (
+        ) : activeTab === 'progress' ? (
+          <ProgressTracker
+            client={client}
+            currentWeek={currentWeek}
+            isDark={isDark}
+          />
+        ) : (
           <UltraModernWeeklyWeightLogger
             client={client}
             currentWeek={currentWeek}
             maxWeeks={client.numberOfWeeks}
             isDark={isDark}
           />
-        ) : (
-          <div className="space-y-6">
-            <ClientProgressTracker
-              client={client}
-              currentWeek={currentWeek}
-              isDark={isDark}
-            />
-          </div>
         )}
       </div>
     </div>
