@@ -153,7 +153,7 @@ export class StrengthProgressExtractor {
 
     // Calculate total volume
     const totalVolume = completedSets.reduce((total, set) => 
-      total + (set.weight * set.reps), 0
+      total + (set.reps * Math.max(set.weight, 1)), 0
     );
 
     const session: StrengthSession = {

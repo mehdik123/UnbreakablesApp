@@ -33,6 +33,7 @@ import {
 import { Client, PersonalRecord, BodyMeasurement, EnduranceRecord, LifestyleMetrics, WorkoutPerformance } from '../types';
 import { createStrengthProgressExtractor, StrengthProgress } from '../utils/strengthProgressExtractor';
 import StrengthProgressChart from './StrengthProgressChart';
+import IndependentMuscleGroupCharts from './IndependentMuscleGroupCharts';
 
 interface ClientProgressViewProps {
   client: Client;
@@ -73,11 +74,11 @@ export const ClientProgressView: React.FC<ClientProgressViewProps> = ({
         muscleGroupVolume[muscleGroup] = 0;
       }
 
-      // Calculate volume: sets × reps × weight
+      // Calculate volume: sets × reps × weight (using universal formula for bodyweight exercises)
       exercise.sets.forEach(set => {
         const reps = set.reps || 0;
         const weight = set.weight || 0;
-        muscleGroupVolume[muscleGroup] += reps * weight;
+        muscleGroupVolume[muscleGroup] += reps * Math.max(weight, 1);
       });
     });
 
@@ -1098,25 +1099,31 @@ export const ClientProgressView: React.FC<ClientProgressViewProps> = ({
   );
 
   const renderVolumeTracking = () => {
-    const muscleGroups = Object.keys(weeklyMuscleVolume);
-    const totalVolume = Object.values(weeklyMuscleVolume).reduce((sum, volume) => sum + volume, 0);
-    
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Weekly Muscle Group Volume</h3>
-          <div className="text-sm text-slate-600 dark:text-slate-400">
-            Week {currentWeek} of {client.numberOfWeeks}
-          </div>
-        </div>
+    return <IndependentMuscleGroupCharts client={client} isDark={isDark} />;
+  };
 
-        {/* Total Volume Summary */}
-        <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="text-lg font-semibold mb-2">Total Weekly Volume</h4>
-              <p className="text-blue-100">All muscle groups combined</p>
-            </div>
+  const renderTabContent = () => {
+    switch (activeCategory) {
+      case 'overview':
+        return renderOverview();
+      case 'strength':
+        return renderStrengthTracking();
+      case 'body':
+        return renderBodyTracking();
+      case 'endurance':
+        return renderEnduranceTracking();
+      case 'lifestyle':
+        return renderLifestyleTracking();
+      case 'performance':
+        return renderPerformanceTracking();
+      case 'volume':
+        return renderVolumeTracking();
+      default:
+        return renderOverview();
+    }
+  };
+
+  return (
             <div className="text-right">
               <div className="text-3xl font-bold">{totalVolume.toLocaleString()} kg</div>
               <div className="text-blue-100 text-sm">Sets × Reps × Weight</div>

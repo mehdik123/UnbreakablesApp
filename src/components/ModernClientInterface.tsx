@@ -23,13 +23,14 @@ import {
   Crown,
   Sparkles,
   ChevronDown,
-  Scale
+  Scale,
+  ArrowLeft
 } from 'lucide-react';
 import { Client, NutritionPlan } from '../types';
 import { ClientNutritionView } from './ClientNutritionView';
 import { ClientWorkoutView } from './ClientWorkoutView';
 import { UltraModernWeeklyWeightLogger } from './UltraModernWeeklyWeightLogger';
-import ProgressTracker from './ProgressTracker';
+import IndependentMuscleGroupCharts from './IndependentMuscleGroupCharts';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
 
@@ -429,38 +430,39 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       </div>
 
       {/* Navigation Tabs */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-6">
-        <div className="bg-slate-900/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-2">
-          <div className="grid grid-cols-4 gap-2">
+      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+        <div className="bg-slate-900/50 backdrop-blur-xl rounded-xl sm:rounded-2xl border border-slate-700/50 p-1 sm:p-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2">
             {[
-              { id: 'workout', label: 'Workouts', icon: Dumbbell, gradient: 'from-red-500 to-orange-500' },
-              { id: 'nutrition', label: 'Nutrition', icon: Utensils, gradient: 'from-green-500 to-emerald-500' },
-              { id: 'progress', label: 'Progress', icon: TrendingUp, gradient: 'from-blue-500 to-purple-500' },
-              { id: 'weight', label: 'Weight', icon: Scale, gradient: 'from-purple-500 to-pink-500' }
+              { id: 'workout', label: 'Workouts', shortLabel: 'Workouts', icon: Dumbbell, gradient: 'from-red-500 to-orange-500' },
+              { id: 'nutrition', label: 'Nutrition', shortLabel: 'Nutrition', icon: Utensils, gradient: 'from-green-500 to-emerald-500' },
+              { id: 'progress', label: 'Progress', shortLabel: 'Progress', icon: TrendingUp, gradient: 'from-blue-500 to-purple-500' },
+              { id: 'weight', label: 'Weight', shortLabel: 'Weight', icon: Scale, gradient: 'from-purple-500 to-pink-500' }
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`relative overflow-hidden rounded-xl p-6 transition-all duration-300 ${
+                className={`relative overflow-hidden rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 transition-all duration-300 ${
                   activeTab === tab.id
                     ? 'bg-gradient-to-r ' + tab.gradient + ' shadow-2xl transform scale-105'
                     : 'bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600/50'
                 }`}
               >
-                <div className="flex flex-col items-center space-y-3">
-                  <div className={`p-3 rounded-xl ${
+                <div className="flex flex-col items-center space-y-2 sm:space-y-3">
+                  <div className={`p-2 sm:p-3 rounded-lg sm:rounded-xl ${
                     activeTab === tab.id 
                       ? 'bg-white/20' 
                       : 'bg-slate-700/50'
                   }`}>
-                    <tab.icon className={`w-6 h-6 ${
+                    <tab.icon className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 ${
                       activeTab === tab.id ? 'text-white' : 'text-slate-400'
                     }`} />
                   </div>
-                  <span className={`font-medium ${
+                  <span className={`font-medium text-xs sm:text-sm lg:text-base ${
                     activeTab === tab.id ? 'text-white' : 'text-slate-300'
                   }`}>
-                    {tab.label}
+                    <span className="hidden sm:block">{tab.label}</span>
+                    <span className="sm:hidden">{tab.shortLabel}</span>
                   </span>
                 </div>
                 
@@ -475,7 +477,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       </div>
 
       {/* Content Area */}
-      <div className="relative z-10 max-w-7xl mx-auto px-6 pb-12">
+      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 pb-8 sm:pb-12">
         {activeTab === 'nutrition' ? (
           <ClientNutritionView
             client={client}
@@ -490,11 +492,18 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             isDark={isDark}
           />
         ) : activeTab === 'progress' ? (
-          <ProgressTracker
-            client={client}
-            currentWeek={currentWeek}
-            isDark={isDark}
-          />
+          <div className="h-full">
+            <div className="flex items-center justify-between mb-6">
+              <button
+                onClick={() => setActiveTab('nutrition')}
+                className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                <span>Back to Nutrition</span>
+              </button>
+            </div>
+            <IndependentMuscleGroupCharts client={client} isDark={isDark} />
+          </div>
         ) : (
           <UltraModernWeeklyWeightLogger
             client={client}

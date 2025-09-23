@@ -188,3 +188,5 @@ COMMENT ON COLUMN workout_assignments.current_week IS 'Current active week for t
 COMMENT ON COLUMN workout_assignments.current_day IS 'Current active day within the week';
 COMMENT ON COLUMN workout_assignments.last_modified_by IS 'Who last modified this assignment (coach or client)';
 COMMENT ON COLUMN workout_assignments.last_modified_at IS 'When this assignment was last modified';
+
+

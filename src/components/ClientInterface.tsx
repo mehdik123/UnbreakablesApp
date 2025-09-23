@@ -25,7 +25,6 @@ import {
 import { Client, NutritionPlan, WorkoutPlan, WorkoutProgram, WorkoutDay, WorkoutExercise } from '../types';
 import { ClientNutritionView } from './ClientNutritionView';
 import { ClientWorkoutView } from './ClientWorkoutView';
-import { ClientProgressView } from './ClientProgressView';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
 
@@ -510,10 +509,15 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
             isDark={isDark}
           />
         ) : (
-          <ClientProgressView
-            client={client}
-            isDark={isDark}
-          />
+          <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-[#dc1e3a]/20 to-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-[#dc1e3a]/30">
+              <Activity className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Progress Tracking</h3>
+            <p className="text-gray-400 text-sm leading-relaxed max-w-md mx-auto">
+              Progress tracking is being rebuilt. Please wait for instructions.
+            </p>
+          </div>
         )}
       </div>
     </div>

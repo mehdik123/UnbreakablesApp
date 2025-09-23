@@ -63,9 +63,10 @@ export function calculateWeeklyVolume(program: WorkoutProgram): { [muscleGroup: 
         const set = exercise.sets[setIndex];
         console.log(`🔍 VOLUME CALC - Processing set ${setIndex + 1}: ${set.reps} reps × ${set.weight} kg`);
         
-        // Calculate volume load for this set: reps * weight
-        const setVolume = set.reps * set.weight;
-        console.log(`🔍 VOLUME CALC - Set volume: ${setVolume} kg`);
+        // Calculate volume load for this set using universal formula: reps * Math.max(weight, 1)
+        // This handles weighted exercises (weight > 0) and bodyweight exercises (weight = 0)
+        const setVolume = set.reps * Math.max(set.weight, 1);
+        console.log(`🔍 VOLUME CALC - Set volume: ${setVolume} (${set.reps} reps × ${Math.max(set.weight, 1)} effective weight)`);
         
         // Add the set volume to the corresponding muscle group
         if (!volumeByMuscleGroup[muscleGroup]) {

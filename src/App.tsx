@@ -158,6 +158,11 @@ function App() {
               
               // Enrich the program with muscle groups from the database
               let enrichedProgram = assignment.program_json;
+              
+              // Debug: Log the actual program_json data
+              console.log('🔍 APP DEBUG - assignment.program_json for client:', row.full_name);
+              console.log('🔍 APP DEBUG - program_json.days:', enrichedProgram.days);
+              console.log('🔍 APP DEBUG - program_json.weeks:', enrichedProgram.weeks);
               if (enrichedProgram && enrichedProgram.days && supabase) {
                 try {
                   const { data: dbExercises } = await supabase

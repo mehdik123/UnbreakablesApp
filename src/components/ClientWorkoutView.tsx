@@ -21,6 +21,7 @@ import {
 import { Client, WorkoutProgram } from '../types';
 import { logExercisePerformance } from '../lib/progressTracking';
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking';
+import { useHorizontalScroll } from '../hooks/useHorizontalScroll';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -48,8 +49,7 @@ interface ClientWorkoutViewCombinedProps {
 export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   client,
   currentWeek,
-  unlockedWeeks,
-  isDark
+  unlockedWeeks
 }) => {
   const [currentDay, setCurrentDay] = useState(0);
   const [completedExercises, setCompletedExercises] = useState<{ [exerciseId: string]: boolean }>({});
@@ -68,6 +68,13 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
       console.log('📊 WORKOUT VIEW - Volume updated:', data);
       // Trigger re-render of progress chart
     }
+  });
+
+  // Horizontal scroll for workout days
+  const { scrollRef: daysScrollRef, scrollBy: scrollDaysBy } = useHorizontalScroll({
+    scrollStep: 200,
+    snapToItems: true,
+    enableSwipe: true
   });
 
   // Function to enrich program with video URLs from Supabase exercises table
@@ -268,15 +275,15 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   // If no workout program is assigned, show a message
   if (!workoutProgram && !client.workoutAssignment?.program) {
   return (
-      <div className="space-y-6">
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 text-center">
-          <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Dumbbell className="w-8 h-8 text-slate-400" />
+      <div className="space-y-4 sm:space-y-6">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8 text-center">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+            <Dumbbell className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400" />
             </div>
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
+          <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
             No Workout Plan Assigned
           </h3>
-          <p className="text-slate-600 dark:text-slate-400 mb-4">
+          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mb-4">
             Your coach hasn't assigned a workout plan yet. Please check back later or contact your coach.
           </p>
           <div className="space-x-2">
@@ -285,7 +292,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
                 localStorage.clear();
                 window.location.reload();
               }}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm"
+              className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg text-xs sm:text-sm"
             >
               Clear Cache & Reload
             </button>
@@ -674,57 +681,84 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
             </div>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4">
-            {currentWorkoutProgram?.days?.map((day, index) => {
-              const status = getDayStatus(index);
-              const isCurrentDay = index === currentDay;
-              const isCompleted = status === 'completed';
-              const isInProgress = status === 'in-progress';
-              
-              return (
+          {/* Horizontal Scrolling Days */}
+          <div className="relative">
+            <div 
+              ref={daysScrollRef}
+              className="overflow-x-auto scrollbar-hide horizontal-scroll"
+            >
+              <div className="flex space-x-3 sm:space-x-4 pb-2 min-w-max">
+                {currentWorkoutProgram?.days?.map((day, index) => {
+                  const status = getDayStatus(index);
+                  const isCurrentDay = index === currentDay;
+                  const isCompleted = status === 'completed';
+                  const isInProgress = status === 'in-progress';
+                  
+                  return (
+                    <button
+                      key={day.id}
+                      data-scroll-item
+                      onClick={() => setCurrentDay(index)}
+                      disabled={!isDayUnlocked}
+                      className={`group relative flex flex-col items-center space-y-2 p-3 sm:p-4 rounded-2xl font-medium transition-all duration-300 transform hover:scale-105 min-w-[120px] sm:min-w-[140px] ${
+                        isCurrentDay
+                          ? 'bg-gradient-to-br from-[#dc1e3a]/30 to-red-500/20 text-white shadow-2xl scale-105 border border-[#dc1e3a]/50'
+                          : isDayUnlocked
+                          ? isCompleted
+                            ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/10 text-green-300 border border-green-400/30 hover:from-green-500/30 hover:to-emerald-500/20'
+                            : isInProgress
+                            ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/10 text-blue-300 border border-blue-400/30 hover:from-blue-500/30 hover:to-cyan-500/20'
+                            : 'bg-gradient-to-br from-gray-700/50 to-gray-800/50 text-gray-300 border border-gray-600/50 hover:from-gray-600/50 hover:to-gray-700/50'
+                          : 'bg-gradient-to-br from-gray-700/30 to-gray-800/30 text-gray-500 border border-gray-600/30 cursor-not-allowed'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 group-hover:bg-white/20 transition-all duration-300">
+                        {isDayUnlocked ? (
+                          getDayStatusIcon(status)
+                        ) : (
+                          <Lock className="w-4 h-4" />
+                        )}
+                      </div>
+                      <span className="text-xs sm:text-sm font-semibold text-center">{day.name}</span>
+                      
+                      {/* Status indicator */}
+                      {isDayUnlocked && (
+                        <div className={`w-2 h-2 rounded-full ${
+                          isCompleted ? 'bg-green-400' : 
+                          isInProgress ? 'bg-blue-400' : 
+                          'bg-gray-400'
+                        }`}></div>
+                      )}
+                      
+                      {/* Current day indicator */}
+                      {isCurrentDay && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
+                          <div className="w-2 h-2 bg-[#dc1e3a] rounded-full"></div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Scroll buttons */}
             <button
-              key={day.id}
-              onClick={() => setCurrentDay(index)}
-                  disabled={!isDayUnlocked}
-                  className={`group relative flex flex-col items-center space-y-2 p-3 sm:p-4 rounded-2xl font-medium transition-all duration-300 transform hover:scale-105 ${
-                    isCurrentDay
-                      ? 'bg-gradient-to-br from-[#dc1e3a]/30 to-red-500/20 text-white shadow-2xl scale-105 border border-[#dc1e3a]/50'
-                      : isDayUnlocked
-                      ? isCompleted
-                        ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/10 text-green-300 border border-green-400/30 hover:from-green-500/30 hover:to-emerald-500/20'
-                        : isInProgress
-                        ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/10 text-blue-300 border border-blue-400/30 hover:from-blue-500/30 hover:to-cyan-500/20'
-                        : 'bg-gradient-to-br from-gray-700/50 to-gray-800/50 text-gray-300 border border-gray-600/50 hover:from-gray-600/50 hover:to-gray-700/50'
-                      : 'bg-gradient-to-br from-gray-700/30 to-gray-800/30 text-gray-500 border border-gray-600/30 cursor-not-allowed'
-                  }`}
-                >
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 group-hover:bg-white/20 transition-all duration-300">
-                    {isDayUnlocked ? (
-                      getDayStatusIcon(status)
-                    ) : (
-                      <Lock className="w-4 h-4" />
-                    )}
-                  </div>
-                  <span className="text-xs sm:text-sm font-semibold text-center">{day.name}</span>
-                  
-                  {/* Status indicator */}
-                  {isDayUnlocked && (
-                    <div className={`w-2 h-2 rounded-full ${
-                      isCompleted ? 'bg-green-400' : 
-                      isInProgress ? 'bg-blue-400' : 
-                      'bg-gray-400'
-                    }`}></div>
-                  )}
-                  
-                  {/* Current day indicator */}
-                  {isCurrentDay && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
-                      <div className="w-2 h-2 bg-[#dc1e3a] rounded-full"></div>
-                    </div>
-                  )}
+              onClick={() => scrollDaysBy('left')}
+              className="absolute top-1/2 -left-2 transform -translate-y-1/2 w-6 h-6 bg-gray-800/80 hover:bg-gray-700/80 rounded-full flex items-center justify-center opacity-50 hover:opacity-100 transition-all duration-200"
+            >
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
             </button>
-              );
-            })}
+            <button
+              onClick={() => scrollDaysBy('right')}
+              className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-6 h-6 bg-gray-800/80 hover:bg-gray-700/80 rounded-full flex items-center justify-center opacity-50 hover:opacity-100 transition-all duration-200"
+            >
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
           
           {!isDayUnlocked && (

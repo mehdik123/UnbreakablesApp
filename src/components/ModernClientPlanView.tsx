@@ -38,7 +38,6 @@ import {
 import { Client, Food, Meal, NutritionPlan, WorkoutPlan, Workout, Exercise } from '../types';
 import { UltraModernNutritionEditor } from './UltraModernNutritionEditor';
 import UltraModernWorkoutEditor from './UltraModernWorkoutEditor';
-import ClientProgressTracker from './ClientProgressTracker';
 
 interface ModernClientPlanViewProps {
   client: Client;
@@ -128,32 +127,32 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       {/* Header */}
       <div className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-0 sm:h-16 space-y-3 sm:space-y-0">
+            <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
               <button
                 onClick={onBack}
                 className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                  <User className="w-5 h-5 text-white" />
+              <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 
-                <div>
-                  <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-slate-100 truncate">
                     {client.name}'s Plan
                   </h1>
-                  <div className="flex items-center space-x-3">
-                    <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium ${getGoalColor(client.goal)}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3">
+                    <div className={`inline-flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium ${getGoalColor(client.goal)}`}>
                       {getGoalIcon(client.goal)}
                       <span className="capitalize">{client.goal}</span>
                     </div>
-                    <div className="flex items-center space-x-2 text-slate-600 dark:text-slate-400 text-sm">
-                      <Calendar className="w-4 h-4" />
+                    <div className="flex items-center space-x-1 sm:space-x-2 text-slate-600 dark:text-slate-400 text-xs sm:text-sm">
+                      <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                       <span>{client.numberOfWeeks} weeks</span>
                     </div>
                   </div>
@@ -161,22 +160,22 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1 sm:space-x-3 w-full sm:w-auto justify-end">
               <button
                 onClick={() => setShowStats(!showStats)}
                 className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200"
               >
-                <BarChart3 className="w-5 h-5" />
+                <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <button 
                 onClick={handleShareClient}
                 className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200"
                 title="Share client link"
               >
-                <Share2 className="w-5 h-5" />
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <button className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200">
-                <Settings className="w-5 h-5" />
+                <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>
@@ -184,58 +183,58 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Stats Cards */}
         {showStats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 hover:shadow-md transition-shadow duration-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Nutrition Plan</p>
-                  <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+                <div className="flex-1">
+                  <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium">Nutrition Plan</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
                     {client.nutritionPlan ? '✓' : '○'}
                   </p>
                 </div>
-                <div className="w-12 h-12 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 flex items-center justify-center">
-                  <Utensils className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 flex items-center justify-center">
+                  <Utensils className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 hover:shadow-md transition-shadow duration-200">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Workout Plan</p>
-                  <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+                <div className="flex-1">
+                  <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium">Workout Plan</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
                     {client.workoutAssignment ? '✓' : '○'}
                   </p>
                 </div>
-                <div className="w-12 h-12 rounded-lg bg-blue-50 dark:bg-blue-950/20 flex items-center justify-center">
-                  <Dumbbell className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-blue-50 dark:bg-blue-950/20 flex items-center justify-center">
+                  <Dumbbell className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 hover:shadow-md transition-shadow duration-200">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Weight Logs</p>
-                  <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">{client.weightLog?.length || 0}</p>
+                <div className="flex-1">
+                  <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium">Weight Logs</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">{client.weightLog?.length || 0}</p>
                 </div>
-                <div className="w-12 h-12 rounded-lg bg-purple-50 dark:bg-purple-950/20 flex items-center justify-center">
-                  <Activity className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-purple-50 dark:bg-purple-950/20 flex items-center justify-center">
+                  <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 hover:shadow-md transition-shadow duration-200">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Progress</p>
-                  <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">94%</p>
+                <div className="flex-1">
+                  <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium">Progress</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">94%</p>
                 </div>
-                <div className="w-12 h-12 rounded-lg bg-amber-50 dark:bg-amber-950/20 flex items-center justify-center">
-                  <Crown className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-amber-50 dark:bg-amber-950/20 flex items-center justify-center">
+                  <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400" />
                 </div>
               </div>
             </div>
@@ -243,36 +242,38 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
         )}
 
         {/* Tab Navigation */}
-        <div className="mb-8">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-2">
-            <div className="flex space-x-2">
+        <div className="mb-6 sm:mb-8">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-1 sm:p-2">
+            <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2">
               <button
                 onClick={() => {
                   setActiveTab('nutrition');
                   setShowProgressTracker(false);
                 }}
-                className={`flex-1 flex items-center justify-center space-x-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                className={`flex-1 flex items-center justify-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
                   activeTab === 'nutrition' 
                     ? 'bg-indigo-600 text-white shadow-sm' 
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
               >
                 <Utensils className="w-4 h-4" />
-                <span>Nutrition Plan</span>
+                <span className="hidden sm:block">Nutrition Plan</span>
+                <span className="sm:hidden">Nutrition</span>
               </button>
               <button
                 onClick={() => {
                   setActiveTab('workout');
                   setShowProgressTracker(false);
                 }}
-                className={`flex-1 flex items-center justify-center space-x-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                className={`flex-1 flex items-center justify-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
                   activeTab === 'workout' 
                     ? 'bg-indigo-600 text-white shadow-sm' 
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
               >
                 <Dumbbell className="w-4 h-4" />
-                <span>Workout Plan</span>
+                <span className="hidden sm:block">Workout Plan</span>
+                <span className="sm:hidden">Workout</span>
               </button>
               <button
                 onClick={() => {
@@ -281,14 +282,15 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
                   setActiveTab('progress');
                   setShowProgressTracker(false);
                 }}
-                className={`flex-1 flex items-center justify-center space-x-3 px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                className={`flex-1 flex items-center justify-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
                   activeTab === 'progress' 
                     ? 'bg-indigo-600 text-white shadow-sm' 
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
               >
                 <Award className="w-4 h-4" />
-                <span>Progress Tracking</span>
+                <span className="hidden sm:block">Progress Tracking</span>
+                <span className="sm:hidden">Progress</span>
               </button>
             </div>
           </div>
@@ -314,14 +316,15 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
             isDark={isDark}
           />
         ) : activeTab === 'progress' ? (
-          <ClientProgressTracker
-            client={client}
-            isDark={isDark}
-            onBack={() => {
-              setShowProgressTracker(false);
-              setActiveTab('nutrition');
-            }}
-          />
+          <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-[#dc1e3a]/20 to-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-[#dc1e3a]/30">
+              <Activity className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Progress Tracking</h3>
+            <p className="text-gray-400 text-sm leading-relaxed max-w-md mx-auto">
+              Progress tracking is being rebuilt. Please wait for instructions.
+            </p>
+          </div>
         ) : (
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-8">
             <UltraModernWorkoutEditor

@@ -70,6 +70,64 @@ export async function dbDeleteExercise(id: string): Promise<DBResult<null>> {
   return { data: null, error };
 }
 
+// ---------- Weekly Volume Tracking CRUD ----------
+export async function dbSaveWeeklyVolume(
+  clientId: string, 
+  weekNumber: number, 
+  muscleGroup: string, 
+  volume: number
+): Promise<DBResult<any>> {
+  if (!isSupabaseReady || !supabase) return { data: null };
+  
+  const { data, error } = await supabase
+    .from('weekly_volume_tracking')
+    .upsert({
+      client_id: clientId,
+      week_number: weekNumber,
+      muscle_group: muscleGroup,
+      volume: volume,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'client_id,week_number,muscle_group'
+    })
+    .select('*')
+    .single();
+  
+  return { data, error };
+}
+
+export async function dbGetWeeklyVolume(
+  clientId: string, 
+  weekNumber?: number
+): Promise<DBResult<any[]>> {
+  if (!isSupabaseReady || !supabase) return { data: [] };
+  
+  let query = supabase
+    .from('weekly_volume_tracking')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('week_number', { ascending: true });
+  
+  if (weekNumber !== undefined) {
+    query = query.eq('week_number', weekNumber);
+  }
+  
+  const { data, error } = await query;
+  return { data: data || [], error };
+}
+
+export async function dbGetVolumeHistory(clientId: string): Promise<DBResult<any[]>> {
+  if (!isSupabaseReady || !supabase) return { data: [] };
+  
+  const { data, error } = await supabase
+    .from('weekly_volume_tracking')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('week_number', { ascending: true });
+  
+  return { data: data || [], error };
+}
+
 // ---------- Ingredients CRUD ----------
 export async function dbListIngredients(): Promise<DBResult<any[]>> {
   if (!isSupabaseReady || !supabase) return { data: [] };

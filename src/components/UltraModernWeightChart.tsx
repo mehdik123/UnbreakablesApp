@@ -130,3 +130,5 @@ export const UltraModernWeightChart: React.FC<UltraModernWeightChartProps> = ({ 
     </div>
   );
 };
+
+
