@@ -48,14 +48,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     // Use currentWeek from the workout assignment set by coach
     return client.workoutAssignment?.currentWeek || 1;
   });
-  const [unlockedWeeks, setUnlockedWeeks] = useState<number[]>(() => {
-    if (client.workoutAssignment?.weeks) {
-      return client.workoutAssignment.weeks
-        .filter(week => week.isUnlocked)
-        .map(week => week.weekNumber);
-    }
-    return [1];
-  });
+  // Removed unlockedWeeks - using simplified currentWeek logic
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [showMotivationQuote, setShowMotivationQuote] = useState(true);
 
@@ -137,8 +130,18 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             .maybeSingle();
           
           if (assignment?.current_week && assignment.current_week !== currentWeek) {
-            console.log('🔄 REALTIME SYNC - Updating currentWeek:', assignment.current_week);
+            console.log('🔄 REALTIME SYNC - Updating currentWeek from', currentWeek, 'to', assignment.current_week);
             setCurrentWeek(assignment.current_week);
+            
+            // Also update the workout assignment object
+            if (client.workoutAssignment) {
+              const updatedAssignment = {
+                ...client.workoutAssignment,
+                currentWeek: assignment.current_week
+              };
+              // Trigger a re-render by updating the client object
+              // This will be handled by the parent component
+            }
           }
         }
       } catch (error) {
@@ -149,9 +152,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     // Initial sync
     syncCurrentWeek();
 
+    // Set up periodic sync every 5 seconds as backup
+    const intervalId = setInterval(syncCurrentWeek, 5000);
+
     // Set up real-time subscription
     const channel = supabase
-      .channel(`client-${client.id}-week-sync`)
+      .channel(`client-${client.name}-week-sync`)
       .on('postgres_changes', 
         { 
           event: 'UPDATE', 
@@ -162,6 +168,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         (payload) => {
           console.log('🔄 REALTIME UPDATE - Assignment updated:', payload);
           if (payload.new.current_week && payload.new.current_week !== currentWeek) {
+            console.log('🔄 REALTIME SYNC - Updating currentWeek from', currentWeek, 'to', payload.new.current_week);
             setCurrentWeek(payload.new.current_week);
           }
         }
@@ -169,6 +176,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       .subscribe();
 
     return () => {
+      clearInterval(intervalId);
       supabase.removeChannel(channel);
     };
   }, [client.id, client.name, currentWeek]);
@@ -227,11 +235,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               console.log('🔄 CLIENT SYNC DEBUG - Fresh weeks from DB:', freshWeeks);
               
               if (freshWeeks.length > 0) {
-                const unlocked = freshWeeks
-                  .filter((week: any) => week.isUnlocked)
-                  .map((week: any) => week.weekNumber);
-                console.log('🔄 CLIENT SYNC DEBUG - Unlocked weeks:', unlocked);
-                setUnlockedWeeks(unlocked.length > 0 ? unlocked : [1]);
+                // Removed unlockedWeeks logic - using simplified currentWeek only
                 
                 // Simple: Use the current_week field directly from the assignment
                 const newCurrentWeek = assignment.current_week || 1;
@@ -488,7 +492,6 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
           <ClientWorkoutView
             client={client}
             currentWeek={currentWeek}
-            unlockedWeeks={unlockedWeeks}
             isDark={isDark}
           />
         ) : activeTab === 'progress' ? (

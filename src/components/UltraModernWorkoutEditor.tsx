@@ -12,8 +12,6 @@ import {
   CheckCircle,
   Calendar,
   Target,
-  Lock,
-  Unlock,
   Play,
   Zap,
   Activity,
@@ -109,22 +107,12 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   const [sharedVersion, setSharedVersion] = useState<number>(0);
   const [currentWeek, setCurrentWeek] = useState(1);
   const [currentDay, setCurrentDay] = useState(0);
-  const [weeks, setWeeks] = useState<Array<{
-    weekNumber: number;
-    isUnlocked: boolean;
-    isCompleted: boolean;
-    exercises: WorkoutExercise[];
-  }>>([]);
+  // Removed weeks state - using simple currentWeek only
   const [showProgramSelection, setShowProgramSelection] = useState(true);
   const [showModificationInterface, setShowModificationInterface] = useState(false);
   const [isEditingTemplate, setIsEditingTemplate] = useState(false);
   const [hasModifications, setHasModifications] = useState(false);
-  const [originalWeeks, setOriginalWeeks] = useState<Array<{
-    weekNumber: number;
-    isUnlocked: boolean;
-    isCompleted: boolean;
-    exercises: WorkoutExercise[];
-  }>>([]);
+  // Removed originalWeeks - no longer needed with simplified logic
   const [customWorkout, setCustomWorkout] = useState<{
     name: string;
     description: string;
@@ -177,21 +165,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                 setSelectedProgram(asg.program_json as unknown as WorkoutProgram);
                 setShowProgramSelection(false); // Hide template selection, show workout editor
                 
-                // SIMPLIFIED: Generate weeks based on current week from database
-                console.log('🔄 SIMPLE LOAD - Loading from Supabase, current_week:', asg.current_week);
-                
-                // Generate simple weeks array - only the current week is unlocked
-                const simpleWeeks = Array.from({ length: client.numberOfWeeks || 12 }, (_, index) => ({
-                  weekNumber: index + 1,
-                  isUnlocked: index + 1 === asg.current_week, // Only current week is unlocked
-                  isCompleted: false,
-                  exercises: [],
-                  days: []
-                }));
-                
-                console.log('🔄 SIMPLE LOAD - Generated weeks with unlocked week:', asg.current_week);
-                setWeeks(simpleWeeks);
-                setOriginalWeeks(JSON.parse(JSON.stringify(simpleWeeks)));
+                console.log('🔄 LOAD - Loading from Supabase, current_week:', asg.current_week);
+                console.log('🔄 LOAD - program_json:', asg.program_json);
               }
               if (asg.current_week) setCurrentWeek(asg.current_week);
               if (typeof asg.current_day === 'number') setCurrentDay(Math.max(0, (asg.current_day || 1) - 1));
@@ -266,7 +241,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   useEffect(() => {
     if (selectedProgram) {
       const weekData = createWeekBasedWorkout(selectedProgram, client.numberOfWeeks);
-      setWeeks(weekData);
+      // Removed setWeeks - no longer needed
     }
   }, [selectedProgram, client.numberOfWeeks, currentDay]);
 
@@ -362,8 +337,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       }));
       
       console.log('🔄 SIMPLE LOAD - Generated weeks with unlocked week:', currentWeekFromAssignment);
-      setWeeks(simpleWeeks);
-      setOriginalWeeks(JSON.parse(JSON.stringify(simpleWeeks)));
+      // Removed setWeeks - no longer needed
+      // Removed setOriginalWeeks - no longer needed
       setHasModifications(false);
     }
   }, [client.id, client.workoutAssignment?.id, isSupabaseReady]); // Only run when client or assignment ID changes
@@ -427,8 +402,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     setIsEditingTemplate(false);
     
     // Create week-based workout structure
-    const weekData = createWeekBasedWorkout(program, client.numberOfWeeks);
-    setWeeks(weekData);
+    // Removed weekData - no longer needed with simplified logic
+    // Removed setWeeks - no longer needed
     
     // Automatically save the assignment when selecting a template
     const assignment: ClientWorkoutAssignment = {
@@ -440,14 +415,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       duration: client.numberOfWeeks,
       currentWeek: 1,
       currentDay: 1,
-      weeks: weekData.map(week => ({
-        weekNumber: week.weekNumber,
-        isUnlocked: week.isUnlocked,
-        isCompleted: week.isCompleted,
-        exercises: week.exercises || [], // Use the actual exercises from the week
-        days: week.days || [], // Use the actual days from the week
-        progressionNotes: week.weekNumber > 1 ? `Week ${week.weekNumber} progression applied` : undefined
-      })),
+      weeks: [], // Empty array - using simple currentWeek only
       progressionRules: [],
       isActive: true
     };
@@ -460,81 +428,257 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   };
 
   // Simple week change handler
-  const handleWeekChange = (weekNumber: number) => {
-    console.log('📅 WEEK CHANGE - Changing to week:', weekNumber);
-    setCurrentWeek(weekNumber);
-  };
-
-  // Proper week unlock function using the week unlock manager
-  const handleUnlockCurrentWeek = async () => {
-    console.log('🔓 WEEK UNLOCK - Unlocking week:', currentWeek);
+  // Week change function that saves current week data before switching
+  const handleWeekChange = async (newWeek: number) => {
+    console.log('🔄 VOLUME TRACKING - ===========================================');
+    console.log('🔄 VOLUME TRACKING - WEEK CHANGE: Week', currentWeek, '→ Week', newWeek);
+    console.log('🔄 VOLUME TRACKING - ===========================================');
     
     if (!client.workoutAssignment) {
-      console.log('❌ WEEK UNLOCK - No workout assignment found');
+      console.log('❌ WEEK CHANGE - No workout assignment found');
       alert('No workout assignment found. Please assign a workout program first.');
       return;
     }
 
-    // Simple check if week can be unlocked
-    if (currentWeek <= 1) {
-      alert('Cannot unlock the first week or a negative week number.');
-      return;
-    }
-
-    const currentWeekData = client.workoutAssignment.weeks?.find(w => w.weekNumber === currentWeek);
-    if (currentWeekData?.isUnlocked) {
-      alert(`Week ${currentWeek} is already unlocked.`);
-      return;
-    }
-
-    const previousWeekData = client.workoutAssignment.weeks?.find(w => w.weekNumber === currentWeek - 1);
-    if (!previousWeekData || !previousWeekData.isUnlocked) {
-      alert(`Week ${currentWeek - 1} must be unlocked first.`);
-      return;
-    }
-
     try {
-      // Update the local state
-      setWeeks(prevWeeks => 
-        prevWeeks.map(week => 
-          week.weekNumber === currentWeek 
-            ? { ...week, isUnlocked: true }
-            : week
-        )
-      );
+      // STEP 1: Save current week's data before switching
+      let updatedWeeks = client.workoutAssignment.weeks || [];
       
-      // Create updated assignment
-      const updatedAssignment: ClientWorkoutAssignment = {
-        ...client.workoutAssignment,
-        weeks: client.workoutAssignment.weeks?.map(week => 
-          week.weekNumber === currentWeek 
-            ? { ...week, isUnlocked: true }
-            : week
-        ) || [],
-        currentWeek: currentWeek,
-        lastModifiedBy: 'coach',
-        lastModifiedAt: new Date()
-      };
+      if (selectedProgram) {
+        console.log('💾 VOLUME TRACKING - Saving Week', currentWeek, 'data before switching');
+        
+        // Calculate current week volume before saving
+        let currentWeekVolume = 0;
+        selectedProgram.days.forEach(day => {
+          day.exercises.forEach(exercise => {
+            exercise.sets.forEach(set => {
+              currentWeekVolume += set.reps * set.weight;
+            });
+          });
+        });
+        console.log('💾 VOLUME TRACKING - Week', currentWeek, 'final volume:', currentWeekVolume, 'kg');
+        
+        // Create current week data from the current selectedProgram
+        const currentWeekData = {
+          weekNumber: currentWeek,
+          isUnlocked: true,
+          isCompleted: false,
+          exercises: [],
+          days: selectedProgram.days.map(day => ({
+            ...day,
+            exercises: day.exercises.map(exercise => ({
+              ...exercise,
+              sets: exercise.sets.map(set => ({ ...set })) // Deep copy of sets
+            }))
+          }))
+        };
+
+        // Update or add current week data
+        updatedWeeks = updatedWeeks.filter(w => w.weekNumber !== currentWeek);
+        updatedWeeks.push(currentWeekData);
+        
+        console.log('💾 VOLUME TRACKING - Week', currentWeek, 'data structure:', currentWeekData);
+        console.log('💾 VOLUME TRACKING - Week', currentWeek, 'days count:', currentWeekData.days?.length);
+        console.log('💾 VOLUME TRACKING - Week', currentWeek, 'first day exercises:', currentWeekData.days?.[0]?.exercises?.length);
+        
+        
+        // Update the workout assignment with current week data
+        const updatedAssignment = {
+          ...client.workoutAssignment,
+          weeks: updatedWeeks,
+          lastModifiedBy: 'coach',
+          lastModifiedAt: new Date()
+        };
+        
+        // Save current week data
+        onSaveAssignment(updatedAssignment);
+      }
+
+      // STEP 2: Initialize new week if it doesn't exist
+      let finalWeeks = updatedWeeks; // Use the updated weeks from STEP 1
+      const existingNewWeekData = finalWeeks.find(w => w.weekNumber === newWeek);
       
-      // Save the updated assignment
-      onSaveAssignment(updatedAssignment);
+      if (!existingNewWeekData) {
+        
+        if (selectedProgram && selectedProgram.days && selectedProgram.days.length > 0) {
+          console.log('📅 VOLUME TRACKING - Initializing Week', newWeek, 'with Week', currentWeek, 'final state');
+          
+          // Calculate the volume from the previous week's final state
+          let previousWeekVolume = 0;
+          selectedProgram.days.forEach(day => {
+            day.exercises.forEach(exercise => {
+              exercise.sets.forEach(set => {
+                previousWeekVolume += set.reps * set.weight;
+              });
+            });
+          });
+          console.log('📅 VOLUME TRACKING - Week', newWeek, 'starting volume (from Week', currentWeek, '):', previousWeekVolume, 'kg');
+          
+          // Initialize new week with PREVIOUS WEEK'S FINAL STATE (cumulative progression)
+          const newWeekData = {
+            weekNumber: newWeek,
+            isUnlocked: true,
+            isCompleted: false,
+            exercises: [],
+            days: selectedProgram.days.map(day => ({
+              ...day,
+              exercises: day.exercises.map(exercise => ({
+                ...exercise,
+                sets: exercise.sets.map(set => ({ ...set })) // Deep copy of sets
+              }))
+            }))
+          };
+          
+          finalWeeks = [...finalWeeks, newWeekData];
+          console.log('📅 VOLUME TRACKING - Week', newWeek, 'initialized successfully');
+        } else if (client.workoutAssignment.program && client.workoutAssignment.program.days) {
+          console.log('📅 VOLUME TRACKING - Using base program for Week', newWeek, '(selectedProgram invalid)');
+          
+          // Initialize new week with BASE PROGRAM DATA as fallback
+          const newWeekData = {
+            weekNumber: newWeek,
+            isUnlocked: true,
+            isCompleted: false,
+            exercises: [],
+            days: client.workoutAssignment.program.days.map(day => ({
+              ...day,
+              exercises: day.exercises.map(exercise => ({
+                ...exercise,
+                sets: exercise.sets.map(set => ({ ...set })) // Deep copy of sets
+              }))
+            }))
+          };
+          
+          finalWeeks = [...finalWeeks, newWeekData];
+          console.log('📅 VOLUME TRACKING - Week', newWeek, 'initialized with base program');
+        } else {
+          console.log('❌ VOLUME TRACKING - No valid program data for Week', newWeek);
+        }
+      }
+
+      // STEP 3: Load the target week's data into selectedProgram
+      const targetWeekData = finalWeeks.find(w => w.weekNumber === newWeek);
+      console.log('📅 VOLUME TRACKING - Available weeks:', finalWeeks.map(w => ({ week: w.weekNumber, hasDays: !!w.days, daysLength: w.days?.length })));
       
-      alert(`Week ${currentWeek} has been unlocked!`);
+      if (targetWeekData && targetWeekData.days && targetWeekData.days.length > 0) {
+        console.log('📅 VOLUME TRACKING - Loading Week', newWeek, 'data into UI');
+        
+        // Calculate the volume of the week being loaded
+        let loadedWeekVolume = 0;
+        targetWeekData.days.forEach(day => {
+          day.exercises.forEach(exercise => {
+            exercise.sets.forEach(set => {
+              loadedWeekVolume += set.reps * set.weight;
+            });
+          });
+        });
+        console.log('📅 VOLUME TRACKING - Week', newWeek, 'loaded volume:', loadedWeekVolume, 'kg');
+        
+        // Create a program structure from the week-specific data
+        const weekProgram: WorkoutProgram = {
+          ...client.workoutAssignment.program,
+          days: targetWeekData.days
+        };
+        
+        // Update selectedProgram to show the target week's data
+        setSelectedProgram(weekProgram);
+        console.log('📅 VOLUME TRACKING - Week', newWeek, 'loaded successfully into UI');
+      } else if (client.workoutAssignment.program) {
+        console.log('📅 VOLUME TRACKING - Using base program for Week', newWeek, '(no week-specific data)');
+        setSelectedProgram(client.workoutAssignment.program);
+      } else {
+        console.log('❌ VOLUME TRACKING - No program data available!');
+      }
+
+      // STEP 4: Update the current week in the database
+      if (client.workoutAssignment?.id) {
+        const { error } = await dbUpdateWorkoutAssignment(client.workoutAssignment.id, {
+          current_week: newWeek,
+          last_modified_by: 'coach'
+        });
+
+        if (error) {
+          console.error('❌ WEEK CHANGE - Database error:', error);
+          alert(`Error updating week in database: ${error.message}`);
+          return;
+        }
+
+        // Update local state
+        setCurrentWeek(newWeek);
+        
+        // Update the client's workout assignment with all week data
+        const finalAssignment: ClientWorkoutAssignment = {
+          ...client.workoutAssignment,
+          currentWeek: newWeek,
+          weeks: finalWeeks,
+          lastModifiedBy: 'coach',
+          lastModifiedAt: new Date()
+        };
+        
+        // Save the final assignment
+        onSaveAssignment(finalAssignment);
+        
+        console.log('✅ VOLUME TRACKING - ===========================================');
+        console.log('✅ VOLUME TRACKING - WEEK CHANGE COMPLETE: Week', newWeek, 'is now active');
+        console.log('✅ VOLUME TRACKING - ===========================================');
+        alert(`Switched to Week ${newWeek}!`);
+      } else {
+        alert('No workout assignment ID found. Please assign a workout program first.');
+      }
     } catch (error) {
-      console.error('❌ WEEK UNLOCK - Error:', error);
-      alert(`Error unlocking week: ${error}`);
+      console.error('❌ WEEK CHANGE - Error:', error);
+      alert(`Error changing week: ${error}`);
     }
   };
 
-  // Auto-save function for coach changes
+  // Auto-save function for coach changes - saves to current week only
   const autoSaveChanges = (updatedProgram: WorkoutProgram) => {
     if (client.workoutAssignment) {
+      console.log('💾 VOLUME TRACKING - ===========================================');
+      console.log('💾 VOLUME TRACKING - AUTO-SAVE: Week', currentWeek, 'modifications');
+      console.log('💾 VOLUME TRACKING - ===========================================');
+      
+      // Calculate current week volume for tracking
+      let currentWeekVolume = 0;
+      updatedProgram.days.forEach(day => {
+        day.exercises.forEach(exercise => {
+          exercise.sets.forEach(set => {
+            currentWeekVolume += set.reps * set.weight;
+          });
+        });
+      });
+      console.log('💾 VOLUME TRACKING - Week', currentWeek, 'total volume:', currentWeekVolume, 'kg');
+      
+      // Create week-specific data for the current week
+      const currentWeekData = {
+        weekNumber: currentWeek,
+        isUnlocked: true,
+        isCompleted: false,
+        exercises: [],
+        days: updatedProgram.days.map(day => ({
+          ...day,
+          exercises: day.exercises.map(exercise => ({
+            ...exercise,
+            sets: exercise.sets.map(set => ({ ...set })) // Deep copy of sets
+          }))
+        }))
+      };
+
+      // Update or add week-specific data (preserve other weeks)
+      const existingWeeks = client.workoutAssignment.weeks || [];
+      const updatedWeeks = existingWeeks.filter(w => w.weekNumber !== currentWeek);
+      updatedWeeks.push(currentWeekData);
+
       const updatedAssignment = {
         ...client.workoutAssignment,
-        program: updatedProgram,
+        program: updatedProgram, // Keep the base program updated
+        weeks: updatedWeeks, // Store week-specific data
         lastModifiedBy: 'coach' as const,
         lastModifiedAt: new Date()
       };
+
+      console.log(`💾 AUTO-SAVE - Week ${currentWeek} data:`, currentWeekData);
+      console.log(`💾 AUTO-SAVE - All weeks:`, updatedWeeks.map(w => ({ week: w.weekNumber, hasDays: w.days?.length || 0 })));
       onSaveAssignment(updatedAssignment);
     }
   };
@@ -561,16 +705,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         )
       };
       
-      // Update both selectedProgram and weeks state immediately
+      // Update selectedProgram immediately
       setSelectedProgram(updatedProgram);
-      setWeeks(prev => prev.map(week => 
-        week.weekNumber === currentWeek 
-          ? {
-              ...week,
-              exercises: updatedProgram.days[currentDay].exercises
-            }
-          : week
-      ));
       
       // Auto-save after modification (immediate)
       handleSaveAssignment();
@@ -581,25 +717,32 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 
 
 
-  const handleRemoveSet = (weekNumber: number, exerciseId: string, setId: string) => {
-    setWeeks(prev => prev.map(week => 
-      week.weekNumber === weekNumber 
-        ? {
-            ...week,
-            exercises: week.exercises.map(exercise => 
-              exercise.id === exerciseId 
-                ? {
-                    ...exercise,
-                    sets: exercise.sets.filter(set => set.id !== setId)
-                  }
-                : exercise
-            )
-          }
-        : week
-    ));
+  const handleRemoveSet = (exerciseId: string, setId: string) => {
+    if (selectedProgram) {
+      const updatedProgram = {
+        ...selectedProgram,
+        days: selectedProgram.days.map(day => ({
+          ...day,
+          exercises: day.exercises.map(exercise => 
+            exercise.id === exerciseId 
+              ? {
+                  ...exercise,
+                  sets: exercise.sets.filter(set => set.id !== setId)
+                }
+              : exercise
+          )
+        }))
+      };
+      
+      // Update selectedProgram immediately
+      setSelectedProgram(updatedProgram);
+      
+      // Auto-save after modification (immediate)
+      handleSaveAssignment();
+    }
   };
 
-  const handleUpdateReps = (_weekNumber: number, exerciseId: string, setId: string, change: number) => {
+  const handleUpdateReps = (exerciseId: string, setId: string, change: number) => {
     if (selectedProgram && selectedProgram.days && selectedProgram.days[currentDay] && selectedProgram.days[currentDay].exercises) {
       // Find the current set to get old value
       const currentExercise = selectedProgram.days[currentDay]?.exercises?.find(ex => ex.id === exerciseId);
@@ -639,7 +782,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     }
   };
 
-  const handleUpdateWeight = (_weekNumber: number, exerciseId: string, setId: string, change: number) => {
+  const handleUpdateWeight = (exerciseId: string, setId: string, change: number) => {
     if (selectedProgram && selectedProgram.days && selectedProgram.days[currentDay] && selectedProgram.days[currentDay].exercises) {
       // Find the current set to get old value
       const currentExercise = selectedProgram.days[currentDay]?.exercises?.find(ex => ex.id === exerciseId);
@@ -743,6 +886,9 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     const updatedProgram = enrichedProgram;
 
 
+    // Get existing week-specific data or create new
+    const existingWeeks = client.workoutAssignment?.weeks || [];
+    
     const assignment: ClientWorkoutAssignment = {
       id: client.workoutAssignment?.id || Date.now().toString(),
       clientId: client.id,
@@ -752,19 +898,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       duration: client.numberOfWeeks,
       currentWeek: currentWeek,
       currentDay: currentDay + 1,
-      weeks: weeks.map(week => {
-        const weekData = {
-        weekNumber: week.weekNumber,
-        isUnlocked: week.isUnlocked,
-        isCompleted: week.isCompleted,
-        exercises: week.exercises || [], // Required by WorkoutWeek interface
-          days: (week as any).days || [], // Use the actual days data from the week
-        progressionNotes: week.weekNumber > 1 ? `Week ${week.weekNumber} progression applied` : undefined
-        };
-        console.log(`🔍 SAVE ASSIGNMENT - Week ${week.weekNumber} data:`, weekData);
-        console.log(`🔍 SAVE ASSIGNMENT - Week ${week.weekNumber} days count:`, weekData.days.length);
-        return weekData;
-      }),
+      weeks: existingWeeks, // Use existing week-specific data
       progressionRules: [],
       isActive: true,
       // Real-time sync tracking
@@ -816,33 +950,10 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 
     onSaveAssignment(assignment);
     setHasModifications(false);
-    setOriginalWeeks(JSON.parse(JSON.stringify(weeks))); // Update original state
+    // Removed setOriginalWeeks - no longer needed
   };
 
-  // Check for modifications
-  const checkForModifications = () => {
-    if (originalWeeks.length === 0) {
-      setHasModifications(false);
-      return;
-    }
-    const hasChanges = JSON.stringify(weeks) !== JSON.stringify(originalWeeks);
-    setHasModifications(hasChanges);
-  };
-
-  // Update modifications when weeks change
-  useEffect(() => {
-    // Only check modifications if we have original weeks to compare against
-    if (originalWeeks.length > 0) {
-      checkForModifications();
-    }
-  }, [weeks, originalWeeks]);
-
-
-  const currentWeekData = React.useMemo(() => {
-    const data = weeks.find(w => w.weekNumber === currentWeek);
-    console.log('🔍 SIMPLE DEBUG - currentWeek:', currentWeek, 'isUnlocked:', data?.isUnlocked);
-    return data;
-  }, [weeks, currentWeek]);
+  // Simplified - no complex weeks logic needed
   
   // Force re-render when weeks change
   // const [renderKey, setRenderKey] = useState(0);
@@ -895,7 +1006,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     } else {
                       setShowProgramSelection(true);
                       setSelectedProgram(null);
-                      setWeeks([]);
+                      // Removed setWeeks - no longer needed
                     }
                   }}
                 className="p-2 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white transition-all duration-200"
@@ -1694,7 +1805,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     // Set as selected program and create workout
                     setSelectedProgram(finalProgram);
                     const weekData = createWeekBasedWorkout(finalProgram, client.numberOfWeeks);
-                    setWeeks(weekData);
+                    // Removed setWeeks - no longer needed
                     
                     // Go to workout interface
                     setShowModificationInterface(false);
@@ -1714,16 +1825,16 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         {!showProgramSelection && !showModificationInterface && (
           /* Workout Program Interface */
           <div className="space-y-6">
-            {/* Week Navigation */}
+            {/* Week Selection */}
             <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-white">Week {currentWeek}</h2>
+                <h2 className="text-2xl font-bold text-white">Current Week: {currentWeek}</h2>
                 <div className="flex items-center space-x-3">
-                  {/* Ultra-Modern Week Selector */}
+                  {/* Simple Week Selector */}
                   <div className="flex items-center space-x-4">
                     <div className="relative">
                       <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                        Unlock Week
+                        Select Current Week
                       </label>
                       <div className="relative">
                         <select
@@ -1731,7 +1842,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           onChange={(e) => handleWeekChange(parseInt(e.target.value))}
                           className="appearance-none bg-gradient-to-r from-slate-800 to-slate-700 border border-slate-600/50 rounded-2xl px-6 py-3 pr-10 text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 hover:from-slate-700 hover:to-slate-600 shadow-lg backdrop-blur-sm"
                         >
-                          {Array.from({ length: client.numberOfWeeks }, (_, i) => i + 1).map(week => (
+                          {Array.from({ length: client.numberOfWeeks || 12 }, (_, i) => i + 1).map(week => (
                             <option key={week} value={week} className="bg-slate-800 text-white">
                               Week {week}
                             </option>
@@ -1742,38 +1853,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         </div>
                       </div>
                     </div>
-                    
-                    <button
-                      onClick={() => handleUnlockCurrentWeek()}
-                      className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-semibold px-8 py-3 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Unlock className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
-                        <span>Unlock Week {currentWeek}</span>
-                      </div>
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                    </button>
                   </div>
                   
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setCurrentWeek(Math.max(1, currentWeek - 1))}
-                    disabled={currentWeek === 1}
-                    className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-all duration-200"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <span className="px-4 py-2 bg-slate-700 text-white rounded-lg font-medium">
-                    {currentWeek} / {client.numberOfWeeks}
-                  </span>
-                  <button
-                    onClick={() => setCurrentWeek(Math.min(client.numberOfWeeks, currentWeek + 1))}
-                    disabled={currentWeek === client.numberOfWeeks}
-                    className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-slate-300 hover:text-white transition-all duration-200"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                  </div>
                 </div>
               </div>
 
@@ -1793,37 +1874,15 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 
               {/* Week Status */}
               <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                {currentWeekData?.isUnlocked ? (
-                  <div className="flex items-center space-x-2 text-green-400">
-                    <Unlock className="w-4 h-4" />
-                    <span className="text-sm font-medium">Unlocked</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-2 text-slate-400">
-                    <Lock className="w-4 h-4" />
-                    <span className="text-sm font-medium">Locked</span>
-                  </div>
-                )}
-                
-                {currentWeekData?.isCompleted && (
-                  <div className="flex items-center space-x-2 text-green-400">
-                    <CheckCircle className="w-4 h-4" />
-                    <span className="text-sm font-medium">Completed</span>
-                    </div>
-                  )}
+                <div className="flex items-center space-x-2 text-green-400">
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="text-sm font-medium">Active Week</span>
                 </div>
-
-                {/* Week Status Display */}
-                {currentWeekData?.isCompleted ? (
-                  <div className="text-sm text-green-400">
-                    ✓ Week Completed
-                  </div>
-                ) : (
-                  <div className="text-sm text-slate-400">
-                    Week {currentWeek} - {currentWeekData?.isUnlocked ? 'Unlocked' : 'Locked'}
-                  </div>
-                )}
+                
+                <div className="text-right">
+                  <div className="text-slate-400 text-xs">Program Duration</div>
+                  <div className="text-white font-medium">{client.numberOfWeeks || 12} weeks</div>
+                </div>
               </div>
             </div>
 
@@ -1999,14 +2058,14 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           {/* Reps Section */}
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => handleUpdateReps(currentWeek, exercise.id, set.id, -1)}
+                            onClick={() => handleUpdateReps(exercise.id, set.id, -1)}
                               className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
                           >
                             <Minus className="w-4 h-4" />
                           </button>
                             <span className="text-white font-bold text-lg min-w-[2rem] text-center">{set.reps}</span>
                           <button
-                            onClick={() => handleUpdateReps(currentWeek, exercise.id, set.id, 1)}
+                            onClick={() => handleUpdateReps(exercise.id, set.id, 1)}
                               className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
                           >
                             <Plus className="w-4 h-4" />
@@ -2017,14 +2076,14 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           {/* Weight Section */}
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => handleUpdateWeight(currentWeek, exercise.id, set.id, -2.5)}
+                            onClick={() => handleUpdateWeight(exercise.id, set.id, -2.5)}
                               className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
                           >
                             <Minus className="w-4 h-4" />
                           </button>
                             <span className="text-white font-bold text-lg min-w-[3rem] text-center">{set.weight}kg</span>
                           <button
-                            onClick={() => handleUpdateWeight(currentWeek, exercise.id, set.id, 2.5)}
+                            onClick={() => handleUpdateWeight(exercise.id, set.id, 2.5)}
                               className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
                           >
                             <Plus className="w-4 h-4" />
@@ -2045,7 +2104,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           
                           {/* Delete Button */}
                         <button
-                          onClick={() => handleRemoveSet(currentWeek, exercise.id, set.id)}
+                          onClick={() => handleRemoveSet(exercise.id, set.id)}
                             className="w-8 h-8 rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300 transition-all duration-200 flex items-center justify-center ml-auto"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -2072,25 +2131,10 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               )}
             </div>
 
-            {/* Week Actions */}
+            {/* Simple Status */}
             <div className="flex items-center justify-end">
-              <div className="flex items-center space-x-3">
-                {/* Ultra-Modern Week Unlock Button */}
-                <button
-                  onClick={() => handleUnlockCurrentWeek()}
-                  className="group relative overflow-hidden bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-semibold px-6 py-3 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-blue-500/25 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                >
-                  <div className="flex items-center space-x-2">
-                    <Unlock className="w-4 h-4 group-hover:rotate-12 transition-transform duration-300" />
-                    <span>Unlock Week {currentWeek}</span>
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                </button>
-                
-                {/* Week Status Display */}
-                <div className="text-sm text-slate-400">
-                  {currentWeekData?.isUnlocked ? 'Week Unlocked' : 'Week Locked'}
-                </div>
+              <div className="text-sm text-green-400">
+                ✓ Week {currentWeek} Active
               </div>
             </div>
           </div>

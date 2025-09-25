@@ -145,3 +145,4 @@ COMMENT ON COLUMN workout_assignments.last_modified_by IS 'Who last modified thi
 COMMENT ON COLUMN workout_assignments.last_modified_at IS 'When this assignment was last modified';
 
 
+

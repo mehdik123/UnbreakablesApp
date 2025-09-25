@@ -93,6 +93,8 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
         // Calculate volume data directly from current workout assignment
         console.log('🔄 Calculating volume for muscle groups:', uniqueMuscleGroups);
         console.log('🔄 Workout assignment:', client.workoutAssignment);
+        console.log('🔄 Workout assignment weeks:', client.workoutAssignment.weeks);
+        console.log('🔄 Workout assignment program days:', client.workoutAssignment.program?.days);
         const chartData = await calculateVolumeFromAssignment(client.workoutAssignment, uniqueMuscleGroups);
         console.log('📊 Calculated chart data:', chartData);
         setVolumeData(chartData);
@@ -150,6 +152,9 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
     const recalculateVolume = async () => {
       if (!client.workoutAssignment || availableMuscleGroups.length === 0) return;
       
+      console.log('🔄 VOLUME RECALC - Workout assignment currentWeek:', client.workoutAssignment.currentWeek);
+      console.log('🔄 VOLUME RECALC - Available muscle groups:', availableMuscleGroups.length);
+      
       const chartData = await calculateVolumeFromAssignment(client.workoutAssignment, availableMuscleGroups);
       setVolumeData(chartData);
     };
@@ -198,17 +203,16 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
     if (!workoutAssignment.program) return [];
 
     const maxWeeks = workoutAssignment.duration || 12;
+    const currentWeek = workoutAssignment.currentWeek || 1;
     const chartData: MuscleVolumeData[] = [];
+
+    console.log(`🔍 WEEK-SPECIFIC VOLUME CALC - Current week: ${currentWeek}, Max weeks: ${maxWeeks}`);
 
     for (let week = 1; week <= maxWeeks; week++) {
       const weekData: MuscleVolumeData = { week };
       
-      // Check if this week is unlocked
-      const weekInfo = workoutAssignment.weeks?.find(w => w.weekNumber === week);
-      const isUnlocked = weekInfo?.isUnlocked || false;
-      
-      if (!isUnlocked) {
-        // For locked weeks, set all muscle groups to 0
+      // For future weeks, set all muscle groups to 0
+      if (week > currentWeek) {
         muscleGroups.forEach(muscleGroup => {
           weekData[muscleGroup] = 0;
         });
@@ -216,19 +220,29 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
         continue;
       }
 
-      // Calculate volume for unlocked weeks using current data
+      // Calculate volume using week-specific data
       const volumeTally: { [muscleGroup: string]: number } = {};
       
-      // Use week-specific data if available, otherwise use base program
+      // Check if we have week-specific data stored
       let daysToProcess = workoutAssignment.program.days;
+      
       if (workoutAssignment.weeks && workoutAssignment.weeks.length > 0) {
-        const weekData = workoutAssignment.weeks.find(w => w.weekNumber === week);
-        if (weekData && weekData.days && weekData.days.length > 0) {
-          daysToProcess = weekData.days;
+        const weekSpecificData = workoutAssignment.weeks.find(w => w.weekNumber === week);
+        console.log(`🔍 VOLUME TRACKING - Week ${week} - Available weeks:`, workoutAssignment.weeks.map(w => ({ week: w.weekNumber, hasDays: w.days?.length || 0 })));
+        console.log(`🔍 VOLUME TRACKING - Week ${week} - Looking for week-specific data:`, weekSpecificData ? 'FOUND' : 'NOT FOUND');
+        
+        if (weekSpecificData && weekSpecificData.days && weekSpecificData.days.length > 0) {
+          daysToProcess = weekSpecificData.days;
+          console.log(`🔍 VOLUME TRACKING - Week ${week} - ✅ Using week-specific data with ${daysToProcess.length} days`);
+          console.log(`🔍 VOLUME TRACKING - Week ${week} - Week-specific data:`, weekSpecificData);
+        } else {
+          console.log(`🔍 VOLUME TRACKING - Week ${week} - ⚠️ Using base program data (no week-specific data found)`);
         }
+      } else {
+        console.log(`🔍 VOLUME TRACKING - Week ${week} - ⚠️ Using base program data (no weeks array)`);
       }
-
-      // Process each day
+      
+      // Process each day from the appropriate data source
       for (const day of daysToProcess) {
         for (const workoutExercise of day.exercises) {
           const muscleGroup = workoutExercise.exercise.muscleGroup;
@@ -262,7 +276,11 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
       });
 
       chartData.push(weekData);
-      console.log(`📈 Week ${week} volume tally:`, volumeTally);
+      
+      // Calculate total volume for this week
+      const totalWeekVolume = Object.values(volumeTally).reduce((sum, volume) => sum + volume, 0);
+      console.log(`🔍 VOLUME TRACKING - Week ${week} total volume:`, totalWeekVolume, 'kg');
+      console.log(`🔍 VOLUME TRACKING - Week ${week} volume breakdown:`, volumeTally);
     }
 
     console.log('📊 Final chart data:', chartData);

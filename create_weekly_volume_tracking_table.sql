@@ -36,3 +36,4 @@ COMMENT ON COLUMN weekly_volume_tracking.muscle_group IS 'Muscle group name (e.g
 COMMENT ON COLUMN weekly_volume_tracking.volume IS 'Total volume in kg for this muscle group in this week';
 
 
+

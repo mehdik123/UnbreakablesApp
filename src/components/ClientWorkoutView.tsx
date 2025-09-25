@@ -26,7 +26,6 @@ import { useHorizontalScroll } from '../hooks/useHorizontalScroll';
 interface ClientWorkoutViewProps {
   client: Client;
   currentWeek: number;
-  unlockedWeeks: number[];
   isDark: boolean;
 }
 
@@ -48,8 +47,7 @@ interface ClientWorkoutViewCombinedProps {
 
 export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   client,
-  currentWeek,
-  unlockedWeeks
+  currentWeek
 }) => {
   const [currentDay, setCurrentDay] = useState(0);
   const [completedExercises, setCompletedExercises] = useState<{ [exerciseId: string]: boolean }>({});
@@ -270,7 +268,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   // Check if using old data (not CSV data)
 
   const currentDayData = currentWorkoutProgram?.days?.[currentDay];
-  const isDayUnlocked = unlockedWeeks.includes(currentWeek);
+  // Simplified logic - all weeks are accessible
+  const isDayUnlocked = true;
 
   // If no workout program is assigned, show a message
   if (!workoutProgram && !client.workoutAssignment?.program) {
@@ -1165,7 +1164,7 @@ export const ClientWorkoutViewCombined: React.FC<ClientWorkoutViewCombinedProps>
   clientView,
   isDark
 }) => {
-  const [unlockedWeeks, setUnlockedWeeks] = useState<number[]>([1]);
+  // Removed unlockedWeeks - using simplified logic
 
   // Update unlocked weeks based on workout assignment
   useEffect(() => {
@@ -1224,7 +1223,6 @@ export const ClientWorkoutViewCombined: React.FC<ClientWorkoutViewCombinedProps>
     <ClientWorkoutView
       client={client}
       currentWeek={1}
-      unlockedWeeks={unlockedWeeks}
       isDark={isDark}
     />
   );

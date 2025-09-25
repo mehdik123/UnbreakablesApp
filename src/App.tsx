@@ -136,20 +136,10 @@ function App() {
       
       // Load clients from Supabase if available; fallback to localStorage
       if (isSupabaseReady) {
-        console.log('🔍 APP DEBUG - Loading clients with workout assignments...');
         const { data, error } = await dbListClientsWithWorkoutAssignments();
-        console.log('🔍 APP DEBUG - Raw data from database:', data);
-        console.log('🔍 APP DEBUG - Database error:', error);
         
         if (data && data.length > 0) {
           clients = await Promise.all(data.map(async (row: any) => {
-            console.log('🔍 APP DEBUG - Processing client:', {
-              id: row.id,
-              name: row.full_name,
-              hasWorkoutAssignments: !!row.workout_assignments,
-              workoutAssignmentsCount: row.workout_assignments?.length || 0,
-              firstAssignment: row.workout_assignments?.[0]
-            });
             
             // Map workout assignment data
             let workoutAssignment: ClientWorkoutAssignment | undefined = undefined;
@@ -159,10 +149,6 @@ function App() {
               // Enrich the program with muscle groups from the database
               let enrichedProgram = assignment.program_json;
               
-              // Debug: Log the actual program_json data
-              console.log('🔍 APP DEBUG - assignment.program_json for client:', row.full_name);
-              console.log('🔍 APP DEBUG - program_json.days:', enrichedProgram.days);
-              console.log('🔍 APP DEBUG - program_json.weeks:', enrichedProgram.weeks);
               if (enrichedProgram && enrichedProgram.days && supabase) {
                 try {
                   const { data: dbExercises } = await supabase
@@ -196,8 +182,6 @@ function App() {
                       })) || []
                     };
                     
-                    console.log('🔍 APP DEBUG - Enriched program with muscle groups for:', row.full_name);
-                    console.log('🔍 APP DEBUG - Sample enriched exercise:', JSON.stringify(enrichedProgram.days?.[0]?.exercises?.[0], null, 2));
                   }
                 } catch (error) {
                   console.error('❌ Failed to enrich program with muscle groups:', error);
