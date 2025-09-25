@@ -86,7 +86,7 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
               .maybeSingle();
             
             if (nutritionPlan?.plan_json) {
-              console.log('🍽️ Client loaded nutrition plan from Supabase:', nutritionPlan.plan_json);
+
               setNutritionPlan(nutritionPlan.plan_json);
               return;
             }
@@ -95,7 +95,7 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
         
         // Fallback: try to get from client object
         if (client.nutritionPlan) {
-          console.log('🍽️ Client loaded nutrition plan from client object:', client.nutritionPlan);
+
           setNutritionPlan(client.nutritionPlan);
           return;
         }
@@ -105,14 +105,14 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
         if (savedNutritionPlan) {
           try {
             const parsed = JSON.parse(savedNutritionPlan);
-            console.log('🍽️ Client loaded nutrition plan from localStorage:', parsed);
+
             setNutritionPlan(parsed);
           } catch (error) {
             console.error('Error loading nutrition plan from localStorage:', error);
             setNutritionPlan(null);
           }
         } else {
-          console.log('🍽️ No nutrition plan found for client');
+
           setNutritionPlan(null);
         }
       } catch (error) {

@@ -10,7 +10,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { WeightEntry, Client } from '../types';
-import { logClientWeight, getClientWeightLogs } from '../lib/progressTracking';
+import { logClientWeight, getClientWeightLogs, deleteClientWeight } from '../lib/progressTracking';
 import { UltraModernWeightChart } from './UltraModernWeightChart';
 import { WeightStatsGrid } from './WeightStatsCards';
 import { WeeklyWeightOverview } from './WeeklyWeightOverview';
@@ -54,11 +54,11 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
 
   const loadWeightData = async () => {
     try {
-      console.log('📊 WEIGHT LOAD DEBUG - Starting to load weight data for client:', client.id);
+
       setLoading(true);
       const weightLogs = await getClientWeightLogs(client.id);
       
-      console.log('📊 WEIGHT LOAD DEBUG - Raw weight logs from DB:', weightLogs);
+
       
       // Group weight logs by week and day
       const groupedData: { [week: number]: WeeklyWeightData } = {};
@@ -67,12 +67,6 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
         const weekNumber = getWeekNumberFromDate(log.date);
         const dayKey = getDayKeyFromDate(log.date);
         
-        console.log('📊 WEIGHT LOAD DEBUG - Processing log:', {
-          log,
-          weekNumber,
-          dayKey,
-          date: log.date
-        });
         
         if (!groupedData[weekNumber]) {
           groupedData[weekNumber] = initializeWeekData();
@@ -85,10 +79,10 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
         };
       });
       
-      console.log('📊 WEIGHT LOAD DEBUG - Grouped data:', groupedData);
+
       setWeeklyData(groupedData);
     } catch (error) {
-      console.error('❌ WEIGHT LOAD DEBUG - Error loading weight data:', error);
+      // Error loading weight data
     } finally {
       setLoading(false);
     }
@@ -147,25 +141,19 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
     const { week, day } = editingCell;
     const weight = parseFloat(tempValue);
     
-    console.log('💾 WEIGHT SAVE DEBUG - Starting save:', {
-      editingCell,
-      weight,
-      tempValue,
-      clientId: client.id
-    });
     
     if (isNaN(weight) || weight <= 0) {
-      console.log('❌ WEIGHT SAVE DEBUG - Invalid weight:', weight);
+
       setEditingCell(null);
       return;
     }
 
     try {
       const date = getDateForWeekAndDay(week, day);
-      console.log('💾 WEIGHT SAVE DEBUG - Calculated date:', date);
+
       
       const result = await logClientWeight(client.id, weight, date);
-      console.log('💾 WEIGHT SAVE DEBUG - Database save result:', result);
+
       
       // Update local state
       setWeeklyData(prev => {
@@ -176,14 +164,13 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
             [day]: { weight, notes: '' }
           }
         };
-        console.log('💾 WEIGHT SAVE DEBUG - Updated weekly data:', newData);
+
         return newData;
       });
       
       setEditingCell(null);
-      console.log('✅ WEIGHT SAVE DEBUG - Save completed successfully');
+
     } catch (error) {
-      console.error('❌ WEIGHT SAVE DEBUG - Error saving weight:', error);
       alert('Failed to save weight. Please try again.');
     }
   };
@@ -191,6 +178,30 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
   const handleCellCancel = () => {
     setEditingCell(null);
     setTempValue('');
+  };
+
+  const handleWeightDelete = async (week: number, day: string) => {
+    const dayData = weeklyData[week]?.[day];
+    if (!dayData?.id) return;
+
+    try {
+      // Delete from database
+      await deleteClientWeight(dayData.id);
+      
+      // Update local state
+      setWeeklyData(prev => {
+        const newData = { ...prev };
+        if (newData[week]) {
+          const weekData = { ...newData[week] };
+          delete weekData[day];
+          newData[week] = weekData;
+        }
+        return newData;
+      });
+      
+    } catch (error) {
+      alert('Failed to delete weight. Please try again.');
+    }
   };
 
   const calculateWeekAverage = (week: number): number | null => {
@@ -437,8 +448,22 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
                   </div>
                 )}
                 
+                {/* Delete Button for Weight Entries */}
+                {dayData?.weight && !isEditing && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleWeightDelete(selectedWeek, day.key);
+                    }}
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold transition-colors"
+                    title="Delete weight"
+                  >
+                    ×
+                  </button>
+                )}
+                
                 {/* Today Indicator */}
-                {isToday && (
+                {isToday && !dayData?.weight && (
                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
                 )}
               </div>
@@ -459,25 +484,25 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
 
       {/* Weight Progress Line Chart */}
       {(() => {
-        console.log('📊 WEIGHT CHART DEBUG - Weekly data:', weeklyData);
-        console.log('📊 WEIGHT CHART DEBUG - Object keys:', Object.keys(weeklyData));
-        console.log('📊 WEIGHT CHART DEBUG - Keys length:', Object.keys(weeklyData).length);
+
+
+
         
         const sortedWeeks = Object.keys(weeklyData)
           .map(w => parseInt(w))
           .sort((a, b) => a - b)
           .slice(-10); // Show last 10 weeks
         
-        console.log('📊 WEIGHT CHART DEBUG - Sorted weeks:', sortedWeeks);
+
         
         const weights = sortedWeeks.map(w => {
           const avg = calculateWeekAverage(w);
-          console.log(`📊 WEIGHT CHART DEBUG - Week ${w} average:`, avg);
+
           return avg;
         }).filter(w => w !== null) as number[];
         
-        console.log('📊 WEIGHT CHART DEBUG - Weights array:', weights);
-        console.log('📊 WEIGHT CHART DEBUG - Weights length:', weights.length);
+
+
         
         return Object.keys(weeklyData).length > 0 && (
           <div className="mt-8 bg-slate-700/30 rounded-xl p-6">
@@ -508,7 +533,7 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
                 {(() => {
                   // Real-time chart: Show as soon as there's at least one weight entry
                   if (weights.length === 0) {
-                    console.log('📊 WEIGHT CHART DEBUG - No weight data yet');
+
                     return (
                       <text x="200" y="100" textAnchor="middle" className="text-slate-400">
                         Start logging weights to see your progress chart

@@ -48,7 +48,7 @@ function App() {
           setFoods(realFoods);
         }
       } catch (error) {
-        console.log('Using default food database');
+
       }
 
       // Load exercises from database
@@ -58,7 +58,7 @@ function App() {
           if (error) {
             console.error('Error loading exercises from database:', error);
           } else if (dbExercises && dbExercises.length > 0) {
-            console.log('📊 EXERCISES DB - Loaded exercises from database:', dbExercises.length);
+
             const mappedExercises = dbExercises.map((r: any) => ({ 
               id: r.id, 
               name: r.name, 
@@ -75,9 +75,9 @@ function App() {
               updatedAt: new Date() 
             }));
             setExercises(mappedExercises);
-            console.log('📊 EXERCISES DB - Mapped exercises:', mappedExercises.length);
+
           } else {
-            console.log('📊 EXERCISES DB - No exercises found in database, populating with static data');
+
             // Populate database with static exercises
             try {
               for (const exercise of defaultExercises) {
@@ -87,7 +87,7 @@ function App() {
                   muscle_group: exercise.muscleGroup || ''
                 });
               }
-              console.log('📊 EXERCISES DB - Populated database with static exercises');
+
               
               // Reload exercises from database
               const { data: reloadedExercises } = await dbListExercises();
@@ -108,7 +108,7 @@ function App() {
                   updatedAt: new Date() 
                 }));
                 setExercises(mappedExercises);
-                console.log('📊 EXERCISES DB - Reloaded exercises from database:', mappedExercises.length);
+
               }
             } catch (populateError) {
               console.error('Error populating exercises database:', populateError);
@@ -214,14 +214,14 @@ function App() {
             return {
               id: row.id,
               name: row.full_name,
-              email: '',
-              phone: '',
-              goal: 'maintenance',
-              numberOfWeeks: 12,
-              startDate: new Date(),
-              isActive: true,
-              favorites: [],
-              weightLog: [],
+              email: row.email || '',
+              phone: row.phone || '',
+              goal: row.goal || 'maintenance',
+              numberOfWeeks: row.number_of_weeks || 12,
+              startDate: new Date(row.start_date || new Date()),
+              isActive: row.is_active !== false,
+              favorites: row.favorites || [],
+              weightLog: row.weight_log || [],
               workoutAssignment
             };
           }));
@@ -235,21 +235,21 @@ function App() {
           
           setAppState(prev => ({ ...prev, clients }));
         } else {
-          console.log('🔍 APP DEBUG - No clients with workout assignments found, loading basic clients...');
+
           // Fallback to loading basic clients without workout assignments
           const { data: basicClients } = await dbListClients();
           if (basicClients) {
             clients = basicClients.map((row: any) => ({
               id: row.id,
               name: row.full_name,
-              email: '',
-              phone: '',
-              goal: 'maintenance',
-              numberOfWeeks: 12,
-              startDate: new Date(),
-              isActive: true,
-              favorites: [],
-              weightLog: []
+              email: row.email || '',
+              phone: row.phone || '',
+              goal: row.goal || 'maintenance',
+              numberOfWeeks: row.number_of_weeks || 12,
+              startDate: new Date(row.start_date || new Date()),
+              isActive: row.is_active !== false,
+              favorites: row.favorites || [],
+              weightLog: row.weight_log || []
             }));
             setAppState(prev => ({ ...prev, clients }));
           }
@@ -282,13 +282,13 @@ function App() {
         const uuidMatch = clientShareId.match(uuidPattern);
         const extractedClientId = uuidMatch ? uuidMatch[1] : clientShareId;
         
-        console.log('🔍 Extracting client ID:', { clientShareId, extractedClientId });
+
         
         // Find client in loaded data
         const foundClient = clients.find((c: any) => c.id === extractedClientId);
         
         if (foundClient) {
-          console.log('🔗 Loading client interface for shared link:', foundClient.name);
+
           setAppState(prev => ({ 
             ...prev, 
             currentView: 'client-interface',
@@ -296,7 +296,7 @@ function App() {
           }));
         } else {
           console.error('❌ Client not found for share ID:', clientShareId);
-          console.log('📋 Available clients:', clients.map(c => ({ id: c.id, name: c.name })));
+
           // Fallback to clients view if client not found
           setAppState(prev => ({ ...prev, currentView: 'clients' }));
         }
@@ -338,7 +338,17 @@ function App() {
   // Client Management Functions
   const handleAddClient = async (client: Client) => {
     if (isSupabaseReady) {
-      const { data } = await dbAddClient({ full_name: client.name });
+      const { data } = await dbAddClient({ 
+        full_name: client.name,
+        number_of_weeks: client.numberOfWeeks,
+        goal: client.goal,
+        email: client.email,
+        phone: client.phone,
+        start_date: client.startDate.toISOString().split('T')[0],
+        is_active: client.isActive,
+        favorites: client.favorites,
+        weight_log: client.weightLog
+      });
       if (data) {
         const mapped: Client = { ...client, id: data.id };
         setAppState(prev => ({ ...prev, clients: [...prev.clients, mapped] }));
@@ -464,15 +474,15 @@ function App() {
   // Workout Assignment Functions
   const handleAssignWorkoutPlan = async (clientId: string, assignment: ClientWorkoutAssignment) => {
     try {
-      console.log('🏋️ Assigning workout plan to client:', { clientId, assignment });
+
       
       // Initialize weeks array if it doesn't exist
       let weeksArray = assignment.weeks || [];
-      console.log('🔧 WEEKS DEBUG - assignment.weeks:', assignment.weeks);
-      console.log('🔧 WEEKS DEBUG - weeksArray length:', weeksArray.length);
-      console.log('🔧 WEEKS DEBUG - weeksArray with isUnlocked true:', weeksArray.filter(w => w.isUnlocked).map(w => w.weekNumber));
+
+
+
       if (weeksArray.length === 0) {
-        console.log('🔧 Initializing weeks array for new assignment, duration:', assignment.duration);
+
         weeksArray = Array.from({ length: assignment.duration }, (_, index) => ({
           weekNumber: index + 1,
           isUnlocked: index === 0, // Only week 1 is unlocked by default
@@ -488,13 +498,13 @@ function App() {
       // Check if assignment already exists in database
       const existingAssignment = await dbGetClientWorkoutAssignment(clientId);
       
-      console.log('🔍 EXISTING ASSIGNMENT DEBUG - clientId:', clientId);
-      console.log('🔍 EXISTING ASSIGNMENT DEBUG - existingAssignment:', existingAssignment);
-      console.log('🔍 EXISTING ASSIGNMENT DEBUG - hasExistingAssignment:', !!existingAssignment);
-      console.log('🔍 EXISTING ASSIGNMENT DEBUG - existingAssignment.id:', existingAssignment?.data?.id);
+
+
+
+
       
       if (existingAssignment?.data && existingAssignment.data.id) {
-        console.log('🔄 Updating existing assignment:', existingAssignment.data.id);
+
         console.log('🔄 Assignment data being sent:', {
           assignmentId: existingAssignment.data.id,
           currentWeek: assignment.currentWeek,
@@ -509,8 +519,8 @@ function App() {
           weeks: weeksArray
         };
         
-        console.log('🔄 Program JSON being saved:', programJsonToSave);
-        console.log('🔄 Weeks in program JSON:', programJsonToSave.weeks);
+
+
         
         // Update existing assignment
         const updateResult = await dbUpdateWorkoutAssignment(existingAssignment.data.id, {
@@ -522,7 +532,7 @@ function App() {
         assignmentResult = updateResult.data;
         error = updateResult.error;
       } else {
-        console.log('🆕 Creating new assignment - NO EXISTING ASSIGNMENT FOUND');
+
         console.log('🆕 Assignment data being sent:', {
           clientId: clientId,
           currentWeek: assignment.currentWeek,
@@ -537,9 +547,9 @@ function App() {
           weeks: weeksArray
         };
         
-        console.log('🆕 Program JSON being saved:', programJsonToSave);
-        console.log('🆕 Weeks in program JSON:', programJsonToSave.weeks);
-        console.log('🆕 WEEKS DEBUG - programJsonToSave.weeks with isUnlocked true:', programJsonToSave.weeks.filter(w => w.isUnlocked).map(w => w.weekNumber));
+
+
+
         
         // Create new assignment
         const createResult = await dbCreateWorkoutAssignment({
@@ -562,9 +572,9 @@ function App() {
         return;
       }
       
-      console.log('✅ Workout assignment saved to Supabase:', assignmentResult);
-      console.log('✅ Saved program_json:', assignmentResult?.program_json);
-      console.log('✅ Weeks in saved result:', assignmentResult?.program_json?.weeks);
+
+
+
       
       // Add timestamp to track when the assignment was made
       const assignmentWithTimestamp = {
@@ -630,7 +640,7 @@ function App() {
         };
         
         localStorage.setItem(key, JSON.stringify(updatedSharedData));
-        console.log('Updated shared data for key:', key, 'with weeks:', updatedSharedData.workoutAssignment?.weeks);
+
       } catch (error) {
         console.error('Error updating shared data for key:', key, error);
       }

@@ -24,11 +24,11 @@ export async function calculateAndSaveWeeklyVolume(
   weekNumber: number,
   workoutProgram: WorkoutProgram
 ): Promise<{ [muscleGroup: string]: number }> {
-  console.log(`🔍 VOLUME MANAGER - Calculating volume for client ${clientId}, week ${weekNumber}`);
+
   
   // Calculate current week's volume
   const weeklyVolume = calculateWeeklyVolume(workoutProgram);
-  console.log(`🔍 VOLUME MANAGER - Calculated volume:`, weeklyVolume);
+
   
   // Save each muscle group's volume to database
   const savePromises = Object.entries(weeklyVolume).map(async ([muscleGroup, volume]) => {
@@ -36,7 +36,7 @@ export async function calculateAndSaveWeeklyVolume(
     if (result.error) {
       console.error(`🔍 VOLUME MANAGER - Error saving ${muscleGroup} volume:`, result.error);
     } else {
-      console.log(`🔍 VOLUME MANAGER - Saved ${muscleGroup}: ${volume}kg for week ${weekNumber}`);
+
     }
     return result;
   });
@@ -50,7 +50,7 @@ export async function calculateAndSaveWeeklyVolume(
  * Get volume history for all weeks
  */
 export async function getVolumeHistory(clientId: string): Promise<WeeklyVolumeData> {
-  console.log(`🔍 VOLUME MANAGER - Fetching volume history for client ${clientId}`);
+
   
   const { data: history, error } = await dbGetVolumeHistory(clientId);
   
@@ -69,7 +69,7 @@ export async function getVolumeHistory(clientId: string): Promise<WeeklyVolumeDa
     volumeData[entry.week_number][entry.muscle_group] = entry.volume;
   });
   
-  console.log(`🔍 VOLUME MANAGER - Volume history loaded:`, volumeData);
+
   return volumeData;
 }
 
@@ -77,7 +77,7 @@ export async function getVolumeHistory(clientId: string): Promise<WeeklyVolumeDa
  * Get volume for a specific week
  */
 export async function getWeeklyVolume(clientId: string, weekNumber: number): Promise<{ [muscleGroup: string]: number }> {
-  console.log(`🔍 VOLUME MANAGER - Fetching volume for client ${clientId}, week ${weekNumber}`);
+
   
   const { data: weekData, error } = await dbGetWeeklyVolume(clientId, weekNumber);
   
@@ -93,7 +93,7 @@ export async function getWeeklyVolume(clientId: string, weekNumber: number): Pro
     volumeData[entry.muscle_group] = entry.volume;
   });
   
-  console.log(`🔍 VOLUME MANAGER - Week ${weekNumber} volume:`, volumeData);
+
   return volumeData;
 }
 
@@ -106,7 +106,7 @@ export async function generateChartData(
   maxWeeks: number,
   allMuscleGroups: string[]
 ): Promise<Array<{ week: number; [muscleGroup: string]: number }>> {
-  console.log(`🔍 VOLUME MANAGER - Generating chart data for weeks 1-${maxWeeks}, current week: ${currentWeek}`);
+
   
   // Get volume history
   const volumeHistory = await getVolumeHistory(clientId);
@@ -132,7 +132,7 @@ export async function generateChartData(
     chartData.push(weekData);
   }
   
-  console.log(`🔍 VOLUME MANAGER - Generated chart data:`, chartData);
+
   return chartData;
 }
 
@@ -144,11 +144,11 @@ export async function recalculateCurrentWeekVolume(
   currentWeek: number,
   workoutProgram: WorkoutProgram
 ): Promise<{ [muscleGroup: string]: number }> {
-  console.log(`🔍 VOLUME MANAGER - Recalculating volume for client ${clientId}, week ${currentWeek} due to workout modification`);
+
   
   // Calculate current week's volume with modified workout
   const weeklyVolume = calculateWeeklyVolume(workoutProgram);
-  console.log(`🔍 VOLUME MANAGER - Recalculated volume after modification:`, weeklyVolume);
+
   
   // Save each muscle group's volume to database
   const savePromises = Object.entries(weeklyVolume).map(async ([muscleGroup, volume]) => {
@@ -156,7 +156,7 @@ export async function recalculateCurrentWeekVolume(
     if (result.error) {
       console.error(`🔍 VOLUME MANAGER - Error saving modified ${muscleGroup} volume:`, result.error);
     } else {
-      console.log(`🔍 VOLUME MANAGER - Saved modified ${muscleGroup}: ${volume}kg for week ${currentWeek}`);
+
     }
     return result;
   });
@@ -174,7 +174,7 @@ export async function copyPreviousWeekVolume(
   currentWeek: number,
   workoutProgram: WorkoutProgram
 ): Promise<void> {
-  console.log(`🔍 VOLUME MANAGER - Copying previous week volume for week ${currentWeek}`);
+
   
   // Get previous week's volume
   const previousWeekVolume = await getWeeklyVolume(clientId, currentWeek - 1);
@@ -186,13 +186,13 @@ export async function copyPreviousWeekVolume(
       if (result.error) {
         console.error(`🔍 VOLUME MANAGER - Error copying ${muscleGroup} volume:`, result.error);
       } else {
-        console.log(`🔍 VOLUME MANAGER - Copied ${muscleGroup}: ${volume}kg to week ${currentWeek}`);
+
       }
       return result;
     });
     
     await Promise.all(copyPromises);
   } else {
-    console.log(`🔍 VOLUME MANAGER - No previous week data to copy for week ${currentWeek}`);
+
   }
 }

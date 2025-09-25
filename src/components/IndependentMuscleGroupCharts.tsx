@@ -87,31 +87,31 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
         
         const uniqueMuscleGroups = [...new Set(normalizedMuscleGroups)];
         setAvailableMuscleGroups(uniqueMuscleGroups);
-        console.log('Available muscle groups from database:', uniqueMuscleGroups);
-        console.log('Raw muscle groups before normalization:', rawMuscleGroups);
+
+
 
         // Calculate volume data directly from current workout assignment
-        console.log('🔄 Calculating volume for muscle groups:', uniqueMuscleGroups);
-        console.log('🔄 Workout assignment:', client.workoutAssignment);
-        console.log('🔄 Workout assignment weeks:', client.workoutAssignment.weeks);
-        console.log('🔄 Workout assignment program days:', client.workoutAssignment.program?.days);
+
+
+
+
         const chartData = await calculateVolumeFromAssignment(client.workoutAssignment, uniqueMuscleGroups);
-        console.log('📊 Calculated chart data:', chartData);
+
         setVolumeData(chartData);
 
         // Extract exercises by muscle group from workout assignment
         const exercisesByMuscleGroup: { [muscleGroup: string]: Exercise[] } = {};
         
         if (client.workoutAssignment.program) {
-          console.log('🏋️ Extracting exercises from workout program...');
+
           client.workoutAssignment.program.days.forEach((day, dayIndex) => {
-            console.log(`📅 Day ${dayIndex + 1}: ${day.name} (${day.exercises.length} exercises)`);
+
             day.exercises.forEach((workoutExercise, exerciseIndex) => {
               const muscleGroup = workoutExercise.exercise.muscleGroup;
-              console.log(`  Exercise ${exerciseIndex + 1}: ${workoutExercise.exercise.name} (${muscleGroup})`);
+
               
               if (!muscleGroup) {
-                console.log('⚠️ Exercise without muscle group:', workoutExercise.exercise.name);
+
                 return;
               }
               
@@ -134,7 +134,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
           });
         }
         
-        console.log('🏋️ Extracted exercises by muscle group:', exercisesByMuscleGroup);
+
         
         setWorkoutExercises(exercisesByMuscleGroup);
       } catch (error) {
@@ -152,8 +152,8 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
     const recalculateVolume = async () => {
       if (!client.workoutAssignment || availableMuscleGroups.length === 0) return;
       
-      console.log('🔄 VOLUME RECALC - Workout assignment currentWeek:', client.workoutAssignment.currentWeek);
-      console.log('🔄 VOLUME RECALC - Available muscle groups:', availableMuscleGroups.length);
+
+
       
       const chartData = await calculateVolumeFromAssignment(client.workoutAssignment, availableMuscleGroups);
       setVolumeData(chartData);
@@ -206,7 +206,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
     const currentWeek = workoutAssignment.currentWeek || 1;
     const chartData: MuscleVolumeData[] = [];
 
-    console.log(`🔍 WEEK-SPECIFIC VOLUME CALC - Current week: ${currentWeek}, Max weeks: ${maxWeeks}`);
+
 
     for (let week = 1; week <= maxWeeks; week++) {
       const weekData: MuscleVolumeData = { week };
@@ -220,6 +220,8 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
         continue;
       }
 
+      // For past and current weeks, calculate volume from stored data
+
       // Calculate volume using week-specific data
       const volumeTally: { [muscleGroup: string]: number } = {};
       
@@ -228,18 +230,24 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
       
       if (workoutAssignment.weeks && workoutAssignment.weeks.length > 0) {
         const weekSpecificData = workoutAssignment.weeks.find(w => w.weekNumber === week);
-        console.log(`🔍 VOLUME TRACKING - Week ${week} - Available weeks:`, workoutAssignment.weeks.map(w => ({ week: w.weekNumber, hasDays: w.days?.length || 0 })));
-        console.log(`🔍 VOLUME TRACKING - Week ${week} - Looking for week-specific data:`, weekSpecificData ? 'FOUND' : 'NOT FOUND');
+        console.log(`🔍 VOLUME TRACKING - Week ${week} - Available weeks:`, workoutAssignment.weeks.map(w => ({ 
+          week: w.weekNumber, 
+          hasDays: w.days?.length || 0,
+          isUnlocked: w.isUnlocked,
+          isCompleted: w.isCompleted
+        })));
+
+
         
         if (weekSpecificData && weekSpecificData.days && weekSpecificData.days.length > 0) {
           daysToProcess = weekSpecificData.days;
-          console.log(`🔍 VOLUME TRACKING - Week ${week} - ✅ Using week-specific data with ${daysToProcess.length} days`);
-          console.log(`🔍 VOLUME TRACKING - Week ${week} - Week-specific data:`, weekSpecificData);
+
+
         } else {
-          console.log(`🔍 VOLUME TRACKING - Week ${week} - ⚠️ Using base program data (no week-specific data found)`);
+
         }
       } else {
-        console.log(`🔍 VOLUME TRACKING - Week ${week} - ⚠️ Using base program data (no weeks array)`);
+
       }
       
       // Process each day from the appropriate data source
@@ -247,7 +255,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
         for (const workoutExercise of day.exercises) {
           const muscleGroup = workoutExercise.exercise.muscleGroup;
           if (!muscleGroup) {
-            console.log('⚠️ Exercise without muscle group:', workoutExercise.exercise.name);
+
             continue;
           }
 
@@ -266,7 +274,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
           }
           volumeTally[normalizedMuscleGroup] += exerciseVolume;
           
-          console.log(`📊 Week ${week} - ${workoutExercise.exercise.name} (${normalizedMuscleGroup}): ${exerciseVolume}kg`);
+
         }
       }
 
@@ -279,11 +287,11 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
       
       // Calculate total volume for this week
       const totalWeekVolume = Object.values(volumeTally).reduce((sum, volume) => sum + volume, 0);
-      console.log(`🔍 VOLUME TRACKING - Week ${week} total volume:`, totalWeekVolume, 'kg');
-      console.log(`🔍 VOLUME TRACKING - Week ${week} volume breakdown:`, volumeTally);
+
+
     }
 
-    console.log('📊 Final chart data:', chartData);
+
     return chartData;
   };
 

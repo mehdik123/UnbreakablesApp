@@ -62,8 +62,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
   const { recordExercise } = usePerformanceTracking({
     clientId: client.id,
     workoutAssignmentId: assignmentId || 'temp-id',
-    onVolumeUpdate: (data) => {
-      console.log('📊 WORKOUT VIEW - Volume updated:', data);
+    onVolumeUpdate: () => {
       // Trigger re-render of progress chart
     }
   });
@@ -484,7 +483,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
               actualWeight: actualWeight
             });
 
-            console.log(`📊 Logged performance: ${exercise.exercise.name} - Week ${currentWeek}, Day ${currentDay + 1}, Set ${setIndex + 1}`);
+
           } catch (error) {
             console.error('Error logging exercise performance:', error);
           }
@@ -652,15 +651,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
       </div>
 
       <div className="px-3 sm:px-4 py-3 sm:py-4 space-y-4 sm:space-y-6 pb-20 max-w-full overflow-x-hidden">
-        {/* Success Indicator - Show when using fresh CSV data */}
-        {client.workoutAssignment?.program && !isUsingOldData && (
-          <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-2xl p-4 text-center backdrop-blur-sm">
-            <div className="flex items-center justify-center space-x-2 text-green-400">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium">✅ Using Fresh CSV Data - All Exercise Names & Video Links Updated</span>
-        </div>
-      </div>
-        )}
         
         {/* Day Navigation - Ultra Modern Design with Theme Colors */}
         <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-4 sm:p-6 shadow-2xl">
@@ -848,14 +838,14 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Video Player - Premium Design with Theme Colors */}
-                  <div className="mb-6">
-                    <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/40 rounded-2xl p-4 border border-gray-700/50">
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-8 h-8 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
-                          <Play className="w-4 h-4 text-[#dc1e3a]" />
+                  {/* Video Player - Premium Design with Theme Colors - Mobile Optimized */}
+                  <div className="mb-4 sm:mb-6">
+                    <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/40 rounded-2xl p-3 sm:p-4 border border-gray-700/50">
+                      <div className="flex items-center space-x-3 mb-3 sm:mb-4">
+                        <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
+                          <Play className="w-3 h-3 sm:w-4 sm:h-4 text-[#dc1e3a]" />
                         </div>
-                        <h6 className="text-base font-semibold text-white">Exercise Demonstration</h6>
+                        <h6 className="text-sm sm:text-base font-semibold text-white">Exercise Demonstration</h6>
                       </div>
                       
                     <a 
@@ -864,7 +854,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
                       rel="noopener noreferrer"
                         className="block relative bg-gray-900 rounded-xl overflow-hidden group shadow-2xl"
                     >
-                      <div className="aspect-video relative">
+                      <div className="aspect-[4/3] sm:aspect-video relative">
                         {getYouTubeThumbnail(exercise.exercise.videoUrl || '') ? (
                           <img 
                             src={getYouTubeThumbnail(exercise.exercise.videoUrl || '') || ''} 
@@ -944,95 +934,95 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
                     </button>
                   </div>
 
-                  {/* Sets & Reps Section - Ultra Modern Design */}
+                  {/* Sets & Reps Section - Ultra Modern Design - Mobile Optimized */}
                   {!completedExercises[exercise.id] && (
-                    <div className="space-y-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
-                            <Dumbbell className="w-4 h-4 text-[#dc1e3a]" />
+                    <div className="space-y-3 sm:space-y-6">
+                      <div className="flex items-center justify-between mb-3 sm:mb-4">
+                        <div className="flex items-center space-x-2 sm:space-x-3">
+                          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
+                            <Dumbbell className="w-3 h-3 sm:w-4 sm:h-4 text-[#dc1e3a]" />
                           </div>
                           <div>
-                            <h6 className="text-lg font-bold text-white">Sets & Reps</h6>
+                            <h6 className="text-sm sm:text-lg font-bold text-white">Sets & Reps</h6>
                             <p className="text-gray-400 text-xs">Track your performance</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-lg font-bold text-[#dc1e3a]">{exercise.sets.length}</div>
+                          <div className="text-sm sm:text-lg font-bold text-[#dc1e3a]">{exercise.sets.length}</div>
                           <div className="text-gray-400 text-xs">Sets</div>
                         </div>
                       </div>
 
-                      {/* Set-based organization - Ultra Modern */}
-                      <div className="space-y-4">
+                      {/* Set-based organization - Ultra Modern - Mobile Optimized */}
+                      <div className="space-y-2 sm:space-y-4">
                         {exercise.sets.map((set, setIndex) => (
-                          <div key={setIndex} className="bg-gradient-to-br from-gray-800/60 to-gray-900/40 rounded-2xl p-4 border border-gray-700/50 hover:border-[#dc1e3a]/20 transition-all duration-300">
-                            <div className="flex items-center justify-between mb-4">
+                          <div key={setIndex} className="bg-gradient-to-br from-gray-800/60 to-gray-900/40 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-gray-700/50 hover:border-[#dc1e3a]/20 transition-all duration-300">
+                            <div className="flex items-center justify-between mb-2 sm:mb-4">
                               {/* Set Number */}
-                              <div className="flex items-center space-x-3">
-                                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 flex items-center justify-center border border-[#dc1e3a]/30">
-                                  <span className="text-[#dc1e3a] text-sm font-bold">{setIndex + 1}</span>
+                              <div className="flex items-center space-x-2 sm:space-x-3">
+                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 flex items-center justify-center border border-[#dc1e3a]/30">
+                                  <span className="text-[#dc1e3a] text-xs sm:text-sm font-bold">{setIndex + 1}</span>
                                 </div>
                                 <div>
-                                  <span className="text-white text-sm font-semibold">Set {setIndex + 1}</span>
+                                  <span className="text-white text-xs sm:text-sm font-semibold">Set {setIndex + 1}</span>
                                 </div>
                               </div>
                             </div>
                               
                             {/* Reps & Weight Controls - Mobile Optimized */}
-                            <div className="space-y-4">
-                              {/* Reps Section */}
-                              <div className="bg-gradient-to-br from-blue-500/5 to-blue-600/5 rounded-2xl p-4 border border-blue-500/20">
-                                <div className="flex items-center justify-between mb-4">
-                                  <h6 className="text-sm font-semibold text-blue-300">Repetitions</h6>
-                                  <Target className="w-4 h-4 text-blue-400" />
+                            <div className="space-y-2 sm:space-y-4">
+                              {/* Reps Section - Compact Mobile Design */}
+                              <div className="bg-gradient-to-br from-blue-500/5 to-blue-600/5 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-blue-500/20">
+                                <div className="flex items-center justify-between mb-2 sm:mb-4">
+                                  <h6 className="text-xs sm:text-sm font-semibold text-blue-300">Repetitions</h6>
+                                  <Target className="w-3 h-3 sm:w-4 sm:h-4 text-blue-400" />
                                 </div>
                                 <div className="flex items-center justify-between max-w-xs mx-auto">
                                   <button
                                     onClick={() => updateExerciseData(exercise.id, setIndex, 'reps', Math.max(0, (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps) - 1))}
-                                    className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
                                   >
-                                    <Minus className="w-4 h-4" />
+                                    <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
                                   </button>
-                                  <div className="text-center px-4">
-                                    <div className="text-2xl font-bold text-blue-300">
+                                  <div className="text-center px-2 sm:px-4">
+                                    <div className="text-lg sm:text-2xl font-bold text-blue-300">
                                       {exerciseData[exercise.id]?.[setIndex]?.reps || set.reps}
                                     </div>
                                     <div className="text-blue-400 text-xs">reps</div>
                                   </div>
                                   <button
                                     onClick={() => updateExerciseData(exercise.id, setIndex, 'reps', (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps) + 1)}
-                                    className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
                                   >
-                                    <Plus className="w-4 h-4" />
+                                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                                   </button>
                                 </div>
                               </div>
 
-                              {/* Weight Section */}
-                              <div className="bg-gradient-to-br from-purple-500/5 to-purple-600/5 rounded-2xl p-4 border border-purple-500/20">
-                                <div className="flex items-center justify-between mb-4">
-                                  <h6 className="text-sm font-semibold text-purple-300">Weight</h6>
-                                  <Zap className="w-4 h-4 text-purple-400" />
+                              {/* Weight Section - Compact Mobile Design */}
+                              <div className="bg-gradient-to-br from-purple-500/5 to-purple-600/5 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-purple-500/20">
+                                <div className="flex items-center justify-between mb-2 sm:mb-4">
+                                  <h6 className="text-xs sm:text-sm font-semibold text-purple-300">Weight</h6>
+                                  <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-purple-400" />
                                 </div>
                                 <div className="flex items-center justify-between max-w-xs mx-auto">
                                   <button
                                     onClick={() => updateExerciseData(exercise.id, setIndex, 'weight', Math.max(0, (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) - 2.5))}
-                                    className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
                                   >
-                                    <Minus className="w-4 h-4" />
+                                    <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
                                   </button>
-                                  <div className="text-center px-4">
-                                    <div className="text-2xl font-bold text-purple-300">
+                                  <div className="text-center px-2 sm:px-4">
+                                    <div className="text-lg sm:text-2xl font-bold text-purple-300">
                                       {exerciseData[exercise.id]?.[setIndex]?.weight || set.weight}kg
                                     </div>
                                     <div className="text-purple-400 text-xs">weight</div>
                                   </div>
                                   <button
                                     onClick={() => updateExerciseData(exercise.id, setIndex, 'weight', (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) + 2.5)}
-                                    className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
                                   >
-                                    <Plus className="w-4 h-4" />
+                                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
                                   </button>
                                 </div>
                               </div>
@@ -1167,24 +1157,10 @@ export const ClientWorkoutViewCombined: React.FC<ClientWorkoutViewCombinedProps>
   // Removed unlockedWeeks - using simplified logic
 
   // Update unlocked weeks based on workout assignment
-  useEffect(() => {
-    if (clientView.workoutAssignment?.weeks) {
-      const unlocked = clientView.workoutAssignment.weeks
-        .filter(week => week.isUnlocked)
-        .map(week => week.weekNumber);
-      setUnlockedWeeks(unlocked.length > 0 ? unlocked : [1]);
-    }
-  }, [clientView.workoutAssignment]);
-
   // Force refresh every 2 seconds to catch updates
   useEffect(() => {
     const interval = setInterval(() => {
-      if (clientView.workoutAssignment?.weeks) {
-        const unlocked = clientView.workoutAssignment.weeks
-          .filter(week => week.isUnlocked)
-          .map(week => week.weekNumber);
-        setUnlockedWeeks(unlocked.length > 0 ? unlocked : [1]);
-      }
+      // Refresh data from localStorage
     }, 2000);
 
     return () => clearInterval(interval);

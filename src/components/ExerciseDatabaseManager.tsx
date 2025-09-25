@@ -54,18 +54,18 @@ export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = (
 
   const loadExercises = async () => {
     setLoading(true);
-    console.log('Loading exercises...');
-    console.log('Supabase connection test:', { isSupabaseReady, supabase: !!supabase });
+
+
     
     // Test direct Supabase query
     if (supabase) {
-      console.log('Testing direct Supabase query...');
+
       const directResult = await supabase.from('exercises').select('*').limit(5);
-      console.log('Direct Supabase result:', directResult);
+
     }
     
     const { data, error } = await dbListExercises();
-    console.log('Exercise load result:', { data, error, count: data?.length });
+
     if (data) setExercisesList(data);
     setLoading(false);
   };

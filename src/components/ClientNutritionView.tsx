@@ -74,7 +74,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
     
     // Don't scroll if we're already at the boundary
     if (newIndex === currentIndex) {
-      console.log(`🚫 Already at boundary - ${direction} button disabled`);
+
       return;
     }
     
@@ -91,7 +91,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
       [slotId]: newIndex
     }));
     
-    console.log(`✅ Switched to meal: ${slot.selectedMeals[newIndex]?.meal?.name}`);
+
   };
 
   // Update current meal index on scroll
@@ -253,7 +253,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
       if (scrollRef.current && currentMealIndex[slot.id] !== undefined) {
         const expectedScroll = currentMealIndex[slot.id] * scrollRef.current.clientWidth;
         if (Math.abs(scrollRef.current.scrollLeft - expectedScroll) > 10) {
-          console.log(`🔧 Restoring scroll position for slot ${slot.id}: ${expectedScroll}`);
+
           scrollRef.current.scrollLeft = expectedScroll;
         }
       }
@@ -335,24 +335,6 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Success Indicator - Show when nutrition plan is assigned */}
-      <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-2 sm:p-3 text-center">
-        <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-2 text-green-400">
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            <span className="text-xs sm:text-sm font-medium">✅ Nutrition Plan Active</span>
-          </div>
-          <div className="text-xs sm:text-sm text-green-300">
-            Assigned: {new Date(displayNutritionPlan.assignedAt || displayNutritionPlan.createdAt).toLocaleDateString()}
-          </div>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-2 py-1 bg-green-500/20 hover:bg-green-500/30 rounded text-xs transition-colors"
-          >
-            🔄 Refresh
-          </button>
-        </div>
-      </div>
       
       {/* Nutrition Overview */}
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6">

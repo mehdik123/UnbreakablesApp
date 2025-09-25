@@ -102,7 +102,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
     // Sync current week from coach's assignment
     if (client.workoutAssignment?.currentWeek) {
-      console.log('🔄 Initial sync - setting currentWeek to:', client.workoutAssignment.currentWeek);
+
       setCurrentWeek(client.workoutAssignment.currentWeek);
     }
   }, [client.id, client.nutritionPlan, client.workoutAssignment?.currentWeek]);
@@ -130,7 +130,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             .maybeSingle();
           
           if (assignment?.current_week && assignment.current_week !== currentWeek) {
-            console.log('🔄 REALTIME SYNC - Updating currentWeek from', currentWeek, 'to', assignment.current_week);
+
             setCurrentWeek(assignment.current_week);
             
             // Also update the workout assignment object
@@ -166,9 +166,9 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
           filter: `client_id=eq.${client.id}`
         }, 
         (payload) => {
-          console.log('🔄 REALTIME UPDATE - Assignment updated:', payload);
+
           if (payload.new.current_week && payload.new.current_week !== currentWeek) {
-            console.log('🔄 REALTIME SYNC - Updating currentWeek from', currentWeek, 'to', payload.new.current_week);
+
             setCurrentWeek(payload.new.current_week);
           }
         }
@@ -200,7 +200,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             .eq('full_name', client.name)
             .maybeSingle();
           
-          console.log('🔄 CLIENT SYNC DEBUG - Client row:', cRow);
+
           
           if (cRow?.id) {
             const { data: assignment, error: assignmentError } = await supabase
@@ -227,12 +227,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             }
             
             if (assignment?.program_json) {
-              console.log('🔄 CLIENT SYNC DEBUG - Full program_json from DB:', assignment.program_json);
-              console.log('🔄 CLIENT SYNC DEBUG - program_json keys:', Object.keys(assignment.program_json));
-              console.log('🔄 CLIENT SYNC DEBUG - program_json.weeks:', assignment.program_json.weeks);
+
+
+
               
               const freshWeeks = assignment.program_json.weeks || [];
-              console.log('🔄 CLIENT SYNC DEBUG - Fresh weeks from DB:', freshWeeks);
+
               
               if (freshWeeks.length > 0) {
                 // Removed unlockedWeeks logic - using simplified currentWeek only
@@ -244,23 +244,23 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                   program_json_weeks: assignment.program_json.weeks,
                   last_modified_at: assignment.last_modified_at
                 });
-                console.log('🔄 CLIENT SYNC DEBUG - Extracted current_week:', newCurrentWeek);
-                console.log('🔄 CLIENT SYNC DEBUG - Previous currentWeek state:', currentWeek);
+
+
                 
                 if (newCurrentWeek !== currentWeek) {
-                  console.log('✅ CLIENT SYNC - Updating currentWeek from', currentWeek, 'to', newCurrentWeek);
+
                   setCurrentWeek(newCurrentWeek);
                 } else {
-                  console.log('⚪ CLIENT SYNC - No change needed, already on week:', currentWeek);
+
                 }
               } else {
-                console.log('⚠️ CLIENT SYNC - No weeks found in program_json');
+
               }
             } else {
-              console.log('⚠️ CLIENT SYNC - No program_json found in assignment');
+
             }
           } else {
-            console.log('⚠️ CLIENT SYNC - No client row found for name:', client.name);
+
           }
         } else {
           console.log('⚠️ CLIENT SYNC - Missing requirements:', {

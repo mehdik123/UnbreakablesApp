@@ -27,9 +27,29 @@ export async function dbListClientsWithWorkoutAssignments(): Promise<DBResult<an
   return { data: data || [], error };
 }
 
-export async function dbAddClient(payload: { full_name: string }): Promise<DBResult<any>> {
+export async function dbAddClient(payload: { 
+  full_name: string;
+  number_of_weeks?: number;
+  goal?: string;
+  email?: string;
+  phone?: string;
+  start_date?: string;
+  is_active?: boolean;
+  favorites?: any;
+  weight_log?: any;
+}): Promise<DBResult<any>> {
   if (!isSupabaseReady || !supabase) return { data: null };
-  const { data, error } = await supabase.from('clients').insert({ full_name: payload.full_name }).select('*').single();
+  const { data, error } = await supabase.from('clients').insert({
+    full_name: payload.full_name,
+    number_of_weeks: payload.number_of_weeks || 12,
+    goal: payload.goal || 'maintenance',
+    email: payload.email || '',
+    phone: payload.phone || '',
+    start_date: payload.start_date || new Date().toISOString().split('T')[0],
+    is_active: payload.is_active !== false,
+    favorites: payload.favorites || [],
+    weight_log: payload.weight_log || []
+  }).select('*').single();
   return { data, error };
 }
 
@@ -403,9 +423,9 @@ export async function dbCreateWorkoutAssignment(payload: {
     last_modified_by: payload.last_modified_by || 'coach'
   };
   
-  console.log('🗄️ DB CREATE DEBUG - Insert payload:', insertPayload);
-  console.log('🗄️ DB CREATE DEBUG - program_json in payload:', insertPayload.program_json);
-  console.log('🗄️ DB CREATE DEBUG - weeks in program_json:', insertPayload.program_json?.weeks);
+
+
+
   
   const { data, error } = await supabase
     .from('workout_assignments')
@@ -413,9 +433,9 @@ export async function dbCreateWorkoutAssignment(payload: {
     .select('*')
     .single();
     
-  console.log('🗄️ DB CREATE DEBUG - Insert result:', { data, error });
-  console.log('🗄️ DB CREATE DEBUG - Created program_json:', data?.program_json);
-  console.log('🗄️ DB CREATE DEBUG - Weeks in created result:', data?.program_json?.weeks);
+
+
+
   return { data, error };
 }
 
@@ -434,7 +454,7 @@ export async function dbUpdateWorkoutAssignment(id: string, payload: {
   });
   
   if (!isSupabaseReady || !supabase) {
-    console.log('❌ DB UPDATE DEBUG - Supabase not ready');
+
     return { data: null };
   }
   
@@ -443,13 +463,13 @@ export async function dbUpdateWorkoutAssignment(id: string, payload: {
     last_modified_at: new Date().toISOString()
   };
   
-  console.log('🗄️ DB UPDATE DEBUG - Final update payload:', updatePayload);
-  console.log('🗄️ DB UPDATE DEBUG - program_json in payload:', updatePayload.program_json);
-  console.log('🗄️ DB UPDATE DEBUG - weeks in program_json:', updatePayload.program_json?.weeks);
+
+
+
   
-  console.log('🗄️ DB UPDATE DEBUG - About to execute update query');
-  console.log('🗄️ DB UPDATE DEBUG - Table: workout_assignments');
-  console.log('🗄️ DB UPDATE DEBUG - ID filter:', id);
+
+
+
   
   const { data, error } = await supabase
     .from('workout_assignments')
@@ -458,9 +478,9 @@ export async function dbUpdateWorkoutAssignment(id: string, payload: {
     .select('*')
     .single();
     
-  console.log('🗄️ DB UPDATE DEBUG - Update result:', { data, error });
-  console.log('🗄️ DB UPDATE DEBUG - Updated program_json in result:', data?.program_json);
-  console.log('🗄️ DB UPDATE DEBUG - Weeks in updated result:', data?.program_json?.weeks);
+
+
+
   
   return { data, error };
 }

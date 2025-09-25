@@ -5,7 +5,7 @@ import { workoutTemplates } from '../data/workoutTemplates';
 // Migration function to populate exercises and sets for your existing workout tables
 export async function migrateWorkoutTemplateExercises() {
   try {
-    console.log('🏋️ Starting workout template exercise migration...');
+
     
     // Get all exercises from database
     const { data: dbExercises } = await dbListExercises();
@@ -25,7 +25,7 @@ export async function migrateWorkoutTemplateExercises() {
     
     // Map frontend templates to database structure
     for (const template of workoutTemplates) {
-      console.log(`📋 Processing template: ${template.name}`);
+
       
       for (let dayIndex = 0; dayIndex < template.days.length; dayIndex++) {
         const frontendDay = template.days[dayIndex];
@@ -38,7 +38,7 @@ export async function migrateWorkoutTemplateExercises() {
           continue;
         }
         
-        console.log(`📅 Processing day: ${frontendDay.name}`);
+
         
         // Add exercises to this day
         for (let exerciseIndex = 0; exerciseIndex < frontendDay.exercises.length; exerciseIndex++) {
@@ -50,7 +50,7 @@ export async function migrateWorkoutTemplateExercises() {
             continue;
           }
           
-          console.log(`💪 Adding exercise: ${frontendExercise.exercise.name}`);
+
           
           // Add exercise to workout day (using exercise name as text for now)
           const { data: workoutExercise } = await dbAddWorkoutExercise(
@@ -79,12 +79,12 @@ export async function migrateWorkoutTemplateExercises() {
             );
           }
           
-          console.log(`✅ Added ${frontendExercise.sets.length} sets for ${frontendExercise.exercise.name}`);
+
         }
       }
     }
     
-    console.log('🎉 Workout template migration completed successfully!');
+
     return { success: true, message: 'Migration completed successfully' };
     
   } catch (error) {

@@ -38,6 +38,8 @@ import {
 import { Client, Food, Meal, NutritionPlan, WorkoutPlan, Workout, Exercise } from '../types';
 import { UltraModernNutritionEditor } from './UltraModernNutritionEditor';
 import UltraModernWorkoutEditor from './UltraModernWorkoutEditor';
+import { IndependentMuscleGroupCharts } from './IndependentMuscleGroupCharts';
+import { UltraModernWeeklyWeightLogger } from './UltraModernWeeklyWeightLogger';
 
 interface ModernClientPlanViewProps {
   client: Client;
@@ -60,7 +62,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
   onAssignWorkout,
   isDark
 }) => {
-  const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress'>('nutrition');
+  const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress' | 'weight'>('nutrition');
   const [isLoading, setIsLoading] = useState(true);
   const [showStats, setShowStats] = useState(true);
   const [showProgressTracker, setShowProgressTracker] = useState(false);
@@ -85,9 +87,9 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
     
     // Copy to clipboard
     navigator.clipboard.writeText(shareUrl).then(() => {
-      console.log('Share URL copied to clipboard');
+
     }).catch(() => {
-      console.log('Failed to copy URL to clipboard');
+
     });
   };
 
@@ -277,8 +279,6 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
               </button>
               <button
                 onClick={() => {
-                  console.log('Progress Tracking button clicked!');
-                  alert('Progress Tracking button clicked!');
                   setActiveTab('progress');
                   setShowProgressTracker(false);
                 }}
@@ -292,17 +292,25 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
                 <span className="hidden sm:block">Progress Tracking</span>
                 <span className="sm:hidden">Progress</span>
               </button>
+              <button
+                onClick={() => {
+                  setActiveTab('weight');
+                  setShowProgressTracker(false);
+                }}
+                className={`flex-1 flex items-center justify-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
+                  activeTab === 'weight' 
+                    ? 'bg-indigo-600 text-white shadow-sm' 
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
+                }`}
+              >
+                <Activity className="w-4 h-4" />
+                <span className="hidden sm:block">Weight Logs</span>
+                <span className="sm:hidden">Weight</span>
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Debug Info */}
-        <div className="mb-4 p-4 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
-          <h4 className="font-bold text-yellow-800 dark:text-yellow-200 mb-2">DEBUG INFO</h4>
-          <p className="text-sm text-yellow-700 dark:text-yellow-300">
-            activeTab: {activeTab} | showProgressTracker: {showProgressTracker.toString()}
-          </p>
-        </div>
 
         {/* Content Area */}
         {activeTab === 'nutrition' ? (
@@ -315,22 +323,25 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
             onBack={() => {}}
             isDark={isDark}
           />
-        ) : activeTab === 'progress' ? (
-          <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-8 text-center">
-            <div className="w-16 h-16 bg-gradient-to-br from-[#dc1e3a]/20 to-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-[#dc1e3a]/30">
-              <Activity className="w-8 h-8 text-red-500" />
-            </div>
-            <h3 className="text-xl font-bold text-white mb-2">Progress Tracking</h3>
-            <p className="text-gray-400 text-sm leading-relaxed max-w-md mx-auto">
-              Progress tracking is being rebuilt. Please wait for instructions.
-            </p>
-          </div>
-        ) : (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-8">
+        ) : activeTab === 'workout' ? (
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8">
             <UltraModernWorkoutEditor
               client={client}
               onSaveAssignment={(assignment) => onSaveWorkoutPlan(client.id, assignment)}
               onBack={() => {}}
+              isDark={isDark}
+            />
+          </div>
+        ) : activeTab === 'progress' ? (
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8">
+            <IndependentMuscleGroupCharts client={client} isDark={isDark} />
+          </div>
+        ) : (
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8">
+            <UltraModernWeeklyWeightLogger
+              client={client}
+              currentWeek={client.workoutAssignment?.currentWeek || 1}
+              maxWeeks={client.numberOfWeeks}
               isDark={isDark}
             />
           </div>

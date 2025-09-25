@@ -156,7 +156,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
       const result = await dbListMeals();
       if (result.data) {
         setDbMeals(result.data);
-        console.log('Loaded DB meals:', result.data);
+
       }
     } catch (error) {
       console.error('Failed to load meals from database:', error);
@@ -167,7 +167,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
     try {
       const result = await dbGetNutritionPlan(client.id);
       if (result.data) {
-        console.log('Loading existing nutrition plan:', result.data);
+
         // Convert DB plan back to UI state
         if (result.data.mealSlots) {
           setMealSlots(result.data.mealSlots);
@@ -183,7 +183,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   useEffect(() => {
     // First, try to load from client's existing nutrition plan
     if (client.nutritionPlan?.mealSlots) {
-      console.log('Loading existing nutrition plan for client:', client.nutritionPlan);
+
       setMealSlots(client.nutritionPlan.mealSlots);
       setMealsPerDay(client.nutritionPlan.mealsPerDay || 3);
     } else {
@@ -394,16 +394,16 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
 
     try {
       const planJson = JSON.parse(JSON.stringify(plan));
-      console.log('🍽️ Saving nutrition plan to Supabase:', { clientId: client.id, planJson });
+
       
       const result = await dbUpsertNutritionPlan(client.id, planJson);
-      console.log('🍽️ Supabase save result:', result);
+
       
       if (result.error) {
         console.error('❌ Supabase save error:', result.error);
         alert(`Error saving nutrition plan: ${result.error.message}`);
       } else {
-        console.log('✅ Nutrition plan saved successfully to Supabase');
+
       }
     } catch (err) {
       console.error('❌ Failed to persist nutrition plan to Supabase:', err);
@@ -711,34 +711,34 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
 
   return (
     <div className="min-h-screen bg-gray-900">
-      {/* Header */}
+      {/* Header - Mobile Optimized */}
       <div className="sticky top-0 z-50 bg-gray-800 backdrop-blur-xl border-b border-gray-700">
-        <div className="w-full px-4 lg:px-6">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
+        <div className="w-full px-3 sm:px-4 lg:px-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-0 sm:h-16 space-y-3 sm:space-y-0">
+            <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
               <button
                 onClick={onBack}
                 className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors duration-200"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg">
-                  <Utensils className="w-5 h-5 text-white" />
+              <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg">
+                  <Utensils className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 
-                <div>
-                  <h1 className="text-2xl font-bold text-white">
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-lg sm:text-2xl font-bold text-white truncate">
                     Nutrition Plan Builder
                   </h1>
-                  <div className="flex items-center space-x-3">
-                    <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-lg text-sm font-medium ${getGoalColor(client.goal)}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3">
+                    <div className={`inline-flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium ${getGoalColor(client.goal)}`}>
                       {getGoalIcon(client.goal)}
                       <span className="capitalize">{client.goal}</span>
                     </div>
-                    <div className="flex items-center space-x-2 text-slate-400 text-sm">
-                      <Calendar className="w-4 h-4" />
+                    <div className="flex items-center space-x-1 sm:space-x-2 text-slate-400 text-xs sm:text-sm">
+                      <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                       <span>{client.numberOfWeeks} weeks</span>
                     </div>
                   </div>
@@ -746,29 +746,32 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
               <button
                 onClick={() => setShowMealCountSelector(true)}
-                className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-slate-300 bg-slate-800 hover:bg-slate-700 font-medium transition-colors duration-200"
+                className="inline-flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-lg text-slate-300 bg-slate-800 hover:bg-slate-700 font-medium transition-colors duration-200 text-xs sm:text-sm"
               >
-                <Settings className="w-4 h-4" />
-                <span>{mealsPerDay} Meals/Day</span>
+                <Settings className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">{mealsPerDay} Meals/Day</span>
+                <span className="sm:hidden">{mealsPerDay}M</span>
               </button>
               <button
                 onClick={() => setShowTemplates(true)}
-                className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-slate-300 bg-slate-800 hover:bg-slate-700 font-medium transition-colors duration-200"
+                className="inline-flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-lg text-slate-300 bg-slate-800 hover:bg-slate-700 font-medium transition-colors duration-200 text-xs sm:text-sm"
               >
-                <BookOpen className="w-4 h-4" />
-                <span>Templates</span>
+                <BookOpen className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Templates</span>
+                <span className="sm:hidden">T</span>
               </button>
               {/* Assignment Button - Only show when meals are selected */}
               {mealSlots.some(slot => slot.selectedMeals && slot.selectedMeals.length > 0) && (
                 <button
                   onClick={handleAssignToClient}
-                  className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium transition-colors duration-200"
+                  className="inline-flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium transition-colors duration-200 text-xs sm:text-sm"
                 >
-                  <Target className="w-4 h-4" />
-                  <span>Assign to Client</span>
+                  <Target className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">Assign to Client</span>
+                  <span className="sm:hidden">Assign</span>
                 </button>
               )}
             </div>
@@ -776,54 +779,54 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="w-full px-4 lg:px-6 py-8">
+      {/* Main Content - Mobile Optimized */}
+      <div className="w-full px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6 shadow-xl">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-700/50 p-3 sm:p-6 shadow-xl">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium">Total Calories</p>
-                <p className="text-3xl font-bold text-white">{Math.round(totalNutrition.calories || 0)}</p>
+                <p className="text-slate-400 text-xs sm:text-sm font-medium">Total Calories</p>
+                <p className="text-lg sm:text-3xl font-bold text-white">{Math.round(totalNutrition.calories || 0)}</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
-                <Zap className="w-6 h-6 text-red-400" />
+              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
+                <Zap className="w-4 h-4 sm:w-6 sm:h-6 text-red-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6 shadow-xl">
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-700/50 p-3 sm:p-6 shadow-xl">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium">Protein</p>
-                <p className="text-3xl font-bold text-white">{Math.round(totalNutrition.protein || 0)}g</p>
+                <p className="text-slate-400 text-xs sm:text-sm font-medium">Protein</p>
+                <p className="text-lg sm:text-3xl font-bold text-white">{Math.round(totalNutrition.protein || 0)}g</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                <Target className="w-6 h-6 text-emerald-400" />
+              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                <Target className="w-4 h-4 sm:w-6 sm:h-6 text-emerald-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6 shadow-xl">
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-700/50 p-3 sm:p-6 shadow-xl">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium">Fat</p>
-                <p className="text-3xl font-bold text-white">{Math.round(totalNutrition.fat || 0)}g</p>
+                <p className="text-slate-400 text-xs sm:text-sm font-medium">Fat</p>
+                <p className="text-lg sm:text-3xl font-bold text-white">{Math.round(totalNutrition.fat || 0)}g</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center">
-                <Heart className="w-6 h-6 text-orange-400" />
+              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                <Heart className="w-4 h-4 sm:w-6 sm:h-6 text-orange-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6 shadow-xl">
+          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-700/50 p-3 sm:p-6 shadow-xl">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm font-medium">Carbs</p>
-                <p className="text-3xl font-bold text-white">{Math.round(totalNutrition.carbs || 0)}g</p>
+                <p className="text-slate-400 text-xs sm:text-sm font-medium">Carbs</p>
+                <p className="text-lg sm:text-3xl font-bold text-white">{Math.round(totalNutrition.carbs || 0)}g</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                <Activity className="w-6 h-6 text-purple-400" />
+              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                <Activity className="w-4 h-4 sm:w-6 sm:h-6 text-purple-400" />
               </div>
             </div>
           </div>

@@ -5,7 +5,7 @@ import {
   Scale
 } from 'lucide-react';
 import { WeightEntry, Client } from '../types';
-import { logClientWeight, getClientWeightLogs } from '../lib/progressTracking';
+import { logClientWeight, getClientWeightLogs, deleteClientWeight } from '../lib/progressTracking';
 import { UltraModernWeightChart } from './UltraModernWeightChart';
 import { WeightStatsGrid } from './WeightStatsCards';
 import { WeeklyWeightOverview } from './WeeklyWeightOverview';
@@ -88,21 +88,13 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
           notes: entry.notes
         };
         
-        console.log('📊 LOAD DEBUG - Processing entry:', {
-          date: date.toDateString(),
-          dayOfWeek,
-          dayKey,
-          weekNumber,
-          weight: entry.weight
-        });
         
         organizedData[weekNumber][dayKey] = weightEntry;
       });
       
-      console.log('📊 WEIGHT LOAD DEBUG - Organized data:', organizedData);
+
       setWeeklyData(organizedData);
     } catch (error) {
-      console.error('Error loading weight data:', error);
       setSaveError('Failed to load weight data. Please try again.');
     } finally {
       setIsLoading(false);
@@ -136,14 +128,6 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
     const targetDate = new Date(targetWeekMonday);
     targetDate.setDate(targetWeekMonday.getDate() + dayIndex);
     
-    console.log('🗓️ DATE CALCULATION DEBUG:', {
-      weekNumber,
-      dayKey,
-      dayIndex,
-      targetWeekMonday: targetWeekMonday.toDateString(),
-      targetDate: targetDate.toDateString(),
-      targetDateISO: targetDate.toISOString().split('T')[0]
-    });
     
     return targetDate;
   };
@@ -180,15 +164,6 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
       
       const dateString = date.toISOString().split('T')[0];
       
-      console.log('💾 SAVING WEIGHT DEBUG - Saving weight:', {
-        clientId: client.id,
-        weight,
-        date: dateString,
-        weekNumber: editingCell.week,
-        dayKey: editingCell.day,
-        calculatedDate: date.toDateString(),
-        dayOfWeek: date.getDay()
-      });
 
       const savedData = await logClientWeight({
         clientId: client.id,
@@ -198,7 +173,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
         dayKey: editingCell.day
       });
 
-      console.log('💾 SAVED WEIGHT DEBUG - Saved data:', savedData);
+
 
       // Update local state with the saved data
       setWeeklyData(prev => {
@@ -218,9 +193,9 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
           }
         };
         
-        console.log('🔄 STATE UPDATE DEBUG - Previous state:', prev);
-        console.log('🔄 STATE UPDATE DEBUG - New state:', newData);
-        console.log('🔄 STATE UPDATE DEBUG - Updated entry:', newData[editingCell.week][editingCell.day]);
+
+
+
         
         return newData;
       });
@@ -231,7 +206,6 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
       // Don't reload data immediately - the local state update should be sufficient
       // await loadWeightData();
     } catch (error) {
-      console.error('Error saving weight:', error);
       setSaveError('Failed to save weight. Please try again.');
       setEditingCell(null);
       setTempValue('');
@@ -243,6 +217,35 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
   const handleCellCancel = () => {
     setEditingCell(null);
     setTempValue('');
+  };
+
+  const handleWeightDelete = async (week: number, day: string) => {
+    const dayData = weeklyData[week]?.[day];
+    if (!dayData?.id) return;
+
+    try {
+      setIsLoading(true);
+      setSaveError(null);
+      
+      // Delete from database
+      await deleteClientWeight(dayData.id);
+      
+      // Update local state
+      setWeeklyData(prev => {
+        const newData = { ...prev };
+        if (newData[week]) {
+          const weekData = { ...newData[week] };
+          delete weekData[day];
+          newData[week] = weekData;
+        }
+        return newData;
+      });
+      
+    } catch (error) {
+      setSaveError('Failed to delete weight. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Helper functions for new components
@@ -433,7 +436,19 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
                       </div>
                     )}
                     
-                    {hasWeight && (
+                    {hasWeight && !isEditing && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleWeightDelete(selectedWeek, day.key);
+                        }}
+                        className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold transition-colors"
+                        title="Delete weight"
+                      >
+                        ×
+                      </button>
+                    )}
+                    {hasWeight && isEditing && (
                       <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#dc1e3a] rounded-full animate-pulse"></div>
                     )}
                   </div>

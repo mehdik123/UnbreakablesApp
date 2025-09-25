@@ -208,16 +208,16 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
         });
 
         if (mealResult.data) {
-          console.log('✅ Meal created successfully:', mealResult.data);
-          console.log('🥗 Adding meal items:', formData.selectedIngredients);
+
+
           
           // Add meal items
           for (const selectedIng of formData.selectedIngredients) {
             const ingredient = ingredients.find(i => i.name === selectedIng.ingredient.name);
             if (ingredient) {
-              console.log(`📝 Adding ingredient: ${ingredient.name} (${selectedIng.quantity}g)`);
+
               const itemResult = await dbAddMealItem(mealResult.data.id, ingredient.id, selectedIng.quantity);
-              console.log(`📋 Item result:`, itemResult);
+
               
               if (itemResult.error) {
                 console.error('❌ Error adding meal item:', itemResult.error);

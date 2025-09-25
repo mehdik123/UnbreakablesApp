@@ -118,7 +118,7 @@ export const exportToPDF = async (clientName: string) => {
     // Clean up
     document.body.removeChild(tempContainer);
 
-    console.log('PDF exported successfully!');
+
   } catch (error) {
     console.error('Error exporting PDF:', error);
     alert('Error generating PDF. Please try again.');
