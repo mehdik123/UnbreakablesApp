@@ -33,13 +33,15 @@ import {
   List,
   Eye,
   Copy,
-  MoreVertical
+  MoreVertical,
+  Camera
 } from 'lucide-react';
 import { Client, Food, Meal, NutritionPlan, WorkoutPlan, Workout, Exercise } from '../types';
 import { UltraModernNutritionEditor } from './UltraModernNutritionEditor';
 import UltraModernWorkoutEditor from './UltraModernWorkoutEditor';
 import { IndependentMuscleGroupCharts } from './IndependentMuscleGroupCharts';
 import { UltraModernWeeklyWeightLogger } from './UltraModernWeeklyWeightLogger';
+import WeeklyPhotoGallery from './WeeklyPhotoGallery';
 
 interface ModernClientPlanViewProps {
   client: Client;
@@ -62,12 +64,13 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
   onAssignWorkout,
   isDark
 }) => {
-  const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress' | 'weight'>('nutrition');
+  const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress' | 'weight' | 'photos'>('nutrition');
   const [isLoading, setIsLoading] = useState(true);
   const [showStats, setShowStats] = useState(true);
   const [showProgressTracker, setShowProgressTracker] = useState(false);
   const [shareUrl, setShareUrl] = useState<string>('');
   const [showShareModal, setShowShareModal] = useState(false);
+  const [weeklyPhotos, setWeeklyPhotos] = useState<any[]>([]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -307,6 +310,21 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
                 <span className="hidden sm:block">Weight Logs</span>
                 <span className="sm:hidden">Weight</span>
               </button>
+              <button
+                onClick={() => {
+                  setActiveTab('photos');
+                  setShowProgressTracker(false);
+                }}
+                className={`flex-1 flex items-center justify-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
+                  activeTab === 'photos' 
+                    ? 'bg-indigo-600 text-white shadow-sm' 
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
+                }`}
+              >
+                <Camera className="w-4 h-4" />
+                <span className="hidden sm:block">Progress Photos</span>
+                <span className="sm:hidden">Photos</span>
+              </button>
             </div>
           </div>
         </div>
@@ -336,7 +354,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8">
             <IndependentMuscleGroupCharts client={client} isDark={isDark} />
           </div>
-        ) : (
+        ) : activeTab === 'weight' ? (
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8">
             <UltraModernWeeklyWeightLogger
               client={client}
@@ -345,7 +363,24 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
               isDark={isDark}
             />
           </div>
-        )}
+        ) : activeTab === 'photos' ? (
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 flex items-center">
+                <Camera className="w-6 h-6 mr-3 text-indigo-500" />
+                Client Progress Photos
+              </h2>
+              <p className="text-slate-600 dark:text-slate-400">
+                View {client.name}'s weekly progress photos
+              </p>
+            </div>
+            <WeeklyPhotoGallery
+              photos={weeklyPhotos}
+              onPhotosUpdate={setWeeklyPhotos}
+              isCoachView={true}
+            />
+          </div>
+        ) : null}
 
         {/* Share Modal */}
         {showShareModal && (

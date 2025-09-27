@@ -24,6 +24,17 @@ html, body, #root {
   display: none;  /* Safari and Chrome */
 }
 
+/* Mobile horizontal scroll improvements */
+.mobile-scroll {
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-scroll > * {
+  scroll-snap-align: start;
+}
+
 /* Smooth scrolling for horizontal containers */
 .horizontal-scroll {
   scroll-behavior: smooth;

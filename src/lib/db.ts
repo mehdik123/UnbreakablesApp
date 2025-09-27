@@ -2,6 +2,16 @@ import { supabase, isSupabaseReady } from './supabaseClient';
 
 export type DBResult<T> = { data: T | null; error?: any };
 
+// Photo storage types
+export interface WeeklyPhoto {
+  id: string;
+  client_id: string;
+  week: number;
+  type: 'front' | 'side' | 'back';
+  image_url: string;
+  uploaded_at: string;
+}
+
 // ---------- Clients CRUD ----------
 export async function dbListClients(): Promise<DBResult<any[]>> {
   if (!isSupabaseReady || !supabase) return { data: [] };
@@ -496,6 +506,49 @@ export async function dbGetClientWorkoutAssignment(clientId: string): Promise<DB
     .limit(1)
     .maybeSingle();
   return { data, error };
+}
+
+// ---------- Photo Storage Functions ----------
+export async function dbSaveWeeklyPhoto(photo: Omit<WeeklyPhoto, 'id' | 'uploaded_at'>): Promise<DBResult<WeeklyPhoto>> {
+  if (!isSupabaseReady || !supabase) return { data: null };
+  
+  const { data, error } = await supabase
+    .from('weekly_photos')
+    .insert({
+      client_id: photo.client_id,
+      week: photo.week,
+      type: photo.type,
+      image_url: photo.image_url,
+      uploaded_at: new Date().toISOString()
+    })
+    .select()
+    .single();
+  
+  return { data, error };
+}
+
+export async function dbGetClientPhotos(clientId: string): Promise<DBResult<WeeklyPhoto[]>> {
+  if (!isSupabaseReady || !supabase) return { data: [] };
+  
+  const { data, error } = await supabase
+    .from('weekly_photos')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('week', { ascending: false })
+    .order('uploaded_at', { ascending: false });
+  
+  return { data: data || [], error };
+}
+
+export async function dbDeleteWeeklyPhoto(photoId: string): Promise<DBResult<boolean>> {
+  if (!isSupabaseReady || !supabase) return { data: false };
+  
+  const { error } = await supabase
+    .from('weekly_photos')
+    .delete()
+    .eq('id', photoId);
+  
+  return { data: !error, error };
 }
 
 

@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
-import { UnbreakableSteamClientsManager } from './components/UnbreakableSteamClientsManager';
-import { ModernClientPlanView } from './components/ModernClientPlanView';
-import { ClientCompleteView } from './components/ClientCompleteView';
-import { ClientInterface } from './components/ClientInterface';
-import { ModernClientInterface } from './components/ModernClientInterface';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { ModernLoadingScreen } from './components/ModernLoadingScreen';
-import MealDatabaseManager from './components/MealDatabaseManager';
-import IngredientsManager from './components/IngredientsManager';
-import { ExerciseDatabaseManager } from './components/ExerciseDatabaseManager';
-import { SimpleWorkoutEditor } from './components/SimpleWorkoutEditor';
+
+// Lazy load heavy components
+const UnbreakableSteamClientsManager = lazy(() => import('./components/UnbreakableSteamClientsManager').then(module => ({ default: module.UnbreakableSteamClientsManager })));
+const ModernClientPlanView = lazy(() => import('./components/ModernClientPlanView').then(module => ({ default: module.ModernClientPlanView })));
+const ClientCompleteView = lazy(() => import('./components/ClientCompleteView').then(module => ({ default: module.ClientCompleteView })));
+// const ClientInterface = lazy(() => import('./components/ClientInterface').then(module => ({ default: module.ClientInterface })));
+const ModernClientInterface = lazy(() => import('./components/ModernClientInterface').then(module => ({ default: module.ModernClientInterface })));
+const MealDatabaseManager = lazy(() => import('./components/MealDatabaseManager'));
+const IngredientsManager = lazy(() => import('./components/IngredientsManager'));
+const ExerciseDatabaseManager = lazy(() => import('./components/ExerciseDatabaseManager').then(module => ({ default: module.ExerciseDatabaseManager })));
+// const SimpleWorkoutEditor = lazy(() => import('./components/SimpleWorkoutEditor').then(module => ({ default: module.SimpleWorkoutEditor })));
+const TemplatesBuilder = lazy(() => import('./components/TemplatesBuilder'));
 import './styles/mobile.css';
 import { 
   AppState, 
@@ -24,7 +27,6 @@ import { meals as defaultMeals } from './data/meals';
 import { exercises as defaultExercises } from './data/exercises';
 import { supabase, isSupabaseReady } from './lib/supabaseClient';
 import { dbListClients, dbListClientsWithWorkoutAssignments, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment } from './lib/db';
-import TemplatesBuilder from './components/TemplatesBuilder';
 
 function App() {
   const [appState, setAppState] = useState<AppState>({
@@ -604,8 +606,6 @@ function App() {
       // Update shared data if client has an active share link
       updateClientSharedData(clientId, updatedClients);
       
-      alert(`Workout plan successfully assigned to client!`);
-      
     } catch (err) {
       console.error('❌ Failed to assign workout plan:', err as Error);
       alert(`Failed to assign workout plan: ${(err as Error).message || err}`);
@@ -740,6 +740,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-900">
       <div className="relative z-10">
+        <Suspense fallback={<ModernLoadingScreen message="Loading component..." />}>
         {appState.currentView === 'clients' && (
           <UnbreakableSteamClientsManager
               isDark={appState.isDark}
@@ -802,7 +803,6 @@ function App() {
 
         {appState.currentView === 'meal-database' && (
           <MealDatabaseManager
-            meals={meals}
             onUpdateMeals={handleUpdateMeals}
             onBack={handleBackFromMealDatabase}
           />
@@ -823,6 +823,7 @@ function App() {
             onBack={() => setAppState(prev => ({ ...prev, currentView: 'clients' }))}
           />
         )}
+        </Suspense>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart } from 'recharts';
 import { Activity, TrendingUp, Dumbbell, ChevronDown, ChevronUp, Target, Zap } from 'lucide-react';
 import { Client, ClientWorkoutAssignment, Exercise } from '../types';
@@ -50,7 +50,7 @@ const COLORS = [
   '#ec4899', // Pink
 ];
 
-export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupChartsProps> = ({
+export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupChartsProps> = memo(({
   client,
   isDark
 }) => {
@@ -59,6 +59,16 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
   const [expandedCharts, setExpandedCharts] = useState<{ [muscleGroup: string]: boolean }>({});
   const [workoutExercises, setWorkoutExercises] = useState<{ [muscleGroup: string]: Exercise[] }>({});
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
+
+  // Memoize expensive calculations
+  const chartData = useMemo(() => {
+    if (!volumeData.length) return [];
+    return volumeData;
+  }, [volumeData]);
+
+  const muscleGroups = useMemo(() => {
+    return availableMuscleGroups;
+  }, [availableMuscleGroups]);
 
   // Load volume data and extract exercises
   useEffect(() => {
@@ -670,6 +680,8 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
       </div>
     </div>
   );
-};
+});
+
+IndependentMuscleGroupCharts.displayName = 'IndependentMuscleGroupCharts';
 
 export default IndependentMuscleGroupCharts;

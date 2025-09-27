@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { 
   Dumbbell, 
@@ -45,7 +45,7 @@ interface ClientWorkoutViewCombinedProps {
   isDark: boolean;
 }
 
-export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
+export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   client,
   currentWeek
 }) => {
@@ -1052,78 +1052,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
         </div>
       )}
 
-        {/* Workout Summary - Ultra Modern */}
-        {isDayUnlocked && currentDayData && (
-          <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-6 sm:p-8 shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center shadow-lg">
-                  <Trophy className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h4 className="text-xl sm:text-2xl font-bold text-white">Workout Summary</h4>
-                  <p className="text-gray-400 text-sm sm:text-base">Track your progress and achievements</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-3xl sm:text-4xl font-bold text-[#dc1e3a]">
-                  {Math.round((Object.values(completedExercises).filter(Boolean).length / currentDayData.exercises.length) * 100)}%
-                </div>
-                <div className="text-gray-400 text-sm">Complete</div>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-              <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
-                <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <CheckCircle className="w-6 h-6 text-green-400" />
-                </div>
-                <div className="text-3xl sm:text-4xl font-bold text-green-400 mb-2">
-                  {Object.values(completedExercises).filter(Boolean).length}
-                </div>
-                <div className="text-green-300 text-sm font-medium">Completed</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
-                <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <Target className="w-6 h-6 text-blue-400" />
-                </div>
-                <div className="text-3xl sm:text-4xl font-bold text-blue-400 mb-2">
-                  {currentDayData.exercises.length}
-                </div>
-                <div className="text-blue-300 text-sm font-medium">Total Exercises</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-400/30 rounded-2xl p-6 text-center backdrop-blur-sm">
-                <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center mx-auto mb-3">
-                  <Activity className="w-6 h-6 text-purple-400" />
-          </div>
-                <div className="text-3xl sm:text-4xl font-bold text-purple-400 mb-2">
-                  {currentDayData.exercises.reduce((total, exercise) => total + exercise.sets.length, 0)}
-                </div>
-                <div className="text-purple-300 text-sm font-medium">Total Sets</div>
-              </div>
-            </div>
-            
-            {/* Progress Bar */}
-            <div className="mt-6">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-medium text-gray-300">Overall Progress</span>
-                <span className="text-sm font-bold text-[#dc1e3a]">
-                  {Object.values(completedExercises).filter(Boolean).length}/{currentDayData.exercises.length}
-                </span>
-              </div>
-              <div className="w-full bg-gray-700/50 rounded-full h-4 overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-[#dc1e3a] to-red-600 rounded-full transition-all duration-1000 ease-out shadow-lg"
-                  style={{ 
-                    width: `${(Object.values(completedExercises).filter(Boolean).length / currentDayData.exercises.length) * 100}%` 
-                  }}
-                ></div>
-          </div>
-        </div>
-          </div>
-        )}
 
 
         {/* Locked Day Message */}
@@ -1147,7 +1075,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = ({
       </div>
     </div>
   );
-};
+});
+
+ClientWorkoutView.displayName = 'ClientWorkoutView';
 
 // Combined version for ClientCombinedView
 export const ClientWorkoutViewCombined: React.FC<ClientWorkoutViewCombinedProps> = ({
