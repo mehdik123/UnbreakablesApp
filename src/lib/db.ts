@@ -10,6 +10,9 @@ export interface WeeklyPhoto {
   type: 'front' | 'side' | 'back';
   image_url: string;
   uploaded_at: string;
+  // Component interface
+  imageUrl?: string;
+  uploadedAt?: Date;
 }
 
 // ---------- Clients CRUD ----------
@@ -525,6 +528,63 @@ export async function dbSaveWeeklyPhoto(photo: Omit<WeeklyPhoto, 'id' | 'uploade
     .single();
   
   return { data, error };
+}
+
+// Upload photo to Supabase Storage and save reference to database
+export async function uploadWeeklyPhoto(
+  file: File, 
+  clientId: string, 
+  week: number, 
+  type: 'front' | 'side' | 'back'
+): Promise<DBResult<WeeklyPhoto>> {
+  if (!isSupabaseReady || !supabase) return { data: null };
+  
+  try {
+    // Create unique filename
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${clientId}/${week}/${type}-${Date.now()}.${fileExt}`;
+    
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('weekly-photos')
+      .upload(fileName, file);
+    
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      return { data: null, error: uploadError };
+    }
+    
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('weekly-photos')
+      .getPublicUrl(fileName);
+    
+    const imageUrl = urlData.publicUrl;
+    
+    // Save to database
+    const { data: savedPhoto, error: dbError } = await supabase
+      .from('weekly_photos')
+      .insert({
+        client_id: clientId,
+        week: week,
+        type: type,
+        image_url: imageUrl,
+        uploaded_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    
+    if (dbError) {
+      // If database save fails, clean up the uploaded file
+      await supabase.storage.from('weekly-photos').remove([fileName]);
+      return { data: null, error: dbError };
+    }
+    
+    return { data: savedPhoto, error: null };
+  } catch (error) {
+    console.error('Error uploading photo:', error);
+    return { data: null, error };
+  }
 }
 
 export async function dbGetClientPhotos(clientId: string): Promise<DBResult<WeeklyPhoto[]>> {

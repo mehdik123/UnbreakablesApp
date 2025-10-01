@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, Upload, X, RotateCcw, Download, Eye, Trash2, Plus, CheckCircle, AlertCircle } from 'lucide-react';
-import { dbSaveWeeklyPhoto, dbDeleteWeeklyPhoto, dbGetClientPhotos, WeeklyPhoto } from '../lib/db';
+import { dbSaveWeeklyPhoto, dbDeleteWeeklyPhoto, dbGetClientPhotos, uploadWeeklyPhoto, WeeklyPhoto } from '../lib/db';
 
 interface WeeklyPhotoUploadProps {
   clientId: string;
@@ -31,6 +31,13 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
       try {
         const { data: dbPhotos, error } = await dbGetClientPhotos(clientId);
         if (error) {
+          // If table doesn't exist, just return empty array instead of logging error
+          if (error.code === 'PGRST205') {
+            console.log('Weekly photos table not created yet. Please create the table in Supabase first.');
+            setPhotos([]);
+            onPhotosUpdate([]);
+            return;
+          }
           console.error('Error loading photos:', error);
           return;
         }
@@ -66,35 +73,68 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
     if (!files || files.length === 0) return;
 
     setUploading(true);
+    
     try {
       const file = files[0];
       
       // Validate file type
       if (!file.type.startsWith('image/')) {
         alert('Please select a valid image file');
+        setUploading(false);
         return;
       }
 
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
         alert('Image size must be less than 10MB');
+        setUploading(false);
         return;
       }
 
-      // Create object URL for preview
-      const imageUrl = URL.createObjectURL(file);
+      // Try Supabase Storage first, fallback to base64 if storage not available
+      let savedPhoto, error;
       
-      // Save to database
-      const { data: savedPhoto, error } = await dbSaveWeeklyPhoto({
-        client_id: clientId,
-        week: selectedWeek,
-        type: photoType,
-        image_url: imageUrl
-      });
+      console.log('Starting photo upload...', { clientId, selectedWeek, photoType, fileSize: file.size });
+      
+      try {
+        console.log('Attempting Supabase Storage upload...');
+        const result = await uploadWeeklyPhoto(file, clientId, selectedWeek, photoType);
+        savedPhoto = result.data;
+        error = result.error;
+        console.log('Storage upload result:', { savedPhoto: !!savedPhoto, error });
+      } catch (storageError) {
+        console.log('Storage not available, using base64 fallback:', storageError);
+        // Fallback to base64 if storage fails
+        const reader = new FileReader();
+        const base64Promise = new Promise<string>((resolve, reject) => {
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = reject;
+        });
+        reader.readAsDataURL(file);
+        const imageUrl = await base64Promise;
+        console.log('Base64 conversion complete, saving to database...');
+        
+        const dbResult = await dbSaveWeeklyPhoto({
+          client_id: clientId,
+          week: selectedWeek,
+          type: photoType,
+          image_url: imageUrl
+        });
+        savedPhoto = dbResult.data;
+        error = dbResult.error;
+        console.log('Database save result:', { savedPhoto: !!savedPhoto, error });
+      }
 
       if (error) {
         console.error('Error saving photo:', error);
-        alert('Failed to save photo. Please try again.');
+        if (error.code === 'PGRST205') {
+          alert('Weekly photos table not created yet. Please create the table in Supabase first.');
+        } else if (error.code === '57014') {
+          alert('Upload timed out. Please try with a smaller image or check your connection.');
+        } else {
+          alert('Failed to save photo. Please try again.');
+        }
+        setUploading(false);
         return;
       }
 
@@ -117,13 +157,13 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
         setSelectedType(null);
       }
       
+      setUploading(false);
     } catch (error) {
-      console.error('Error uploading photo:', error);
-      alert('Failed to upload photo. Please try again.');
-    } finally {
+      console.error('Error processing file:', error);
+      alert('Failed to process file. Please try again.');
       setUploading(false);
     }
-  }, [currentWeek, photos, onPhotosUpdate]);
+  }, [clientId, selectedWeek, photos, onPhotosUpdate]);
 
   const handleDrop = useCallback((e: React.DragEvent, photoType: 'front' | 'side' | 'back') => {
     e.preventDefault();

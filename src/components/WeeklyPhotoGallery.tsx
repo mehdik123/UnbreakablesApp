@@ -1,13 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, Download, Calendar, ArrowLeft, ArrowRight, Grid, List, X, ChevronLeft, ChevronRight } from 'lucide-react';
-
-interface WeeklyPhoto {
-  id: string;
-  week: number;
-  type: 'front' | 'side' | 'back';
-  imageUrl: string;
-  uploadedAt: Date;
-}
+import { WeeklyPhoto } from '../lib/db';
 
 interface WeeklyPhotoGalleryProps {
   photos: WeeklyPhoto[];
@@ -24,6 +17,16 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [previewPhoto, setPreviewPhoto] = useState<WeeklyPhoto | null>(null);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+
+  // Helper function to get image URL (handles both database and component formats)
+  const getImageUrl = (photo: WeeklyPhoto) => photo.imageUrl || photo.image_url;
+  
+  // Helper function to get uploaded date (handles both database and component formats)
+  const getUploadedDate = (photo: WeeklyPhoto) => {
+    if (photo.uploadedAt) return photo.uploadedAt;
+    if (photo.uploaded_at) return new Date(photo.uploaded_at);
+    return new Date();
+  };
 
   // Group photos by week
   const photosByWeek = photos.reduce((acc, photo) => {
@@ -79,7 +82,7 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
 
   const downloadPhoto = (photo: WeeklyPhoto) => {
     const link = document.createElement('a');
-    link.href = photo.imageUrl;
+    link.href = getImageUrl(photo);
     link.download = `week-${photo.week}-${photo.type}-${Date.now()}.jpg`;
     document.body.appendChild(link);
     link.click();
@@ -185,7 +188,7 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
                   <div key={photo.id} className="group relative">
                     <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-slate-700">
                       <img
-                        src={photo.imageUrl}
+                        src={getImageUrl(photo)}
                         alt={`${photo.type} - Week ${photo.week}`}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                       />
@@ -218,7 +221,7 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
                         </span>
                       </div>
                       <p className="text-slate-400 text-xs">
-                        {photo.uploadedAt.toLocaleDateString()}
+                        {getUploadedDate(photo).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
@@ -230,7 +233,7 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
                   <div key={photo.id} className="flex items-center space-x-4 bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 hover:bg-slate-800/70 transition-colors">
                     <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-700 flex-shrink-0">
                       <img
-                        src={photo.imageUrl}
+                        src={getImageUrl(photo)}
                         alt={`${photo.type} - Week ${photo.week}`}
                         className="w-full h-full object-cover"
                       />
@@ -244,7 +247,7 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
                         </span>
                       </div>
                       <p className="text-slate-400 text-sm">
-                        Week {photo.week} • {photo.uploadedAt.toLocaleDateString()}
+                        Week {photo.week} • {getUploadedDate(photo).toLocaleDateString()}
                       </p>
                     </div>
 
@@ -285,7 +288,7 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
                     <div key={photo.id} className="group relative">
                       <div className="aspect-[3/4] rounded-xl overflow-hidden bg-slate-700">
                         <img
-                          src={photo.imageUrl}
+                          src={getImageUrl(photo)}
                           alt={`${photo.type} - Week ${photo.week}`}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                         />
@@ -353,7 +356,7 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
               <div className="bg-slate-800 rounded-2xl overflow-hidden">
                 <div className="aspect-[3/4] sm:aspect-square">
                   <img
-                    src={previewPhoto.imageUrl}
+                    src={getImageUrl(previewPhoto)}
                     alt={`${previewPhoto.type} - Week ${previewPhoto.week}`}
                     className="w-full h-full object-cover"
                   />
@@ -365,7 +368,7 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
                         {getPhotoTypeIcon(previewPhoto.type)} {getPhotoTypeLabel(previewPhoto.type)}
                       </h3>
                       <p className="text-slate-400 text-sm">
-                        Week {previewPhoto.week} • {previewPhoto.uploadedAt.toLocaleDateString()}
+                        Week {previewPhoto.week} • {getUploadedDate(previewPhoto).toLocaleDateString()}
                       </p>
                     </div>
                     <button
