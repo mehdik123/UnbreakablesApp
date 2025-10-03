@@ -103,11 +103,16 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
 
   // Calculate meal nutrition from meal_items
   const calculateMealNutrition = (mealItems: DBMeal['meal_items']) => {
+    console.log('🔍 calculateMealNutrition called with:', mealItems);
+    
     if (!mealItems || mealItems.length === 0) {
+      console.log('⚠️ No meal items provided, returning zeros');
       return { calories: 0, protein: 0, fat: 0, carbs: 0 };
     }
     
-    return mealItems.reduce((total, item) => {
+    const result = mealItems.reduce((total, item, index) => {
+      console.log(`🔍 Processing item ${index}:`, item);
+      
       // Handle potential undefined values
       const ingredient = item.ingredients || {};
       const quantity = item.quantity_g || item.quantity || 0;
@@ -116,13 +121,56 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
       const fat = ingredient.fat || 0;
       const carbs = ingredient.carbs || 0;
       
-      return {
-        calories: total.calories + (kcal * quantity / 100),
-        protein: total.protein + (protein * quantity / 100),
-        fat: total.fat + (fat * quantity / 100),
-        carbs: total.carbs + (carbs * quantity / 100)
+      console.log(`🔍 Ingredient data:`, {
+        name: ingredient.name,
+        quantity,
+        kcal,
+        protein,
+        fat,
+        carbs,
+        kcalType: typeof kcal,
+        proteinType: typeof protein,
+        fatType: typeof fat,
+        carbsType: typeof carbs
+      });
+      
+      // Check for NaN values
+      if (isNaN(kcal) || isNaN(protein) || isNaN(fat) || isNaN(carbs)) {
+        console.error('❌ NaN detected in ingredient:', {
+          name: ingredient.name,
+          kcal,
+          protein,
+          fat,
+          carbs
+        });
+      }
+      
+      const itemCalories = (kcal * quantity / 100);
+      const itemProtein = (protein * quantity / 100);
+      const itemFat = (fat * quantity / 100);
+      const itemCarbs = (carbs * quantity / 100);
+      
+      console.log(`🔍 Calculated values for ${ingredient.name}:`, {
+        itemCalories,
+        itemProtein,
+        itemFat,
+        itemCarbs
+      });
+      
+      const newTotal = {
+        calories: total.calories + itemCalories,
+        protein: total.protein + itemProtein,
+        fat: total.fat + itemFat,
+        carbs: total.carbs + itemCarbs
       };
+      
+      console.log(`🔍 Running total after ${ingredient.name}:`, newTotal);
+      
+      return newTotal;
     }, { calories: 0, protein: 0, fat: 0, carbs: 0 });
+    
+    console.log('🔍 Final nutrition result:', result);
+    return result;
   };
 
   // Reset form
@@ -419,9 +467,16 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
                 {/* Meal Image */}
                 <div className="relative h-48 overflow-hidden">
                   <img
-                    src={meal.image || '/api/placeholder/300/200'}
+                    src={meal.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop&q=80&auto=format'}
                     alt={meal.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      console.log('🖼️ Image failed to load for meal:', meal.name, 'URL:', meal.image);
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop&q=80&auto=format';
+                    }}
+                    onLoad={() => {
+                      console.log('🖼️ Image loaded successfully for meal:', meal.name, 'URL:', meal.image);
+                    }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
                   
@@ -566,18 +621,44 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
                 <h3 className="text-lg font-bold text-white mb-4">Ingredients & Portions</h3>
                 <div className="space-y-2">
                   {(viewingMeal.meal_items || []).map((item, index) => {
-                    const ingredientKcal = (item.ingredients.kcal * item.quantity / 100);
-                    const ingredientProtein = (item.ingredients.protein * item.quantity / 100);
+                    console.log('🔍 Ingredients & Portions - Processing item:', item);
+                    console.log('🔍 Item ingredients:', item.ingredients);
+                    
+                    const ingredient = item.ingredients || {};
+                    const kcal = ingredient.kcal || 0;
+                    const protein = ingredient.protein || 0;
+                    const quantity = item.quantity_g || item.quantity || 0;
+                    
+                    console.log('🔍 Extracted values:', {
+                      name: ingredient.name,
+                      kcal,
+                      protein,
+                      quantity,
+                      kcalType: typeof kcal,
+                      proteinType: typeof protein,
+                      quantityType: typeof quantity
+                    });
+                    
+                    const ingredientKcal = (kcal * quantity / 100);
+                    const ingredientProtein = (protein * quantity / 100);
+                    
+                    console.log('🔍 Calculated values:', {
+                      ingredientKcal,
+                      ingredientProtein,
+                      isNaN_kcal: isNaN(ingredientKcal),
+                      isNaN_protein: isNaN(ingredientProtein)
+                    });
+                    
                     return (
                       <div key={index} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
                         <div className="flex-1">
-                          <span className="text-white font-medium">{item.ingredients.name}</span>
+                          <span className="text-white font-medium">{ingredient.name || 'Unknown'}</span>
                           <div className="text-xs text-slate-400 mt-1">
-                            {Math.round(ingredientKcal)} kcal • {Math.round(ingredientProtein)}g protein
+                            {isNaN(ingredientKcal) ? 'NaN' : Math.round(ingredientKcal)} kcal • {isNaN(ingredientProtein) ? 'NaN' : Math.round(ingredientProtein)}g protein
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="text-slate-300 font-medium">{item.quantity}g</span>
+                          <span className="text-slate-300 font-medium">{quantity}g</span>
                           <div className="text-xs text-slate-400">portion</div>
                         </div>
                       </div>

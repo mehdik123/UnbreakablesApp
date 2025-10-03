@@ -14,9 +14,7 @@ import {
   Calendar,
   Plus,
   Minus,
-  Heart,
-  Trophy,
-  Activity
+  Heart
 } from 'lucide-react';
 import { Client, WorkoutProgram } from '../types';
 import { logExercisePerformance } from '../lib/progressTracking';

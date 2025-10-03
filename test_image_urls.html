@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Meal Image URLs</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1e293b;
+            color: white;
+            padding: 20px;
+        }
+        .meal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .meal-card {
+            background: #334155;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #475569;
+        }
+        .meal-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .meal-info {
+            padding: 15px;
+        }
+        .meal-name {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .success { background: #10b981; }
+        .error { background: #ef4444; }
+    </style>
+</head>
+<body>
+    <h1>Meal Image URL Test</h1>
+    <div class="meal-grid" id="mealGrid">
+        <!-- Images will be loaded here -->
+    </div>
+
+    <script>
+        const mealImages = [
+            { name: 'Cheesy Scrambled Eggs', url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop&q=80&auto=format&fm=webp' },
+            { name: 'Scrambled Eggs With Oatmeal', url: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=400&h=300&fit=crop&q=80&auto=format&fm=webp' },
+            { name: 'Oatmeal With Milk and Banana', url: 'https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=400&h=300&fit=crop&q=80&auto=format&fm=webp' },
+            { name: 'Oatmeal And Eggs Pancakes', url: 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=400&h=300&fit=crop&q=80&auto=format&fm=webp' },
+            { name: 'Egg Omlet With Bread And Avocado', url: 'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?w=400&h=300&fit=crop&q=80&auto=format&fm=webp' },
+            { name: 'Quinoa and Chicken Breast Salad', url: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&h=300&fit=crop&q=80&auto=format&fm=webp' },
+            { name: 'Ground Beef With Pasta And Avocado', url: 'https://images.unsplash.com/photo-1621996346565-e326e22e3824?w=400&h=300&fit=crop&q=80&auto=format&fm=webp' },
+            { name: 'Rice & Chicken Breast With Broccoli', url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop&q=80&auto=format&fm=webp' },
+            { name: 'Greek Yogurt & Toast', url: 'https://images.unsplash.com/photo-1584515933487-be72835aa71f?w=400&h=300&fit=crop&q=80&auto=format&fm=webp' },
+            { name: 'Greek Yogurt & Fruit Salad', url: 'https://images.unsplash.com/photo-1552010292-56414343e3d9?w=400&h=300&fit=crop&q=80&auto=format&fm=webp' }
+        ];
+
+        const mealGrid = document.getElementById('mealGrid');
+
+        mealImages.forEach(meal => {
+            const card = document.createElement('div');
+            card.className = 'meal-card';
+            
+            card.innerHTML = `
+                <img src="${meal.url}" alt="${meal.name}" class="meal-image" onload="this.parentNode.querySelector('.status').textContent='✅ Loaded'; this.parentNode.querySelector('.status').className='status success';" onerror="this.parentNode.querySelector('.status').textContent='❌ Failed'; this.parentNode.querySelector('.status').className='status error';">
+                <div class="meal-info">
+                    <div class="meal-name">${meal.name}</div>
+                    <div class="status">Loading...</div>
+                </div>
+            `;
+            
+            mealGrid.appendChild(card);
+        });
+    </script>
+</body>
+</html>

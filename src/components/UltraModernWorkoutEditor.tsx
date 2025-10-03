@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
+  ArrowUp,
   Save, 
   Dumbbell, 
   Plus, 
@@ -16,6 +17,7 @@ import {
   Zap,
   Activity,
   Trash2,
+  Copy,
   X,
 } from 'lucide-react';
 import { Client, ClientWorkoutAssignment, WorkoutProgram, WorkoutExercise, Exercise, WorkoutDay } from '../types';
@@ -1373,16 +1375,18 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                   </p>
                 )}
               </div>
-              <button
-                onClick={() => {
-                  setShowModificationInterface(false);
-                  setShowProgramSelection(true);
-                  setCustomWorkout({ name: '', description: '', days: [] });
-                }}
-                className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white transition-all duration-200"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => {
+                    setShowModificationInterface(false);
+                    setShowProgramSelection(true);
+                    setCustomWorkout({ name: '', description: '', days: [] });
+                  }}
+                  className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white transition-all duration-200"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Workout Basic Info */}
@@ -1844,6 +1848,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     </div>
                     
                     <div className="flex items-center space-x-2">
+                      {/* Add Set Button */}
                       <button
                         onClick={() => {
                           // Add a new set to this exercise
@@ -1878,9 +1883,121 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           }
                         }}
                         className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
+                        title="Add Set"
                       >
                         <Plus className="w-4 h-4" />
                       </button>
+
+                      {/* Quick Bulk Actions */}
+                      <div className="flex items-center space-x-2 bg-gradient-to-r from-slate-800/60 to-slate-700/60 backdrop-blur-sm rounded-xl p-2 border border-slate-600/30 shadow-lg">
+                        {/* +2 Reps */}
+                        <button
+                          onClick={() => {
+                            if (selectedProgram) {
+                              const updatedProgram = {
+                                ...selectedProgram,
+                                days: selectedProgram.days.map((day, dayIndex) => 
+                                  dayIndex === currentDay
+                                    ? {
+                                        ...day,
+                                        exercises: day.exercises.map(ex => 
+                                          ex.id === exercise.id
+                                            ? {
+                                                ...ex,
+                                                sets: ex.sets.map(set => ({
+                                                  ...set,
+                                                  reps: set.reps + 2
+                                                }))
+                                              }
+                                            : ex
+                                        )
+                                      }
+                                    : day
+                                )
+                              };
+                              setSelectedProgram(updatedProgram);
+                              setTimeout(() => autoSaveChanges(updatedProgram), 500);
+                            }
+                          }}
+                          className="group w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/30 hover:from-blue-500/40 hover:to-blue-600/50 text-blue-300 hover:text-blue-200 transition-all duration-300 flex items-center justify-center text-xs font-bold border border-blue-500/20 hover:border-blue-400/40 hover:shadow-lg hover:shadow-blue-500/20"
+                          title="+2 Reps to All Sets"
+                        >
+                          <span className="group-hover:scale-110 transition-transform duration-200">+2R</span>
+                        </button>
+
+                        {/* +2.5kg */}
+                        <button
+                          onClick={() => {
+                            if (selectedProgram) {
+                              const updatedProgram = {
+                                ...selectedProgram,
+                                days: selectedProgram.days.map((day, dayIndex) => 
+                                  dayIndex === currentDay
+                                    ? {
+                                        ...day,
+                                        exercises: day.exercises.map(ex => 
+                                          ex.id === exercise.id
+                                            ? {
+                                                ...ex,
+                                                sets: ex.sets.map(set => ({
+                                                  ...set,
+                                                  weight: set.weight + 2.5
+                                                }))
+                                              }
+                                            : ex
+                                        )
+                                      }
+                                    : day
+                                )
+                              };
+                              setSelectedProgram(updatedProgram);
+                              setTimeout(() => autoSaveChanges(updatedProgram), 500);
+                            }
+                          }}
+                          className="group w-8 h-8 rounded-lg bg-gradient-to-br from-green-500/20 to-green-600/30 hover:from-green-500/40 hover:to-green-600/50 text-green-300 hover:text-green-200 transition-all duration-300 flex items-center justify-center text-xs font-bold border border-green-500/20 hover:border-green-400/40 hover:shadow-lg hover:shadow-green-500/20"
+                          title="+2.5kg to All Sets"
+                        >
+                          <span className="group-hover:scale-110 transition-transform duration-200">+2.5</span>
+                        </button>
+
+                        {/* Copy First Set */}
+                        <button
+                          onClick={() => {
+                            if (selectedProgram && exercise.sets.length > 1) {
+                              const firstSet = exercise.sets[0];
+                              const updatedProgram = {
+                                ...selectedProgram,
+                                days: selectedProgram.days.map((day, dayIndex) => 
+                                  dayIndex === currentDay
+                                    ? {
+                                        ...day,
+                                        exercises: day.exercises.map(ex => 
+                                          ex.id === exercise.id
+                                            ? {
+                                                ...ex,
+                                                sets: ex.sets.map(set => ({
+                                                  ...set,
+                                                  reps: firstSet.reps,
+                                                  weight: firstSet.weight
+                                                }))
+                                              }
+                                            : ex
+                                        )
+                                      }
+                                    : day
+                                )
+                              };
+                              setSelectedProgram(updatedProgram);
+                              setTimeout(() => autoSaveChanges(updatedProgram), 500);
+                            }
+                          }}
+                          className="group w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/30 hover:from-purple-500/40 hover:to-purple-600/50 text-purple-300 hover:text-purple-200 transition-all duration-300 flex items-center justify-center border border-purple-500/20 hover:border-purple-400/40 hover:shadow-lg hover:shadow-purple-500/20"
+                          title="Copy First Set to All Sets"
+                        >
+                          <Copy className="w-3.5 h-3.5 group-hover:scale-110 transition-transform duration-200" />
+                        </button>
+
+                      </div>
                       <button
                         onClick={() => {
                           // Add reps to all sets of this exercise
@@ -2203,6 +2320,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         )}
           </>
         )}
+
       </div>
     </div>
   );

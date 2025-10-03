@@ -1,19 +1,46 @@
 import { Ingredient, SelectedMeal, NutritionSummary } from '../types';
 
 export const calculateIngredientNutrition = (ingredient: Ingredient) => {
+  console.log('🔍 calculateIngredientNutrition called with:', ingredient);
+  
   if (!ingredient || !ingredient.food || typeof ingredient.quantity !== 'number') {
+    console.log('⚠️ Invalid ingredient data, returning zeros');
     return { kcal: 0, protein: 0, fat: 0, carbs: 0 };
   }
   
   const { food, quantity } = ingredient;
   const factor = quantity / 100; // Convert to per 100g basis
   
-  return {
+  console.log('🔍 Food data:', {
+    name: food.name,
+    kcal: food.kcal,
+    protein: food.protein,
+    fat: food.fat,
+    carbs: food.carbs,
+    quantity,
+    factor
+  });
+  
+  // Check for NaN values in food data
+  if (isNaN(food.kcal) || isNaN(food.protein) || isNaN(food.fat) || isNaN(food.carbs)) {
+    console.error('❌ NaN detected in food data:', {
+      name: food.name,
+      kcal: food.kcal,
+      protein: food.protein,
+      fat: food.fat,
+      carbs: food.carbs
+    });
+  }
+  
+  const result = {
     kcal: Math.round(food.kcal * factor),
     protein: Math.round(food.protein * factor * 10) / 10,
     fat: Math.round(food.fat * factor * 10) / 10,
     carbs: Math.round(food.carbs * factor * 10) / 10
   };
+  
+  console.log('🔍 Calculated nutrition result:', result);
+  return result;
 };
 
 export const calculateMealNutrition = (selectedMeal: SelectedMeal) => {
