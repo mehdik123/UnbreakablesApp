@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Users, 
   Plus, 
@@ -23,9 +24,13 @@ import {
   Star,
   Crown,
   User,
-  Archive
+  Archive,
+  Key,
+  LogOut
 } from 'lucide-react';
 import { Client, ClientWorkoutAssignment } from '../types';
+import { ClientCredentialsManager } from './ClientCredentialsManager';
+import { authService } from '../lib/authService';
 
 // Animated Counter Component
 const AnimatedCounter: React.FC<{ value: number; duration?: number }> = ({ value, duration = 2000 }) => {
@@ -122,6 +127,33 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
     isActive: true
   });
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
+  const [credentialsManagerClient, setCredentialsManagerClient] = useState<Client | null>(null);
+
+  // Logout handler
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to logout?')) {
+      authService.logout();
+      window.location.reload();
+    }
+  };
+
+  // Handle dropdown positioning
+  const handleDropdownClick = (e: React.MouseEvent, clientId: string) => {
+    const button = e.currentTarget as HTMLElement;
+    const rect = button.getBoundingClientRect();
+    
+    if (openDropdownId === clientId) {
+      setOpenDropdownId(null);
+      setDropdownPosition(null);
+    } else {
+      setOpenDropdownId(clientId);
+      setDropdownPosition({
+        top: rect.bottom + 8,
+        left: rect.right - 224 // 224px = w-56 (14rem * 16px)
+      });
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -132,9 +164,14 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
 
   // Close dropdown when clicking outside
   useEffect(() => {
-    const handleClickOutside = () => {
+    const handleClickOutside = (e: MouseEvent) => {
       if (openDropdownId) {
-        setOpenDropdownId(null);
+        const target = e.target as HTMLElement;
+        // Don't close if clicking inside dropdown or on the button
+        if (!target.closest('.dropdown-menu') && !target.closest('button[title="More options"]')) {
+          setOpenDropdownId(null);
+          setDropdownPosition(null);
+        }
       }
     };
 
@@ -344,13 +381,21 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                 <Plus className="w-4 h-4" />
                 <span className="text-sm sm:text-base">New Client</span>
               </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-medium transition-all duration-200"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm">Logout</span>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="w-full px-3 sm:px-4 lg:px-6 py-4 sm:py-8">
+      <div className="w-full px-3 sm:px-4 lg:px-6 py-4 sm:py-8 relative">
         {/* Welcome Section - Mobile Optimized */}
         <div className="mb-6">
           <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
@@ -473,8 +518,8 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
 
           {/* Clients Table/Grid */}
           {viewMode === 'list' ? (
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden">
-              <div className="overflow-x-auto">
+            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-visible">
+              <div className="overflow-x-auto rounded-2xl">
                 <table className="w-full">
                   <thead className="bg-slate-800/70">
                     <tr>
@@ -491,7 +536,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                   </thead>
                   <tbody className="divide-y divide-slate-700/50">
                     {filteredClients.map((client) => (
-                      <tr key={client.id} className="hover:bg-slate-800/30 transition-colors duration-200">
+                      <tr key={client.id} className="hover:bg-slate-800/30 transition-colors duration-200 relative">
                         <td className="px-8 py-6 whitespace-nowrap">
                           <input type="radio" className="rounded border-slate-600 bg-slate-700 text-red-500 focus:ring-red-500" />
                         </td>
@@ -531,7 +576,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                             </span>
                           </div>
                         </td>
-                        <td className="px-8 py-6 whitespace-nowrap">
+                        <td className="px-8 py-6 whitespace-nowrap relative">
                           <div className="flex items-center space-x-2">
                             <button
                               onClick={() => onNavigateToClientPlan(client)}
@@ -557,43 +602,13 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                             >
                               <Share2 className="w-5 h-5" />
                             </button>
-                            <div className="relative">
-                              <button 
-                                onClick={() => setOpenDropdownId(openDropdownId === client.id ? null : client.id)}
-                                className="p-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
-                              >
-                                <MoreVertical className="w-5 h-5" />
-                              </button>
-                              {/* Dropdown Menu - Only show when clicked */}
-                              {openDropdownId === client.id && (
-                                <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-lg border border-slate-700 z-10">
-                                  <div className="py-2">
-                                    <button
-                                      onClick={() => {
-                                        onArchiveClient(client.id);
-                                        setOpenDropdownId(null);
-                                      }}
-                                      className="w-full px-4 py-2 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2"
-                                    >
-                                      <Archive className="w-4 h-4" />
-                                      <span>Archive Client</span>
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        if (window.confirm(`Are you sure you want to permanently delete ${client.name}? This action cannot be undone.`)) {
-                                          onDeleteClient(client.id);
-                                        }
-                                        setOpenDropdownId(null);
-                                      }}
-                                      className="w-full px-4 py-2 text-left text-red-400 hover:bg-slate-700 flex items-center space-x-2"
-                                    >
-                                      <X className="w-4 h-4" />
-                                      <span>Delete Client</span>
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                            <button 
+                              onClick={(e) => handleDropdownClick(e, client.id)}
+                              className="p-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors duration-200"
+                              title="More options"
+                            >
+                              <MoreVertical className="w-5 h-5" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -607,7 +622,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               {filteredClients.map((client) => (
                 <div
                   key={client.id}
-                  className="group bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4 hover:bg-slate-800/70 transition-all duration-300"
+                  className="group bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4 hover:bg-slate-800/70 transition-all duration-300 relative"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center space-x-3">
@@ -667,46 +682,17 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     <button
                       onClick={() => onShareWithClient(client)}
                       className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
+                      title="Share with client"
                     >
                       <Share2 className="w-3 h-3" />
                     </button>
-                    <div className="relative">
-                      <button 
-                        onClick={() => setOpenDropdownId(openDropdownId === client.id ? null : client.id)}
-                        className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
-                      >
-                        <MoreVertical className="w-3 h-3" />
-                      </button>
-                      {/* Dropdown Menu - Only show when clicked */}
-                      {openDropdownId === client.id && (
-                        <div className="absolute right-0 mt-2 w-48 bg-slate-800 rounded-lg shadow-lg border border-slate-700 z-10">
-                          <div className="py-2">
-                            <button
-                              onClick={() => {
-                                onArchiveClient(client.id);
-                                setOpenDropdownId(null);
-                              }}
-                              className="w-full px-4 py-2 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2"
-                            >
-                              <Archive className="w-4 h-4" />
-                              <span>Archive Client</span>
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (window.confirm(`Are you sure you want to permanently delete ${client.name}? This action cannot be undone.`)) {
-                                  onDeleteClient(client.id);
-                                }
-                                setOpenDropdownId(null);
-                              }}
-                              className="w-full px-4 py-2 text-left text-red-400 hover:bg-slate-700 flex items-center space-x-2"
-                            >
-                              <X className="w-4 h-4" />
-                              <span>Delete Client</span>
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    <button 
+                      onClick={(e) => handleDropdownClick(e, client.id)}
+                      className="p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors duration-200"
+                      title="More options"
+                    >
+                      <MoreVertical className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -822,6 +808,84 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
             </div>
           </div>
         </div>
+      )}
+
+      {/* Portal Dropdown Menu */}
+      {openDropdownId && dropdownPosition && createPortal(
+        <div 
+          className="dropdown-menu fixed w-56 bg-slate-800 rounded-lg shadow-2xl border-2 border-blue-500 z-[10000]"
+          style={{
+            top: `${dropdownPosition.top}px`,
+            left: `${dropdownPosition.left}px`
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="py-2">
+            {(() => {
+              const currentClient = filteredClients.find(c => c.id === openDropdownId);
+              if (!currentClient) return null;
+              
+              return (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('🔑 Opening credentials manager for:', currentClient.name, currentClient.id);
+                      setCredentialsManagerClient(currentClient);
+                      setOpenDropdownId(null);
+                      setDropdownPosition(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-blue-400 hover:bg-slate-700 flex items-center space-x-2"
+                  >
+                    <Key className="w-4 h-4" />
+                    <span>Manage Credentials</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      onArchiveClient(currentClient.id);
+                      setOpenDropdownId(null);
+                      setDropdownPosition(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2"
+                  >
+                    <Archive className="w-4 h-4" />
+                    <span>Archive Client</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to permanently delete ${currentClient.name}? This action cannot be undone.`)) {
+                        onDeleteClient(currentClient.id);
+                      }
+                      setOpenDropdownId(null);
+                      setDropdownPosition(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-red-400 hover:bg-slate-700 flex items-center space-x-2"
+                  >
+                    <X className="w-4 h-4" />
+                    <span>Delete Client</span>
+                  </button>
+                </>
+              );
+            })()}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Client Credentials Manager Modal */}
+      {credentialsManagerClient && (
+        <>
+          {console.log('📋 Rendering ClientCredentialsManager:', credentialsManagerClient)}
+          <ClientCredentialsManager
+            clientId={credentialsManagerClient.id}
+            clientName={credentialsManagerClient.name}
+            onClose={() => {
+              console.log('❌ Closing credentials manager');
+              setCredentialsManagerClient(null);
+            }}
+          />
+        </>
       )}
     </div>
   );

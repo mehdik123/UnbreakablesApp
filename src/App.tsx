@@ -1,5 +1,7 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { ModernLoadingScreen } from './components/ModernLoadingScreen';
+import { CoachLogin } from './components/CoachLogin';
+import { ClientLogin } from './components/ClientLogin';
 
 // Lazy load heavy components
 const UnbreakableSteamClientsManager = lazy(() => import('./components/UnbreakableSteamClientsManager').then(module => ({ default: module.UnbreakableSteamClientsManager })));
@@ -27,8 +29,14 @@ import { meals as defaultMeals } from './data/meals';
 import { exercises as defaultExercises } from './data/exercises';
 import { supabase, isSupabaseReady } from './lib/supabaseClient';
 import { dbListClients, dbListClientsWithWorkoutAssignments, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment } from './lib/db';
+import { authService } from './lib/authService';
 
 function App() {
+  // Authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authType, setAuthType] = useState<'none' | 'coach' | 'client'>('none');
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  
   const [appState, setAppState] = useState<AppState>({
     currentView: 'clients',
     selectedClient: null,
@@ -40,6 +48,19 @@ function App() {
   const [exercises, setExercises] = useState(defaultExercises);
   const [isLoading, setIsLoading] = useState(true);
   const [clientViewData, setClientViewData] = useState<any>(null);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const checkAuth = () => {
+      const currentUser = authService.getCurrentUser();
+      if (currentUser) {
+        setIsAuthenticated(true);
+        setAuthType(currentUser.type);
+      }
+      setIsCheckingAuth(false);
+    };
+    checkAuth();
+  }, []);
 
   // Load real food database and exercises from database
   useEffect(() => {
@@ -134,6 +155,12 @@ function App() {
     
     // Load clients and handle share URLs
     (async () => {
+      // Check if this is a client link and if authentication is needed
+      if (clientShareId && !authService.isAuthenticated()) {
+        setIsCheckingAuth(false);
+        // Will show client login
+        return;
+      }
       let clients: Client[] = [];
       
       // Load clients from Supabase if available; fallback to localStorage
@@ -733,8 +760,63 @@ function App() {
     setAppState(prev => ({ ...prev, currentView: 'ingredients' }));
   };
 
-  if (isLoading) {
+  // Authentication handlers
+  const handleCoachLoginSuccess = () => {
+    setIsAuthenticated(true);
+    setAuthType('coach');
+  };
+
+  const handleClientLoginSuccess = (clientId: string) => {
+    setIsAuthenticated(true);
+    setAuthType('client');
+    
+    // Load and show client data
+    const foundClient = appState.clients.find(c => c.id === clientId);
+    if (foundClient) {
+      setAppState(prev => ({ 
+        ...prev, 
+        currentView: 'client-interface',
+        selectedClient: foundClient
+      }));
+    }
+  };
+
+  // Show loading while checking authentication
+  if (isCheckingAuth || isLoading) {
     return <ModernLoadingScreen message="Loading UnbreakableSteam..." />;
+  }
+
+  // Check if this is a client link
+  const urlParams = new URLSearchParams(window.location.search);
+  const clientShareId = urlParams.get('client');
+  const isClientLink = !!clientShareId;
+
+  // Show appropriate login screen if not authenticated
+  if (!isAuthenticated) {
+    if (isClientLink) {
+      // Extract client ID from share URL
+      const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+      const uuidMatch = clientShareId.match(uuidPattern);
+      const extractedClientId = uuidMatch ? uuidMatch[1] : clientShareId;
+      
+      return <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />;
+    } else {
+      return <CoachLogin onLoginSuccess={handleCoachLoginSuccess} />;
+    }
+  }
+
+  // Protect coach views
+  if (!isClientLink && authType !== 'coach') {
+    return <CoachLogin onLoginSuccess={handleCoachLoginSuccess} />;
+  }
+
+  // Protect client views
+  if (isClientLink && authType !== 'client') {
+    const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+    const uuidMatch = clientShareId.match(uuidPattern);
+    const extractedClientId = uuidMatch ? uuidMatch[1] : clientShareId;
+    
+    return <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />;
   }
 
   return (
