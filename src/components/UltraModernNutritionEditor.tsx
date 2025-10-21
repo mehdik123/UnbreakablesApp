@@ -500,14 +500,20 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   const handleExportPDF = async () => {
     setIsLoading(true);
     try {
-      await exportToPDF({
-        client,
-        nutrition: totalNutrition,
+      const { exportEnhancedNutritionPDF } = await import('../utils/enhancedPdfExport');
+      await exportEnhancedNutritionPDF({
+        clientName: client.name,
         mealSlots,
-        type: 'nutrition'
+        totalNutrition: {
+          calories: totalNutrition.calories,
+          protein: totalNutrition.protein,
+          carbs: totalNutrition.carbs,
+          fats: totalNutrition.fats
+        }
       });
     } catch (error) {
       console.error('Export failed:', error);
+      alert('Failed to export PDF. Please try again.');
     } finally {
       setIsLoading(false);
     }

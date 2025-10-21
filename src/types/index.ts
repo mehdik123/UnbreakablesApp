@@ -198,15 +198,31 @@ export interface WorkoutSet {
   rpe?: number; // Rate of Perceived Exertion 1-10
 }
 
+export interface DropsetRound {
+  id: string;
+  reps: number;
+  weight: number;
+  completed: boolean;
+}
+
+export interface Dropset {
+  id: string;
+  rounds: DropsetRound[];
+  restPeriod?: number; // in seconds
+  notes?: string;
+}
+
 export interface WorkoutExercise {
   id: string;
   exercise: Exercise;
   sets: WorkoutSet[];
+  dropsets?: Dropset[]; // Array of dropsets for this exercise
   rest: string;
   restPeriod?: number; // in seconds
   notes?: string;
   order: number; // for ordering exercises in a workout
   superset?: string; // ID of superset group
+  supersetName?: string; // Display name for superset (e.g., "Superset A", "Superset B")
 }
 
 export interface WorkoutDay {

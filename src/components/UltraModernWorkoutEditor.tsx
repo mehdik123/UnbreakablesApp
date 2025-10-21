@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
-  ArrowUp,
   Save, 
   Dumbbell, 
   Plus, 
@@ -692,6 +691,264 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       setSelectedProgram(updatedProgram);
       
       // Auto-save after modification (immediate)
+      handleSaveAssignment();
+    }
+  };
+
+
+
+  // Handle superset toggle
+  const handleToggleSuperset = (exerciseId: string) => {
+    if (selectedProgram) {
+      const currentExercise = selectedProgram.days[currentDay]?.exercises?.find(ex => ex.id === exerciseId);
+      const isCurrentlySuperset = !!currentExercise?.superset;
+      
+      const updatedProgram = {
+        ...selectedProgram,
+        days: selectedProgram.days.map((day, dayIndex) => 
+          dayIndex === currentDay 
+            ? {
+                ...day,
+                exercises: day.exercises.map(exercise => 
+                  exercise.id === exerciseId 
+                    ? {
+                        ...exercise,
+                        superset: isCurrentlySuperset ? undefined : `superset-${Date.now()}`,
+                        supersetName: isCurrentlySuperset ? undefined : 'Superset A'
+                      }
+                    : exercise
+                )
+              }
+            : day
+        )
+      };
+      
+      setSelectedProgram(updatedProgram);
+      handleSaveAssignment();
+    }
+  };
+
+  // Handle superset name updates
+  const handleUpdateSupersetName = (exerciseId: string, newName: string) => {
+    if (selectedProgram) {
+      const updatedProgram = {
+        ...selectedProgram,
+        days: selectedProgram.days.map((day, dayIndex) => 
+          dayIndex === currentDay 
+            ? {
+                ...day,
+                exercises: day.exercises.map(exercise => 
+                  exercise.id === exerciseId 
+                    ? {
+                        ...exercise,
+                        supersetName: newName
+                      }
+                    : exercise
+                )
+              }
+            : day
+        )
+      };
+      
+      setSelectedProgram(updatedProgram);
+      handleSaveAssignment();
+    }
+  };
+
+  // Handle adding a new dropset
+  const handleAddDropset = (exerciseId: string) => {
+    if (selectedProgram) {
+      const newDropset = {
+        id: `dropset-${Date.now()}`,
+        rounds: [
+          {
+            id: `round-${Date.now()}-1`,
+            reps: 8,
+            weight: 10,
+            completed: false
+          },
+          {
+            id: `round-${Date.now()}-2`,
+            reps: 10,
+            weight: 8,
+            completed: false
+          },
+          {
+            id: `round-${Date.now()}-3`,
+            reps: 12,
+            weight: 6,
+            completed: false
+          }
+        ],
+        restPeriod: 30,
+        notes: ''
+      };
+
+      const updatedProgram = {
+        ...selectedProgram,
+        days: selectedProgram.days.map((day, dayIndex) => 
+          dayIndex === currentDay 
+            ? {
+                ...day,
+                exercises: day.exercises.map(exercise => 
+                  exercise.id === exerciseId 
+                    ? {
+                        ...exercise,
+                        dropsets: [...(exercise.dropsets || []), newDropset]
+                      }
+                    : exercise
+                )
+              }
+            : day
+        )
+      };
+      
+      setSelectedProgram(updatedProgram);
+      handleSaveAssignment();
+    }
+  };
+
+  // Handle removing a dropset
+  const handleRemoveDropset = (exerciseId: string, dropsetId: string) => {
+    if (selectedProgram) {
+      const updatedProgram = {
+        ...selectedProgram,
+        days: selectedProgram.days.map((day, dayIndex) => 
+          dayIndex === currentDay 
+            ? {
+                ...day,
+                exercises: day.exercises.map(exercise => 
+                  exercise.id === exerciseId 
+                    ? {
+                        ...exercise,
+                        dropsets: (exercise.dropsets || []).filter(dropset => dropset.id !== dropsetId)
+                      }
+                    : exercise
+                )
+              }
+            : day
+        )
+      };
+      
+      setSelectedProgram(updatedProgram);
+      handleSaveAssignment();
+    }
+  };
+
+  // Handle adding a round to a dropset
+  const handleAddDropsetRound = (exerciseId: string, dropsetId: string) => {
+    if (selectedProgram) {
+      const newRound = {
+        id: `round-${Date.now()}`,
+        reps: 8,
+        weight: 10,
+        completed: false
+      };
+
+      const updatedProgram = {
+        ...selectedProgram,
+        days: selectedProgram.days.map((day, dayIndex) => 
+          dayIndex === currentDay 
+            ? {
+                ...day,
+                exercises: day.exercises.map(exercise => 
+                  exercise.id === exerciseId 
+                    ? {
+                        ...exercise,
+                        dropsets: (exercise.dropsets || []).map(dropset => 
+                          dropset.id === dropsetId 
+                            ? {
+                                ...dropset,
+                                rounds: [...dropset.rounds, newRound]
+                              }
+                            : dropset
+                        )
+                      }
+                    : exercise
+                )
+              }
+            : day
+        )
+      };
+      
+      setSelectedProgram(updatedProgram);
+      handleSaveAssignment();
+    }
+  };
+
+  // Handle removing a round from a dropset
+  const handleRemoveDropsetRound = (exerciseId: string, dropsetId: string, roundId: string) => {
+    if (selectedProgram) {
+      const updatedProgram = {
+        ...selectedProgram,
+        days: selectedProgram.days.map((day, dayIndex) => 
+          dayIndex === currentDay 
+            ? {
+                ...day,
+                exercises: day.exercises.map(exercise => 
+                  exercise.id === exerciseId 
+                    ? {
+                        ...exercise,
+                        dropsets: (exercise.dropsets || []).map(dropset => 
+                          dropset.id === dropsetId 
+                            ? {
+                                ...dropset,
+                                rounds: dropset.rounds.filter(round => round.id !== roundId)
+                              }
+                            : dropset
+                        )
+                      }
+                    : exercise
+                )
+              }
+            : day
+        )
+      };
+      
+      setSelectedProgram(updatedProgram);
+      handleSaveAssignment();
+    }
+  };
+
+  // Handle updating a dropset round
+  const handleUpdateDropsetRound = (exerciseId: string, dropsetId: string, roundId: string, field: 'reps' | 'weight', change: number) => {
+    if (selectedProgram) {
+      const updatedProgram = {
+        ...selectedProgram,
+        days: selectedProgram.days.map((day, dayIndex) => 
+          dayIndex === currentDay 
+            ? {
+                ...day,
+                exercises: day.exercises.map(exercise => 
+                  exercise.id === exerciseId 
+                    ? {
+                        ...exercise,
+                        dropsets: (exercise.dropsets || []).map(dropset => 
+                          dropset.id === dropsetId 
+                            ? {
+                                ...dropset,
+                                rounds: dropset.rounds.map(round => 
+                                  round.id === roundId 
+                                    ? {
+                                        ...round,
+                                        [field]: field === 'reps' 
+                                          ? Math.max(1, round[field] + change)
+                                          : Math.max(0, round[field] + change)
+                                      }
+                                    : round
+                                )
+                              }
+                            : dropset
+                        )
+                      }
+                    : exercise
+                )
+              }
+            : day
+        )
+      };
+      
+      setSelectedProgram(updatedProgram);
       handleSaveAssignment();
     }
   };
@@ -1836,18 +2093,59 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                       <div className="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center">
                         <Dumbbell className="w-6 h-6 text-white" />
                       </div>
-                      <div>
-                        <button
-                          onClick={() => setShowExerciseSearch(exercise.id)}
-                          className="text-left"
-                        >
+                    <div className="flex-1">
+                      <button
+                        onClick={() => setShowExerciseSearch(exercise.id)}
+                        className="text-left w-full"
+                      >
+                        <div className="flex items-center space-x-2">
                           <h3 className="text-xl font-bold text-white hover:text-red-400 transition-colors">{exercise.exercise.name}</h3>
+                          {exercise.superset && (
+                            <span className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs font-bold px-2 py-1 rounded-full">
+                              {exercise.supersetName || exercise.superset}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-slate-400 text-sm">{exercise.rest} rest</p>
-                        </button>
-                      </div>
+                      </button>
+                    </div>
                     </div>
                     
                     <div className="flex items-center space-x-2">
+                      {/* Superset Controls */}
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={() => handleToggleSuperset(exercise.id)}
+                          className={`w-8 h-8 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                            exercise.superset 
+                              ? 'bg-blue-600/30 hover:bg-blue-600/50 text-blue-300' 
+                              : 'bg-slate-600/30 hover:bg-slate-600/50 text-slate-400'
+                          }`}
+                          title={exercise.superset ? 'Remove from superset' : 'Add to superset'}
+                        >
+                          <Zap className="w-4 h-4" />
+                        </button>
+                        {exercise.superset && (
+                          <input
+                            type="text"
+                            value={exercise.supersetName || exercise.superset}
+                            onChange={(e) => handleUpdateSupersetName(exercise.id, e.target.value)}
+                            className="w-20 px-2 py-1 bg-slate-700/50 border border-slate-600/50 rounded text-white text-xs"
+                            placeholder="Superset A"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
+                      </div>
+                      
+                      {/* Add Dropset Button */}
+                      <button
+                        onClick={() => handleAddDropset(exercise.id)}
+                        className="w-8 h-8 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 transition-all duration-200 flex items-center justify-center"
+                        title="Add dropset"
+                      >
+                        <Zap className="w-4 h-4" />
+                      </button>
+                      
                       {/* Add Set Button */}
                       <button
                         onClick={() => {
@@ -2071,76 +2369,146 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     </div>
                   </div>
 
-                  {/* Sets - Redesigned to match attached image */}
+                  {/* Sets */}
                   <div className="space-y-3">
-                    {exercise.sets.map((set, setIndex) => {
-                      // Client performance data available for reference
-                      
-                      return (
-                        <div key={set.id} className="flex items-center space-x-4 p-4 bg-slate-700/30 rounded-xl border border-slate-600/30">
-                          {/* Set Number */}
+                    {exercise.sets.map((set, setIndex) => (
+                      <div key={set.id} className="flex items-center space-x-4 p-4 bg-slate-700/30 rounded-xl border border-slate-600/30">
+                        {/* Set Number */}
                         <div className="flex items-center space-x-2">
-                            <span className="text-white text-sm font-medium w-8">Set {setIndex + 1}</span>
+                          <span className="text-white text-sm font-medium w-8">Set {setIndex + 1}</span>
                         </div>
                         
-                          {/* Reps Section */}
+                        {/* Reps Section */}
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleUpdateReps(exercise.id, set.id, -1)}
-                              className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
+                            className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
                           >
                             <Minus className="w-4 h-4" />
                           </button>
-                            <span className="text-white font-bold text-lg min-w-[2rem] text-center">{set.reps}</span>
+                          <span className="text-white font-bold text-lg min-w-[2rem] text-center">{set.reps}</span>
                           <button
                             onClick={() => handleUpdateReps(exercise.id, set.id, 1)}
-                              className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
+                            className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
                           >
                             <Plus className="w-4 h-4" />
                           </button>
                           <span className="text-slate-400 text-sm">reps</span>
                         </div>
                         
-                          {/* Weight Section */}
+                        {/* Weight Section */}
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => handleUpdateWeight(exercise.id, set.id, -2.5)}
-                              className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
+                            className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
                           >
                             <Minus className="w-4 h-4" />
                           </button>
-                            <span className="text-white font-bold text-lg min-w-[3rem] text-center">{set.weight}kg</span>
+                          <span className="text-white font-bold text-lg min-w-[3rem] text-center">{set.weight}kg</span>
                           <button
                             onClick={() => handleUpdateWeight(exercise.id, set.id, 2.5)}
-                              className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
+                            className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
                           >
                             <Plus className="w-4 h-4" />
                           </button>
                         </div>
                         
-                          {/* Client Performance Indicator */}
-                          {client.workoutAssignment?.clientPerformance?.find(
-                            perf => perf.exerciseId === exercise.id && 
-                            perf.weekNumber === currentWeek &&
-                            perf.dayNumber === currentDay + 1
-                          ) && (
-                            <div className="flex items-center space-x-1 text-green-400 text-xs">
-                              <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                              <span>Client</span>
-                            </div>
-                          )}
-                          
-                          {/* Delete Button */}
+                        {/* Client Performance Indicator */}
+                        {client.workoutAssignment?.clientPerformance?.find(
+                          perf => perf.exerciseId === exercise.id && 
+                          perf.weekNumber === currentWeek &&
+                          perf.dayNumber === currentDay + 1
+                        ) && (
+                          <div className="flex items-center space-x-1 text-green-400 text-xs">
+                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                            <span>Client</span>
+                          </div>
+                        )}
+                        
+                        {/* Delete Button */}
                         <button
                           onClick={() => handleRemoveSet(exercise.id, set.id)}
-                            className="w-8 h-8 rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300 transition-all duration-200 flex items-center justify-center ml-auto"
+                          className="w-8 h-8 rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300 transition-all duration-200 flex items-center justify-center ml-auto"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                      );
-                    })}
+                    ))}
                   </div>
+
+                  {/* Dropsets */}
+                  {exercise.dropsets && exercise.dropsets.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      <h6 className="text-sm font-semibold text-purple-300 flex items-center space-x-2">
+                        <Zap className="w-4 h-4" />
+                        <span>Dropsets</span>
+                      </h6>
+                      {exercise.dropsets.map((dropset, dropsetIndex) => (
+                        <div key={dropset.id} className="bg-gradient-to-r from-purple-700/30 to-pink-700/30 rounded-xl border border-purple-500/50 p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-purple-300 font-medium">Dropset {dropsetIndex + 1}</span>
+                            <button
+                              onClick={() => handleRemoveDropset(exercise.id, dropset.id)}
+                              className="w-6 h-6 rounded bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300 transition-all duration-200 flex items-center justify-center"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            {dropset.rounds.map((round, roundIndex) => (
+                              <div key={round.id} className="flex items-center space-x-3 p-2 bg-purple-600/20 rounded-lg">
+                                <span className="text-purple-300 text-sm w-12">Round {roundIndex + 1}</span>
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => handleUpdateDropsetRound(exercise.id, dropset.id, round.id, 'reps', -1)}
+                                    className="w-6 h-6 rounded bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 transition-all duration-200 flex items-center justify-center"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <span className="text-purple-300 font-bold text-sm min-w-[2rem] text-center">{round.reps}</span>
+                                  <button
+                                    onClick={() => handleUpdateDropsetRound(exercise.id, dropset.id, round.id, 'reps', 1)}
+                                    className="w-6 h-6 rounded bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 transition-all duration-200 flex items-center justify-center"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                  <span className="text-purple-300 text-xs">reps</span>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => handleUpdateDropsetRound(exercise.id, dropset.id, round.id, 'weight', -2.5)}
+                                    className="w-6 h-6 rounded bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 transition-all duration-200 flex items-center justify-center"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <span className="text-purple-300 font-bold text-sm min-w-[2rem] text-center">{round.weight}kg</span>
+                                  <button
+                                    onClick={() => handleUpdateDropsetRound(exercise.id, dropset.id, round.id, 'weight', 2.5)}
+                                    className="w-6 h-6 rounded bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 transition-all duration-200 flex items-center justify-center"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </div>
+                                <button
+                                  onClick={() => handleRemoveDropsetRound(exercise.id, dropset.id, round.id)}
+                                  className="w-6 h-6 rounded bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300 transition-all duration-200 flex items-center justify-center ml-auto"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              onClick={() => handleAddDropsetRound(exercise.id, dropset.id)}
+                              className="w-full py-2 px-3 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
+                            >
+                              <Plus className="w-4 h-4" />
+                              <span>Add Round</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Exercise Notes */}
                   {exercise.notes && (

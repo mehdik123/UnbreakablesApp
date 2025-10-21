@@ -14,12 +14,15 @@ import {
   Calendar,
   Plus,
   Minus,
-  Heart
+  Heart,
+  X,
+  Edit3,
+  Eye
 } from 'lucide-react';
 import { Client, WorkoutProgram } from '../types';
-import { logExercisePerformance } from '../lib/progressTracking';
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking';
 import { useHorizontalScroll } from '../hooks/useHorizontalScroll';
+import { WarmupSection } from './WarmupSection';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -50,11 +53,14 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const [currentDay, setCurrentDay] = useState(0);
   const [completedExercises, setCompletedExercises] = useState<{ [exerciseId: string]: boolean }>({});
   const [exerciseData, setExerciseData] = useState<{ [exerciseId: string]: { [setIndex: number]: { reps: number; weight: number } } }>({});
+  const [dropsetData, setDropsetData] = useState<{ [exerciseId: string]: { [dropsetIndex: number]: { [roundIndex: number]: { reps: number; weight: number } } } }>({});
   const [isWorkoutActive, setIsWorkoutActive] = useState(false);
   const [workoutProgram, setWorkoutProgram] = useState<WorkoutProgram | null>(null);
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const SHARED_KEY = `client_${client.id}_assignment`;
   const [sharedVersion, setSharedVersion] = useState<number>(0);
+  const [showWarmupModal, setShowWarmupModal] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Performance tracking
   const { recordExercise } = usePerformanceTracking({
@@ -71,6 +77,25 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     snapToItems: true,
     enableSwipe: true
   });
+
+  // Function to extract muscle groups from current workout session
+  const getMuscleGroupsFromWorkout = (workoutData: any): string[] => {
+    if (!workoutData?.exercises) return [];
+    
+    const muscleGroups = new Set<string>();
+    
+    workoutData.exercises.forEach((exercise: any) => {
+      if (exercise.exercise?.muscleGroup) {
+        // Use the muscleGroup field from the exercises table
+        const muscle = exercise.exercise.muscleGroup;
+        if (muscle && muscle.trim() !== '') {
+          muscleGroups.add(muscle.trim());
+        }
+      }
+    });
+    
+    return Array.from(muscleGroups);
+  };
 
   // Function to enrich program with video URLs from Supabase exercises table
   const enrichProgramWithVideoUrls = async (program: any) => {
@@ -120,31 +145,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     }
   };
 
-  // Function to preserve video URLs when updating program
-  const preserveVideoUrlsInProgram = (updatedProgram: any, originalProgram: WorkoutProgram | null) => {
-    if (!originalProgram) return updatedProgram;
-    
-    return {
-      ...updatedProgram,
-      days: updatedProgram.days.map((day: any, dayIndex: number) => ({
-        ...day,
-        exercises: day.exercises.map((exercise: any, exerciseIndex: number) => {
-          const originalExercise = originalProgram.days[dayIndex]?.exercises[exerciseIndex];
-          if (originalExercise?.exercise?.videoUrl) {
-            return {
-              ...exercise,
-              exercise: {
-                ...exercise.exercise,
-                videoUrl: originalExercise.exercise.videoUrl,
-                muscleGroup: originalExercise.exercise.muscleGroup
-              }
-            };
-          }
-          return exercise;
-        })
-      }))
-    };
-  };
 
   // Real-time sync - Prefer Supabase assignment, fallback to localStorage
   useEffect(() => {
@@ -396,118 +396,31 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         }
       }
     }));
-
-    // Update the actual workout program structure for real-time sync with coach
-    const baseProgram = workoutProgram || client.workoutAssignment?.program;
-    if (baseProgram) {
-      const updatedProgram = {
-        ...baseProgram,
-        days: baseProgram.days.map((day, dayIndex) => 
-          dayIndex === currentDay 
-            ? {
-                ...day,
-                exercises: day.exercises.map(exercise => 
-                  exercise.id === exerciseId 
-                    ? {
-                        ...exercise,
-                        sets: exercise.sets.map((set, setIdx) => 
-                          setIdx === setIndex 
-                            ? { ...set, [field]: value }
-                            : set
-                        )
-                      }
-                    : exercise
-                )
-              }
-            : day
-        )
-      };
-
-      // Preserve video URLs from the original program
-      const updatedProgramWithVideos = preserveVideoUrlsInProgram(updatedProgram, workoutProgram);
-      setWorkoutProgram(updatedProgramWithVideos);
-
-      if (isSupabaseReady && supabase && assignmentId) {
-        supabase
-          .from('workout_assignments')
-          .update({
-            program_json: updatedProgramWithVideos as unknown as any,
-            current_week: currentWeek,
-            current_day: currentDay + 1,
-            last_modified_by: 'client',
-            version: (sharedVersion || 0) + 1
-          })
-          .eq('id', assignmentId)
-        .then(() => {});
-        // Enhanced progress tracking
-        setTimeout(async () => {
-          try {
-            // Find the exercise details
-            const exercise = currentWorkoutProgram?.days?.[currentDay]?.exercises?.find(ex => ex.id === exerciseId);
-            if (!exercise || !client.workoutAssignment) return;
-
-            const currentSet = exercise.sets[setIndex];
-            if (!currentSet) return;
-
-            // Get current values
-            const currentData = exerciseData[exerciseId]?.[setIndex] || {};
-            const actualReps = field === 'reps' ? value : (currentData.reps || currentSet.reps);
-            const actualWeight = field === 'weight' ? value : (currentData.weight || currentSet.weight);
-
-            // Map exercise name to muscle group
-            const muscleGroupMap: { [key: string]: string } = {
-              'chest': 'chest',
-              'back': 'back', 
-              'legs': 'legs',
-              'shoulders': 'shoulders',
-              'arms': 'arms',
-              'core': 'core'
-            };
-
-            const muscleGroup = muscleGroupMap[exercise.exercise.muscleGroup.toLowerCase()] || 'other';
-
-            // Log the performance using our enhanced tracking
-            await logExercisePerformance({
-              clientId: client.id,
-              workoutAssignmentId: client.workoutAssignment.id,
-              exerciseName: exercise.exercise.name.toLowerCase().replace(/\s+/g, '_'),
-              muscleGroup: muscleGroup,
-              weekNumber: currentWeek,
-              dayNumber: currentDay + 1,
-              setNumber: setIndex + 1,
-              plannedReps: currentSet.reps,
-              actualReps: actualReps,
-              plannedWeight: currentSet.weight,
-              actualWeight: actualWeight
-            });
-
-
-          } catch (error) {
-            console.error('Error logging exercise performance:', error);
-          }
-        }, 300);
-      } else {
-        // Fallback to shared key
-        try {
-          const existing = localStorage.getItem(SHARED_KEY);
-          const prev = existing ? JSON.parse(existing) : {};
-          const nextVersion = (prev?.version || 0) + 1;
-          const sharedData = {
-            clientName: client.name,
-            clientId: client.id,
-            workoutAssignment: { ...client.workoutAssignment, program: updatedProgram },
-            lastModifiedBy: 'client' as const,
-            lastModifiedAt: new Date().toISOString(),
-            version: nextVersion
-          };
-          localStorage.setItem(SHARED_KEY, JSON.stringify(sharedData));
-          setSharedVersion(nextVersion);
-          window.dispatchEvent(new StorageEvent('storage', { key: SHARED_KEY, newValue: JSON.stringify(sharedData) }));
-        } catch {}
-      }
-    }
   };
 
+  const updateDropsetData = (exerciseId: string, dropsetIndex: number, roundIndex: number, field: 'reps' | 'weight', value: number) => {
+    setDropsetData(prev => ({
+      ...prev,
+      [exerciseId]: {
+        ...prev[exerciseId],
+        [dropsetIndex]: {
+          ...prev[exerciseId]?.[dropsetIndex],
+          [roundIndex]: {
+            ...prev[exerciseId]?.[dropsetIndex]?.[roundIndex],
+            [field]: value
+          }
+        }
+      }
+    }));
+  };
+
+  // Function to get YouTube thumbnail
+  const getYouTubeThumbnail = (videoUrl: string) => {
+    if (!videoUrl) return null;
+    const videoId = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1];
+    if (!videoId) return null;
+    return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+  };
 
   const getDayStatus = (dayIndex: number) => {
     const dayExercises = currentWorkoutProgram.days[dayIndex].exercises;
@@ -519,21 +432,12 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     return 'in-progress';
   };
 
-
   const getDayStatusIcon = (status: string) => {
     switch (status) {
       case 'completed': return <CheckCircle className="w-4 h-4" />;
       case 'in-progress': return <Clock className="w-4 h-4" />;
       default: return <Circle className="w-4 h-4" />;
     }
-  };
-
-  // Function to get YouTube thumbnail
-  const getYouTubeThumbnail = (videoUrl: string) => {
-    if (!videoUrl) return null;
-    const videoId = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1];
-    if (!videoId) return null;
-    return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
   };
 
   // Helper to clear stale cached workout data for this client only
@@ -766,28 +670,53 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         {/* Current Day Workout */}
         {isDayUnlocked && currentDayData && (
           <div className="space-y-6 sm:space-y-8">
-            {/* Workout Header */}
-            <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-6 sm:p-8 shadow-2xl">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-2xl flex items-center justify-center shadow-lg border border-[#dc1e3a]/30">
-                    <Dumbbell className="w-6 h-6 text-[#dc1e3a]" />
+            {/* Workout Header - Mobile Optimized */}
+            <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-xl sm:rounded-3xl border border-gray-700/50 p-3 sm:p-6 shadow-2xl">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
+                  <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg sm:rounded-2xl flex items-center justify-center shadow-lg border border-[#dc1e3a]/30 flex-shrink-0">
+                    <Dumbbell className="w-4 h-4 sm:w-6 sm:h-6 text-[#dc1e3a]" />
                   </div>
-                  <div>
-                    <h3 className="text-xl sm:text-2xl font-bold text-white">{currentDayData.name}</h3>
-                    <p className="text-gray-400 text-sm sm:text-base">Week {currentWeek} • {currentDayData.exercises.length} exercises</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm sm:text-xl font-bold text-white truncate">{currentDayData.name}</h3>
+                    <p className="text-gray-400 text-xs sm:text-sm">Week {currentWeek} • {currentDayData.exercises.length} exercises</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-2xl sm:text-3xl font-bold text-[#dc1e3a]">
-                    {Object.values(completedExercises).filter(Boolean).length}/{currentDayData.exercises.length}
+                <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+                  <div className="text-right">
+                    <div className="text-lg sm:text-2xl font-bold text-[#dc1e3a]">
+                      {Object.values(completedExercises).filter(Boolean).length}/{currentDayData.exercises.length}
+                    </div>
+                    <div className="text-gray-400 text-xs">Completed</div>
                   </div>
-                  <div className="text-gray-400 text-xs sm:text-sm">Completed</div>
+                  {/* Edit Mode Toggle Button - Mobile Optimized */}
+                  <button
+                    onClick={() => setIsEditMode(!isEditMode)}
+                    className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold transition-all duration-300 flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${
+                      isEditMode
+                        ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/10 text-green-400 border border-green-500/30 hover:from-green-500/30 hover:to-emerald-500/20'
+                        : 'bg-gradient-to-r from-[#dc1e3a]/20 to-red-500/10 text-[#dc1e3a] border border-[#dc1e3a]/30 hover:from-[#dc1e3a]/30 hover:to-red-500/20 hover:text-white'
+                    }`}
+                  >
+                    {isEditMode ? (
+                      <>
+                        <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span className="hidden sm:inline">View Mode</span>
+                        <span className="sm:hidden">View</span>
+                      </>
+                    ) : (
+                      <>
+                        <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span className="hidden sm:inline">Edit Mode</span>
+                        <span className="sm:hidden">Edit</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
               
-              {/* Progress Bar */}
-              <div className="w-full bg-gray-700/50 rounded-full h-3 overflow-hidden">
+              {/* Progress Bar - Mobile Optimized */}
+              <div className="w-full bg-gray-700/50 rounded-full h-2 sm:h-3 overflow-hidden">
                 <div 
                   className="h-full bg-gradient-to-r from-[#dc1e3a] to-red-600 rounded-full transition-all duration-500 ease-out"
                   style={{ 
@@ -797,53 +726,88 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
               </div>
             </div>
 
-            {/* Exercises */}
-            <div className="space-y-6 sm:space-y-8">
+            {/* Warmup Button - Mobile Optimized */}
+            {currentDayData && (
+              <div className="bg-slate-800/50 backdrop-blur-xl rounded-xl sm:rounded-2xl border border-slate-700/50 p-3 sm:p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm sm:text-lg font-semibold text-white">Warmup Available</h3>
+                      <p className="text-slate-400 text-xs sm:text-sm truncate">
+                        {getMuscleGroupsFromWorkout(currentDayData).length > 0 
+                          ? `Targeted warmup for: ${getMuscleGroupsFromWorkout(currentDayData).join(', ')}`
+                          : 'General warmup exercises available'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowWarmupModal(true)}
+                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg sm:rounded-xl font-semibold transition-all duration-300 text-xs sm:text-sm flex-shrink-0"
+                  >
+                    Start Warmup
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Exercises - Mobile Optimized */}
+            <div className="space-y-3 sm:space-y-6">
               {currentDayData.exercises.map((exercise, exerciseIndex) => (
-                <div key={exercise.id} className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-6 sm:p-8 shadow-2xl hover:shadow-[#dc1e3a]/10 transition-all duration-300 group">
-                  {/* Exercise Header - Premium Design with Theme Colors */}
-                  <div className="flex items-start space-x-4 mb-6">
-                    <div className="relative">
-                      <div className="w-12 h-12 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-xl flex items-center justify-center text-white font-bold text-lg border border-[#dc1e3a]/30">
+                <div key={exercise.id} className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-xl sm:rounded-3xl border border-gray-700/50 p-3 sm:p-6 shadow-2xl hover:shadow-[#dc1e3a]/10 transition-all duration-300 group">
+                  {/* Exercise Header - Mobile Optimized */}
+                  <div className="flex items-start space-x-2 sm:space-x-4 mb-3 sm:mb-6">
+                    <div className="relative flex-shrink-0">
+                      <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-bold text-sm sm:text-lg border border-[#dc1e3a]/30">
                         <span>{exerciseIndex + 1}</span>
                       </div>
                       {completedExercises[exercise.id] && (
-                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
-                          <CheckCircle className="w-3 h-3 text-white" />
+                        <div className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                          <CheckCircle className="w-2 h-2 sm:w-3 sm:h-3 text-white" />
                         </div>
                       )}
                     </div>
                     
                     <div className="flex-1 min-w-0">
-                      <h5 className="text-lg font-bold text-white mb-3 truncate">
-                        {exercise.exercise.name}
-                      </h5>
+                      <div className="flex items-center space-x-1 sm:space-x-2 mb-2 sm:mb-3">
+                        <h5 className="text-sm sm:text-lg font-bold text-white truncate">
+                          {exercise.exercise.name}
+                        </h5>
+                        {exercise.superset && (
+                          <span className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full flex-shrink-0">
+                            {exercise.supersetName || exercise.superset}
+                          </span>
+                        )}
+                      </div>
                       
-                      <div className="flex flex-wrap gap-2">
-                        <div className="flex items-center space-x-1 bg-gradient-to-r from-blue-500/10 to-blue-600/5 border border-blue-500/20 px-3 py-1 rounded-lg">
-                          <Target className="w-3 h-3 text-blue-400" />
+                      <div className="flex flex-wrap gap-1 sm:gap-2">
+                        <div className="flex items-center space-x-1 bg-gradient-to-r from-blue-500/10 to-blue-600/5 border border-blue-500/20 px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
+                          <Target className="w-2 h-2 sm:w-3 sm:h-3 text-blue-400" />
                           <span className="text-xs font-medium text-blue-300">{exercise.exercise.muscleGroup}</span>
                         </div>
-                        <div className="flex items-center space-x-1 bg-gradient-to-r from-purple-500/10 to-purple-600/5 border border-purple-500/20 px-3 py-1 rounded-lg">
-                          <Zap className="w-3 h-3 text-purple-400" />
+                        <div className="flex items-center space-x-1 bg-gradient-to-r from-purple-500/10 to-purple-600/5 border border-purple-500/20 px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
+                          <Zap className="w-2 h-2 sm:w-3 sm:h-3 text-purple-400" />
                           <span className="text-xs font-medium text-purple-300">{exercise.exercise.equipment}</span>
                         </div>
-                        <div className="flex items-center space-x-1 bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 px-3 py-1 rounded-lg">
-                          <Dumbbell className="w-3 h-3 text-emerald-400" />
+                        <div className="flex items-center space-x-1 bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
+                          <Dumbbell className="w-2 h-2 sm:w-3 sm:h-3 text-emerald-400" />
                           <span className="text-xs font-medium text-emerald-300">{exercise.sets.length} sets</span>
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Video Player - Premium Design with Theme Colors - Mobile Optimized */}
-                  <div className="mb-4 sm:mb-6">
-                    <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/40 rounded-2xl p-3 sm:p-4 border border-gray-700/50">
-                      <div className="flex items-center space-x-3 mb-3 sm:mb-4">
-                        <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
-                          <Play className="w-3 h-3 sm:w-4 sm:h-4 text-[#dc1e3a]" />
+                  {/* Video Player - Mobile Optimized */}
+                  <div className="mb-3 sm:mb-4">
+                    <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/40 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-gray-700/50">
+                      <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
+                        <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-md sm:rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
+                          <Play className="w-2 h-2 sm:w-3 sm:h-3 text-[#dc1e3a]" />
                         </div>
-                        <h6 className="text-sm sm:text-base font-semibold text-white">Exercise Demonstration</h6>
+                        <h6 className="text-xs sm:text-sm font-semibold text-white">Exercise Demonstration</h6>
                       </div>
                       
                     <a 
@@ -852,7 +816,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                       rel="noopener noreferrer"
                         className="block relative bg-gray-900 rounded-xl overflow-hidden group shadow-2xl"
                     >
-                      <div className="aspect-[4/3] sm:aspect-video relative">
+                      <div className="aspect-[3/2] sm:aspect-video relative">
                         {getYouTubeThumbnail(exercise.exercise.videoUrl || '') ? (
                           <img 
                             src={getYouTubeThumbnail(exercise.exercise.videoUrl || '') || ''} 
@@ -908,24 +872,24 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                     </div>
                   </div>
 
-                  {/* Mark Complete Button - Premium Design with Theme Colors */}
-                  <div className="flex justify-center mb-6 sm:mb-8">
+                  {/* Mark Complete Button - Mobile Optimized */}
+                  <div className="flex justify-center mb-3 sm:mb-6">
                     <button
                       onClick={() => completeExercise(exercise.id)}
-                      className={`px-6 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                      className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 ${
                         completedExercises[exercise.id]
                           ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/10 text-green-400 border border-green-500/30 hover:from-green-500/30 hover:to-emerald-500/20'
                           : 'bg-gradient-to-r from-[#dc1e3a]/20 to-red-500/10 text-[#dc1e3a] border border-[#dc1e3a]/30 hover:from-[#dc1e3a]/30 hover:to-red-500/20 hover:text-white'
                       }`}
                     >
                       {completedExercises[exercise.id] ? (
-                        <div className="flex items-center space-x-2">
-                          <CheckCircle className="w-4 h-4" />
+                        <div className="flex items-center space-x-1 sm:space-x-2">
+                          <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                           <span>Completed</span>
                         </div>
                       ) : (
-                        <div className="flex items-center space-x-2">
-                          <Circle className="w-4 h-4" />
+                        <div className="flex items-center space-x-1 sm:space-x-2">
+                          <Circle className="w-3 h-3 sm:w-4 sm:h-4" />
                           <span>Mark Complete</span>
                         </div>
                       )}
@@ -935,14 +899,16 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                   {/* Sets & Reps Section - Ultra Modern Design - Mobile Optimized */}
                   {!completedExercises[exercise.id] && (
                     <div className="space-y-3 sm:space-y-6">
-                      <div className="flex items-center justify-between mb-3 sm:mb-4">
-                        <div className="flex items-center space-x-2 sm:space-x-3">
-                          <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
-                            <Dumbbell className="w-3 h-3 sm:w-4 sm:h-4 text-[#dc1e3a]" />
+                      <div className="flex items-center justify-between mb-2 sm:mb-3">
+                        <div className="flex items-center space-x-1 sm:space-x-2">
+                          <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-md sm:rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
+                            <Dumbbell className="w-2 h-2 sm:w-3 sm:h-3 text-[#dc1e3a]" />
                           </div>
                           <div>
-                            <h6 className="text-sm sm:text-lg font-bold text-white">Sets & Reps</h6>
-                            <p className="text-gray-400 text-xs">Track your performance</p>
+                            <h6 className="text-xs sm:text-sm font-bold text-white">Sets & Reps</h6>
+                            <p className="text-gray-400 text-xs">
+                              {isEditMode ? 'Track your performance' : 'View workout details'}
+                            </p>
                           </div>
                         </div>
                         <div className="text-right">
@@ -951,83 +917,192 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                         </div>
                       </div>
 
-                      {/* Set-based organization - Ultra Modern - Mobile Optimized */}
+                      {/* Set-based organization - Enhanced with Superset & Dropset Support */}
                       <div className="space-y-2 sm:space-y-4">
                         {exercise.sets.map((set, setIndex) => (
-                          <div key={setIndex} className="bg-gradient-to-br from-gray-800/60 to-gray-900/40 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-gray-700/50 hover:border-[#dc1e3a]/20 transition-all duration-300">
-                            <div className="flex items-center justify-between mb-2 sm:mb-4">
+                          <div key={setIndex} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 border transition-all duration-300 bg-gradient-to-br from-gray-800/60 to-gray-900/40 border-gray-700/50 hover:border-[#dc1e3a]/20`}>
+                            <div className="flex items-center justify-between mb-2 sm:mb-3">
                               {/* Set Number */}
-                              <div className="flex items-center space-x-2 sm:space-x-3">
-                                <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 flex items-center justify-center border border-[#dc1e3a]/30">
-                                  <span className="text-[#dc1e3a] text-xs sm:text-sm font-bold">{setIndex + 1}</span>
+                              <div className="flex items-center space-x-1 sm:space-x-2">
+                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md sm:rounded-lg flex items-center justify-center border bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 border-[#dc1e3a]/30">
+                                  <span className="text-xs sm:text-sm font-bold text-[#dc1e3a]">
+                                    {setIndex + 1}
+                                  </span>
                                 </div>
-                                <div>
-                                  <span className="text-white text-xs sm:text-sm font-semibold">Set {setIndex + 1}</span>
+                                <div className="flex items-center space-x-1">
+                                  <span className="text-xs sm:text-sm font-semibold text-white">
+                                    Set {setIndex + 1}
+                                  </span>
                                 </div>
                               </div>
                             </div>
                               
                             {/* Reps & Weight Controls - Mobile Optimized */}
-                            <div className="space-y-2 sm:space-y-4">
+                            <div className="space-y-1 sm:space-y-2">
                               {/* Reps Section - Compact Mobile Design */}
-                              <div className="bg-gradient-to-br from-blue-500/5 to-blue-600/5 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-blue-500/20">
-                                <div className="flex items-center justify-between mb-2 sm:mb-4">
-                                  <h6 className="text-xs sm:text-sm font-semibold text-blue-300">Repetitions</h6>
-                                  <Target className="w-3 h-3 sm:w-4 sm:h-4 text-blue-400" />
+                              <div className="bg-gradient-to-r from-blue-500/10 to-blue-600/5 rounded-md sm:rounded-lg p-1.5 sm:p-2 border border-blue-500/20">
+                                <div className="flex items-center justify-between mb-1">
+                                  <h6 className="text-xs font-semibold text-blue-300">Repetitions</h6>
+                                  <Target className="w-3 h-3 text-blue-400" />
                                 </div>
-                                <div className="flex items-center justify-between max-w-xs mx-auto">
-                                  <button
-                                    onClick={() => updateExerciseData(exercise.id, setIndex, 'reps', Math.max(0, (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps) - 1))}
-                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
-                                  >
-                                    <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
-                                  </button>
-                                  <div className="text-center px-2 sm:px-4">
+                                {isEditMode ? (
+                                  <div className="flex items-center justify-between max-w-xs mx-auto">
+                                    <button
+                                      onClick={() => updateExerciseData(exercise.id, setIndex, 'reps', Math.max(0, (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps) - 1))}
+                                      className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                    >
+                                        <Minus className="w-2 h-2 sm:w-3 sm:h-3" />
+                                    </button>
+                                    <div className="text-center px-2 sm:px-4">
+                                      <div className="text-sm sm:text-lg font-bold text-blue-300">
+                                        {exerciseData[exercise.id]?.[setIndex]?.reps || set.reps}
+                                      </div>
+                                      <div className="text-blue-400 text-xs">reps</div>
+                                    </div>
+                                    <button
+                                      onClick={() => updateExerciseData(exercise.id, setIndex, 'reps', (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps) + 1)}
+                                      className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                    >
+                                        <Plus className="w-2 h-2 sm:w-3 sm:h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="text-center">
                                     <div className="text-lg sm:text-2xl font-bold text-blue-300">
                                       {exerciseData[exercise.id]?.[setIndex]?.reps || set.reps}
                                     </div>
                                     <div className="text-blue-400 text-xs">reps</div>
                                   </div>
-                                  <button
-                                    onClick={() => updateExerciseData(exercise.id, setIndex, 'reps', (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps) + 1)}
-                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
-                                  >
-                                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                                  </button>
-                                </div>
+                                )}
                               </div>
 
                               {/* Weight Section - Compact Mobile Design */}
-                              <div className="bg-gradient-to-br from-purple-500/5 to-purple-600/5 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-purple-500/20">
-                                <div className="flex items-center justify-between mb-2 sm:mb-4">
+                              <div className="bg-gradient-to-r from-purple-500/10 to-purple-600/5 rounded-md sm:rounded-lg p-1.5 sm:p-2 border border-purple-500/20">
+                                <div className="flex items-center justify-between mb-1">
                                   <h6 className="text-xs sm:text-sm font-semibold text-purple-300">Weight</h6>
                                   <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-purple-400" />
                                 </div>
-                                <div className="flex items-center justify-between max-w-xs mx-auto">
-                                  <button
-                                    onClick={() => updateExerciseData(exercise.id, setIndex, 'weight', Math.max(0, (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) - 2.5))}
-                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
-                                  >
-                                    <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
-                                  </button>
-                                  <div className="text-center px-2 sm:px-4">
+                                {isEditMode ? (
+                                  <div className="flex items-center justify-between max-w-xs mx-auto">
+                                    <button
+                                      onClick={() => updateExerciseData(exercise.id, setIndex, 'weight', Math.max(0, (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) - 2.5))}
+                                      className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                    >
+                                        <Minus className="w-2 h-2 sm:w-3 sm:h-3" />
+                                    </button>
+                                    <div className="text-center px-2 sm:px-4">
+                                      <div className="text-sm sm:text-lg font-bold text-purple-300">
+                                        {exerciseData[exercise.id]?.[setIndex]?.weight || set.weight}kg
+                                      </div>
+                                      <div className="text-purple-400 text-xs">weight</div>
+                                    </div>
+                                    <button
+                                      onClick={() => updateExerciseData(exercise.id, setIndex, 'weight', (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) + 2.5)}
+                                      className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                    >
+                                        <Plus className="w-2 h-2 sm:w-3 sm:h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="text-center">
                                     <div className="text-lg sm:text-2xl font-bold text-purple-300">
                                       {exerciseData[exercise.id]?.[setIndex]?.weight || set.weight}kg
                                     </div>
                                     <div className="text-purple-400 text-xs">weight</div>
                                   </div>
-                                  <button
-                                    onClick={() => updateExerciseData(exercise.id, setIndex, 'weight', (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) + 2.5)}
-                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
-                                  >
-                                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                                  </button>
-                                </div>
+                                )}
                               </div>
+                              
                             </div>
                       </div>
                     ))}
                   </div>
+
+                  {/* Dropsets */}
+                  {exercise.dropsets && exercise.dropsets.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      <h6 className="text-sm font-semibold text-purple-300 flex items-center space-x-2">
+                        <Zap className="w-4 h-4" />
+                        <span>Dropsets</span>
+                      </h6>
+                      {exercise.dropsets.map((dropset, dropsetIndex) => (
+                        <div key={dropset.id} className="bg-gradient-to-r from-purple-800/40 to-pink-800/30 rounded-xl border border-purple-500/50 p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-purple-300 font-medium">Dropset {dropsetIndex + 1}</span>
+                          </div>
+                          <div className="space-y-2">
+                            {dropset.rounds.map((round, roundIndex) => (
+                              <div key={round.id} className="flex items-center space-x-3 p-3 bg-purple-600/20 rounded-lg">
+                                <span className="text-purple-300 text-sm w-16">Round {roundIndex + 1}</span>
+                                
+                                {/* Reps Section */}
+                                {isEditMode ? (
+                                  <div className="flex items-center space-x-2">
+                                    <button
+                                      onClick={() => updateDropsetData(exercise.id, dropsetIndex, roundIndex, 'reps', Math.max(1, (dropsetData[exercise.id]?.[dropsetIndex]?.[roundIndex]?.reps || round.reps) - 1))}
+                                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/10 hover:from-purple-500/30 hover:to-pink-500/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                    >
+                                      <Minus className="w-3 h-3" />
+                                    </button>
+                                    <div className="text-center px-2">
+                                      <div className="text-sm sm:text-lg font-bold text-purple-300">
+                                        {dropsetData[exercise.id]?.[dropsetIndex]?.[roundIndex]?.reps || round.reps}
+                                      </div>
+                                      <div className="text-purple-400 text-xs">reps</div>
+                                    </div>
+                                    <button
+                                      onClick={() => updateDropsetData(exercise.id, dropsetIndex, roundIndex, 'reps', (dropsetData[exercise.id]?.[dropsetIndex]?.[roundIndex]?.reps || round.reps) + 1)}
+                                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/10 hover:from-purple-500/30 hover:to-pink-500/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="text-center px-2">
+                                    <div className="text-sm sm:text-lg font-bold text-purple-300">
+                                      {dropsetData[exercise.id]?.[dropsetIndex]?.[roundIndex]?.reps || round.reps}
+                                    </div>
+                                    <div className="text-purple-400 text-xs">reps</div>
+                                  </div>
+                                )}
+                                
+                                {/* Weight Section */}
+                                {isEditMode ? (
+                                  <div className="flex items-center space-x-2">
+                                    <button
+                                      onClick={() => updateDropsetData(exercise.id, dropsetIndex, roundIndex, 'weight', Math.max(0, (dropsetData[exercise.id]?.[dropsetIndex]?.[roundIndex]?.weight || round.weight) - 2.5))}
+                                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/10 hover:from-purple-500/30 hover:to-pink-500/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                    >
+                                      <Minus className="w-3 h-3" />
+                                    </button>
+                                    <div className="text-center px-2">
+                                      <div className="text-sm sm:text-lg font-bold text-purple-300">
+                                        {dropsetData[exercise.id]?.[dropsetIndex]?.[roundIndex]?.weight || round.weight}kg
+                                      </div>
+                                      <div className="text-purple-400 text-xs">weight</div>
+                                    </div>
+                                    <button
+                                      onClick={() => updateDropsetData(exercise.id, dropsetIndex, roundIndex, 'weight', (dropsetData[exercise.id]?.[dropsetIndex]?.[roundIndex]?.weight || round.weight) + 2.5)}
+                                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-purple-500/20 to-pink-500/10 hover:from-purple-500/30 hover:to-pink-500/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center touch-manipulation"
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="text-center px-2">
+                                    <div className="text-sm sm:text-lg font-bold text-purple-300">
+                                      {dropsetData[exercise.id]?.[dropsetIndex]?.[roundIndex]?.weight || round.weight}kg
+                                    </div>
+                                    <div className="text-purple-400 text-xs">weight</div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                   )}
 
@@ -1071,6 +1146,47 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         </div>
         )}
       </div>
+
+      {/* Warmup Modal */}
+      {showWarmupModal && currentDayData && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[10000]">
+          <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
+                    <Zap className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Warmup Section</h2>
+                    <p className="text-slate-400">
+                      {getMuscleGroupsFromWorkout(currentDayData).length > 0 
+                        ? `Targeted warmup for: ${getMuscleGroupsFromWorkout(currentDayData).join(', ')}`
+                        : 'General warmup exercises available'
+                      }
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowWarmupModal(false)}
+                  className="p-2 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-white transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <WarmupSection
+                muscleGroups={getMuscleGroupsFromWorkout(currentDayData)}
+                onComplete={() => setShowWarmupModal(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

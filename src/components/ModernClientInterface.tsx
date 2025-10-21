@@ -30,9 +30,12 @@ import {
 import { Client, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
+import { ErrorBoundary } from './ErrorBoundary';
 
 // Lazy load heavy components
 const ClientNutritionView = lazy(() => import('./ClientNutritionView').then(module => ({ default: module.ClientNutritionView })));
+const UltraModernNutritionView = lazy(() => import('./UltraModernNutritionView').then(module => ({ default: module.default })));
+const SimpleNutritionView = lazy(() => import('./SimpleNutritionView').then(module => ({ default: module.default })));
 const ClientWorkoutView = lazy(() => import('./ClientWorkoutView').then(module => ({ default: module.ClientWorkoutView })));
 const UltraModernWeeklyWeightLogger = lazy(() => import('./UltraModernWeeklyWeightLogger').then(module => ({ default: module.UltraModernWeeklyWeightLogger })));
 const IndependentMuscleGroupCharts = lazy(() => import('./IndependentMuscleGroupCharts').then(module => ({ default: module.IndependentMuscleGroupCharts })));
@@ -322,15 +325,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const progressPercentage = Math.round((currentWeek / (client.numberOfWeeks || 12)) * 100);
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      {/* Animated Background */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Background Effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
       {/* Header */}
-      <div className="relative z-10 bg-gray-800 backdrop-blur-xl border-b border-gray-700">
+      <div className="relative z-10 bg-slate-800/95 backdrop-blur-xl border-b border-slate-700/50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -339,10 +342,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                   <Crown className="w-6 h-6 md:w-8 md:h-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                  <h1 className="text-xl md:text-3xl font-bold text-white">
                     Welcome back, {client.name.split(' ')[0]}!
                   </h1>
-                  <p className="text-purple-300/80 text-sm md:text-lg">Ready to crush your goals? 🔥</p>
+                  <p className="text-purple-300 text-sm md:text-lg font-medium">Ready to crush your goals? 🔥</p>
                 </div>
               </div>
             </div>
@@ -351,19 +354,19 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             <div className="hidden md:flex items-center space-x-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-white">{currentWeek}</div>
-                <div className="text-purple-300 text-sm">Current Week</div>
+                <div className="text-purple-300 text-sm font-medium">Current Week</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-400">{completedWeeks}</div>
-                <div className="text-purple-300 text-sm">Completed</div>
+                <div className="text-purple-300 text-sm font-medium">Completed</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-yellow-400">{progressPercentage}%</div>
-                <div className="text-purple-300 text-sm">Progress</div>
+                <div className="text-purple-300 text-sm font-medium">Progress</div>
               </div>
               <button
                 onClick={handleRefresh}
-                className="px-3 py-1 bg-purple-600/20 hover:bg-purple-600/30 rounded-lg text-purple-300 text-sm transition-colors"
+                className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-xl text-sm font-semibold transition-all duration-200"
               >
                 🔄 Refresh
               </button>
@@ -375,14 +378,14 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       {/* Motivation Quote */}
       {showMotivationQuote && (
         <div className="relative z-10 max-w-7xl mx-auto px-6 py-6">
-          <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 backdrop-blur-xl rounded-2xl border border-purple-500/30 p-6 relative overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 backdrop-blur-xl rounded-2xl border border-purple-500/30 p-6 shadow-lg relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-pink-500/5"></div>
             <div className="relative flex items-center justify-between">
               <div className="flex items-center space-x-4">
                 <div className="text-4xl">{todayQuote.emoji}</div>
                 <div>
                   <p className="text-xl font-semibold text-white mb-1">{todayQuote.text}</p>
-                  <p className="text-purple-300/80">Daily Motivation</p>
+                  <p className="text-purple-300 font-medium">Daily Motivation</p>
                 </div>
               </div>
               <button
@@ -402,7 +405,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
           <div className="flex items-center justify-between mb-4 sm:mb-8">
             <div className="flex-1">
               <h2 className="text-lg sm:text-2xl font-bold text-white mb-1 sm:mb-2">Your Journey</h2>
-              <p className="text-purple-300/80 text-sm sm:text-base">Week {currentWeek} of {client.numberOfWeeks}</p>
+              <p className="text-purple-300 text-sm sm:text-base font-medium">Week {currentWeek} of {client.numberOfWeeks}</p>
             </div>
             
             {/* Circular Progress - Mobile Optimized */}
@@ -440,17 +443,17 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
                   <div className="text-sm sm:text-xl font-bold text-white">{progressPercentage}%</div>
-                  <div className="text-purple-300 text-xs hidden sm:block">Complete</div>
+                  <div className="text-purple-300 text-xs hidden sm:block font-medium">Complete</div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Week Progress Bar - Mobile Optimized */}
+          {/* Week Progress Bar */}
           <div className="space-y-3 sm:space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-white font-medium text-sm sm:text-base">Weekly Progress</span>
-              <span className="text-purple-300 text-xs sm:text-sm">Week {currentWeek} of {client.numberOfWeeks}</span>
+              <span className="text-white font-semibold text-sm sm:text-base">Weekly Progress</span>
+              <span className="text-purple-300 text-xs sm:text-sm font-medium">Week {currentWeek} of {client.numberOfWeeks}</span>
             </div>
             <div className="w-full bg-slate-700/50 rounded-full h-2 sm:h-3 overflow-hidden">
               <div
@@ -464,14 +467,14 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         </div>
       </div>
 
-      {/* Enhanced Navigation Tabs */}
+      {/* Navigation Tabs */}
       <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
         <div className="text-center mb-4 sm:mb-6">
           <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2">Choose Your Focus</h2>
-          <p className="text-slate-400 text-xs sm:text-sm lg:text-base hidden sm:block">Select what you'd like to work on today</p>
+          <p className="text-slate-400 text-xs sm:text-sm lg:text-base hidden sm:block font-medium">Select what you'd like to work on today</p>
         </div>
         
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
             { 
               id: 'workout', 
@@ -530,33 +533,33 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               className={`group relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 transition-all duration-300 transform hover:scale-105 ${
                 activeTab === tab.id
                   ? `bg-gradient-to-br ${tab.gradient} shadow-lg shadow-${tab.id === 'workout' ? 'red' : tab.id === 'nutrition' ? 'green' : tab.id === 'progress' ? 'blue' : tab.id === 'weight' ? 'purple' : 'indigo'}-500/25 scale-105`
-                  : `bg-gradient-to-br ${tab.bgGradient} backdrop-blur-sm border border-slate-700/50 hover:border-slate-600/50 hover:shadow-lg`
+                  : `bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 hover:border-slate-600/50 hover:shadow-lg`
               }`}
             >
-              {/* Background Pattern - Simplified for mobile */}
+              {/* Background Pattern */}
               <div className="absolute inset-0 opacity-5 sm:opacity-10">
                 <div className="absolute top-0 right-0 w-16 h-16 sm:w-24 sm:h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8 sm:-translate-y-12 sm:translate-x-12"></div>
               </div>
               
-              {/* Content - Compact for mobile */}
+              {/* Content */}
               <div className="relative z-10 flex flex-col items-center space-y-2 sm:space-y-3">
-                {/* Icon Container - Smaller on mobile */}
+                {/* Icon Container */}
                 <div className={`relative p-2 sm:p-3 lg:p-4 rounded-xl transition-all duration-300 ${
                   activeTab === tab.id 
                     ? 'bg-white/20 backdrop-blur-sm shadow-lg' 
-                    : 'bg-slate-800/50 group-hover:bg-slate-700/50'
+                    : 'bg-slate-700/30 group-hover:bg-slate-700/50'
                 }`}>
                   <tab.icon className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 transition-all duration-300 ${
-                    activeTab === tab.id ? 'text-white' : 'text-slate-400 group-hover:text-white'
+                    activeTab === tab.id ? 'text-white' : 'text-slate-300 group-hover:text-white'
                   }`} />
                   
-                  {/* Emoji Overlay - Smaller on mobile */}
+                  {/* Emoji Overlay */}
                   <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 text-lg sm:text-2xl opacity-80">
                     {tab.emoji}
                   </div>
                 </div>
                 
-                {/* Label - Compact text for mobile */}
+                {/* Label */}
                 <div className="text-center">
                   <h3 className={`font-bold text-sm sm:text-base lg:text-lg transition-all duration-300 ${
                     activeTab === tab.id ? 'text-white' : 'text-slate-200 group-hover:text-white'
@@ -608,11 +611,13 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 pb-8 sm:pb-12">
         <Suspense fallback={<LoadingSpinner />}>
           {activeTab === 'nutrition' ? (
-            <ClientNutritionView
-              client={client}
-              isDark={isDark}
-              nutritionPlan={nutritionPlan}
-            />
+            <ErrorBoundary>
+              <ClientNutritionView
+                client={client}
+                isDark={isDark}
+                nutritionPlan={nutritionPlan}
+              />
+            </ErrorBoundary>
           ) : activeTab === 'workout' ? (
             <ClientWorkoutView
               client={client}
