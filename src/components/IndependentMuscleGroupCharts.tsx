@@ -272,7 +272,16 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
           // Calculate volume for this exercise
           let exerciseVolume = 0;
           for (const set of workoutExercise.sets) {
-            const setVolume = set.reps * Math.max(set.weight, 1);
+            let setVolume = 0;
+            if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+              // Dropset volume: sum of (reps[i] * weight[i]) for each round
+              for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                setVolume += set.reps[i] * Math.max(set.weight[i], 1);
+              }
+            } else {
+              // Regular set volume
+              setVolume = set.reps * Math.max(set.weight, 1);
+            }
             exerciseVolume += setVolume;
           }
 
@@ -339,12 +348,46 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
             const isExpanded = expandedCharts[muscleGroup];
             const exercises = workoutExercises[muscleGroup] || [];
             
+            // Calculate current week volume from the same source as individual exercises
+            const currentWeekVolume = exercises.reduce((sum, exercise) => {
+              let exerciseVolume = 0;
+              if (client.workoutAssignment?.program) {
+                client.workoutAssignment.program.days.forEach(day => {
+                  day.exercises.forEach(workoutExercise => {
+                    if (workoutExercise.exercise.id === exercise.id) {
+                      exerciseVolume = workoutExercise.sets.reduce((setSum, set) => {
+                        if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+                          // Dropset volume: sum of (reps[i] * weight[i]) for each round
+                          let dropsetVolume = 0;
+                          for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                            dropsetVolume += set.reps[i] * Math.max(set.weight[i], 1);
+                          }
+                          return setSum + dropsetVolume;
+                        } else {
+                          // Regular set volume
+                          return setSum + (set.reps * Math.max(set.weight, 1));
+                        }
+                      }, 0);
+                    }
+                  });
+                });
+              }
+              return sum + exerciseVolume;
+            }, 0);
+
             // Get chart data for this muscle group
             const chartData = volumeData.map(week => ({
               week: week.week,
               volume: week[muscleGroup] as number || 0,
               muscleGroup: muscleGroup // Add muscle group to chart data
             }));
+
+            // Update current week data to match individual exercise calculation
+            const currentWeek = client.workoutAssignment?.currentWeek || 1;
+            const currentWeekIndex = chartData.findIndex(week => week.week === currentWeek);
+            if (currentWeekIndex !== -1) {
+              chartData[currentWeekIndex].volume = currentWeekVolume;
+            }
 
             const totalVolume = chartData.reduce((sum, week) => sum + week.volume, 0);
             const maxVolume = Math.max(...chartData.map(week => week.volume), 0);
@@ -481,7 +524,19 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                             client.workoutAssignment.program.days.forEach(day => {
                               day.exercises.forEach(workoutExercise => {
                                 if (workoutExercise.exercise.id === exercise.id) {
-                                  exerciseVolume = workoutExercise.sets.reduce((sum, set) => sum + (set.reps * Math.max(set.weight, 1)), 0);
+                                  exerciseVolume = workoutExercise.sets.reduce((sum, set) => {
+                                    if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+                                      // Dropset volume: sum of (reps[i] * weight[i]) for each round
+                                      let dropsetVolume = 0;
+                                      for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                                        dropsetVolume += set.reps[i] * Math.max(set.weight[i], 1);
+                                      }
+                                      return sum + dropsetVolume;
+                                    } else {
+                                      // Regular set volume
+                                      return sum + (set.reps * Math.max(set.weight, 1));
+                                    }
+                                  }, 0);
                                 }
                               });
                             });
@@ -495,7 +550,33 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                         })}
                         <div className="border-t border-white/20 pt-2 mt-3 flex justify-between items-center">
                           <span className="text-white font-bold">Total {muscleGroup} Volume</span>
-                          <span className="text-[#dc1e3a] font-bold text-lg">{totalVolume.toLocaleString()}kg</span>
+                          <span className="text-[#dc1e3a] font-bold text-lg">
+                            {exercises.reduce((sum, exercise) => {
+                              let exerciseVolume = 0;
+                              if (client.workoutAssignment?.program) {
+                                client.workoutAssignment.program.days.forEach(day => {
+                                  day.exercises.forEach(workoutExercise => {
+                                    if (workoutExercise.exercise.id === exercise.id) {
+                                      exerciseVolume = workoutExercise.sets.reduce((setSum, set) => {
+                                        if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+                                          // Dropset volume: sum of (reps[i] * weight[i]) for each round
+                                          let dropsetVolume = 0;
+                                          for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                                            dropsetVolume += set.reps[i] * Math.max(set.weight[i], 1);
+                                          }
+                                          return setSum + dropsetVolume;
+                                        } else {
+                                          // Regular set volume
+                                          return setSum + (set.reps * Math.max(set.weight, 1));
+                                        }
+                                      }, 0);
+                                    }
+                                  });
+                                });
+                              }
+                              return sum + exerciseVolume;
+                            }, 0).toLocaleString()}kg
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -535,7 +616,17 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                                     exerciseSets = workoutExercise.sets;
                                     // Calculate volume for this exercise: sum of (sets × reps × weight)
                                     totalExerciseVolume = workoutExercise.sets.reduce((sum, set) => {
-                                      return sum + (set.reps * Math.max(set.weight, 1));
+                                      if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+                                        // Dropset volume: sum of (reps[i] * weight[i]) for each round
+                                        let dropsetVolume = 0;
+                                        for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                                          dropsetVolume += set.reps[i] * Math.max(set.weight[i], 1);
+                                        }
+                                        return sum + dropsetVolume;
+                                      } else {
+                                        // Regular set volume
+                                        return sum + (set.reps * Math.max(set.weight, 1));
+                                      }
                                     }, 0);
                                   }
                                 });
@@ -584,10 +675,22 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                                         >
                                           <div className="text-white text-sm font-bold mb-1">Set {setIndex + 1}</div>
                                           <div className="text-white/80 text-sm font-medium mb-1">
-                                            {set.reps} × {set.weight}kg
+                                            {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight) 
+                                              ? `${set.reps.join('→')} × ${set.weight.join('→')}kg`
+                                              : `${set.reps} × ${set.weight}kg`
+                                            }
                                           </div>
                                           <div className="text-[#dc1e3a] text-sm font-bold">
-                                            = {set.reps * Math.max(set.weight, 1)}kg
+                                            = {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)
+                                              ? (() => {
+                                                  let dropsetVolume = 0;
+                                                  for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                                                    dropsetVolume += set.reps[i] * Math.max(set.weight[i], 1);
+                                                  }
+                                                  return dropsetVolume;
+                                                })()
+                                              : (set.reps * Math.max(set.weight, 1))
+                                            }kg
                                           </div>
                                         </div>
                                       ))}
@@ -603,10 +706,22 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                                         {exerciseSets.map((set, setIndex) => (
                                           <div key={setIndex} className="flex justify-between items-center py-1">
                                             <span className="text-white/70 text-sm">
-                                              Set {setIndex + 1}: {set.reps} reps × {set.weight}kg
+                                              Set {setIndex + 1}: {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight) 
+                                                ? `${set.reps.join('→')} reps × ${set.weight.join('→')}kg`
+                                                : `${set.reps} reps × ${set.weight}kg`
+                                              }
                                             </span>
                                             <span className="text-white font-bold text-sm">
-                                              = {set.reps * Math.max(set.weight, 1)}kg
+                                              = {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)
+                                                ? (() => {
+                                                    let dropsetVolume = 0;
+                                                    for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                                                      dropsetVolume += set.reps[i] * Math.max(set.weight[i], 1);
+                                                    }
+                                                    return dropsetVolume;
+                                                  })()
+                                                : (set.reps * Math.max(set.weight, 1))
+                                              }kg
                                             </span>
                                           </div>
                                         ))}

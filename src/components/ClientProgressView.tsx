@@ -76,9 +76,17 @@ export const ClientProgressView: React.FC<ClientProgressViewProps> = ({
 
       // Calculate volume: sets × reps × weight (using universal formula for bodyweight exercises)
       exercise.sets.forEach(set => {
-        const reps = set.reps || 0;
-        const weight = set.weight || 0;
-        muscleGroupVolume[muscleGroup] += reps * Math.max(weight, 1);
+        if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+          // Dropset volume: sum of (reps[i] * weight[i]) for each round
+          for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+            muscleGroupVolume[muscleGroup] += set.reps[i] * Math.max(set.weight[i], 1);
+          }
+        } else {
+          // Regular set volume
+          const reps = set.reps || 0;
+          const weight = set.weight || 0;
+          muscleGroupVolume[muscleGroup] += reps * Math.max(weight, 1);
+        }
       });
     });
 

@@ -131,8 +131,22 @@ export async function calculateAndSaveTrainingVolume(
     }
     
     volumeByMuscleGroup[log.muscleGroup].sets += 1;
-    volumeByMuscleGroup[log.muscleGroup].reps += log.actualReps;
-    volumeByMuscleGroup[log.muscleGroup].volume += log.actualWeight * log.actualReps;
+    
+    // Handle dropset data
+    if (Array.isArray(log.actualReps) && Array.isArray(log.actualWeight)) {
+      // Dropset: sum all rounds
+      const totalReps = log.actualReps.reduce((sum, reps) => sum + reps, 0);
+      const totalVolume = log.actualReps.reduce((sum, reps, i) => 
+        sum + (reps * (log.actualWeight[i] || 0)), 0
+      );
+      
+      volumeByMuscleGroup[log.muscleGroup].reps += totalReps;
+      volumeByMuscleGroup[log.muscleGroup].volume += totalVolume;
+    } else {
+      // Regular set
+      volumeByMuscleGroup[log.muscleGroup].reps += log.actualReps;
+      volumeByMuscleGroup[log.muscleGroup].volume += log.actualWeight * log.actualReps;
+    }
   });
 
   // Get previous week's data for percentage calculation

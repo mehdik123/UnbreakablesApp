@@ -12,6 +12,7 @@ const ModernClientInterface = lazy(() => import('./components/ModernClientInterf
 const MealDatabaseManager = lazy(() => import('./components/MealDatabaseManager'));
 const IngredientsManager = lazy(() => import('./components/IngredientsManager'));
 const ExerciseDatabaseManager = lazy(() => import('./components/ExerciseDatabaseManager').then(module => ({ default: module.ExerciseDatabaseManager })));
+const DatabaseSelector = lazy(() => import('./components/DatabaseSelector').then(module => ({ default: module.DatabaseSelector })));
 // const SimpleWorkoutEditor = lazy(() => import('./components/SimpleWorkoutEditor').then(module => ({ default: module.SimpleWorkoutEditor })));
 const TemplatesBuilder = lazy(() => import('./components/TemplatesBuilder'));
 import './styles/mobile.css';
@@ -700,10 +701,178 @@ function App() {
     
     localStorage.setItem(`client_${client.id}_complete_${shareId}`, JSON.stringify(sharedData));
     
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      alert(`Complete Client URL copied to clipboard!\n\nShare this link with ${client.name}:\n${shareUrl}\n\nThey will have access to:\n• Nutrition Plan\n• Workout Plan\n• Weight Journal\n• Progress Tracking`);
-    }).catch(() => {
-      prompt(`Copy this URL to share with ${client.name}:`, shareUrl);
+    // Mobile-friendly share implementation
+    const shareText = `Complete Client URL for ${client.name}:\n\n${shareUrl}\n\nThey will have access to:\n• Nutrition Plan\n• Workout Plan\n• Weight Journal\n• Progress Tracking`;
+    
+    // Check if we're on mobile and if Web Share API is available
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile && navigator.share) {
+      // Use native mobile share
+      navigator.share({
+        title: `Client Plan for ${client.name}`,
+        text: shareText,
+        url: shareUrl
+      }).catch((error) => {
+        console.log('Error sharing:', error);
+        // Fallback to copy method
+        copyToClipboard(shareUrl, shareText);
+      });
+    } else {
+      // Use clipboard API or fallback
+      copyToClipboard(shareUrl, shareText);
+    }
+  };
+
+  // Helper function for copying to clipboard
+  const copyToClipboard = (url: string, text: string) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      // Modern clipboard API
+      navigator.clipboard.writeText(url).then(() => {
+        showShareModal(url, text);
+      }).catch(() => {
+        // Fallback method
+        fallbackCopyToClipboard(url, text);
+      });
+    } else {
+      // Fallback for older browsers or non-secure contexts
+      fallbackCopyToClipboard(url, text);
+    }
+  };
+
+  // Fallback copy method
+  const fallbackCopyToClipboard = (url: string, text: string) => {
+    const textArea = document.createElement('textarea');
+    textArea.value = url;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
+        showShareModal(url, text);
+      } else {
+        showShareModal(url, text, true); // Show modal even if copy failed
+      }
+    } catch (err) {
+      console.error('Fallback copy failed:', err);
+      showShareModal(url, text, true); // Show modal even if copy failed
+    }
+    
+    document.body.removeChild(textArea);
+  };
+
+  // Show share modal with the URL
+  const showShareModal = (url: string, text: string, copyFailed = false) => {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      padding: 20px;
+      box-sizing: border-box;
+    `;
+    
+    modal.innerHTML = `
+      <div style="
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 500px;
+        width: 100%;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      ">
+        <h3 style="
+          margin: 0 0 16px 0;
+          font-size: 20px;
+          font-weight: 600;
+          color: #1f2937;
+        ">📤 Share Client Plan</h3>
+        
+        <p style="
+          margin: 0 0 16px 0;
+          color: #6b7280;
+          font-size: 14px;
+        ">${copyFailed ? 'Copy to clipboard failed, but you can manually copy the URL below:' : 'URL copied to clipboard! Share this link with your client:'}</p>
+        
+        <div style="
+          background: #f3f4f6;
+          border: 1px solid #d1d5db;
+          border-radius: 8px;
+          padding: 12px;
+          margin: 16px 0;
+          word-break: break-all;
+          font-family: monospace;
+          font-size: 12px;
+          color: #374151;
+        ">${url}</div>
+        
+        <div style="
+          background: #f0f9ff;
+          border: 1px solid #0ea5e9;
+          border-radius: 8px;
+          padding: 12px;
+          margin: 16px 0;
+        ">
+          <p style="margin: 0; font-size: 14px; color: #0c4a6e; font-weight: 500;">Client will have access to:</p>
+          <ul style="margin: 8px 0 0 0; padding-left: 20px; color: #0c4a6e; font-size: 13px;">
+            <li>Nutrition Plan</li>
+            <li>Workout Plan</li>
+            <li>Weight Journal</li>
+            <li>Progress Tracking</li>
+          </ul>
+        </div>
+        
+        <div style="
+          display: flex;
+          gap: 12px;
+          margin-top: 20px;
+        ">
+          <button onclick="this.closest('.share-modal').remove()" style="
+            flex: 1;
+            padding: 12px 16px;
+            background: #6b7280;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+          ">Close</button>
+          <button onclick="navigator.clipboard.writeText('${url}').then(() => alert('URL copied again!')).catch(() => alert('Copy failed')); this.closest('.share-modal').remove()" style="
+            flex: 1;
+            padding: 12px 16px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+          ">Copy Again</button>
+        </div>
+      </div>
+    `;
+    
+    modal.className = 'share-modal';
+    document.body.appendChild(modal);
+    
+    // Close on background click
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.remove();
+      }
     });
   };
 
@@ -714,12 +883,20 @@ function App() {
     localStorage.setItem('meals', JSON.stringify(updatedMeals));
   };
 
+  const handleNavigateToDatabaseSelector = () => {
+    setAppState(prev => ({ ...prev, currentView: 'database-selector' }));
+  };
+
+  const handleBackFromDatabaseSelector = () => {
+    setAppState(prev => ({ ...prev, currentView: 'clients' }));
+  };
+
   const handleNavigateToMealDatabase = () => {
     setAppState(prev => ({ ...prev, currentView: 'meal-database' }));
   };
 
   const handleBackFromMealDatabase = () => {
-    setAppState(prev => ({ ...prev, currentView: 'clients' }));
+    setAppState(prev => ({ ...prev, currentView: 'database-selector' }));
   };
 
   // Exercise Database Handlers
@@ -753,11 +930,15 @@ function App() {
   };
 
   const handleBackFromExerciseDatabase = () => {
-    setAppState(prev => ({ ...prev, currentView: 'clients' }));
+    setAppState(prev => ({ ...prev, currentView: 'database-selector' }));
   };
 
   const handleNavigateToIngredients = () => {
     setAppState(prev => ({ ...prev, currentView: 'ingredients' }));
+  };
+
+  const handleBackFromIngredients = () => {
+    setAppState(prev => ({ ...prev, currentView: 'database-selector' }));
   };
 
   // Authentication handlers
@@ -836,11 +1017,21 @@ function App() {
               onShareWithClient={handleShareWithClient}
               onNavigateToClientPlan={handleNavigateToClientPlan}
               onDuplicateClient={handleDuplicateClient}
-              onNavigateToMealDatabase={handleNavigateToMealDatabase}
-              onNavigateToExerciseDatabase={handleNavigateToExerciseDatabase}
-              onNavigateToIngredients={handleNavigateToIngredients}
-              onNavigateToTemplates={() => setAppState(prev => ({ ...prev, currentView: 'templates' }))}
+              onNavigateToMealDatabase={handleNavigateToDatabaseSelector}
+              onNavigateToExerciseDatabase={handleNavigateToDatabaseSelector}
+              onNavigateToIngredients={handleNavigateToDatabaseSelector}
+              onNavigateToTemplates={handleNavigateToDatabaseSelector}
             />
+        )}
+
+        {appState.currentView === 'database-selector' && (
+          <DatabaseSelector
+            onBack={handleBackFromDatabaseSelector}
+            onNavigateToMealDatabase={handleNavigateToMealDatabase}
+            onNavigateToExerciseDatabase={handleNavigateToExerciseDatabase}
+            onNavigateToIngredients={handleNavigateToIngredients}
+            onNavigateToTemplates={() => setAppState(prev => ({ ...prev, currentView: 'templates' }))}
+          />
         )}
 
         {appState.currentView === 'client-plan' && appState.selectedClient && (
@@ -891,7 +1082,7 @@ function App() {
         )}
 
         {appState.currentView === 'ingredients' && (
-          <IngredientsManager onBack={() => setAppState(prev => ({ ...prev, currentView: 'clients' }))} />
+          <IngredientsManager onBack={handleBackFromIngredients} />
         )}
 
         {appState.currentView === 'exercise-database' && (

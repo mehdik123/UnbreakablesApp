@@ -130,7 +130,19 @@ export async function calculateVolumeForSpecificWeek(
       let exerciseTotalVolume = 0;
       for (let setIndex = 0; setIndex < sets.length; setIndex++) {
         const set = sets[setIndex];
-        const setVolume = set.reps * Math.max(set.weight, 1);
+        
+        let setVolume = 0;
+        
+        if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+          // Calculate dropset volume: sum of (reps[i] * weight[i]) for each round
+          for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+            setVolume += set.reps[i] * Math.max(set.weight[i], 1);
+          }
+        } else {
+          // Regular set volume
+          setVolume = set.reps * Math.max(set.weight, 1);
+        }
+        
         exerciseTotalVolume += setVolume;
         
 

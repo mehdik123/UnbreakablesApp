@@ -190,33 +190,19 @@ export interface WorkoutTemplate {
 
 export interface WorkoutSet {
   id: string;
-  reps: number;
-  weight: number;
+  reps: number | number[]; // Can be single number or array for dropsets
+  weight: number | number[]; // Can be single number or array for dropsets
+  isDropset: boolean; // Flag to indicate if this set is a dropset
   completed: boolean;
   restPeriod?: number; // in seconds
   notes?: string;
   rpe?: number; // Rate of Perceived Exertion 1-10
 }
 
-export interface DropsetRound {
-  id: string;
-  reps: number;
-  weight: number;
-  completed: boolean;
-}
-
-export interface Dropset {
-  id: string;
-  rounds: DropsetRound[];
-  restPeriod?: number; // in seconds
-  notes?: string;
-}
-
 export interface WorkoutExercise {
   id: string;
   exercise: Exercise;
   sets: WorkoutSet[];
-  dropsets?: Dropset[]; // Array of dropsets for this exercise
   rest: string;
   restPeriod?: number; // in seconds
   notes?: string;

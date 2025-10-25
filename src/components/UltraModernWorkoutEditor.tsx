@@ -426,7 +426,15 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         selectedProgram.days.forEach(day => {
           day.exercises.forEach(exercise => {
             exercise.sets.forEach(set => {
-              currentWeekVolume += set.reps * set.weight;
+              if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+                // Dropset volume: sum of (reps[i] * weight[i]) for each round
+                for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                  currentWeekVolume += set.reps[i] * set.weight[i];
+                }
+              } else {
+                // Regular set volume
+                currentWeekVolume += set.reps * set.weight;
+              }
             });
           });
         });
@@ -476,7 +484,15 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
           selectedProgram.days.forEach(day => {
             day.exercises.forEach(exercise => {
               exercise.sets.forEach(set => {
-                previousWeekVolume += set.reps * set.weight;
+                if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+                  // Dropset volume: sum of (reps[i] * weight[i]) for each round
+                  for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                    previousWeekVolume += set.reps[i] * set.weight[i];
+                  }
+                } else {
+                  // Regular set volume
+                  previousWeekVolume += set.reps * set.weight;
+                }
               });
             });
           });
@@ -529,7 +545,15 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         targetWeekData.days.forEach(day => {
           day.exercises.forEach(exercise => {
             exercise.sets.forEach(set => {
-              loadedWeekVolume += set.reps * set.weight;
+              if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+                // Dropset volume: sum of (reps[i] * weight[i]) for each round
+                for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                  loadedWeekVolume += set.reps[i] * set.weight[i];
+                }
+              } else {
+                // Regular set volume
+                loadedWeekVolume += set.reps * set.weight;
+              }
             });
           });
         });
@@ -596,7 +620,15 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       updatedProgram.days.forEach(day => {
         day.exercises.forEach(exercise => {
           exercise.sets.forEach(set => {
-            currentWeekVolume += set.reps * set.weight;
+            if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+              // Dropset volume: sum of (reps[i] * weight[i]) for each round
+              for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                currentWeekVolume += set.reps[i] * set.weight[i];
+              }
+            } else {
+              // Regular set volume
+              currentWeekVolume += set.reps * set.weight;
+            }
           });
         });
       });
@@ -703,6 +735,26 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       const currentExercise = selectedProgram.days[currentDay]?.exercises?.find(ex => ex.id === exerciseId);
       const isCurrentlySuperset = !!currentExercise?.superset;
       
+      let supersetId: string | undefined;
+      let supersetName: string | undefined;
+      
+      let existingSuperset: any = null;
+      
+      if (!isCurrentlySuperset) {
+        // Adding to superset - check if there's already a superset in this day
+        existingSuperset = selectedProgram.days[currentDay]?.exercises?.find(ex => ex.superset);
+        
+        if (existingSuperset) {
+          // Join existing superset
+          supersetId = existingSuperset.superset;
+          supersetName = existingSuperset.supersetName;
+        } else {
+          // Create new superset
+          supersetId = `superset-${Date.now()}`;
+          supersetName = 'Superset A';
+        }
+      }
+      
       const updatedProgram = {
         ...selectedProgram,
         days: selectedProgram.days.map((day, dayIndex) => 
@@ -713,8 +765,12 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                   exercise.id === exerciseId 
                     ? {
                         ...exercise,
-                        superset: isCurrentlySuperset ? undefined : `superset-${Date.now()}`,
-                        supersetName: isCurrentlySuperset ? undefined : 'Superset A'
+                        superset: supersetId,
+                        supersetName: supersetName,
+                        // If joining superset, copy rest period from existing superset exercise
+                        restPeriod: supersetId && !isCurrentlySuperset && existingSuperset 
+                          ? existingSuperset.restPeriod 
+                          : exercise.restPeriod
                       }
                     : exercise
                 )
@@ -755,61 +811,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     }
   };
 
-  // Handle adding a new dropset
-  const handleAddDropset = (exerciseId: string) => {
-    if (selectedProgram) {
-      const newDropset = {
-        id: `dropset-${Date.now()}`,
-        rounds: [
-          {
-            id: `round-${Date.now()}-1`,
-            reps: 8,
-            weight: 10,
-            completed: false
-          },
-          {
-            id: `round-${Date.now()}-2`,
-            reps: 10,
-            weight: 8,
-            completed: false
-          },
-          {
-            id: `round-${Date.now()}-3`,
-            reps: 12,
-            weight: 6,
-            completed: false
-          }
-        ],
-        restPeriod: 30,
-        notes: ''
-      };
-
-      const updatedProgram = {
-        ...selectedProgram,
-        days: selectedProgram.days.map((day, dayIndex) => 
-          dayIndex === currentDay 
-            ? {
-                ...day,
-                exercises: day.exercises.map(exercise => 
-                  exercise.id === exerciseId 
-                    ? {
-                        ...exercise,
-                        dropsets: [...(exercise.dropsets || []), newDropset]
-                      }
-                    : exercise
-                )
-              }
-            : day
-        )
-      };
-      
-      setSelectedProgram(updatedProgram);
-      handleSaveAssignment();
-    }
-  };
-
-  // Handle removing a dropset
-  const handleRemoveDropset = (exerciseId: string, dropsetId: string) => {
+  // Handle toggling a set to/from dropset
+  const handleToggleDropset = (exerciseId: string, setId: string) => {
     if (selectedProgram) {
       const updatedProgram = {
         ...selectedProgram,
@@ -821,47 +824,16 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                   exercise.id === exerciseId 
                     ? {
                         ...exercise,
-                        dropsets: (exercise.dropsets || []).filter(dropset => dropset.id !== dropsetId)
-                      }
-                    : exercise
-                )
-              }
-            : day
-        )
-      };
-      
-      setSelectedProgram(updatedProgram);
-      handleSaveAssignment();
-    }
-  };
-
-  // Handle adding a round to a dropset
-  const handleAddDropsetRound = (exerciseId: string, dropsetId: string) => {
-    if (selectedProgram) {
-      const newRound = {
-        id: `round-${Date.now()}`,
-        reps: 8,
-        weight: 10,
-        completed: false
-      };
-
-      const updatedProgram = {
-        ...selectedProgram,
-        days: selectedProgram.days.map((day, dayIndex) => 
-          dayIndex === currentDay 
-            ? {
-                ...day,
-                exercises: day.exercises.map(exercise => 
-                  exercise.id === exerciseId 
-                    ? {
-                        ...exercise,
-                        dropsets: (exercise.dropsets || []).map(dropset => 
-                          dropset.id === dropsetId 
+                        sets: exercise.sets.map(set => 
+                          set.id === setId 
                             ? {
-                                ...dropset,
-                                rounds: [...dropset.rounds, newRound]
+                                ...set,
+                                isDropset: !set.isDropset,
+                                // If converting to dropset, set default arrays
+                                reps: !set.isDropset ? [10, 12, 14] : 10,
+                                weight: !set.isDropset ? [100, 90, 80] : 100
                               }
-                            : dropset
+                            : set
                         )
                       }
                     : exercise
@@ -876,8 +848,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     }
   };
 
-  // Handle removing a round from a dropset
-  const handleRemoveDropsetRound = (exerciseId: string, dropsetId: string, roundId: string) => {
+  // Handle updating dropset reps array
+  const handleUpdateDropsetReps = (exerciseId: string, setId: string, roundIndex: number, change: number) => {
     if (selectedProgram) {
       const updatedProgram = {
         ...selectedProgram,
@@ -889,56 +861,17 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                   exercise.id === exerciseId 
                     ? {
                         ...exercise,
-                        dropsets: (exercise.dropsets || []).map(dropset => 
-                          dropset.id === dropsetId 
+                        sets: exercise.sets.map(set => 
+                          set.id === setId && set.isDropset && Array.isArray(set.reps)
                             ? {
-                                ...dropset,
-                                rounds: dropset.rounds.filter(round => round.id !== roundId)
-                              }
-                            : dropset
-                        )
-                      }
-                    : exercise
-                )
-              }
-            : day
-        )
-      };
-      
-      setSelectedProgram(updatedProgram);
-      handleSaveAssignment();
-    }
-  };
-
-  // Handle updating a dropset round
-  const handleUpdateDropsetRound = (exerciseId: string, dropsetId: string, roundId: string, field: 'reps' | 'weight', change: number) => {
-    if (selectedProgram) {
-      const updatedProgram = {
-        ...selectedProgram,
-        days: selectedProgram.days.map((day, dayIndex) => 
-          dayIndex === currentDay 
-            ? {
-                ...day,
-                exercises: day.exercises.map(exercise => 
-                  exercise.id === exerciseId 
-                    ? {
-                        ...exercise,
-                        dropsets: (exercise.dropsets || []).map(dropset => 
-                          dropset.id === dropsetId 
-                            ? {
-                                ...dropset,
-                                rounds: dropset.rounds.map(round => 
-                                  round.id === roundId 
-                                    ? {
-                                        ...round,
-                                        [field]: field === 'reps' 
-                                          ? Math.max(1, round[field] + change)
-                                          : Math.max(0, round[field] + change)
-                                      }
-                                    : round
+                                ...set,
+                                reps: set.reps.map((rep, index) => 
+                                  index === roundIndex 
+                                    ? Math.max(1, rep + change)
+                                    : rep
                                 )
                               }
-                            : dropset
+                            : set
                         )
                       }
                     : exercise
@@ -952,13 +885,56 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       handleSaveAssignment();
     }
   };
+
+  // Handle updating dropset weight array
+  const handleUpdateDropsetWeight = (exerciseId: string, setId: string, roundIndex: number, change: number) => {
+    if (selectedProgram) {
+      const updatedProgram = {
+        ...selectedProgram,
+        days: selectedProgram.days.map((day, dayIndex) => 
+          dayIndex === currentDay 
+            ? {
+                ...day,
+                exercises: day.exercises.map(exercise => 
+                  exercise.id === exerciseId 
+                    ? {
+                        ...exercise,
+                        sets: exercise.sets.map(set => 
+                          set.id === setId && set.isDropset && Array.isArray(set.weight)
+                            ? {
+                                ...set,
+                                weight: set.weight.map((w, index) => 
+                                  index === roundIndex 
+                                    ? Math.max(0, w + change)
+                                    : w
+                                )
+                              }
+                            : set
+                        )
+                      }
+                    : exercise
+                )
+              }
+            : day
+        )
+      };
+      
+      setSelectedProgram(updatedProgram);
+      handleSaveAssignment();
+    }
+  };
+
+
 
   const handleUpdateReps = (exerciseId: string, setId: string, change: number) => {
     if (selectedProgram && selectedProgram.days && selectedProgram.days[currentDay] && selectedProgram.days[currentDay].exercises) {
       // Find the current set to get old value
       const currentExercise = selectedProgram.days[currentDay]?.exercises?.find(ex => ex.id === exerciseId);
       const currentSet = currentExercise?.sets?.find(set => set.id === setId);
-      const oldReps = currentSet?.reps || 0;
+      // Only update if it's not a dropset (dropsets have their own update function)
+      if (currentSet?.isDropset) return;
+      
+      const oldReps = typeof currentSet?.reps === 'number' ? currentSet.reps : 0;
       const newReps = Math.max(1, oldReps + change);
       
       // First update the selectedProgram (source of truth)
@@ -998,7 +974,10 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       // Find the current set to get old value
       const currentExercise = selectedProgram.days[currentDay]?.exercises?.find(ex => ex.id === exerciseId);
       const currentSet = currentExercise?.sets?.find(set => set.id === setId);
-      const oldWeight = currentSet?.weight || 0;
+      // Only update if it's not a dropset (dropsets have their own update function)
+      if (currentSet?.isDropset) return;
+      
+      const oldWeight = typeof currentSet?.weight === 'number' ? currentSet.weight : 0;
       const newWeight = Math.max(0, oldWeight + change);
       
       // First update the selectedProgram (source of truth)
@@ -2137,14 +2116,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         )}
                       </div>
                       
-                      {/* Add Dropset Button */}
-                      <button
-                        onClick={() => handleAddDropset(exercise.id)}
-                        className="w-8 h-8 rounded-lg bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 transition-all duration-200 flex items-center justify-center"
-                        title="Add dropset"
-                      >
-                        <Zap className="w-4 h-4" />
-                      </button>
                       
                       {/* Add Set Button */}
                       <button
@@ -2379,39 +2350,102 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         </div>
                         
                         {/* Reps Section */}
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleUpdateReps(exercise.id, set.id, -1)}
-                            className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <span className="text-white font-bold text-lg min-w-[2rem] text-center">{set.reps}</span>
-                          <button
-                            onClick={() => handleUpdateReps(exercise.id, set.id, 1)}
-                            className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                          <span className="text-slate-400 text-sm">reps</span>
-                        </div>
+                        {set.isDropset && Array.isArray(set.reps) ? (
+                          <div className="space-y-2">
+                            <div className="text-center">
+                              <span className="text-white font-bold text-lg">
+                                {set.reps.join('→')}
+                              </span>
+                              <span className="text-slate-400 text-sm ml-2">dropset</span>
+                            </div>
+                            <div className="flex justify-center space-x-1">
+                              {set.reps.map((rep, roundIndex) => (
+                                <div key={roundIndex} className="flex items-center space-x-1">
+                                  <button
+                                    onClick={() => handleUpdateDropsetReps(exercise.id, set.id, roundIndex, -1)}
+                                    className="w-6 h-6 rounded bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <span className="text-white font-bold text-sm min-w-[1.5rem] text-center">{rep}</span>
+                                  <button
+                                    onClick={() => handleUpdateDropsetReps(exercise.id, set.id, roundIndex, 1)}
+                                    className="w-6 h-6 rounded bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleUpdateReps(exercise.id, set.id, -1)}
+                              className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="text-white font-bold text-lg min-w-[2rem] text-center">
+                              {set.reps}
+                            </span>
+                            <button
+                              onClick={() => handleUpdateReps(exercise.id, set.id, 1)}
+                              className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                            <span className="text-slate-400 text-sm">reps</span>
+                          </div>
+                        )}
                         
                         {/* Weight Section */}
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleUpdateWeight(exercise.id, set.id, -2.5)}
-                            className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <span className="text-white font-bold text-lg min-w-[3rem] text-center">{set.weight}kg</span>
-                          <button
-                            onClick={() => handleUpdateWeight(exercise.id, set.id, 2.5)}
-                            className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
+                        {set.isDropset && Array.isArray(set.weight) ? (
+                          <div className="space-y-2">
+                            <div className="text-center">
+                              <span className="text-white font-bold text-lg">
+                                {set.weight.join('→')}kg
+                              </span>
+                            </div>
+                            <div className="flex justify-center space-x-1">
+                              {set.weight.map((weight, roundIndex) => (
+                                <div key={roundIndex} className="flex items-center space-x-1">
+                                  <button
+                                    onClick={() => handleUpdateDropsetWeight(exercise.id, set.id, roundIndex, -2.5)}
+                                    className="w-6 h-6 rounded bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <span className="text-white font-bold text-sm min-w-[2rem] text-center">{weight}kg</span>
+                                  <button
+                                    onClick={() => handleUpdateDropsetWeight(exercise.id, set.id, roundIndex, 2.5)}
+                                    className="w-6 h-6 rounded bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleUpdateWeight(exercise.id, set.id, -2.5)}
+                              className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="text-white font-bold text-lg min-w-[3rem] text-center">
+                              {set.weight}kg
+                            </span>
+                            <button
+                              onClick={() => handleUpdateWeight(exercise.id, set.id, 2.5)}
+                              className="w-8 h-8 rounded-lg bg-slate-600 hover:bg-slate-500 text-white transition-all duration-200 flex items-center justify-center"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
                         
                         {/* Client Performance Indicator */}
                         {client.workoutAssignment?.clientPerformance?.find(
@@ -2425,10 +2459,23 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           </div>
                         )}
                         
+                        {/* Dropset Toggle Button */}
+                        <button
+                          onClick={() => handleToggleDropset(exercise.id, set.id)}
+                          className={`w-8 h-8 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                            set.isDropset 
+                              ? 'bg-purple-600/30 hover:bg-purple-600/50 text-purple-300' 
+                              : 'bg-slate-600/30 hover:bg-slate-600/50 text-slate-400'
+                          }`}
+                          title={set.isDropset ? 'Convert to regular set' : 'Convert to dropset'}
+                        >
+                          <Zap className="w-4 h-4" />
+                        </button>
+                        
                         {/* Delete Button */}
                         <button
                           onClick={() => handleRemoveSet(exercise.id, set.id)}
-                          className="w-8 h-8 rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300 transition-all duration-200 flex items-center justify-center ml-auto"
+                          className="w-8 h-8 rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300 transition-all duration-200 flex items-center justify-center"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -2436,79 +2483,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     ))}
                   </div>
 
-                  {/* Dropsets */}
-                  {exercise.dropsets && exercise.dropsets.length > 0 && (
-                    <div className="mt-4 space-y-3">
-                      <h6 className="text-sm font-semibold text-purple-300 flex items-center space-x-2">
-                        <Zap className="w-4 h-4" />
-                        <span>Dropsets</span>
-                      </h6>
-                      {exercise.dropsets.map((dropset, dropsetIndex) => (
-                        <div key={dropset.id} className="bg-gradient-to-r from-purple-700/30 to-pink-700/30 rounded-xl border border-purple-500/50 p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-purple-300 font-medium">Dropset {dropsetIndex + 1}</span>
-                            <button
-                              onClick={() => handleRemoveDropset(exercise.id, dropset.id)}
-                              className="w-6 h-6 rounded bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300 transition-all duration-200 flex items-center justify-center"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                          <div className="space-y-2">
-                            {dropset.rounds.map((round, roundIndex) => (
-                              <div key={round.id} className="flex items-center space-x-3 p-2 bg-purple-600/20 rounded-lg">
-                                <span className="text-purple-300 text-sm w-12">Round {roundIndex + 1}</span>
-                                <div className="flex items-center space-x-2">
-                                  <button
-                                    onClick={() => handleUpdateDropsetRound(exercise.id, dropset.id, round.id, 'reps', -1)}
-                                    className="w-6 h-6 rounded bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 transition-all duration-200 flex items-center justify-center"
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </button>
-                                  <span className="text-purple-300 font-bold text-sm min-w-[2rem] text-center">{round.reps}</span>
-                                  <button
-                                    onClick={() => handleUpdateDropsetRound(exercise.id, dropset.id, round.id, 'reps', 1)}
-                                    className="w-6 h-6 rounded bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 transition-all duration-200 flex items-center justify-center"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </button>
-                                  <span className="text-purple-300 text-xs">reps</span>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <button
-                                    onClick={() => handleUpdateDropsetRound(exercise.id, dropset.id, round.id, 'weight', -2.5)}
-                                    className="w-6 h-6 rounded bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 transition-all duration-200 flex items-center justify-center"
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </button>
-                                  <span className="text-purple-300 font-bold text-sm min-w-[2rem] text-center">{round.weight}kg</span>
-                                  <button
-                                    onClick={() => handleUpdateDropsetRound(exercise.id, dropset.id, round.id, 'weight', 2.5)}
-                                    className="w-6 h-6 rounded bg-purple-600/30 hover:bg-purple-600/50 text-purple-300 transition-all duration-200 flex items-center justify-center"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </button>
-                                </div>
-                                <button
-                                  onClick={() => handleRemoveDropsetRound(exercise.id, dropset.id, round.id)}
-                                  className="w-6 h-6 rounded bg-red-600/20 hover:bg-red-600/30 text-red-400 hover:text-red-300 transition-all duration-200 flex items-center justify-center ml-auto"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
-                              </div>
-                            ))}
-                            <button
-                              onClick={() => handleAddDropsetRound(exercise.id, dropset.id)}
-                              className="w-full py-2 px-3 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2"
-                            >
-                              <Plus className="w-4 h-4" />
-                              <span>Add Round</span>
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
 
                   {/* Exercise Notes */}
                   {exercise.notes && (

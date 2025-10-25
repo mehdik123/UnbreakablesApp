@@ -26,7 +26,8 @@ import {
   User,
   Archive,
   Key,
-  LogOut
+  LogOut,
+  Database
 } from 'lucide-react';
 import { Client, ClientWorkoutAssignment } from '../types';
 import { ClientCredentialsManager } from './ClientCredentialsManager';
@@ -340,46 +341,12 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                   className="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200"
                 />
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={onNavigateToMealDatabase}
-                  className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium transition-all duration-200 text-xs sm:text-sm shadow-lg"
-                  title="Meal Database"
-                >
-                  <Utensils className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:block sm:block">Meal DB</span>
-                </button>
-                <button
-                  onClick={onNavigateToIngredients}
-                  className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-lg bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-medium transition-all duration-200 text-xs sm:text-sm shadow-lg"
-                  title="Ingredients Database"
-                >
-                  <Utensils className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:block sm:block">Ingredients</span>
-                </button>
-                <button
-                  onClick={onNavigateToExerciseDatabase}
-                  className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-medium transition-all duration-200 text-xs sm:text-sm shadow-lg"
-                  title="Exercise Database"
-                >
-                  <Dumbbell className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:block sm:block">Exercise DB</span>
-                </button>
-                <button
-                  onClick={onNavigateToTemplates}
-                  className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-lg bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-medium transition-all duration-200 text-xs sm:text-sm shadow-lg"
-                  title="Templates"
-                >
-                  <Grid3X3 className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:block sm:block">Templates</span>
-                </button>
-              </div>
               <button
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center space-x-2 px-4 sm:px-6 py-2 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-red-500/30 hover:scale-105"
+                onClick={onNavigateToMealDatabase}
+                className="flex items-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold transition-all duration-300 shadow-lg hover:shadow-indigo-500/30 hover:scale-105"
               >
-                <Plus className="w-4 h-4" />
-                <span className="text-sm sm:text-base">New Client</span>
+                <Database className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm sm:text-base">Database Manager</span>
               </button>
               <button
                 onClick={handleLogout}
@@ -506,12 +473,20 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               <h2 className="text-2xl sm:text-3xl font-bold text-white">Clients</h2>
               <p className="text-slate-400 text-sm sm:text-lg">Manage your clients and their plans from a single dashboard</p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               <button
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
                 className="p-2 sm:p-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors duration-200"
+                title={viewMode === 'grid' ? 'Switch to List View' : 'Switch to Grid View'}
               >
                 {viewMode === 'grid' ? <List className="w-5 h-5 sm:w-6 sm:h-6" /> : <Grid3X3 className="w-5 h-5 sm:w-6 sm:h-6" />}
+              </button>
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-red-500/30 hover:scale-105"
+              >
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm sm:text-base">Add Client</span>
               </button>
             </div>
           </div>
