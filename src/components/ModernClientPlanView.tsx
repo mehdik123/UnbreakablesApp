@@ -189,62 +189,6 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Stats Cards */}
-        {showStats && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium">Nutrition Plan</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
-                    {client.nutritionPlan ? '✓' : '○'}
-                  </p>
-                </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 flex items-center justify-center">
-                  <Utensils className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium">Workout Plan</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">
-                    {client.workoutAssignment ? '✓' : '○'}
-                  </p>
-                </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-blue-50 dark:bg-blue-950/20 flex items-center justify-center">
-                  <Dumbbell className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium">Weight Logs</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">{client.weightLog?.length || 0}</p>
-                </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-purple-50 dark:bg-purple-950/20 flex items-center justify-center">
-                  <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600 dark:text-purple-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium">Progress</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-100">94%</p>
-                </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-amber-50 dark:bg-amber-950/20 flex items-center justify-center">
-                  <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600 dark:text-amber-400" />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Tab Navigation */}
         <div className="mb-6 sm:mb-8">

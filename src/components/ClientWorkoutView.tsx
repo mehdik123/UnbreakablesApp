@@ -943,34 +943,34 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                             </div>
                               
                             {/* Reps & Weight Controls - Mobile Optimized */}
-                            <div className="space-y-1 sm:space-y-2">
+                            <div className="flex flex-col sm:flex-row gap-2">
                               {/* Reps Section - Compact Mobile Design */}
-                              <div className="bg-gradient-to-r from-blue-500/10 to-blue-600/5 rounded-md sm:rounded-lg p-1.5 sm:p-2 border border-blue-500/20">
-                                <div className="flex items-center justify-between mb-1">
-                                  <h6 className="text-xs font-semibold text-blue-300">Repetitions</h6>
+                              <div className="flex-1 bg-gradient-to-r from-blue-500/10 to-blue-600/5 rounded-md p-2 border border-blue-500/20">
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <h6 className="text-[10px] font-semibold text-blue-300 uppercase">Reps</h6>
                                   <Target className="w-3 h-3 text-blue-400" />
                                 </div>
                                 {isEditMode ? (
-                                  <div className="flex items-center justify-between max-w-xs mx-auto">
+                                  <div className="flex items-center justify-center gap-1">
                                     <button
                                       onClick={() => {
                                         const currentReps = exerciseData[exercise.id]?.[setIndex]?.reps || set.reps;
                                         const newReps = typeof currentReps === 'number' ? Math.max(0, currentReps - 1) : 0;
                                         updateExerciseData(exercise.id, setIndex, 'reps', newReps);
                                       }}
-                                      className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                      className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
                                     >
-                                        <Minus className="w-2 h-2 sm:w-3 sm:h-3" />
+                                        <Minus className="w-3 h-3" />
                                     </button>
-                                    <div className="text-center px-2 sm:px-4">
-                                      <div className="text-sm sm:text-lg font-bold text-blue-300">
+                                    <div className="text-center px-1 flex-1 min-w-[30px]">
+                                      <div className="text-sm font-bold text-blue-300 leading-tight">
                                         {set.isDropset && Array.isArray(set.reps) 
                                           ? set.reps.join('→') 
                                           : (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps)
                                         }
                                       </div>
-                                      <div className="text-blue-400 text-xs">
-                                        {set.isDropset ? 'dropset' : 'reps'}
+                                      <div className="text-blue-400 text-[9px] leading-tight">
+                                        {set.isDropset ? 'dropset' : ''}
                                       </div>
                                     </div>
                                     <button
@@ -979,20 +979,20 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                         const newReps = typeof currentReps === 'number' ? currentReps + 1 : 1;
                                         updateExerciseData(exercise.id, setIndex, 'reps', newReps);
                                       }}
-                                      className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                      className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
                                     >
-                                        <Plus className="w-2 h-2 sm:w-3 sm:h-3" />
+                                        <Plus className="w-3 h-3" />
                                     </button>
                                   </div>
                                 ) : (
                                   <div className="text-center">
-                                    <div className="text-lg sm:text-2xl font-bold text-blue-300">
+                                    <div className="text-sm font-bold text-blue-300">
                                       {set.isDropset && Array.isArray(set.reps) 
                                         ? set.reps.join('→') 
                                         : (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps)
                                       }
                                     </div>
-                                    <div className="text-blue-400 text-xs">
+                                    <div className="text-blue-400 text-[9px]">
                                       {set.isDropset ? 'dropset' : 'reps'}
                                     </div>
                                   </div>
@@ -1000,31 +1000,31 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                               </div>
 
                               {/* Weight Section - Compact Mobile Design */}
-                              <div className="bg-gradient-to-r from-purple-500/10 to-purple-600/5 rounded-md sm:rounded-lg p-1.5 sm:p-2 border border-purple-500/20">
-                                <div className="flex items-center justify-between mb-1">
-                                  <h6 className="text-xs sm:text-sm font-semibold text-purple-300">Weight</h6>
-                                  <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-purple-400" />
+                              <div className="flex-1 bg-gradient-to-r from-purple-500/10 to-purple-600/5 rounded-md p-2 border border-purple-500/20">
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <h6 className="text-[10px] font-semibold text-purple-300 uppercase">Weight</h6>
+                                  <Zap className="w-3 h-3 text-purple-400" />
                                 </div>
                                 {isEditMode ? (
-                                  <div className="flex items-center justify-between max-w-xs mx-auto">
+                                  <div className="flex items-center justify-center gap-1">
                                     <button
                                       onClick={() => {
                                         const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight || set.weight;
                                         const newWeight = typeof currentWeight === 'number' ? Math.max(0, currentWeight - 2.5) : 0;
                                         updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
                                       }}
-                                      className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                      className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
                                     >
-                                        <Minus className="w-2 h-2 sm:w-3 sm:h-3" />
+                                        <Minus className="w-3 h-3" />
                                     </button>
-                                    <div className="text-center px-2 sm:px-4">
-                                      <div className="text-sm sm:text-lg font-bold text-purple-300">
+                                    <div className="text-center px-1 flex-1 min-w-[30px]">
+                                      <div className="text-sm font-bold text-purple-300 leading-tight truncate">
                                         {set.isDropset && Array.isArray(set.weight) 
                                           ? set.weight.join('→') + 'kg'
                                           : (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) + 'kg'
                                         }
                                       </div>
-                                      <div className="text-purple-400 text-xs">weight</div>
+                                      <div className="text-purple-400 text-[9px] leading-tight">kg</div>
                                     </div>
                                     <button
                                       onClick={() => {
@@ -1032,20 +1032,20 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                         const newWeight = typeof currentWeight === 'number' ? currentWeight + 2.5 : 2.5;
                                         updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
                                       }}
-                                      className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                      className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
                                     >
-                                        <Plus className="w-2 h-2 sm:w-3 sm:h-3" />
+                                        <Plus className="w-3 h-3" />
                                     </button>
                                   </div>
                                 ) : (
                                   <div className="text-center">
-                                    <div className="text-lg sm:text-2xl font-bold text-purple-300">
+                                    <div className="text-sm font-bold text-purple-300">
                                       {set.isDropset && Array.isArray(set.weight) 
                                         ? set.weight.join('→') + 'kg'
                                         : (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) + 'kg'
                                       }
                                     </div>
-                                    <div className="text-purple-400 text-xs">weight</div>
+                                    <div className="text-purple-400 text-[9px]">weight</div>
                                   </div>
                                 )}
                               </div>

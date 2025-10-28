@@ -36,6 +36,8 @@ import {
   AlertCircle,
   Info,
   Sparkles,
+  Sparkles as SparklesIcon,
+  List,
   Zap as ZapIcon
 } from 'lucide-react';
 import { MealCard } from './MealCard';
@@ -130,9 +132,10 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   const [showIngredientEditor, setShowIngredientEditor] = useState(false);
   const [editingMeal, setEditingMeal] = useState<SelectedMeal | null>(null);
   const [expandedMeals, setExpandedMeals] = useState<Set<string>>(new Set());
-  const [expandedIngredients, setExpandedIngredients] = useState<Set<string>>(new Set());
+  // By default, all ingredients are expanded and in edit mode for coaches
+  const [expandedIngredients, setExpandedIngredients] = useState<Set<string>>(new Set(['COACH_EDIT_MODE']));
   const [expandedInstructions, setExpandedInstructions] = useState<Set<string>>(new Set());
-  const [editingIngredients, setEditingIngredients] = useState<Set<string>>(new Set());
+  const [editingIngredients, setEditingIngredients] = useState<Set<string>>(new Set(['COACH_EDIT_MODE']));
   const [editingQuantities, setEditingQuantities] = useState<{[key: string]: number}>({});
   const [showIngredientSearch, setShowIngredientSearch] = useState<string | null>(null);
   const [ingredientSearchTerm, setIngredientSearchTerm] = useState('');
@@ -572,11 +575,40 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
     setEditingQuantities({});
   };
 
-  const handleIngredientQuantityChange = (mealId: string, ingredientIndex: number, newQuantity: number) => {
+  const handleIngredientQuantityChange = (mealId: string, ingredientIndex: number, newQuantity: number, slotId: string) => {
     const key = `${mealId}-${ingredientIndex}`;
+    
+    // Update the editing quantities state
     setEditingQuantities(prev => ({
       ...prev,
       [key]: newQuantity
+    }));
+    
+    // Immediately update the actual meal data in mealSlots
+    setMealSlots(prev => prev.map(slot => {
+      if (slot.id === slotId) {
+        return {
+          ...slot,
+          selectedMeals: slot.selectedMeals.map(meal => {
+            if (meal.id === mealId) {
+              return {
+                ...meal,
+                meal: {
+                  ...meal.meal,
+                  ingredients: meal.meal.ingredients.map((ingredient, idx) => {
+                    if (idx === ingredientIndex) {
+                      return { ...ingredient, quantity: newQuantity };
+                    }
+                    return ingredient;
+                  })
+                }
+              };
+            }
+            return meal;
+          })
+        };
+      }
+      return slot;
     }));
   };
 
@@ -719,20 +751,29 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   const renderMobileMealCard = (selectedMeal: SelectedMeal, nutrition: any, isIngredientsExpanded: boolean, isInstructionsExpanded: boolean, slotId: string) => {
     return (
       <>
-        {/* Meal Image */}
-        <div className="w-full h-32 rounded-xl overflow-hidden mb-4 shadow-lg">
+        {/* Meal Image - Ultra Modern for Mobile */}
+        <div className="w-full h-40 rounded-2xl overflow-hidden mb-4 shadow-2xl border-2 border-slate-600/30 group relative">
           <img 
             src={selectedMeal.meal.image} 
             alt={selectedMeal.meal.name} 
-            className="w-full h-full object-cover" 
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
         </div>
 
-        {/* Meal Info */}
-        <div className="flex items-start justify-between mb-3">
+        {/* Meal Info - Ultra Modern for Mobile */}
+        <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <h4 className="text-lg font-bold text-white mb-1 truncate">{selectedMeal.meal.name}</h4>
-            <p className="text-slate-400 capitalize text-sm">{selectedMeal.meal.category}</p>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30 flex-shrink-0">
+                <Crown className="w-5 h-5 text-white" />
+              </div>
+              <h4 className="text-lg font-bold text-white truncate">{selectedMeal.meal.name}</h4>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-700/50 border border-slate-600/50 ml-12">
+              <Activity className="w-3 h-3 text-blue-400" />
+              <p className="text-slate-300 capitalize text-sm font-medium">{selectedMeal.meal.category}</p>
+            </div>
           </div>
           <div className="flex items-center space-x-1">
             {editingIngredients.has(selectedMeal.id) ? (
@@ -773,64 +814,98 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
           </div>
         </div>
 
-        {/* Nutrition Info - Compact for Mobile */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="bg-slate-600/30 rounded-lg p-3 text-center">
-            <div className="text-red-400 text-sm font-medium">Calories</div>
-            <div className="text-white text-lg font-bold">{Math.round(nutrition.calories)}</div>
+        {/* Nutrition Info - Ultra Modern for Mobile */}
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <div className="relative group bg-gradient-to-br from-orange-500/10 to-red-500/10 rounded-2xl p-4 border border-orange-500/20 hover:border-orange-500/40 transition-all duration-300 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative text-center">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center mx-auto mb-2 shadow-lg shadow-orange-500/30">
+                <Flame className="w-3.5 h-3.5 text-white" />
+              </div>
+              <div className="text-orange-400 text-xs font-medium mb-1">Calories</div>
+              <div className="text-white text-xl font-bold">{Math.round(nutrition.calories)}</div>
+            </div>
           </div>
-          <div className="bg-slate-600/30 rounded-lg p-3 text-center">
-            <div className="text-emerald-400 text-sm font-medium">Protein</div>
-            <div className="text-white text-lg font-bold">{Math.round(nutrition.protein)}g</div>
+          <div className="relative group bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-2xl p-4 border border-blue-500/20 hover:border-blue-500/40 transition-all duration-300 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative text-center">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center mx-auto mb-2 shadow-lg shadow-blue-500/30">
+                <Target className="w-3.5 h-3.5 text-white" />
+              </div>
+              <div className="text-blue-400 text-xs font-medium mb-1">Protein</div>
+              <div className="text-white text-xl font-bold">{Math.round(nutrition.protein)}g</div>
+            </div>
           </div>
         </div>
 
-        {/* Expandable Sections - Mobile Optimized */}
-        <div className="space-y-3">
-          {/* Ingredients */}
-          <div className="bg-slate-600/20 rounded-lg p-3">
+        {/* Expandable Sections - Mobile Optimized Ultra Modern */}
+        <div className="space-y-4">
+          {/* Ingredients - Ultra Modern Design */}
+          <div className="bg-gradient-to-br from-slate-800/60 via-slate-700/50 to-slate-800/60 backdrop-blur-xl rounded-2xl p-4 border border-slate-600/40 shadow-lg">
             <button
-              onClick={() => toggleIngredientsExpanded(selectedMeal.id)}
-              className="flex items-center justify-between w-full text-left"
+              onClick={() => toggleExpanded(selectedMeal.id, 'ingredients')}
+              className="flex items-center justify-between w-full text-left group"
             >
-              <span className="text-white font-medium text-sm">Ingredients</span>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isIngredientsExpanded ? 'rotate-180' : ''}`} />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/30">
+                  <List className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <span className="text-white font-bold text-base block">Ingredients</span>
+                  <span className="text-slate-400 text-xs">{selectedMeal.meal.ingredients.length} items</span>
+                </div>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-700/50 group-hover:bg-slate-600/50 transition-colors">
+                <ChevronDown className={`w-4 h-4 text-slate-300 transition-transform duration-300 ${isIngredientsExpanded ? 'rotate-180' : ''}`} />
+              </div>
             </button>
             {isIngredientsExpanded && (
-              <div className="mt-3 space-y-2">
-                {editingIngredients.has(selectedMeal.id) ? (
-                  <div className="space-y-2">
-                    {selectedMeal.meal.ingredients.map((ingredient, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-slate-700/50 rounded-lg p-2">
-                        <span className="text-white text-sm flex-1">{ingredient.food.name}</span>
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => updateIngredientQuantity(selectedMeal.id, idx, Math.max(0, ingredient.quantity - 10))}
-                            className="w-6 h-6 rounded bg-slate-600 hover:bg-slate-500 flex items-center justify-center text-white text-sm"
-                          >
-                            -
-                          </button>
-                          <span className="text-white text-sm w-12 text-center">{ingredient.quantity}g</span>
-                          <button
-                            onClick={() => updateIngredientQuantity(selectedMeal.id, idx, ingredient.quantity + 10)}
-                            className="w-6 h-6 rounded bg-slate-600 hover:bg-slate-500 flex items-center justify-center text-white text-sm"
-                          >
-                            +
-                          </button>
+              <div className="mt-4 space-y-3">
+                {/* Always in edit mode for coaches */}
+                {selectedMeal.meal.ingredients.map((ingredient, idx) => {
+                  const key = `${selectedMeal.id}-${idx}`;
+                  const currentQuantity = editingQuantities[key] !== undefined 
+                    ? editingQuantities[key] 
+                    : ingredient.quantity;
+                  
+                  return (
+                    <div key={idx} className="group relative overflow-hidden">
+                      {/* Ultra Modern Ingredient Card */}
+                      <div className="relative bg-gradient-to-br from-slate-800/70 via-slate-700/60 to-slate-800/70 backdrop-blur-xl rounded-2xl p-4 border border-slate-600/40 hover:border-blue-500/50 transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-blue-500/10 hover:scale-[1.02]">
+                        {/* Animated Background Gradient */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        
+                        <div className="relative flex items-center gap-3">
+                          {/* Ingredient Icon Badge */}
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300 group-hover:scale-110 flex-shrink-0">
+                            <Sparkles className="w-5 h-5 text-white" />
+                          </div>
+                          
+                          {/* Ingredient Name */}
+                          <div className="flex-1 min-w-0">
+                            <span className="text-white font-semibold text-sm block truncate">{ingredient.food.name}</span>
+                            <span className="text-slate-400 text-xs">Ingredient #{idx + 1}</span>
+                          </div>
+                          
+                          {/* Portion Input - Ultra Modern */}
+                          <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="number"
+                              value={currentQuantity}
+                              onChange={(e) => handleIngredientQuantityChange(selectedMeal.id, idx, parseFloat(e.target.value) || 0, slotId)}
+                              onClick={(e) => e.stopPropagation()}
+                              onFocus={(e) => e.stopPropagation()}
+                              className="w-16 sm:w-20 px-3 py-2.5 rounded-xl bg-slate-900/90 text-white text-sm font-bold text-center border-2 border-slate-600/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-blue-400 transition-all backdrop-blur-sm shadow-lg"
+                              min="0"
+                              step="0.1"
+                            />
+                            <span className="text-blue-400 font-bold text-sm">g</span>
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {selectedMeal.meal.ingredients.map((ingredient, idx) => (
-                      <div key={idx} className="flex justify-between text-sm">
-                        <span className="text-slate-300">{ingredient.food.name}</span>
-                        <span className="text-slate-400">{ingredient.quantity}g</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -985,14 +1060,19 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
           {mealSlots.map((slot, index) => (
             <div key={slot.id} className="bg-slate-800/30 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6 shadow-xl">
               <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-red-500 via-orange-500 to-red-600 flex items-center justify-center text-white font-bold text-lg shadow-2xl shadow-red-500/30 group-hover:shadow-red-500/50 transition-all duration-300 group-hover:scale-110">
                     {index + 1}
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-white">{slot.name}</h3>
-                    <p className="text-slate-400 text-sm">
-                      {slot.selectedMeals?.length || 0} meal{(slot.selectedMeals?.length || 0) !== 1 ? 's' : ''}
+                    <h3 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-2 flex-wrap">
+                      {slot.name}
+                      <span className="px-3 py-1 rounded-full bg-red-500/20 border border-red-500/30 text-red-300 text-xs font-bold">
+                        {slot.selectedMeals?.length || 0} {slot.selectedMeals?.length === 1 ? 'meal' : 'meals'}
+                      </span>
+                    </h3>
+                    <p className="text-slate-400 text-sm mt-1">
+                      Tap to add delicious meals
                     </p>
                   </div>
                 </div>
@@ -1001,20 +1081,27 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                     setSelectedSlot(slot.id);
                     setShowMealSelector(true);
                   }}
-                  className="inline-flex items-center space-x-2 px-6 py-3 rounded-xl bg-red-600 text-white hover:bg-red-700 font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 sm:py-3 rounded-2xl bg-gradient-to-r from-red-600 to-red-500 text-white hover:from-red-700 hover:to-red-600 font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-red-500/30 hover:scale-105 active:scale-95"
                 >
-                  <Plus className="w-5 h-5" />
-                  <span>Add Meal</span>
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-sm sm:text-base">Add Meal</span>
                 </button>
               </div>
 
               {(!slot.selectedMeals || slot.selectedMeals.length === 0) ? (
-                <div className="text-center py-12 text-slate-400">
-                  <div className="w-20 h-20 rounded-2xl bg-slate-700/50 flex items-center justify-center mx-auto mb-6">
-                    <Utensils className="w-10 h-10 opacity-50" />
+                <div className="text-center py-16 relative overflow-hidden">
+                  {/* Animated Background Pattern */}
+                  <div className="absolute inset-0 opacity-10">
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-transparent to-purple-500/20 animate-pulse"></div>
                   </div>
-                  <p className="text-lg font-medium">No meals added yet</p>
-                  <p className="text-sm">Click "Add Meal" to get started</p>
+                  
+                  <div className="relative">
+                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-slate-700/60 to-slate-800/60 backdrop-blur-xl border border-slate-600/40 flex items-center justify-center mx-auto mb-6 shadow-2xl group-hover:scale-110 transition-all duration-300">
+                      <Utensils className="w-12 h-12 text-slate-300 group-hover:text-red-400 transition-colors" />
+                    </div>
+                    <p className="text-xl font-bold text-white mb-2">No meals added yet</p>
+                    <p className="text-sm text-slate-400">Click "Add Meal" above to get started</p>
+                  </div>
                 </div>
               ) : (
                 <div className="relative">
@@ -1034,11 +1121,12 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                         fat: total.fat + (ingredient.food.fat * ingredient.quantity / 100)
                       }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
 
-                      const isIngredientsExpanded = expandedIngredients.has(selectedMeal.id);
+                      // Always expanded for coaches
+                      const isIngredientsExpanded = true;
                       const isInstructionsExpanded = expandedInstructions.has(selectedMeal.id);
 
                       return (
-                        <div key={selectedMeal.id} className={`flex-shrink-0 w-80 bg-slate-700/30 backdrop-blur-sm rounded-2xl p-5 border border-slate-600/50 shadow-lg ${mealIndex === 0 ? 'ml-2' : ''} ${mealIndex === slot.selectedMeals.length - 1 ? 'mr-2' : ''}`}>
+                        <div key={selectedMeal.id} className={`flex-shrink-0 w-80 bg-gradient-to-br from-slate-800/60 via-slate-700/50 to-slate-800/60 backdrop-blur-xl rounded-3xl p-6 border border-slate-600/40 hover:border-blue-500/40 transition-all duration-300 shadow-2xl hover:shadow-3xl hover:shadow-blue-500/10 ${mealIndex === 0 ? 'ml-2' : ''} ${mealIndex === slot.selectedMeals.length - 1 ? 'mr-2' : ''}`}>
                           {/* Mobile Meal Card Content */}
                           {renderMobileMealCard(selectedMeal, nutrition, isIngredientsExpanded, isInstructionsExpanded, slot.id)}
                         </div>
@@ -1060,35 +1148,44 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                     const isInstructionsExpanded = expandedInstructions.has(selectedMeal.id);
 
                     return (
-                      <div key={selectedMeal.id} className="bg-slate-700/30 backdrop-blur-sm rounded-2xl p-5 border border-slate-600/50 shadow-lg">
-                        {/* Meal Image */}
-                        <div className="w-full h-32 rounded-xl overflow-hidden mb-4 shadow-lg">
+                      <div key={selectedMeal.id} className="bg-gradient-to-br from-slate-800/60 via-slate-700/50 to-slate-800/60 backdrop-blur-xl rounded-3xl p-6 border border-slate-600/40 hover:border-blue-500/40 transition-all duration-300 shadow-2xl hover:shadow-3xl hover:shadow-blue-500/10 hover:scale-[1.02]">
+                        {/* Meal Image - Ultra Modern */}
+                        <div className="w-full h-40 sm:h-48 rounded-2xl overflow-hidden mb-5 shadow-2xl border-2 border-slate-600/30 group relative">
                           <img 
                             src={selectedMeal.meal.image} 
                             alt={selectedMeal.meal.name} 
-                            className="w-full h-full object-cover" 
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                           />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
                         </div>
 
-                        {/* Meal Info */}
-                        <div className="flex items-start justify-between mb-3">
+                        {/* Meal Info - Ultra Modern */}
+                        <div className="flex items-start justify-between mb-5">
                           <div className="flex-1">
-                            <h4 className="text-lg font-bold text-white mb-1 truncate">{selectedMeal.meal.name}</h4>
-                            <p className="text-slate-400 capitalize text-sm">{selectedMeal.meal.category}</p>
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                                <Crown className="w-5 h-5 text-white" />
+                              </div>
+                              <h4 className="text-xl font-bold text-white truncate">{selectedMeal.meal.name}</h4>
+                            </div>
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-700/50 border border-slate-600/50">
+                              <Activity className="w-3 h-3 text-blue-400" />
+                              <p className="text-slate-300 capitalize text-sm font-medium">{selectedMeal.meal.category}</p>
+                            </div>
                           </div>
-                          <div className="flex items-center space-x-1">
+                          <div className="flex items-center gap-1.5">
                             {editingIngredients.has(selectedMeal.id) ? (
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center gap-2 bg-slate-700/50 rounded-xl p-1 border border-slate-600/50">
                                 <button
                                   onClick={() => saveIngredientChanges(slot.id, selectedMeal.id)}
-                                  className="p-2 rounded-lg text-green-400 hover:text-green-300 hover:bg-green-600/20 transition-colors duration-200"
+                                  className="p-2.5 rounded-lg text-green-400 hover:text-green-300 hover:bg-green-600/20 transition-all duration-200 hover:scale-110"
                                   title="Save Changes"
                                 >
                                   <Save className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => stopEditingIngredients(selectedMeal.id)}
-                                  className="p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-600/20 transition-colors duration-200"
+                                  className="p-2.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-600/20 transition-all duration-200 hover:scale-110"
                                   title="Cancel"
                                 >
                                   <X className="w-4 h-4" />
@@ -1097,7 +1194,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                             ) : (
                               <button
                                 onClick={() => startEditingIngredients(selectedMeal.id)}
-                                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-600 transition-colors duration-200"
+                                className="p-2.5 rounded-xl text-slate-300 hover:text-blue-400 hover:bg-blue-600/20 border border-slate-600/50 hover:border-blue-500/50 transition-all duration-200 hover:scale-110"
                                 title="Edit Ingredients"
                               >
                                 <Edit3 className="w-4 h-4" />
@@ -1105,7 +1202,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                             )}
                             <button
                               onClick={() => handleRemoveMeal(slot.id, selectedMeal.id)}
-                              className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/20 transition-colors duration-200"
+                              className="p-2.5 rounded-xl text-slate-300 hover:text-red-400 hover:bg-red-600/20 border border-slate-600/50 hover:border-red-500/50 transition-all duration-200 hover:scale-110"
                               title="Remove Meal"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1113,31 +1210,43 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                           </div>
                         </div>
 
-                        {/* Meal Quantity Display */}
-                        <div className="flex items-center justify-between mb-4">
-                          <span className="text-slate-400 font-medium text-sm">Quantity:</span>
-                          <span className="text-sm font-bold text-white">
-                            {selectedMeal.quantity}
-                          </span>
+                        {/* Nutrition Info - Ultra Modern Cards */}
+                        <div className="grid grid-cols-2 gap-3 mb-5">
+                          <div className="relative group bg-gradient-to-br from-orange-500/10 to-red-500/10 rounded-2xl p-4 border border-orange-500/20 hover:border-orange-500/40 transition-all duration-300 overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            <div className="relative text-center">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center mx-auto mb-2 shadow-lg shadow-orange-500/30">
+                                <Flame className="w-4 h-4 text-white" />
+                              </div>
+                              <p className="text-slate-400 text-xs mb-1 font-medium">Calories</p>
+                              <p className="text-2xl font-bold text-white">{Math.round(nutrition.calories * selectedMeal.quantity)}</p>
+                            </div>
+                          </div>
+                          <div className="relative group bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-2xl p-4 border border-blue-500/20 hover:border-blue-500/40 transition-all duration-300 overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            <div className="relative text-center">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center mx-auto mb-2 shadow-lg shadow-blue-500/30">
+                                <Target className="w-4 h-4 text-white" />
+                              </div>
+                              <p className="text-slate-400 text-xs mb-1 font-medium">Protein</p>
+                              <p className="text-2xl font-bold text-white">{Math.round(nutrition.protein * selectedMeal.quantity)}g</p>
+                            </div>
+                          </div>
                         </div>
 
-                        {/* Nutrition Info */}
-                        <div className="grid grid-cols-2 gap-2 mb-4">
-                          <div className="text-center p-2 rounded-lg bg-slate-600/30">
-                            <p className="text-slate-400 text-xs">Calories</p>
-                            <p className="text-sm font-bold text-white">{Math.round(nutrition.calories * selectedMeal.quantity)}</p>
-                          </div>
-                          <div className="text-center p-2 rounded-lg bg-slate-600/30">
-                            <p className="text-slate-400 text-xs">Protein</p>
-                            <p className="text-sm font-bold text-white">{Math.round(nutrition.protein * selectedMeal.quantity)}g</p>
-                          </div>
-                        </div>
-
-                        {/* Ingredients Section */}
-                        <div className="mb-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h5 className="text-slate-300 font-bold text-base">Ingredients:</h5>
-                            <div className="flex items-center space-x-2">
+                        {/* Ingredients Section - Ultra Modern */}
+                        <div className="mb-5">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/30">
+                                <List className="w-5 h-5 text-white" />
+                              </div>
+                              <div>
+                                <h5 className="text-white font-bold text-base">Ingredients</h5>
+                                <p className="text-slate-400 text-xs">Edit portions below</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
                               <button
                                 onClick={() => handleAddIngredient(slot.id, selectedMeal.id)}
                                 className="p-2 rounded-lg text-green-400 hover:text-green-300 hover:bg-green-600/20 transition-colors duration-200"
@@ -1160,50 +1269,102 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                           {isIngredientsExpanded && (
                             <div className="space-y-3">
                               {selectedMeal.meal.ingredients.map((ingredient, idx) => {
-                                const isEditing = editingIngredients.has(selectedMeal.id);
+                                // Always in edit mode for coaches
+                                const isEditing = true;
                                 const key = `${selectedMeal.id}-${idx}`;
-                                const currentQuantity = isEditing && editingQuantities[key] !== undefined 
-                                  ? editingQuantities[key] 
-                                  : ingredient.quantity;
+                                const currentQuantity = ingredient.quantity; // Use the actual updated quantity from mealSlots
                                 const ingredientCalories = Math.round((ingredient.food.kcal * currentQuantity / 100) * selectedMeal.quantity);
                                 
                                 return (
-                                  <div key={`${selectedMeal.id}-ingredient-${idx}-${ingredient.food.name}`} className="flex items-center justify-between bg-slate-600/20 rounded-xl p-4">
-                                    <div className="flex-1">
-                                      <button
-                                        onClick={() => setShowIngredientSearch(`${selectedMeal.id}-${idx}`)}
-                                        className="text-left w-full"
-                                      >
-                                        <span className="text-white font-bold text-lg hover:text-red-400 transition-colors">{ingredient.food.name}</span>
-                                        <div className="text-slate-400 text-sm mt-1">
-                                          {ingredient.food.kcal}kcal, {ingredient.food.protein}g protein, {ingredient.food.carbs}g carbs, {ingredient.food.fat}g fat
+                                  <div key={`${selectedMeal.id}-ingredient-${idx}-${ingredient.food.name}`} className="relative group">
+                                    {/* Modern Glass Morphism Card */}
+                                    <div className="bg-gradient-to-br from-slate-800/60 via-slate-700/50 to-slate-800/60 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-slate-600/40 hover:border-blue-500/40 transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-blue-500/10 hover:scale-[1.02]">
+                                      {/* Animated Background Gradient */}
+                                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-transparent to-purple-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                      
+                                      <div className="relative">
+                                        <div className="flex items-start justify-between gap-4">
+                                          {/* Ingredient Name & Info Section */}
+                                          <div className="flex-1 min-w-0">
+                                            <div onClick={() => setShowIngredientSearch(`${selectedMeal.id}-${idx}`)} className="cursor-pointer">
+                                              <div className="flex items-center gap-3 mb-3">
+                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300">
+                                                  <Sparkles className="w-4 h-4 text-white" />
+                                                </div>
+                                                <div>
+                                                  <h4 className="text-white font-bold text-base sm:text-lg group-hover:text-blue-400 transition-colors">{ingredient.food.name}</h4>
+                                                  <p className="text-slate-400 text-xs">Ingredient #{idx + 1}</p>
+                                                </div>
+                                              </div>
+                                              
+                                              {/* Macro Tags with Icons */}
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-300 text-xs font-medium">
+                                                  <Flame className="w-3 h-3" />
+                                                  {ingredient.food.kcal} kcal/100g
+                                                </span>
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-medium">
+                                                  <Target className="w-3 h-3" />
+                                                  {ingredient.food.protein}g protein
+                                                </span>
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-300 text-xs font-medium">
+                                                  <TrendingUp className="w-3 h-3" />
+                                                  {ingredient.food.carbs}g carbs
+                                                </span>
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium">
+                                                  <Shield className="w-3 h-3" />
+                                                  {ingredient.food.fat}g fat
+                                                </span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          
+                                          {/* Portion Control Section */}
+                                          <div className="flex items-start gap-3 flex-shrink-0">
+                                            <div className="text-right">
+                                              <p className="text-slate-400 text-xs mb-1">Total Calories</p>
+                                              <div className="flex items-center gap-1.5">
+                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg shadow-red-500/30">
+                                                  <span className="text-white font-bold text-sm">{ingredientCalories}</span>
+                                                </div>
+                                                <span className="text-red-400 font-bold text-sm">cal</span>
+                                              </div>
+                                            </div>
+                                            
+                                            {/* Portion Input */}
+                                            {isEditing && (
+                                              <div className="flex flex-col items-center gap-1">
+                                                <p className="text-slate-400 text-xs mb-1">Portion (g)</p>
+                                                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                                  <input
+                                                    type="number"
+                                                    value={currentQuantity}
+                                                    onChange={(e) => handleIngredientQuantityChange(selectedMeal.id, idx, parseFloat(e.target.value) || 0, slot.id)}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    onFocus={(e) => e.stopPropagation()}
+                                                    className="w-20 sm:w-24 px-3 py-2 rounded-xl bg-slate-900/80 text-white text-sm sm:text-base text-center border border-slate-600/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 transition-all backdrop-blur-sm font-bold"
+                                                    min="0"
+                                                    step="0.1"
+                                                  />
+                                                  <span className="text-slate-400 text-xs sm:text-sm font-medium">g</span>
+                                                </div>
+                                              </div>
+                                            )}
+                                            
+                                            {/* Remove Button */}
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRemoveIngredient(slot.id, selectedMeal.id, idx);
+                                              }}
+                                              className="mt-7 p-2.5 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-600/20 transition-all duration-200 flex-shrink-0 hover:scale-110 border border-red-500/20 hover:border-red-500/40"
+                                              title="Remove Ingredient"
+                                            >
+                                              <Trash2 className="w-4 h-4" />
+                                            </button>
+                                          </div>
                                         </div>
-                                      </button>
-                                    </div>
-                                    <div className="flex items-center space-x-4 ml-4">
-                                      <span className="text-red-400 font-bold text-lg">{ingredientCalories} cal</span>
-                                      {isEditing ? (
-                                        <div className="flex items-center space-x-2">
-                                          <input
-                                            type="number"
-                                            value={currentQuantity}
-                                            onChange={(e) => handleIngredientQuantityChange(selectedMeal.id, idx, parseFloat(e.target.value) || 0)}
-                                            className="w-20 px-3 py-2 rounded-lg bg-slate-700 text-white text-lg text-center border border-slate-600 focus:outline-none focus:ring-2 focus:ring-red-500"
-                                            min="0"
-                                            step="0.1"
-                                          />
-                                          <span className="text-slate-400 text-lg">g</span>
-                                        </div>
-                                      ) : (
-                                        <span className="text-slate-400 text-lg">{ingredient.quantity}g</span>
-                                      )}
-                                      <button
-                                        onClick={() => handleRemoveIngredient(slot.id, selectedMeal.id, idx)}
-                                        className="p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-600/20 transition-colors duration-200"
-                                        title="Remove Ingredient"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </button>
+                                      </div>
                                     </div>
                                   </div>
                                 );
@@ -1212,24 +1373,53 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                           )}
                         </div>
 
-                        {/* Cooking Instructions Section */}
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <h5 className="text-slate-300 font-bold text-base">How to Cook:</h5>
+                        {/* Cooking Instructions Section - Ultra Modern Design */}
+                        <div className="mt-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                                <BookOpen className="w-5 h-5 text-white" />
+                              </div>
+                              <div>
+                                <h5 className="text-white font-bold text-base">Cooking Instructions</h5>
+                                <p className="text-slate-400 text-xs">Follow these steps</p>
+                              </div>
+                            </div>
                             <button
                               onClick={() => toggleExpanded(selectedMeal.id, 'instructions')}
-                              className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-slate-600/50 hover:bg-slate-600 text-slate-300 hover:text-white transition-all duration-200"
+                              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600/50 text-slate-300 hover:text-white transition-all duration-200 hover:border-purple-500/50"
                             >
                               <span className="text-sm font-medium">
-                                {isInstructionsExpanded ? 'Hide Instructions' : 'Show Instructions'}
+                                {isInstructionsExpanded ? 'Hide' : 'Show'}
                               </span>
-                              <ChevronDown className={`w-4 h-4 transition-transform ${isInstructionsExpanded ? 'rotate-180' : ''}`} />
+                              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isInstructionsExpanded ? 'rotate-180' : ''}`} />
                             </button>
                           </div>
                           
                           {isInstructionsExpanded && (
-                            <div className="bg-slate-600/20 rounded-xl p-4 border border-slate-600/30">
-                              <p className="text-white text-base leading-relaxed font-medium">{selectedMeal.meal.cookingInstructions}</p>
+                            <div className="bg-gradient-to-br from-slate-800/60 via-slate-700/50 to-slate-800/60 backdrop-blur-xl rounded-2xl p-5 border border-slate-600/40 hover:border-purple-500/40 transition-all duration-300 shadow-lg">
+                              <textarea
+                                value={selectedMeal.meal.cookingInstructions}
+                                onChange={(e) => {
+                                  // Update cooking instructions
+                                  setMealSlots(prev => prev.map(mealSlot =>
+                                    mealSlot.id === slot.id ? {
+                                      ...mealSlot,
+                                      selectedMeals: mealSlot.selectedMeals.map(meal =>
+                                        meal.id === selectedMeal.id ? {
+                                          ...meal,
+                                          meal: {
+                                            ...meal.meal,
+                                            cookingInstructions: e.target.value
+                                          }
+                                        } : meal
+                                      )
+                                    } : mealSlot
+                                  ));
+                                }}
+                                className="w-full min-h-[120px] bg-slate-900/40 border border-slate-600/30 rounded-xl p-4 text-white text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500/50 transition-all backdrop-blur-sm"
+                                placeholder="Enter cooking instructions..."
+                              />
                             </div>
                           )}
                         </div>
