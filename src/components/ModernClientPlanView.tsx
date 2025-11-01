@@ -42,6 +42,8 @@ import UltraModernWorkoutEditor from './UltraModernWorkoutEditor';
 import { IndependentMuscleGroupCharts } from './IndependentMuscleGroupCharts';
 import { UltraModernWeeklyWeightLogger } from './UltraModernWeeklyWeightLogger';
 import WeeklyPhotoGallery from './WeeklyPhotoGallery';
+import { supabase, isSupabaseReady } from '../lib/supabaseClient';
+import { dbGetClientPhotos } from '../lib/db';
 
 interface ModernClientPlanViewProps {
   client: Client;
@@ -78,6 +80,47 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
     }, 800);
     return () => clearTimeout(timer);
   }, []);
+
+  // Load weekly photos for the client
+  useEffect(() => {
+    const loadPhotos = async () => {
+      try {
+        if (isSupabaseReady && supabase) {
+          // First resolve the database client UUID from client name
+          const { data: cRow } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('full_name', client.name)
+            .maybeSingle();
+          
+          if (cRow?.id) {
+            const { data: dbPhotos, error } = await dbGetClientPhotos(cRow.id);
+            if (error) {
+              console.error('Error loading photos:', error);
+              return;
+            }
+            
+            if (dbPhotos) {
+              // Convert database format to component format
+              const convertedPhotos = dbPhotos.map(photo => ({
+                id: photo.id,
+                week: photo.week,
+                type: photo.type,
+                imageUrl: photo.image_url,
+                uploadedAt: new Date(photo.uploaded_at)
+              }));
+              
+              setWeeklyPhotos(convertedPhotos);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading photos:', error);
+      }
+    };
+
+    loadPhotos();
+  }, [client.name]);
 
   // Generate unique client share link
   const handleShareClient = () => {

@@ -676,93 +676,86 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
                       {/* Mobile-Optimized Card Content */}
                       <div className="relative p-4 md:p-6">
-                        {/* Mobile-Optimized Macronutrients Grid */}
-                        <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-6">
-                          <div className="text-center p-3 md:p-4 bg-slate-700/50 rounded-xl md:rounded-2xl border border-slate-600/50">
-                            <div className="text-lg md:text-2xl font-black text-blue-400 mb-1">{protein}g</div>
-                            <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Protein</div>
+                        {/* Ultra Compact Macronutrients Grid */}
+                        <div className="grid grid-cols-4 gap-1.5 mb-3">
+                          <div className="text-center p-2 bg-gradient-to-br from-orange-500/10 to-red-500/10 rounded-lg border border-orange-500/20">
+                            <Flame className="w-3 h-3 text-orange-400 mx-auto mb-0.5" />
+                            <div className="text-xs font-bold text-white">{calories}</div>
+                            <div className="text-[9px] text-orange-400 font-medium">Cal</div>
                           </div>
-                          <div className="text-center p-3 md:p-4 bg-slate-700/50 rounded-xl md:rounded-2xl border border-slate-600/50">
-                            <div className="text-lg md:text-2xl font-black text-green-400 mb-1">{carbs}g</div>
-                            <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Carbs</div>
+                          <div className="text-center p-2 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-lg border border-blue-500/20">
+                            <Target className="w-3 h-3 text-blue-400 mx-auto mb-0.5" />
+                            <div className="text-xs font-bold text-white">{protein}g</div>
+                            <div className="text-[9px] text-blue-400 font-medium">Pro</div>
                           </div>
-                          <div className="text-center p-3 md:p-4 bg-slate-700/50 rounded-xl md:rounded-2xl border border-slate-600/50">
-                            <div className="text-lg md:text-2xl font-black text-purple-400 mb-1">{fats}g</div>
-                            <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Fats</div>
+                          <div className="text-center p-2 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-lg border border-green-500/20">
+                            <TrendingUp className="w-3 h-3 text-green-400 mx-auto mb-0.5" />
+                            <div className="text-xs font-bold text-white">{carbs}g</div>
+                            <div className="text-[9px] text-green-400 font-medium">Carb</div>
+                          </div>
+                          <div className="text-center p-2 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-lg border border-purple-500/20">
+                            <Zap className="w-3 h-3 text-purple-400 mx-auto mb-0.5" />
+                            <div className="text-xs font-bold text-white">{fats}g</div>
+                            <div className="text-[9px] text-purple-400 font-medium">Fat</div>
                           </div>
                         </div>
 
 
-                        {/* Creative Action Buttons */}
-                        <div className="grid grid-cols-2 gap-2 md:gap-4 mb-4 md:mb-6">
+                        {/* Ultra Modern Compact Action Buttons */}
+                        <div className="grid grid-cols-2 gap-2 mb-3">
                           <button
                             onClick={() => toggleIngredients(meal.id)}
-                            className={`group relative flex flex-col items-center justify-center space-y-1 px-3 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold transition-all duration-300 text-xs md:text-sm ${
+                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-bold transition-all duration-300 text-xs ${
                               showIngredients[meal.id]
-                                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/25'
-                                : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 border border-slate-600/50 hover:border-orange-500/50'
+                                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/20'
+                                : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 border border-slate-600/50'
                             }`}
                           >
-                            <div className="flex items-center space-x-1 md:space-x-2">
-                              <ChefHat className="w-4 h-4 md:w-5 md:h-5" />
-                              <span className="font-black">What's Inside</span>
-                            </div>
-                            <span className="text-xs opacity-80">See Ingredients</span>
-                            {showIngredients[meal.id] && (
-                              <div className="absolute inset-0 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl md:rounded-2xl blur opacity-0 group-hover:opacity-75 transition-opacity duration-300"></div>
-                            )}
+                            <ChefHat className="w-3.5 h-3.5" />
+                            <span className="font-bold">Ingredients</span>
                           </button>
                           <button
                             onClick={() => toggleInstructions(meal.id)}
-                            className={`group relative flex flex-col items-center justify-center space-y-1 px-3 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold transition-all duration-300 text-xs md:text-sm ${
+                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-bold transition-all duration-300 text-xs ${
                               showInstructions[meal.id]
-                                ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25'
-                                : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 border border-slate-600/50 hover:border-blue-500/50'
+                                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/20'
+                                : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 border border-slate-600/50'
                             }`}
                           >
-                            <div className="flex items-center space-x-1 md:space-x-2">
-                              <BookOpen className="w-4 h-4 md:w-5 md:h-5" />
-                              <span className="font-black">How to Cook</span>
-                            </div>
-                            <span className="text-xs opacity-80">See Instructions</span>
-                            {showInstructions[meal.id] && (
-                              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl md:rounded-2xl blur opacity-0 group-hover:opacity-75 transition-opacity duration-300"></div>
-                            )}
+                            <BookOpen className="w-3.5 h-3.5" />
+                            <span className="font-bold">Instructions</span>
                           </button>
                         </div>
                       
-                        {/* Mobile-Optimized Ingredients Panel */}
+                        {/* Ultra Compact Ingredients Panel */}
                         {showIngredients[meal.id] && (
-                          <div className="border-t border-slate-700/50 p-4 md:p-6 bg-slate-800/30 rounded-xl md:rounded-2xl">
-                            <h5 className="font-black text-white mb-4 md:mb-6 flex items-center space-x-2 md:space-x-3 text-lg md:text-xl">
-                              <ChefHat className="w-5 h-5 md:w-6 md:h-6 text-green-400" />
-                              <span>Ingredients</span>
-                            </h5>
-                            <div className="space-y-2 md:space-y-3">
-                              {meal.ingredients.map((ingredient, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-3 md:p-4 bg-slate-700/50 rounded-xl md:rounded-2xl border border-slate-600/50 hover:bg-slate-700/70 transition-all duration-300">
-                                  <span className="text-slate-200 font-bold text-sm md:text-lg flex-1 min-w-0 pr-2">{ingredient.food.name}</span>
-                                  <div className="flex items-center space-x-2 md:space-x-4 text-slate-300 flex-shrink-0">
-                                    <span className="font-bold text-sm md:text-lg">{ingredient.quantity}g</span>
-                                    <span className="text-green-400 text-lg md:text-xl">•</span>
-                                    <span className="font-bold text-sm md:text-lg">{Math.round(ingredient.food.kcal * ingredient.quantity / 100)} cal</span>
+                          <div className="border-t border-slate-700/30 pt-3 mt-2 space-y-1.5">
+                            {meal.ingredients.map((ingredient, idx) => (
+                              <div key={idx} className="bg-gradient-to-r from-slate-800/40 via-slate-700/30 to-slate-800/40 rounded-lg p-2 border border-slate-600/30">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-5 h-5 rounded bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-green-300 text-[9px] font-bold">{idx + 1}</span>
+                                  </div>
+                                  <span className="text-white font-semibold text-xs flex-1 min-w-0 truncate">{ingredient.food.name}</span>
+                                  <div className="flex items-center gap-1 text-slate-400 text-[10px] flex-shrink-0">
+                                    <span className="font-bold">{ingredient.quantity}g</span>
+                                    <span>•</span>
+                                    <span className="font-bold">{Math.round(ingredient.food.kcal * ingredient.quantity / 100)}</span>
                                   </div>
                                 </div>
-                              ))}
-                            </div>
+                              </div>
+                            ))}
                           </div>
                         )}
 
-                        {/* Mobile-Optimized Instructions Panel */}
+                        {/* Ultra Compact Instructions Panel */}
                         {showInstructions[meal.id] && (
-                          <div className="border-t border-slate-700/50 p-4 md:p-6 bg-slate-800/30 rounded-xl md:rounded-2xl">
-                            <h5 className="font-black text-white mb-4 md:mb-6 flex items-center space-x-2 md:space-x-3 text-lg md:text-xl">
-                              <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-green-400" />
-                              <span>Cooking Instructions</span>
-                            </h5>
-                            <p className="text-slate-200 leading-relaxed font-semibold text-sm md:text-lg">
-                              {meal.cookingInstructions}
-                            </p>
+                          <div className="border-t border-slate-700/30 pt-3 mt-2">
+                            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg p-3 border border-purple-500/20">
+                              <p className="text-slate-200 leading-relaxed text-xs">
+                                {meal.cookingInstructions}
+                              </p>
+                            </div>
                           </div>
                         )}
 

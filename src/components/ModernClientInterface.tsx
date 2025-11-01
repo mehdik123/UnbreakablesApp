@@ -17,7 +17,6 @@ import {
   Fire,
   Activity,
   Timer,
-  BarChart3,
   Trophy,
   Flame,
   Crown,
@@ -25,7 +24,9 @@ import {
   ChevronDown,
   Scale,
   ArrowLeft,
-  Camera
+  Camera,
+  PieChart,
+  LineChart
 } from 'lucide-react';
 import { Client, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
@@ -66,6 +67,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [weeklyPhotos, setWeeklyPhotos] = useState<any[]>([]);
   const [showMotivationQuote, setShowMotivationQuote] = useState(true);
+  const [databaseClientId, setDatabaseClientId] = useState<string | null>(null);
 
   // Memoize motivational quotes
   const motivationQuotes = useMemo(() => [
@@ -97,6 +99,29 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const handleBackToNutrition = useCallback(() => {
     setActiveTab('nutrition');
   }, []);
+
+  // Resolve database client UUID from client name
+  useEffect(() => {
+    const resolveClientId = async () => {
+      try {
+        if (isSupabaseReady && supabase) {
+          const { data: cRow } = await supabase
+            .from('clients')
+            .select('id')
+            .eq('full_name', client.name)
+            .maybeSingle();
+          
+          if (cRow?.id) {
+            setDatabaseClientId(cRow.id);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Failed to resolve client ID:', error);
+      }
+    };
+
+    resolveClientId();
+  }, [client.name]);
 
   // Load nutrition plan and sync current week
   useEffect(() => {
@@ -474,7 +499,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
           <p className="text-slate-400 text-xs sm:text-sm lg:text-base hidden sm:block font-medium">Select what you'd like to work on today</p>
         </div>
         
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           {[
             { 
               id: 'workout', 
@@ -653,7 +678,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                   Upload Week {currentWeek} Photos
                 </h2>
                 <WeeklyPhotoUpload
-                  clientId={client.id}
+                  clientId={databaseClientId || client.id}
                   currentWeek={currentWeek}
                   maxWeeks={client.numberOfWeeks}
                   onPhotosUpdate={setWeeklyPhotos}

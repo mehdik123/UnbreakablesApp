@@ -4,7 +4,6 @@ import {
   Dumbbell, 
   Clock,
   Play,
-  Pause,
   CheckCircle,
   Circle,
   Target,
@@ -15,14 +14,12 @@ import {
   Plus,
   Minus,
   Heart,
-  X,
   Edit3,
   Eye
 } from 'lucide-react';
 import { Client, WorkoutProgram } from '../types';
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking';
 import { useHorizontalScroll } from '../hooks/useHorizontalScroll';
-import { WarmupSection } from './WarmupSection';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -54,12 +51,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const [completedExercises, setCompletedExercises] = useState<{ [exerciseId: string]: boolean }>({});
   const [exerciseData, setExerciseData] = useState<{ [exerciseId: string]: { [setIndex: number]: { reps: number; weight: number } } }>({});
   const [dropsetData, setDropsetData] = useState<{ [exerciseId: string]: { [dropsetIndex: number]: { [roundIndex: number]: { reps: number; weight: number } } } }>({});
-  const [isWorkoutActive, setIsWorkoutActive] = useState(false);
   const [workoutProgram, setWorkoutProgram] = useState<WorkoutProgram | null>(null);
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const SHARED_KEY = `client_${client.id}_assignment`;
   const [sharedVersion, setSharedVersion] = useState<number>(0);
-  const [showWarmupModal, setShowWarmupModal] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
   // Performance tracking
@@ -78,24 +73,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     enableSwipe: true
   });
 
-  // Function to extract muscle groups from current workout session
-  const getMuscleGroupsFromWorkout = (workoutData: any): string[] => {
-    if (!workoutData?.exercises) return [];
-    
-    const muscleGroups = new Set<string>();
-    
-    workoutData.exercises.forEach((exercise: any) => {
-      if (exercise.exercise?.muscleGroup) {
-        // Use the muscleGroup field from the exercises table
-        const muscle = exercise.exercise.muscleGroup;
-        if (muscle && muscle.trim() !== '') {
-          muscleGroups.add(muscle.trim());
-        }
-      }
-    });
-    
-    return Array.from(muscleGroups);
-  };
 
   // Function to enrich program with video URLs from Supabase exercises table
   const enrichProgramWithVideoUrls = async (program: any) => {
@@ -330,14 +307,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   }
 
 
-  const startWorkout = () => {
-    setIsWorkoutActive(true);
-        // Workout started
-  };
-
-  const pauseWorkout = () => {
-    setIsWorkoutActive(false);
-  };
 
   const completeExercise = (exerciseId: string) => {
     const isCurrentlyCompleted = completedExercises[exerciseId];
@@ -510,35 +479,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           </div>
         </div>
 
-          {/* Workout Status - Responsive */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="flex items-center space-x-1.5 sm:space-x-2">
-                <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400" />
-                <span className="text-xs sm:text-sm text-slate-300">Warmups</span>
-          </div>
-      </div>
-            <div className="flex items-center space-x-1.5 sm:space-x-2">
-              {isWorkoutActive ? (
-            <button
-                  onClick={pauseWorkout}
-                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg flex items-center space-x-1.5 sm:space-x-2 text-xs sm:text-sm font-medium transition-all duration-200"
-                >
-                  <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:inline">Pause</span>
-            </button>
-              ) : (
-                <button
-                  onClick={startWorkout}
-                  disabled={!isDayUnlocked}
-                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-green-500 hover:bg-green-600 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-lg flex items-center space-x-1.5 sm:space-x-2 text-xs sm:text-sm font-medium transition-all duration-200"
-                >
-                  <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="hidden xs:inline">Start</span>
-                </button>
-              )}
-            </div>
-        </div>
 
           {/* Performance tracking indicator */}
           {client.workoutAssignment?.lastModifiedBy === 'client' && (
@@ -725,34 +665,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                 ></div>
               </div>
             </div>
-
-            {/* Warmup Button - Mobile Optimized */}
-            {currentDayData && (
-              <div className="bg-slate-800/50 backdrop-blur-xl rounded-xl sm:rounded-2xl border border-slate-700/50 p-3 sm:p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm sm:text-lg font-semibold text-white">Warmup Available</h3>
-                      <p className="text-slate-400 text-xs sm:text-sm truncate">
-                        {getMuscleGroupsFromWorkout(currentDayData).length > 0 
-                          ? `Targeted warmup for: ${getMuscleGroupsFromWorkout(currentDayData).join(', ')}`
-                          : 'General warmup exercises available'
-                        }
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowWarmupModal(true)}
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg sm:rounded-xl font-semibold transition-all duration-300 text-xs sm:text-sm flex-shrink-0"
-                  >
-                    Start Warmup
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* Exercises - Mobile Optimized */}
             <div className="space-y-3 sm:space-y-6">
@@ -1098,47 +1010,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         </div>
         )}
       </div>
-
-      {/* Warmup Modal */}
-      {showWarmupModal && currentDayData && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[10000]">
-          <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            {/* Modal Header */}
-            <div className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
-                    <Zap className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">Warmup Section</h2>
-                    <p className="text-slate-400">
-                      {getMuscleGroupsFromWorkout(currentDayData).length > 0 
-                        ? `Targeted warmup for: ${getMuscleGroupsFromWorkout(currentDayData).join(', ')}`
-                        : 'General warmup exercises available'
-                      }
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowWarmupModal(false)}
-                  className="p-2 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-white transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              <WarmupSection
-                muscleGroups={getMuscleGroupsFromWorkout(currentDayData)}
-                onComplete={() => setShowWarmupModal(false)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 });

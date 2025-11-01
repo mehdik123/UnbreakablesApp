@@ -25,10 +25,16 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
   const [selectedWeek, setSelectedWeek] = useState<number>(currentWeek);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load photos from database on component mount
+  // Load photos from database on component mount or when clientId changes
   useEffect(() => {
     const loadPhotos = async () => {
+      if (!clientId) {
+        console.log('WeeklyPhotoUpload: No clientId provided, skipping photo load');
+        return;
+      }
+
       try {
+        console.log('WeeklyPhotoUpload: Loading photos for clientId:', clientId);
         const { data: dbPhotos, error } = await dbGetClientPhotos(clientId);
         if (error) {
           // If table doesn't exist, just return empty array instead of logging error
@@ -42,6 +48,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
           return;
         }
         
+        console.log('WeeklyPhotoUpload: Loaded photos from database:', dbPhotos?.length || 0);
         if (dbPhotos) {
           // Convert database format to component format
           const convertedPhotos: WeeklyPhoto[] = dbPhotos.map(photo => ({
