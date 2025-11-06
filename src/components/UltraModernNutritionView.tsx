@@ -16,7 +16,7 @@ import {
   Sparkles,
   Droplets,
   Wheat,
-  Avocado,
+  Apple,
   RotateCcw
 } from 'lucide-react';
 import { Client, NutritionPlan, Meal } from '../types';
@@ -366,7 +366,7 @@ export const UltraModernNutritionView: React.FC<UltraModernNutritionViewProps> =
             <div className="relative bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 hover:border-purple-500/50 transition-all duration-300">
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                  <Avocado className="w-6 h-6 text-white" />
+                  <Apple className="w-6 h-6 text-white" />
                 </div>
                 <div className="text-right">
                   <div className="text-3xl font-bold text-white">{dailyProgress.fats}g</div>
