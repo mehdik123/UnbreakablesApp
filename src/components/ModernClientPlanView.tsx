@@ -42,6 +42,7 @@ import UltraModernWorkoutEditor from './UltraModernWorkoutEditor';
 import { IndependentMuscleGroupCharts } from './IndependentMuscleGroupCharts';
 import { UltraModernWeeklyWeightLogger } from './UltraModernWeeklyWeightLogger';
 import WeeklyPhotoGallery from './WeeklyPhotoGallery';
+import { PerformanceAnalytics } from './PerformanceAnalytics';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { dbGetClientPhotos } from '../lib/db';
 
@@ -66,7 +67,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
   onAssignWorkout,
   isDark
 }) => {
-  const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress' | 'weight' | 'photos'>('nutrition');
+  const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress' | 'weight' | 'photos' | 'performance'>('nutrition');
   const [isLoading, setIsLoading] = useState(true);
   const [showStats, setShowStats] = useState(true);
   const [showProgressTracker, setShowProgressTracker] = useState(false);
@@ -233,85 +234,103 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
 
-        {/* Tab Navigation */}
-        <div className="mb-6 sm:mb-8">
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-1 sm:p-2">
-            <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2">
-              <button
-                onClick={() => {
-                  setActiveTab('nutrition');
-                  setShowProgressTracker(false);
-                }}
-                className={`flex-1 flex items-center justify-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
-                  activeTab === 'nutrition' 
-                    ? 'bg-indigo-600 text-white shadow-sm' 
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                }`}
-              >
-                <Utensils className="w-4 h-4" />
-                <span className="hidden sm:block">Nutrition Plan</span>
-                <span className="sm:hidden">Nutrition</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('workout');
-                  setShowProgressTracker(false);
-                }}
-                className={`flex-1 flex items-center justify-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
-                  activeTab === 'workout' 
-                    ? 'bg-indigo-600 text-white shadow-sm' 
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                }`}
-              >
-                <Dumbbell className="w-4 h-4" />
-                <span className="hidden sm:block">Workout Plan</span>
-                <span className="sm:hidden">Workout</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('progress');
-                  setShowProgressTracker(false);
-                }}
-                className={`flex-1 flex items-center justify-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
-                  activeTab === 'progress' 
-                    ? 'bg-indigo-600 text-white shadow-sm' 
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                }`}
-              >
-                <Award className="w-4 h-4" />
-                <span className="hidden sm:block">Progress Tracking</span>
-                <span className="sm:hidden">Progress</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('weight');
-                  setShowProgressTracker(false);
-                }}
-                className={`flex-1 flex items-center justify-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
-                  activeTab === 'weight' 
-                    ? 'bg-indigo-600 text-white shadow-sm' 
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                }`}
-              >
-                <Activity className="w-4 h-4" />
-                <span className="hidden sm:block">Weight Logs</span>
-                <span className="sm:hidden">Weight</span>
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('photos');
-                  setShowProgressTracker(false);
-                }}
-                className={`flex-1 flex items-center justify-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
-                  activeTab === 'photos' 
-                    ? 'bg-indigo-600 text-white shadow-sm' 
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'
-                }`}
-              >
-                <Camera className="w-4 h-4" />
-                <span className="hidden sm:block">Progress Photos</span>
-                <span className="sm:hidden">Photos</span>
-              </button>
+        {/* Modern Horizontal Coach Navbar */}
+        <div className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-2xl mb-6">
+          <div className="max-w-7xl mx-auto px-3 sm:px-6">
+            <div className="flex items-center justify-around py-2 sm:py-3">
+              {[
+                { 
+                  id: 'nutrition', 
+                  label: 'Nutrition', 
+                  icon: Utensils, 
+                  gradient: 'from-green-500 to-emerald-500',
+                  activeColor: 'text-green-400',
+                  activeBg: 'bg-green-500/20'
+                },
+                { 
+                  id: 'workout', 
+                  label: 'Workout', 
+                  icon: Dumbbell, 
+                  gradient: 'from-red-500 to-orange-500',
+                  activeColor: 'text-red-400',
+                  activeBg: 'bg-red-500/20'
+                },
+                { 
+                  id: 'progress', 
+                  label: 'Progress', 
+                  icon: Award, 
+                  gradient: 'from-blue-500 to-indigo-500',
+                  activeColor: 'text-blue-400',
+                  activeBg: 'bg-blue-500/20'
+                },
+                { 
+                  id: 'performance', 
+                  label: 'Analytics', 
+                  icon: BarChart3, 
+                  gradient: 'from-violet-500 to-fuchsia-500',
+                  activeColor: 'text-violet-400',
+                  activeBg: 'bg-violet-500/20'
+                },
+                { 
+                  id: 'weight', 
+                  label: 'Weight', 
+                  icon: Activity, 
+                  gradient: 'from-purple-500 to-pink-500',
+                  activeColor: 'text-purple-400',
+                  activeBg: 'bg-purple-500/20'
+                },
+                { 
+                  id: 'photos', 
+                  label: 'Photos', 
+                  icon: Camera, 
+                  gradient: 'from-indigo-500 to-cyan-500',
+                  activeColor: 'text-indigo-400',
+                  activeBg: 'bg-indigo-500/20'
+                }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id as any);
+                    setShowProgressTracker(false);
+                  }}
+                  className={`group relative flex flex-col items-center justify-center transition-all duration-300 px-2 sm:px-4 py-2 rounded-xl ${
+                    activeTab === tab.id
+                      ? `${tab.activeBg} scale-105`
+                      : 'hover:bg-slate-800/50'
+                  }`}
+                >
+                  {/* Icon */}
+                  <div className={`relative transition-all duration-300 ${
+                    activeTab === tab.id ? 'transform scale-110' : ''
+                  }`}>
+                    <tab.icon className={`w-5 h-5 sm:w-6 sm:h-6 transition-all duration-300 ${
+                      activeTab === tab.id 
+                        ? tab.activeColor 
+                        : 'text-slate-400 group-hover:text-slate-300'
+                    }`} />
+                    
+                    {/* Active indicator dot */}
+                    {activeTab === tab.id && (
+                      <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full bg-gradient-to-r ${tab.gradient} animate-pulse`} />
+                    )}
+                  </div>
+                  
+                  {/* Label */}
+                  <span className={`text-[10px] sm:text-xs font-bold mt-1 transition-all duration-300 ${
+                    activeTab === tab.id 
+                      ? tab.activeColor 
+                      : 'text-slate-400 group-hover:text-slate-300'
+                  }`}>
+                    {tab.label}
+                  </span>
+                  
+                  {/* Active underline */}
+                  {activeTab === tab.id && (
+                    <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-8 sm:w-12 h-0.5 rounded-full bg-gradient-to-r ${tab.gradient}`} />
+                  )}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -341,6 +360,13 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8">
             <IndependentMuscleGroupCharts client={client} isDark={isDark} />
           </div>
+        ) : activeTab === 'performance' ? (
+          <PerformanceAnalytics
+            clientId={client.id}
+            clientName={client.name}
+            isDark={isDark}
+            workoutAssignment={client.workoutAssignment}
+          />
         ) : activeTab === 'weight' ? (
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8">
             <UltraModernWeeklyWeightLogger

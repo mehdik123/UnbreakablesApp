@@ -701,46 +701,48 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         </div>
 
 
-                        {/* Ultra Modern Compact Action Buttons */}
-                        <div className="grid grid-cols-2 gap-2 mb-3">
+                        {/* Ultra Modern Horizontal Action Buttons */}
+                        <div className="flex items-center gap-2 mb-3">
                           <button
                             onClick={() => toggleIngredients(meal.id)}
-                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-bold transition-all duration-300 text-xs ${
+                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all duration-300 text-xs flex-1 ${
                               showIngredients[meal.id]
                                 ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/20'
                                 : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 border border-slate-600/50'
                             }`}
                           >
-                            <ChefHat className="w-3.5 h-3.5" />
-                            <span className="font-bold">Ingredients</span>
+                            <ChefHat className="w-3 h-3" />
+                            <span className="font-bold hidden sm:inline">Ingredients</span>
+                            <span className="font-bold sm:hidden">Ingr.</span>
                           </button>
                           <button
                             onClick={() => toggleInstructions(meal.id)}
-                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg font-bold transition-all duration-300 text-xs ${
+                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all duration-300 text-xs flex-1 ${
                               showInstructions[meal.id]
                                 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/20'
                                 : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 border border-slate-600/50'
                             }`}
                           >
-                            <BookOpen className="w-3.5 h-3.5" />
-                            <span className="font-bold">Instructions</span>
+                            <BookOpen className="w-3 h-3" />
+                            <span className="font-bold hidden sm:inline">Instructions</span>
+                            <span className="font-bold sm:hidden">Instr.</span>
                           </button>
                         </div>
                       
-                        {/* Ultra Compact Ingredients Panel */}
+                        {/* Ultra Compact Ingredients Panel - Optimized */}
                         {showIngredients[meal.id] && (
-                          <div className="border-t border-slate-700/30 pt-3 mt-2 space-y-1.5">
+                          <div className="border-t border-slate-700/30 pt-2 mt-2 space-y-1">
                             {meal.ingredients.map((ingredient, idx) => (
-                              <div key={idx} className="bg-gradient-to-r from-slate-800/40 via-slate-700/30 to-slate-800/40 rounded-lg p-2 border border-slate-600/30">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-5 h-5 rounded bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-green-300 text-[9px] font-bold">{idx + 1}</span>
+                              <div key={idx} className="bg-gradient-to-r from-slate-800/30 via-slate-700/20 to-slate-800/30 rounded-lg p-1.5 border border-slate-600/20">
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-4 h-4 rounded bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 flex items-center justify-center flex-shrink-0">
+                                    <span className="text-green-300 text-[8px] font-bold">{idx + 1}</span>
                                   </div>
-                                  <span className="text-white font-semibold text-xs flex-1 min-w-0 truncate">{ingredient.food.name}</span>
-                                  <div className="flex items-center gap-1 text-slate-400 text-[10px] flex-shrink-0">
+                                  <span className="text-white font-medium text-[11px] flex-1 min-w-0 truncate">{ingredient.food.name}</span>
+                                  <div className="flex items-center gap-0.5 text-slate-400 text-[9px] flex-shrink-0 bg-slate-800/50 px-1.5 py-0.5 rounded">
                                     <span className="font-bold">{ingredient.quantity}g</span>
-                                    <span>•</span>
-                                    <span className="font-bold">{Math.round(ingredient.food.kcal * ingredient.quantity / 100)}</span>
+                                    <span className="text-[8px]">•</span>
+                                    <span className="font-bold">{Math.round(ingredient.food.kcal * ingredient.quantity / 100)}cal</span>
                                   </div>
                                 </div>
                               </div>
@@ -748,11 +750,11 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                           </div>
                         )}
 
-                        {/* Ultra Compact Instructions Panel */}
+                        {/* Ultra Compact Instructions Panel - Optimized */}
                         {showInstructions[meal.id] && (
-                          <div className="border-t border-slate-700/30 pt-3 mt-2">
-                            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg p-3 border border-purple-500/20">
-                              <p className="text-slate-200 leading-relaxed text-xs">
+                          <div className="border-t border-slate-700/30 pt-2 mt-2">
+                            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg p-2 border border-purple-500/20">
+                              <p className="text-slate-200 leading-tight text-[11px]">
                                 {meal.cookingInstructions}
                               </p>
                             </div>

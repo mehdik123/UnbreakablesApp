@@ -26,7 +26,8 @@ import {
   ArrowLeft,
   Camera,
   PieChart,
-  LineChart
+  LineChart,
+  BarChart3
 } from 'lucide-react';
 import { Client, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
@@ -42,6 +43,7 @@ const UltraModernWeeklyWeightLogger = lazy(() => import('./UltraModernWeeklyWeig
 const IndependentMuscleGroupCharts = lazy(() => import('./IndependentMuscleGroupCharts').then(module => ({ default: module.IndependentMuscleGroupCharts })));
 const WeeklyPhotoUpload = lazy(() => import('./WeeklyPhotoUpload').then(module => ({ default: module.default })));
 const WeeklyPhotoGallery = lazy(() => import('./WeeklyPhotoGallery').then(module => ({ default: module.default })));
+const PerformanceAnalytics = lazy(() => import('./PerformanceAnalytics').then(module => ({ default: module.PerformanceAnalytics })));
 
 interface ModernClientInterfaceProps {
   client: Client;
@@ -59,7 +61,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   client,
   isDark
 }) => {
-  const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress' | 'weight' | 'photos'>('workout');
+  const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress' | 'weight' | 'photos' | 'performance'>('workout');
   const [currentWeek, setCurrentWeek] = useState<number>(() => {
     return client.workoutAssignment?.currentWeek || 1;
   });
@@ -492,141 +494,105 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 py-6 sm:py-8">
-        <div className="text-center mb-4 sm:mb-6">
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2">Choose Your Focus</h2>
-          <p className="text-slate-400 text-xs sm:text-sm lg:text-base hidden sm:block font-medium">Select what you'd like to work on today</p>
-        </div>
-        
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          {[
-            { 
-              id: 'workout', 
-              label: 'Workouts', 
-              shortLabel: 'Workouts', 
-              icon: Dumbbell, 
-              gradient: 'from-red-500 via-red-600 to-orange-500',
-              bgGradient: 'from-red-500/10 via-red-600/5 to-orange-500/10',
-              description: 'Track your exercises',
-              emoji: '💪'
-            },
-            { 
-              id: 'nutrition', 
-              label: 'Nutrition', 
-              shortLabel: 'Nutrition', 
-              icon: Utensils, 
-              gradient: 'from-green-500 via-emerald-500 to-teal-500',
-              bgGradient: 'from-green-500/10 via-emerald-500/5 to-teal-500/10',
-              description: 'Manage your meals',
-              emoji: '🥗'
-            },
-            { 
-              id: 'progress', 
-              label: 'Progress', 
-              shortLabel: 'Progress', 
-              icon: TrendingUp, 
-              gradient: 'from-blue-500 via-indigo-500 to-purple-500',
-              bgGradient: 'from-blue-500/10 via-indigo-500/5 to-purple-500/10',
-              description: 'View your charts',
-              emoji: '📊'
-            },
-            { 
-              id: 'weight', 
-              label: 'Weight', 
-              shortLabel: 'Weight', 
-              icon: Scale, 
-              gradient: 'from-purple-500 via-pink-500 to-rose-500',
-              bgGradient: 'from-purple-500/10 via-pink-500/5 to-rose-500/10',
-              description: 'Log your weight',
-              emoji: '⚖️'
-            },
-            { 
-              id: 'photos', 
-              label: 'Photos', 
-              shortLabel: 'Photos', 
-              icon: Camera, 
-              gradient: 'from-indigo-500 via-cyan-500 to-blue-500',
-              bgGradient: 'from-indigo-500/10 via-cyan-500/5 to-blue-500/10',
-              description: 'Track your progress',
-              emoji: '📸'
-            }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`group relative overflow-hidden rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-6 transition-all duration-300 transform hover:scale-105 ${
-                activeTab === tab.id
-                  ? `bg-gradient-to-br ${tab.gradient} shadow-lg shadow-${tab.id === 'workout' ? 'red' : tab.id === 'nutrition' ? 'green' : tab.id === 'progress' ? 'blue' : tab.id === 'weight' ? 'purple' : 'indigo'}-500/25 scale-105`
-                  : `bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 hover:border-slate-600/50 hover:shadow-lg`
-              }`}
-            >
-              {/* Background Pattern */}
-              <div className="absolute inset-0 opacity-5 sm:opacity-10">
-                <div className="absolute top-0 right-0 w-16 h-16 sm:w-24 sm:h-24 bg-white/10 rounded-full -translate-y-8 translate-x-8 sm:-translate-y-12 sm:translate-x-12"></div>
-              </div>
-              
-              {/* Content */}
-              <div className="relative z-10 flex flex-col items-center space-y-2 sm:space-y-3">
-                {/* Icon Container */}
-                <div className={`relative p-2 sm:p-3 lg:p-4 rounded-xl transition-all duration-300 ${
-                  activeTab === tab.id 
-                    ? 'bg-white/20 backdrop-blur-sm shadow-lg' 
-                    : 'bg-slate-700/30 group-hover:bg-slate-700/50'
+      {/* Modern Horizontal Mobile Navbar */}
+      <div className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-2xl">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6">
+          <div className="flex items-center justify-around py-2 sm:py-3">
+            {[
+              { 
+                id: 'nutrition', 
+                label: 'Nutrition', 
+                icon: Utensils, 
+                gradient: 'from-green-500 to-emerald-500',
+                activeColor: 'text-green-400',
+                activeBg: 'bg-green-500/20',
+                emoji: '🥗'
+              },
+              { 
+                id: 'workout', 
+                label: 'Workouts', 
+                icon: Dumbbell, 
+                gradient: 'from-red-500 to-orange-500',
+                activeColor: 'text-red-400',
+                activeBg: 'bg-red-500/20',
+                emoji: '💪'
+              },
+              { 
+                id: 'progress', 
+                label: 'Progress', 
+                icon: TrendingUp, 
+                gradient: 'from-blue-500 to-indigo-500',
+                activeColor: 'text-blue-400',
+                activeBg: 'bg-blue-500/20',
+                emoji: '📊'
+              },
+              { 
+                id: 'performance', 
+                label: 'Analytics', 
+                icon: BarChart3, 
+                gradient: 'from-violet-500 to-fuchsia-500',
+                activeColor: 'text-violet-400',
+                activeBg: 'bg-violet-500/20',
+                emoji: '📈'
+              },
+              { 
+                id: 'weight', 
+                label: 'Weight', 
+                icon: Scale, 
+                gradient: 'from-purple-500 to-pink-500',
+                activeColor: 'text-purple-400',
+                activeBg: 'bg-purple-500/20',
+                emoji: '⚖️'
+              },
+              { 
+                id: 'photos', 
+                label: 'Photos', 
+                icon: Camera, 
+                gradient: 'from-indigo-500 to-cyan-500',
+                activeColor: 'text-indigo-400',
+                activeBg: 'bg-indigo-500/20',
+                emoji: '📸'
+              }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={`group relative flex flex-col items-center justify-center transition-all duration-300 px-2 sm:px-4 py-2 rounded-xl ${
+                  activeTab === tab.id
+                    ? `${tab.activeBg} scale-105`
+                    : 'hover:bg-slate-800/50'
+                }`}
+              >
+                {/* Icon */}
+                <div className={`relative transition-all duration-300 ${
+                  activeTab === tab.id ? 'transform scale-110' : ''
                 }`}>
-                  <tab.icon className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 transition-all duration-300 ${
-                    activeTab === tab.id ? 'text-white' : 'text-slate-300 group-hover:text-white'
+                  <tab.icon className={`w-5 h-5 sm:w-6 sm:h-6 transition-all duration-300 ${
+                    activeTab === tab.id 
+                      ? tab.activeColor 
+                      : 'text-slate-400 group-hover:text-slate-300'
                   }`} />
                   
-                  {/* Emoji Overlay */}
-                  <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 text-lg sm:text-2xl opacity-80">
-                    {tab.emoji}
-                  </div>
+                  {/* Active indicator dot */}
+                  {activeTab === tab.id && (
+                    <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full bg-gradient-to-r ${tab.gradient} animate-pulse`} />
+                  )}
                 </div>
                 
-                {/* Label */}
-                <div className="text-center">
-                  <h3 className={`font-bold text-sm sm:text-base lg:text-lg transition-all duration-300 ${
-                    activeTab === tab.id ? 'text-white' : 'text-slate-200 group-hover:text-white'
-                  }`}>
-                    <span className="hidden sm:block">{tab.label}</span>
-                    <span className="sm:hidden">{tab.shortLabel}</span>
-                  </h3>
-                  <p className={`text-xs sm:text-sm transition-all duration-300 mt-1 hidden sm:block ${
-                    activeTab === tab.id ? 'text-white/80' : 'text-slate-400 group-hover:text-slate-300'
-                  }`}>
-                    {tab.description}
-                  </p>
-                </div>
-              </div>
-              
-              {/* Active Indicator - Thinner for mobile */}
-              {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 sm:h-1 bg-gradient-to-r from-white/60 via-white/40 to-white/60 rounded-b-xl sm:rounded-b-2xl"></div>
-              )}
-              
-              {/* Hover Effect - Subtle for mobile */}
-              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl sm:rounded-2xl"></div>
-            </button>
-          ))}
-        </div>
-        
-        {/* Progress Indicator - Compact for mobile */}
-        <div className="mt-4 sm:mt-6 lg:mt-8 flex justify-center">
-          <div className="flex space-x-1 sm:space-x-2">
-            {[
-              { id: 'workout', color: 'bg-red-500' },
-              { id: 'nutrition', color: 'bg-green-500' },
-              { id: 'progress', color: 'bg-blue-500' },
-              { id: 'weight', color: 'bg-purple-500' },
-              { id: 'photos', color: 'bg-indigo-500' }
-            ].map((tab) => (
-              <div
-                key={tab.id}
-                className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-all duration-300 ${
-                  activeTab === tab.id ? `${tab.color} w-6 sm:w-8` : 'bg-slate-600'
-                }`}
-              />
+                {/* Label - Hidden on small screens, shown on larger */}
+                <span className={`text-[10px] sm:text-xs font-bold mt-1 transition-all duration-300 ${
+                  activeTab === tab.id 
+                    ? tab.activeColor 
+                    : 'text-slate-400 group-hover:text-slate-300'
+                }`}>
+                  {tab.label}
+                </span>
+                
+                {/* Active underline */}
+                {activeTab === tab.id && (
+                  <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-8 sm:w-12 h-0.5 rounded-full bg-gradient-to-r ${tab.gradient}`} />
+                )}
+              </button>
             ))}
           </div>
         </div>
@@ -662,6 +628,13 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               </div>
               <IndependentMuscleGroupCharts client={client} isDark={isDark} />
             </div>
+          ) : activeTab === 'performance' ? (
+            <PerformanceAnalytics
+              clientId={databaseClientId || client.id}
+              clientName={client.name}
+              isDark={isDark}
+              workoutAssignment={client.workoutAssignment}
+            />
           ) : activeTab === 'weight' ? (
             <UltraModernWeeklyWeightLogger
               client={client}

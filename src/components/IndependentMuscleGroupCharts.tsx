@@ -59,6 +59,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
   const [expandedCharts, setExpandedCharts] = useState<{ [muscleGroup: string]: boolean }>({});
   const [workoutExercises, setWorkoutExercises] = useState<{ [muscleGroup: string]: Exercise[] }>({});
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
+  const [imageErrors, setImageErrors] = useState<{ [key: string]: boolean }>({});
 
   // Memoize expensive calculations
   const chartData = useMemo(() => {
@@ -184,28 +185,36 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
     return COLORS[index % COLORS.length];
   };
 
-  const getMuscleGroupIcon = (muscleGroup: string) => {
-    const iconMap: { [key: string]: string } = {
-      'Back': '🏋️',
-      'Chest': '💪',
-      'Shoulders': '🤸',
-      'Arms': '💪',
-      'Legs': '🦵',
-      'Core': '🔥',
-      'Traps': '🏋️',
-      'Calves': '🦵',
-      'Forearms': '✋',
-      'back': '🏋️',
-      'chest': '💪',
-      'shoulders': '🤸',
-      'arms': '💪',
-      'legs': '🦵',
-      'core': '🔥',
-      'traps': '🏋️',
-      'calves': '🦵',
-      'forearms': '✋'
+  // Muscle group image mapping
+  const getMuscleImageUrls = (muscleGroup: string): string[] => {
+    const normalized = muscleGroup.charAt(0).toUpperCase() + muscleGroup.slice(1).toLowerCase();
+    const imageMap: { [key: string]: string[] } = {
+      'Chest': ['/assets/muscles/Chest.png'],
+      'Back': ['/assets/muscles/Back1.png'],
+      'Lats': ['/assets/muscles/Back1.png'],
+      'Traps': ['/assets/muscles/Back2.png'],
+      'Trapezius': ['/assets/muscles/Back2.png'],
+      'Shoulders': ['/assets/muscles/Shoulders.png'],
+      'Arms': ['/assets/muscles/Biceps.png', '/assets/muscles/Triceps.png'],
+      'Biceps': ['/assets/muscles/Biceps.png'],
+      'Triceps': ['/assets/muscles/Triceps.png'],
+      'Forearms': ['/assets/muscles/Forearms.png'],
+      'Legs': ['/assets/muscles/Legs1.png'],
+      'Quads': ['/assets/muscles/Legs1.png'],
+      'Hamstrings': ['/assets/muscles/Legs2.png'],
+      'Calves': ['/assets/muscles/Calves.png'],
+      'Glutes': ['/assets/muscles/Legs2.png'],
+      'Core': ['/assets/muscles/Abs.png'],
+      'Abs': ['/assets/muscles/Abs.png']
     };
-    return iconMap[muscleGroup] || '🏋️';
+    
+    return imageMap[normalized] || imageMap['Core'];
+  };
+
+  // Handle image load errors
+  const handleImageError = (muscleGroup: string) => {
+    console.warn(`Image not found for ${muscleGroup}`);
+    setImageErrors(prev => ({ ...prev, [muscleGroup]: true }));
   };
 
   // Calculate volume directly from current workout assignment data
@@ -409,14 +418,35 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center space-x-4">
                       <div 
-                        className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl border text-2xl relative overflow-hidden"
+                        className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl border relative overflow-hidden"
                         style={{ 
                           background: `linear-gradient(135deg, ${color}20, ${color}10)`,
                           borderColor: `${color}30`
                         }}
                       >
                         <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
-                        <span className="relative z-10">{getMuscleGroupIcon(muscleGroup)}</span>
+                        {!imageErrors[muscleGroup] ? (
+                          <div className="relative z-10 w-full h-full flex items-center justify-center gap-0.5 p-1.5">
+                            {getMuscleImageUrls(muscleGroup).map((imageUrl, index) => (
+                              <img 
+                                key={`${muscleGroup}-${index}`}
+                                src={imageUrl}
+                                alt={`${muscleGroup} muscle`}
+                                className={`${getMuscleImageUrls(muscleGroup).length > 1 ? 'w-1/2' : 'w-full'} h-full`}
+                                style={{ 
+                                  filter: 'brightness(1.1) saturate(1.1)',
+                                  imageRendering: 'crisp-edges',
+                                  objectFit: 'contain',
+                                  maxWidth: getMuscleImageUrls(muscleGroup).length > 1 ? '24px' : '48px',
+                                  maxHeight: '48px'
+                                }}
+                                onError={() => handleImageError(muscleGroup)}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <Activity className="relative z-10 w-6 h-6 text-white/80" />
+                        )}
                       </div>
                       <div>
                         <h3 className="text-2xl font-bold text-white capitalize mb-1">{muscleGroup}</h3>
