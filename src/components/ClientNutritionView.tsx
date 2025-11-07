@@ -623,10 +623,10 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                   <div 
                     key={`${slot.id}-${meal.id}`} 
                     data-scroll-item
-                    className="group relative transition-all duration-500 hover:scale-105 w-full min-w-full flex-shrink-0"
+                    className="group relative transition-all duration-500 md:hover:scale-105 w-full min-w-full flex-shrink-0 touch-pan-y"
                   >
                     {/* Enhanced Modern Meal Card */}
-                    <div className="group relative overflow-hidden rounded-3xl border transition-all duration-500 hover:scale-105 hover:shadow-2xl border-slate-700/50 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-800/50 backdrop-blur-xl hover:border-slate-600/50">
+                    <div className="group relative overflow-hidden rounded-3xl border transition-all duration-500 md:hover:scale-105 md:hover:shadow-2xl border-slate-700/50 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-800/50 backdrop-blur-xl md:hover:border-slate-600/50">
                       {/* Background Pattern */}
                       <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-500">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent rounded-full -translate-y-16 translate-x-16"></div>
@@ -638,7 +638,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         <img
                           src={meal.image}
                           alt={meal.name}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          className="w-full h-full object-cover md:group-hover:scale-110 transition-transform duration-500"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent" />
                         
@@ -658,7 +658,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
                         {/* Mobile-Optimized Meal name overlay */}
                         <div className="absolute bottom-3 md:bottom-4 left-3 md:left-4 right-3 md:right-4">
-                          <h3 className="text-lg md:text-2xl font-black text-white mb-2 md:mb-3 group-hover:text-orange-300 transition-colors duration-300 leading-tight">
+                          <h3 className="text-lg md:text-2xl font-black text-white mb-2 md:mb-3 md:group-hover:text-orange-300 transition-colors duration-300 leading-tight">
                             {meal.name}
                           </h3>
                           <div className="flex items-center space-x-3 md:space-x-6 text-white/90">
