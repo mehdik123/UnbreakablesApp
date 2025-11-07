@@ -585,8 +585,9 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
               <div 
                 ref={getScrollRef(slot.id)}
                 className="overflow-x-auto scrollbar-hide horizontal-scroll"
+                style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}
               >
-                <div className="flex space-x-0 pb-2">
+                <div className="flex space-x-0 pb-2" style={{ touchAction: 'pan-y' }}>
                   {slot.selectedMeals.map((selectedMeal, mealIndex) => {
                 const meal = selectedMeal.meal;
                 const quantity = selectedMeal.quantity;
@@ -623,12 +624,18 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                   <div 
                     key={`${slot.id}-${meal.id}`} 
                     data-scroll-item
-                    className="group relative transition-all duration-500 md:hover:scale-105 w-full min-w-full flex-shrink-0 touch-pan-y"
+                    className="group relative md:transition-all md:duration-500 md:hover:scale-105 w-full min-w-full flex-shrink-0"
+                    style={{ 
+                      touchAction: 'pan-y', 
+                      WebkitTouchCallout: 'none',
+                      userSelect: 'none',
+                      WebkitUserSelect: 'none'
+                    }}
                   >
                     {/* Enhanced Modern Meal Card */}
-                    <div className="group relative overflow-hidden rounded-3xl border transition-all duration-500 md:hover:scale-105 md:hover:shadow-2xl border-slate-700/50 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-800/50 backdrop-blur-xl md:hover:border-slate-600/50">
+                    <div className="group relative overflow-hidden rounded-3xl border md:transition-all md:duration-500 md:hover:scale-105 md:hover:shadow-2xl border-slate-700/50 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-800/50 backdrop-blur-xl md:hover:border-slate-600/50">
                       {/* Background Pattern */}
-                      <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-500">
+                      <div className="absolute inset-0 opacity-5 md:group-hover:opacity-10 transition-opacity duration-500">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent rounded-full -translate-y-16 translate-x-16"></div>
                         <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-white/10 to-transparent rounded-full translate-y-12 -translate-x-12"></div>
                       </div>
@@ -646,10 +653,10 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         <div className="absolute top-3 md:top-4 left-3 md:left-4">
                           <button
                             onClick={() => toggleFavorite(meal.id)}
-                            className={`w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl backdrop-blur-sm transition-all duration-300 shadow-lg ${
+                            className={`w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl backdrop-blur-sm transition-colors duration-300 shadow-lg ${
                               favoriteMeals.includes(meal.id)
                                 ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-yellow-500/50'
-                                : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/80'
+                                : 'bg-slate-800/80 text-slate-300 md:hover:bg-slate-700/80'
                             }`}
                           >
                             <Star className={`w-4 h-4 md:w-5 md:h-5 mx-auto ${favoriteMeals.includes(meal.id) ? 'fill-current' : ''}`} />
@@ -705,10 +712,10 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         <div className="flex items-center gap-2 mb-3">
                           <button
                             onClick={() => toggleIngredients(meal.id)}
-                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all duration-300 text-xs flex-1 ${
+                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors duration-300 text-xs flex-1 ${
                               showIngredients[meal.id]
                                 ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/20'
-                                : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 border border-slate-600/50'
+                                : 'bg-slate-700/50 text-slate-300 md:hover:bg-slate-600/50 border border-slate-600/50'
                             }`}
                           >
                             <ChefHat className="w-3 h-3" />
@@ -717,10 +724,10 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                           </button>
                           <button
                             onClick={() => toggleInstructions(meal.id)}
-                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-all duration-300 text-xs flex-1 ${
+                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors duration-300 text-xs flex-1 ${
                               showInstructions[meal.id]
                                 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/20'
-                                : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 border border-slate-600/50'
+                                : 'bg-slate-700/50 text-slate-300 md:hover:bg-slate-600/50 border border-slate-600/50'
                             }`}
                           >
                             <BookOpen className="w-3 h-3" />
