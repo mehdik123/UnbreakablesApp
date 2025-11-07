@@ -69,8 +69,8 @@ export const DatabaseSelector: React.FC<DatabaseSelectorProps> = ({
     },
     {
       id: 'templates',
-      title: 'Templates',
-      description: 'Manage nutrition and workout templates',
+      title: 'Workout Templates',
+      description: 'Manage workout program templates',
       icon: Grid3X3,
       color: 'from-orange-500 to-orange-600',
       bgColor: 'from-orange-500/10 to-orange-600/5',
@@ -78,7 +78,7 @@ export const DatabaseSelector: React.FC<DatabaseSelectorProps> = ({
       iconColor: 'text-orange-400',
       onClick: onNavigateToTemplates,
       stats: '50+ templates',
-      features: ['Quick setup', 'Pre-built plans', 'Easy customization']
+      features: ['Program templates', 'Day-by-day plans', 'Exercise configuration']
     }
   ];
 

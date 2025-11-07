@@ -576,15 +576,28 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 
       // STEP 4: Update the current week in the database
       if (client.workoutAssignment?.id) {
+        // CRITICAL FIX: Save ALL week data including the updated weeks array
+        const programJsonToSave = {
+          ...client.workoutAssignment.program,
+          weeks: finalWeeks  // Include all weeks data
+        };
+
         const { error } = await dbUpdateWorkoutAssignment(client.workoutAssignment.id, {
+          program_json: programJsonToSave,  // Save complete program with all weeks
           current_week: newWeek,
           last_modified_by: 'coach'
         });
 
         if (error) {
-
+          console.error('❌ Error updating workout assignment:', error);
           return;
         }
+
+        console.log('✅ Saved all weeks data to database:', {
+          totalWeeks: finalWeeks.length,
+          currentWeek: newWeek,
+          weekNumbers: finalWeeks.map(w => w.weekNumber)
+        });
 
         // Update local state
         setCurrentWeek(newWeek);
@@ -594,6 +607,10 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
           ...client.workoutAssignment,
           currentWeek: newWeek,
           weeks: finalWeeks,
+          program: {
+            ...client.workoutAssignment.program,
+            weeks: finalWeeks
+          },
           lastModifiedBy: 'coach',
           lastModifiedAt: new Date()
         };

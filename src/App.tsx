@@ -13,6 +13,7 @@ const MealDatabaseManager = lazy(() => import('./components/MealDatabaseManager'
 const IngredientsManager = lazy(() => import('./components/IngredientsManager'));
 const ExerciseDatabaseManager = lazy(() => import('./components/ExerciseDatabaseManager').then(module => ({ default: module.ExerciseDatabaseManager })));
 const DatabaseSelector = lazy(() => import('./components/DatabaseSelector').then(module => ({ default: module.DatabaseSelector })));
+const WorkoutProgramManager = lazy(() => import('./components/WorkoutProgramManager').then(module => ({ default: module.WorkoutProgramManager })));
 // const SimpleWorkoutEditor = lazy(() => import('./components/SimpleWorkoutEditor').then(module => ({ default: module.SimpleWorkoutEditor })));
 const TemplatesBuilder = lazy(() => import('./components/TemplatesBuilder'));
 import './styles/mobile.css';
@@ -1092,8 +1093,8 @@ function App() {
         )}
 
         {appState.currentView === 'templates' && (
-          <TemplatesBuilder
-            onBack={() => setAppState(prev => ({ ...prev, currentView: 'clients' }))}
+          <WorkoutProgramManager
+            onBack={() => setAppState(prev => ({ ...prev, currentView: 'database-selector' }))}
           />
         )}
         </Suspense>
