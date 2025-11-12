@@ -1,33 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
 import {
-  User,
-  Calendar,
-  Target,
   Utensils,
   Dumbbell,
-  Award,
-  CheckCircle,
-  Clock,
-  Heart,
-  Zap,
-  Star,
-  Play,
-  ChevronRight,
   TrendingUp,
-  Fire,
-  Activity,
-  Timer,
-  Trophy,
-  Flame,
-  Crown,
-  Sparkles,
-  ChevronDown,
   Scale,
   ArrowLeft,
   Camera,
-  PieChart,
-  LineChart,
-  BarChart3
+  BarChart3,
+  Crown
 } from 'lucide-react';
 import { Client, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
@@ -42,7 +22,6 @@ const ClientWorkoutView = lazy(() => import('./ClientWorkoutView').then(module =
 const UltraModernWeeklyWeightLogger = lazy(() => import('./UltraModernWeeklyWeightLogger').then(module => ({ default: module.UltraModernWeeklyWeightLogger })));
 const IndependentMuscleGroupCharts = lazy(() => import('./IndependentMuscleGroupCharts').then(module => ({ default: module.IndependentMuscleGroupCharts })));
 const WeeklyPhotoUpload = lazy(() => import('./WeeklyPhotoUpload').then(module => ({ default: module.default })));
-const WeeklyPhotoGallery = lazy(() => import('./WeeklyPhotoGallery').then(module => ({ default: module.default })));
 const PerformanceAnalytics = lazy(() => import('./PerformanceAnalytics').then(module => ({ default: module.PerformanceAnalytics })));
 
 interface ModernClientInterfaceProps {
@@ -173,6 +152,8 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     if (!isSupabaseReady || !supabase) return;
 
     const syncCurrentWeek = async () => {
+      if (!supabase) return;
+      
       try {
         const { data: cRow } = await supabase
           .from('clients')
@@ -238,7 +219,9 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
     return () => {
       clearInterval(intervalId);
-      supabase.removeChannel(channel);
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [client.id, client.name, currentWeek]);
 
@@ -689,21 +672,6 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                   existingPhotos={weeklyPhotos}
                 />
               </div>
-
-              {/* Photo Gallery */}
-              {weeklyPhotos.length > 0 && (
-                <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
-                  <h2 className="text-2xl font-bold text-white mb-4 flex items-center">
-                    <Camera className="w-6 h-6 mr-3 text-cyan-400" />
-                    Your Progress Gallery
-                  </h2>
-                  <WeeklyPhotoGallery
-                    photos={weeklyPhotos}
-                    onPhotosUpdate={setWeeklyPhotos}
-                    isCoachView={false}
-                  />
-                </div>
-              )}
             </div>
           ) : null}
         </Suspense>

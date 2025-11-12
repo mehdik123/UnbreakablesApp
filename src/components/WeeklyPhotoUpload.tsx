@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Upload, X, RotateCcw, Download, Eye, Trash2, Plus, CheckCircle, AlertCircle } from 'lucide-react';
+import { Camera, Upload, X, RotateCcw, Download, Eye, Trash2, Plus, CheckCircle, AlertCircle, ChevronDown, Calendar } from 'lucide-react';
 import { dbSaveWeeklyPhoto, dbDeleteWeeklyPhoto, dbGetClientPhotos, uploadWeeklyPhoto, WeeklyPhoto } from '../lib/db';
 
 interface WeeklyPhotoUploadProps {
@@ -23,7 +23,15 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
   const [selectedType, setSelectedType] = useState<'front' | 'side' | 'back' | null>(null);
   const [previewPhoto, setPreviewPhoto] = useState<WeeklyPhoto | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<number>(currentWeek);
+  const [isWeekDropdownOpen, setIsWeekDropdownOpen] = useState(false);
+  
+  // Comparison states
+  const [showComparison, setShowComparison] = useState(false);
+  const [compareWeek1, setCompareWeek1] = useState<number | null>(null);
+  const [compareWeek2, setCompareWeek2] = useState<number | null>(null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Load photos from database on component mount or when clientId changes
   useEffect(() => {
@@ -69,6 +77,18 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
 
     loadPhotos();
   }, [clientId, onPhotosUpdate]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsWeekDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const photoTypes = [
     { type: 'front' as const, label: 'Front View', icon: '👤', description: 'Standing straight, facing camera' },
@@ -234,249 +254,480 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
           </p>
         </div>
 
-        {/* Week Selector */}
-        <div className="mb-8">
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
-            <h2 className="text-xl font-bold text-white mb-4 text-center">Select Week</h2>
-            <div className="flex flex-wrap justify-center gap-3">
-              {Array.from({ length: maxWeeks }, (_, i) => i + 1).map((week) => {
-                const weekPhotos = photos.filter(p => p.week === week);
-                const hasPhotos = weekPhotos.length > 0;
-                const isCurrentWeek = week === currentWeek;
-                
-                return (
-                  <button
-                    key={week}
-                    onClick={() => setSelectedWeek(week)}
-                    className={`relative group px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
-                      selectedWeek === week
-                        ? 'bg-gradient-to-r from-indigo-500 to-cyan-500 text-white shadow-lg shadow-indigo-500/25'
-                        : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 hover:text-white'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2">
-                      <span>Week {week}</span>
-                      {hasPhotos && (
-                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      )}
-                      {isCurrentWeek && (
-                        <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-                      )}
+        {/* Ultra Modern Week Selector - Mobile Optimized */}
+        <div className="mb-6 sm:mb-8 relative z-[100]">
+          <div className="bg-gradient-to-br from-slate-800/80 via-slate-900/80 to-slate-800/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-slate-700/50 p-4 sm:p-8 shadow-2xl overflow-visible">
+            <h2 className="text-lg sm:text-2xl font-bold text-white mb-4 sm:mb-6 text-center bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
+              Select Week
+            </h2>
+            
+            <div className="max-w-lg mx-auto relative z-[100]" ref={dropdownRef}>
+              {/* Ultra Modern Custom Dropdown */}
+              <div className="relative z-[100]">
+                {/* Dropdown Trigger - Compact for Mobile */}
+                <button
+                  onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
+                  className="w-full group relative overflow-hidden bg-gradient-to-r from-indigo-600 via-purple-600 to-cyan-600 hover:from-indigo-500 hover:via-purple-500 hover:to-cyan-500 rounded-xl sm:rounded-2xl p-4 sm:p-6 transition-all duration-300 active:scale-[0.98] sm:hover:scale-[1.02] shadow-xl"
+                >
+                  {/* Animated Background Effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-pink-500/0 via-purple-500/30 to-cyan-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  
+                  <div className="relative flex items-center justify-between">
+                    <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
+                      {/* Week Icon - Compact */}
+                      <div className="w-10 h-10 sm:w-14 sm:h-14 bg-white/20 backdrop-blur-sm rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                        <Calendar className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
+                      </div>
+                      
+                      {/* Week Info - Responsive */}
+                      <div className="text-left min-w-0 flex-1">
+                        <div className="text-white/70 text-xs sm:text-sm font-medium hidden sm:block">Selected Week</div>
+                        <div className="flex items-center space-x-2 sm:space-x-3 flex-wrap">
+                          <span className="text-white text-xl sm:text-2xl font-black whitespace-nowrap">Week {selectedWeek}</span>
+                          {selectedWeek === currentWeek && (
+                            <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-yellow-400/20 backdrop-blur-sm rounded-full text-yellow-300 text-[10px] sm:text-xs font-bold flex items-center space-x-1 animate-pulse">
+                              <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-yellow-400 rounded-full"></div>
+                              <span className="hidden sm:inline">Current</span>
+                              <span className="sm:hidden">🟡</span>
+                            </span>
+                          )}
+                          {photos.filter(p => p.week === selectedWeek).length > 0 && (
+                            <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-green-400/20 backdrop-blur-sm rounded-full text-green-300 text-[10px] sm:text-xs font-bold flex items-center space-x-1">
+                              <CheckCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                              <span>{photos.filter(p => p.week === selectedWeek).length}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     
-                    {/* Photo count indicator */}
-                    {hasPhotos && (
-                      <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-xs font-bold text-white">
-                        {weekPhotos.length}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Compact Week Progress Status - Mobile Optimized */}
-        <div className="mb-4 sm:mb-6">
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-700/50 p-3 sm:p-4">
-            <div className="text-center mb-4">
-              <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Week {selectedWeek} Progress</h3>
-              <p className="text-slate-400 text-xs sm:text-sm hidden sm:block">Upload your front, side, and back photos</p>
-            </div>
-            
-            {/* Compact Progress Steps - Horizontal on mobile */}
-            <div className="flex items-center justify-center space-x-2 sm:space-x-4 mb-4">
-              {photoTypes.map((type, index) => {
-                const hasPhoto = getPhotoForType(type.type);
-                return (
-                  <div key={type.type} className="flex flex-col items-center space-y-1 sm:space-y-2">
-                    <div className={`relative w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-base transition-all duration-300 ${
-                      hasPhoto 
-                        ? 'bg-gradient-to-br from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/25' 
-                        : 'bg-slate-700 text-slate-400'
-                    }`}>
-                      {hasPhoto ? <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" /> : type.icon}
-                    </div>
-                    <div className="text-center">
-                      <div className="text-white font-medium text-xs sm:text-sm">{type.label}</div>
-                      <div className="text-slate-400 text-xs hidden sm:block">{type.description}</div>
-                    </div>
-                    {index < photoTypes.length - 1 && (
-                      <div className="hidden sm:block w-4 h-px bg-slate-600 mx-1"></div>
-                    )}
+                    {/* Chevron */}
+                    <ChevronDown 
+                      className={`w-5 h-5 sm:w-6 sm:h-6 text-white transition-transform duration-300 flex-shrink-0 ml-2 ${
+                        isWeekDropdownOpen ? 'rotate-180' : ''
+                      }`}
+                    />
                   </div>
-                );
-              })}
-            </div>
-            
-            {hasAllPhotos && (
-              <div className="text-center">
-                <div className="inline-flex items-center bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium border border-green-500/30">
-                  <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                  <span className="hidden sm:inline">Complete! All photos uploaded for Week {selectedWeek}</span>
-                  <span className="sm:hidden">Complete!</span>
+                </button>
+
+                {/* Ultra Modern Dropdown Menu - Mobile Optimized */}
+                {isWeekDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-2 sm:mt-3 bg-slate-800/95 backdrop-blur-2xl rounded-xl sm:rounded-2xl border border-slate-700/50 shadow-2xl overflow-hidden z-[9999] animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="max-h-[300px] sm:max-h-[400px] overflow-y-auto custom-scrollbar">
+                      {Array.from({ length: maxWeeks }, (_, i) => i + 1).map((week) => {
+                        const weekPhotos = photos.filter(p => p.week === week);
+                        const hasPhotos = weekPhotos.length > 0;
+                        const isCurrentWeek = week === currentWeek;
+                        const isSelected = week === selectedWeek;
+                        const photoCount = weekPhotos.length;
+                        
+                        return (
+                          <button
+                            key={week}
+                            onClick={() => {
+                              setSelectedWeek(week);
+                              setIsWeekDropdownOpen(false);
+                            }}
+                            className={`w-full group px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between transition-all duration-300 ${
+                              isSelected
+                                ? 'bg-gradient-to-r from-indigo-600/40 via-purple-600/40 to-cyan-600/40 border-l-4 border-indigo-400'
+                                : 'hover:bg-slate-700/50 border-l-4 border-transparent hover:border-l-slate-600 active:bg-slate-700/50'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                              {/* Week Number Badge - Compact */}
+                              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-base sm:text-lg transition-all duration-300 flex-shrink-0 ${
+                                isSelected
+                                  ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg scale-105 sm:scale-110'
+                                  : 'bg-slate-700/50 text-slate-300 group-hover:bg-slate-600/50 group-hover:scale-105'
+                              }`}>
+                                {week}
+                              </div>
+                              
+                              {/* Week Label - Compact */}
+                              <div className="text-left min-w-0 flex-1">
+                                <div className={`font-bold text-sm sm:text-base truncate ${
+                                  isSelected ? 'text-white' : 'text-slate-300 group-hover:text-white'
+                                }`}>
+                                  Week {week}
+                                </div>
+                                {hasPhotos && (
+                                  <div className="text-[10px] sm:text-xs text-green-400 font-medium mt-0.5 truncate">
+                                    {photoCount} photo{photoCount > 1 ? 's' : ''}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Indicators - Compact */}
+                            <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 ml-2">
+                              {isCurrentWeek && (
+                                <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-yellow-400/20 backdrop-blur-sm rounded text-yellow-300 text-[10px] sm:text-xs font-bold flex items-center space-x-1">
+                                  <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-yellow-400 rounded-full animate-pulse"></div>
+                                  <span className="hidden sm:inline">Current</span>
+                                </div>
+                              )}
+                              {hasPhotos && (
+                                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-green-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                                  <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
+                                </div>
+                              )}
+                              {isSelected && (
+                                <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-indigo-400 rounded-full animate-pulse"></div>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Stats Bar - Mobile Optimized */}
+              <div className="mt-3 sm:mt-4 flex items-center justify-center space-x-3 sm:space-x-6 text-xs sm:text-sm">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-700/30 backdrop-blur-sm rounded-lg sm:rounded-xl">
+                  <Camera className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400 flex-shrink-0" />
+                  <span className="text-slate-300 font-medium whitespace-nowrap">
+                    {photos.filter(p => p.week === selectedWeek).length}/3
+                  </span>
+                </div>
+                <div className="flex items-center space-x-1.5 sm:space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-700/30 backdrop-blur-sm rounded-lg sm:rounded-xl">
+                  <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400 flex-shrink-0" />
+                  <span className="text-slate-300 font-medium whitespace-nowrap">
+                    <span className="hidden sm:inline">{maxWeeks} weeks</span>
+                    <span className="sm:hidden">{maxWeeks}w</span>
+                  </span>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
 
-        {/* Compact Photo Upload Grid - Mobile Optimized */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
-          {photoTypes.map((type) => {
+        {/* Ultra Modern Compact Photo Gallery */}
+        <div className="mb-6">
+          {/* Progress Header - Compact */}
+          <div className="mb-3 px-1">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/25">
+                  <Camera className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Week {selectedWeek} Photos</h3>
+                  <p className="text-xs text-slate-400">{weekPhotos.length}/3 uploaded</p>
+                </div>
+              </div>
+              {hasAllPhotos && (
+                <div className="flex items-center space-x-2 px-3 py-1.5 bg-green-500/20 border border-green-500/30 rounded-full shadow-lg shadow-green-500/10">
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span className="text-xs font-bold text-green-400 hidden sm:inline">Complete</span>
+                  <span className="text-xs font-bold text-green-400 sm:hidden">✓</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Visual Progress Bar */}
+            <div className="relative h-2 bg-slate-800/50 rounded-full overflow-hidden backdrop-blur-sm">
+              <div 
+                className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-cyan-500 rounded-full transition-all duration-700 ease-out shadow-lg shadow-indigo-500/30"
+                style={{ width: `${(weekPhotos.length / 3) * 100}%` }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Ultra Compact Photo Grid - 3 columns always */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            {photoTypes.map((type) => {
             const existingPhoto = getPhotoForType(type.type);
             
             return (
-              <div key={type.type} className="group relative">
-                <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-700/50 p-3 sm:p-4 lg:p-6 transition-all duration-300 group-hover:border-slate-600/50 group-hover:shadow-xl">
-                  {/* Compact Photo Type Header */}
-                  <div className="text-center mb-3 sm:mb-4">
-                    <div className="relative inline-block">
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 rounded-xl sm:rounded-2xl flex items-center justify-center mb-2 sm:mb-3 mx-auto">
-                        <span className="text-lg sm:text-xl lg:text-3xl">{type.icon}</span>
+              <div key={type.type} className="relative group">
+                {/* Photo Card */}
+                {!existingPhoto ? (
+                  // Upload State - Compact
+                  <div
+                    className={`relative aspect-[3/4] rounded-lg sm:rounded-xl overflow-hidden border-2 border-dashed transition-all duration-300 ${
+                      dragOver
+                        ? 'border-indigo-500 bg-indigo-500/20 scale-[1.02]'
+                        : 'border-slate-600/50 bg-slate-800/40 active:scale-[0.98]'
+                    }`}
+                    onDrop={(e) => handleDrop(e, type.type)}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      onChange={(e) => handleFileSelect(e.target.files, type.type)}
+                    />
+                    
+                    {/* Upload Content - Super Compact */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-2 sm:p-3">
+                      <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-indigo-500/30 to-purple-500/30 rounded-lg sm:rounded-xl flex items-center justify-center mb-2">
+                        <Upload className="w-4 h-4 sm:w-6 sm:h-6 text-indigo-400" />
                       </div>
-                      {existingPhoto && (
-                        <div className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 bg-green-500 rounded-full flex items-center justify-center">
-                          <CheckCircle className="w-2 h-2 sm:w-3 sm:h-3 lg:w-4 lg:h-4 text-white" />
-                        </div>
-                      )}
+                      <p className="text-white text-[10px] sm:text-xs font-bold mb-1 text-center">{type.label}</p>
+                      <p className="text-slate-400 text-[8px] sm:text-[10px] text-center hidden sm:block">{type.description}</p>
+                      <div className="mt-2 px-2 py-1 bg-indigo-500/20 rounded-md">
+                        <Camera className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-300" />
+                      </div>
                     </div>
-                    <h3 className="text-white font-bold text-sm sm:text-base lg:text-lg mb-1">{type.label}</h3>
-                    <p className="text-slate-400 text-xs sm:text-sm hidden sm:block">{type.description}</p>
-                  </div>
 
-                  {/* Compact Upload Area */}
-                  {!existingPhoto ? (
-                    <div
-                      className={`relative border-2 border-dashed rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:p-8 text-center transition-all duration-300 group/upload ${
-                        dragOver
-                          ? 'border-indigo-500 bg-indigo-500/10 scale-105'
-                          : 'border-slate-600 hover:border-indigo-500/50 hover:bg-slate-700/30 hover:scale-105'
-                      }`}
-                      onDrop={(e) => handleDrop(e, type.type)}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                    >
+                    {/* Hover Hint */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <p className="text-white text-[8px] sm:text-[10px] text-center font-medium">Tap to upload</p>
+                    </div>
+                  </div>
+                ) : (
+                  // Photo Uploaded State - Compact
+                  <div className="relative aspect-[3/4] rounded-lg sm:rounded-xl overflow-hidden bg-slate-900 shadow-xl">
+                    {/* Photo Image */}
+                    <img
+                      src={existingPhoto.imageUrl}
+                      alt={`${type.label} - Week ${selectedWeek}`}
+                      className="w-full h-full object-cover"
+                    />
+                    
+                    {/* Status Badge - Top */}
+                    <div className="absolute top-1 sm:top-2 left-1 sm:left-2 right-1 sm:right-2 flex items-center justify-between">
+                      <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-green-500/90 backdrop-blur-sm rounded text-white text-[8px] sm:text-[10px] font-bold flex items-center space-x-1">
+                        <CheckCircle className="w-2 h-2 sm:w-3 sm:h-3" />
+                        <span className="hidden sm:inline">Uploaded</span>
+                      </div>
+                      <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-900/80 backdrop-blur-sm rounded text-white text-[8px] sm:text-[10px] font-bold">
+                        {type.label}
+                      </div>
+                    </div>
+
+                    {/* Actions Overlay - On Hover/Tap */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col items-center justify-end pb-2 sm:pb-4 space-y-1 sm:space-y-2">
+                      <div className="flex space-x-1 sm:space-x-2">
+                        <button
+                          onClick={() => setPreviewPhoto(existingPhoto)}
+                          className="p-1.5 sm:p-2 bg-white/20 backdrop-blur-md rounded-lg text-white hover:bg-white/30 active:scale-95 transition-all"
+                          title="Preview"
+                        >
+                          <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="p-1.5 sm:p-2 bg-indigo-500/80 backdrop-blur-md rounded-lg text-white hover:bg-indigo-600/80 active:scale-95 transition-all"
+                          title="Replace"
+                        >
+                          <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                        <button
+                          onClick={() => removePhoto(existingPhoto.id)}
+                          className="p-1.5 sm:p-2 bg-red-500/80 backdrop-blur-md rounded-lg text-white hover:bg-red-600/80 active:scale-95 transition-all"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                        </button>
+                      </div>
                       <input
                         ref={fileInputRef}
                         type="file"
                         accept="image/*"
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        className="hidden"
                         onChange={(e) => handleFileSelect(e.target.files, type.type)}
                       />
-                      
-                      <div className="space-y-2 sm:space-y-3 lg:space-y-4">
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 mx-auto bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 rounded-xl sm:rounded-2xl flex items-center justify-center group-hover/upload:scale-110 transition-transform duration-300">
-                          <Camera className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-indigo-400" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+            })}
+          </div>
+        </div>
+
+        {/* Ultra Modern Progress Comparison */}
+        <div className="mt-6">
+          {/* Comparison Toggle Button */}
+          {!showComparison ? (
+            <button
+              onClick={() => {
+                setShowComparison(true);
+                // Auto-select current week and previous week if available
+                const weeksWithPhotos = Array.from(new Set(photos.map(p => p.week))).sort((a, b) => b - a);
+                if (weeksWithPhotos.length >= 2) {
+                  setCompareWeek1(weeksWithPhotos[0]);
+                  setCompareWeek2(weeksWithPhotos[1]);
+                } else if (weeksWithPhotos.length === 1) {
+                  setCompareWeek1(weeksWithPhotos[0]);
+                }
+              }}
+              className="w-full group relative overflow-hidden bg-gradient-to-r from-purple-600/20 via-pink-600/20 to-orange-600/20 hover:from-purple-600/30 hover:via-pink-600/30 hover:to-orange-600/30 border-2 border-dashed border-purple-500/30 hover:border-purple-500/50 rounded-xl p-4 transition-all duration-300"
+            >
+              <div className="flex items-center justify-center space-x-3">
+                <div className="flex -space-x-2">
+                  <div className="w-10 h-10 bg-purple-500/30 backdrop-blur-sm rounded-lg border-2 border-purple-400 flex items-center justify-center">
+                    <Camera className="w-5 h-5 text-purple-300" />
+                  </div>
+                  <div className="w-10 h-10 bg-pink-500/30 backdrop-blur-sm rounded-lg border-2 border-pink-400 flex items-center justify-center">
+                    <Camera className="w-5 h-5 text-pink-300" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-white font-bold text-base">Compare Progress</p>
+                  <p className="text-slate-400 text-xs">View side-by-side transformation</p>
+                </div>
+              </div>
+            </button>
+          ) : (
+            <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4 sm:p-6">
+              {/* Header with Close Button */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/25">
+                    <Camera className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-white">Progress Comparison</h3>
+                    <p className="text-xs text-slate-400">Compare your transformation</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowComparison(false);
+                    setCompareWeek1(null);
+                    setCompareWeek2(null);
+                  }}
+                  className="p-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg text-slate-300 hover:text-white transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Week Selection */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                {/* Week 1 Selector */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Week 1</label>
+                  <select
+                    value={compareWeek1 || ''}
+                    onChange={(e) => setCompareWeek1(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  >
+                    <option value="">Select week...</option>
+                    {Array.from(new Set(photos.map(p => p.week)))
+                      .sort((a, b) => a - b)
+                      .map(week => (
+                        <option key={week} value={week}>
+                          Week {week}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Week 2 Selector */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Week 2</label>
+                  <select
+                    value={compareWeek2 || ''}
+                    onChange={(e) => setCompareWeek2(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white text-sm focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all"
+                  >
+                    <option value="">Select week...</option>
+                    {Array.from(new Set(photos.map(p => p.week)))
+                      .sort((a, b) => a - b)
+                      .map(week => (
+                        <option key={week} value={week}>
+                          Week {week}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Comparison Display */}
+              {compareWeek1 && compareWeek2 ? (
+                <div className="space-y-6">
+                  {['front', 'side', 'back'].map((type) => {
+                    const photo1 = photos.find(p => p.week === compareWeek1 && p.type === type);
+                    const photo2 = photos.find(p => p.week === compareWeek2 && p.type === type);
+
+                    return (
+                      <div key={type} className="bg-slate-800/30 backdrop-blur-sm rounded-lg p-3 sm:p-4 border border-slate-700/30">
+                        {/* Type Header */}
+                        <div className="flex items-center justify-center mb-3">
+                          <div className="px-4 py-1.5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-full">
+                            <p className="text-sm font-bold text-white capitalize">{type} View</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-white text-sm sm:text-base lg:text-lg font-semibold mb-1 sm:mb-2">Upload Photo</p>
-                          <p className="text-slate-400 text-xs sm:text-sm mb-2 sm:mb-3 hidden sm:block">
-                            Drag & drop or click to select
-                          </p>
-                          <p className="text-slate-400 text-xs mb-2 sm:hidden">
-                            Tap to select
-                          </p>
-                          <div className="inline-flex items-center bg-slate-700/50 text-slate-300 px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-full text-xs">
-                            <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                            <span className="hidden sm:inline">PNG, JPG up to 10MB</span>
-                            <span className="sm:hidden">PNG, JPG</span>
+
+                        {/* Side by Side Comparison */}
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                          {/* Photo 1 */}
+                          <div className="relative">
+                            <div className="absolute top-2 left-2 right-2 z-10">
+                              <div className="px-2 py-1 bg-purple-500/90 backdrop-blur-sm rounded text-white text-[10px] sm:text-xs font-bold text-center">
+                                Week {compareWeek1}
+                              </div>
+                            </div>
+                            {photo1 ? (
+                              <div className="aspect-[3/4] rounded-lg overflow-hidden bg-slate-900">
+                                <img
+                                  src={photo1.imageUrl}
+                                  alt={`${type} - Week ${compareWeek1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="aspect-[3/4] rounded-lg bg-slate-900/50 border-2 border-dashed border-slate-600/50 flex items-center justify-center">
+                                <div className="text-center p-4">
+                                  <AlertCircle className="w-6 h-6 sm:w-8 sm:h-8 text-slate-500 mx-auto mb-2" />
+                                  <p className="text-slate-500 text-[10px] sm:text-xs font-medium">No photo</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Photo 2 */}
+                          <div className="relative">
+                            <div className="absolute top-2 left-2 right-2 z-10">
+                              <div className="px-2 py-1 bg-pink-500/90 backdrop-blur-sm rounded text-white text-[10px] sm:text-xs font-bold text-center">
+                                Week {compareWeek2}
+                              </div>
+                            </div>
+                            {photo2 ? (
+                              <div className="aspect-[3/4] rounded-lg overflow-hidden bg-slate-900">
+                                <img
+                                  src={photo2.imageUrl}
+                                  alt={`${type} - Week ${compareWeek2}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="aspect-[3/4] rounded-lg bg-slate-900/50 border-2 border-dashed border-slate-600/50 flex items-center justify-center">
+                                <div className="text-center p-4">
+                                  <AlertCircle className="w-6 h-6 sm:w-8 sm:h-8 text-slate-500 mx-auto mb-2" />
+                                  <p className="text-slate-500 text-[10px] sm:text-xs font-medium">No photo</p>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="relative group/photo">
-                      <div className="aspect-[3/4] rounded-xl sm:rounded-2xl overflow-hidden bg-slate-700 shadow-lg">
-                        <img
-                          src={existingPhoto.imageUrl}
-                          alt={`${type.label} - Week ${selectedWeek}`}
-                          className="w-full h-full object-cover group-hover/photo:scale-105 transition-transform duration-300"
-                        />
-                      </div>
-                      
-                      {/* Photo Actions Overlay - Compact for mobile */}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/photo:opacity-100 transition-opacity duration-300 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                        <div className="flex space-x-2 sm:space-x-3">
-                          <button
-                            onClick={() => setPreviewPhoto(existingPhoto)}
-                            className="p-2 sm:p-3 bg-white/20 backdrop-blur-sm rounded-lg sm:rounded-xl text-white hover:bg-white/30 transition-colors"
-                            title="Preview"
-                          >
-                            <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </button>
-                          <button
-                            onClick={() => removePhoto(existingPhoto.id)}
-                            className="p-2 sm:p-3 bg-red-500/80 backdrop-blur-sm rounded-lg sm:rounded-xl text-white hover:bg-red-600/80 transition-colors"
-                            title="Remove"
-                          >
-                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Compact Replace Button */}
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full mt-2 sm:mt-3 lg:mt-4 py-2 sm:py-3 px-3 sm:px-4 bg-gradient-to-r from-indigo-500 to-cyan-500 hover:from-indigo-600 hover:to-cyan-600 text-white text-xs sm:text-sm font-semibold rounded-lg sm:rounded-xl transition-all duration-300 transform hover:scale-105"
-                      >
-                        <Plus className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
-                        <span className="hidden sm:inline">Replace Photo</span>
-                        <span className="sm:hidden">Replace</span>
-                      </button>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
-              </div>
-            );
-          })}
+              ) : (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Camera className="w-8 h-8 text-slate-500" />
+                  </div>
+                  <p className="text-slate-400 text-sm font-medium mb-2">Select two weeks to compare</p>
+                  <p className="text-slate-500 text-xs">Choose weeks from the dropdowns above</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-
-        {/* Compact Week Summary */}
-        {weekPhotos.length > 0 && (
-          <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-sm rounded-xl sm:rounded-2xl lg:rounded-3xl border border-slate-700/50 p-4 sm:p-6 lg:p-8">
-            <div className="text-center mb-4 sm:mb-6">
-              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 sm:mb-2">Week {selectedWeek} Summary</h3>
-              <p className="text-slate-400 text-xs sm:text-sm hidden sm:block">Your progress photos for this week</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
-              {weekPhotos.map((photo) => (
-                <div key={photo.id} className="relative group">
-                  <div className="aspect-[3/4] rounded-xl sm:rounded-2xl overflow-hidden bg-slate-700 shadow-lg">
-                    <img
-                      src={photo.imageUrl}
-                      alt={`${photo.type} - Week ${photo.week}`}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                    <div className="flex space-x-2 sm:space-x-3">
-                      <button
-                        onClick={() => setPreviewPhoto(photo)}
-                        className="p-2 sm:p-3 bg-white/20 backdrop-blur-sm rounded-lg sm:rounded-xl text-white hover:bg-white/30 transition-colors"
-                      >
-                        <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </button>
-                      <button
-                        onClick={() => removePhoto(photo.id)}
-                        className="p-2 sm:p-3 bg-red-500/80 backdrop-blur-sm rounded-lg sm:rounded-xl text-white hover:bg-red-600/80 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="mt-2 sm:mt-3 lg:mt-4 text-center">
-                    <p className="text-white text-sm sm:text-base lg:text-lg font-semibold capitalize">{photo.type} View</p>
-                    <p className="text-slate-400 text-xs sm:text-sm">
-                      {photo.uploadedAt.toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Enhanced Uploading Overlay */}
         {uploading && (

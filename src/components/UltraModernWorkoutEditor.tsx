@@ -2079,6 +2079,191 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               </div>
             )}
 
+            {/* Bulk Edit Panel for Entire Day */}
+            {currentDayData?.exercises && currentDayData.exercises.length > 0 && (
+              <div className="bg-gradient-to-r from-purple-900/40 via-indigo-900/40 to-purple-900/40 backdrop-blur-xl rounded-2xl border border-purple-500/30 p-6 shadow-2xl">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <Zap className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white">Day Bulk Actions</h3>
+                      <p className="text-xs text-purple-200/70">Apply changes to ALL exercises in this day</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-purple-200/70">Affecting</div>
+                    <div className="text-xl font-bold text-white">{currentDayData.exercises.length} exercises</div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {/* +1 Rep to All Exercises */}
+                  <button
+                    onClick={() => {
+                      if (selectedProgram) {
+                        const updatedProgram = {
+                          ...selectedProgram,
+                          days: selectedProgram.days.map((day, dayIndex) => 
+                            dayIndex === currentDay
+                              ? {
+                                  ...day,
+                                  exercises: day.exercises.map(ex => ({
+                                    ...ex,
+                                    sets: ex.sets.map(set => ({
+                                      ...set,
+                                      reps: Array.isArray(set.reps) ? set.reps : (typeof set.reps === 'number' ? set.reps + 1 : set.reps)
+                                    }))
+                                  }))
+                                }
+                              : day
+                          )
+                        };
+                        setSelectedProgram(updatedProgram);
+                        setTimeout(() => autoSaveChanges(updatedProgram), 500);
+                      }
+                    }}
+                    className="group flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-500/20 to-blue-600/30 hover:from-blue-500/40 hover:to-blue-600/50 rounded-xl border border-blue-500/30 hover:border-blue-400/60 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20"
+                  >
+                    <div className="text-2xl font-black text-blue-300 group-hover:text-blue-200 group-hover:scale-110 transition-transform duration-200">+1</div>
+                    <div className="text-xs text-blue-200/70 group-hover:text-blue-100 mt-1">Rep All</div>
+                  </button>
+
+                  {/* +2 Reps to All Exercises */}
+                  <button
+                    onClick={() => {
+                      if (selectedProgram) {
+                        const updatedProgram = {
+                          ...selectedProgram,
+                          days: selectedProgram.days.map((day, dayIndex) => 
+                            dayIndex === currentDay
+                              ? {
+                                  ...day,
+                                  exercises: day.exercises.map(ex => ({
+                                    ...ex,
+                                    sets: ex.sets.map(set => ({
+                                      ...set,
+                                      reps: Array.isArray(set.reps) ? set.reps : (typeof set.reps === 'number' ? set.reps + 2 : set.reps)
+                                    }))
+                                  }))
+                                }
+                              : day
+                          )
+                        };
+                        setSelectedProgram(updatedProgram);
+                        setTimeout(() => autoSaveChanges(updatedProgram), 500);
+                      }
+                    }}
+                    className="group flex flex-col items-center justify-center p-4 bg-gradient-to-br from-cyan-500/20 to-cyan-600/30 hover:from-cyan-500/40 hover:to-cyan-600/50 rounded-xl border border-cyan-500/30 hover:border-cyan-400/60 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/20"
+                  >
+                    <div className="text-2xl font-black text-cyan-300 group-hover:text-cyan-200 group-hover:scale-110 transition-transform duration-200">+2</div>
+                    <div className="text-xs text-cyan-200/70 group-hover:text-cyan-100 mt-1">Reps All</div>
+                  </button>
+
+                  {/* +2.5kg to All Exercises */}
+                  <button
+                    onClick={() => {
+                      if (selectedProgram) {
+                        const updatedProgram = {
+                          ...selectedProgram,
+                          days: selectedProgram.days.map((day, dayIndex) => 
+                            dayIndex === currentDay
+                              ? {
+                                  ...day,
+                                  exercises: day.exercises.map(ex => ({
+                                    ...ex,
+                                    sets: ex.sets.map(set => ({
+                                      ...set,
+                                      weight: (set.weight || 0) + 2.5
+                                    }))
+                                  }))
+                                }
+                              : day
+                          )
+                        };
+                        setSelectedProgram(updatedProgram);
+                        setTimeout(() => autoSaveChanges(updatedProgram), 500);
+                      }
+                    }}
+                    className="group flex flex-col items-center justify-center p-4 bg-gradient-to-br from-green-500/20 to-green-600/30 hover:from-green-500/40 hover:to-green-600/50 rounded-xl border border-green-500/30 hover:border-green-400/60 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/20"
+                  >
+                    <div className="text-2xl font-black text-green-300 group-hover:text-green-200 group-hover:scale-110 transition-transform duration-200">+2.5</div>
+                    <div className="text-xs text-green-200/70 group-hover:text-green-100 mt-1">kg All</div>
+                  </button>
+
+                  {/* +5kg to All Exercises */}
+                  <button
+                    onClick={() => {
+                      if (selectedProgram) {
+                        const updatedProgram = {
+                          ...selectedProgram,
+                          days: selectedProgram.days.map((day, dayIndex) => 
+                            dayIndex === currentDay
+                              ? {
+                                  ...day,
+                                  exercises: day.exercises.map(ex => ({
+                                    ...ex,
+                                    sets: ex.sets.map(set => ({
+                                      ...set,
+                                      weight: (set.weight || 0) + 5
+                                    }))
+                                  }))
+                                }
+                              : day
+                          )
+                        };
+                        setSelectedProgram(updatedProgram);
+                        setTimeout(() => autoSaveChanges(updatedProgram), 500);
+                      }
+                    }}
+                    className="group flex flex-col items-center justify-center p-4 bg-gradient-to-br from-emerald-500/20 to-emerald-600/30 hover:from-emerald-500/40 hover:to-emerald-600/50 rounded-xl border border-emerald-500/30 hover:border-emerald-400/60 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/20"
+                  >
+                    <div className="text-2xl font-black text-emerald-300 group-hover:text-emerald-200 group-hover:scale-110 transition-transform duration-200">+5</div>
+                    <div className="text-xs text-emerald-200/70 group-hover:text-emerald-100 mt-1">kg All</div>
+                  </button>
+
+                  {/* +5% Volume to All */}
+                  <button
+                    onClick={() => {
+                      if (selectedProgram) {
+                        const updatedProgram = {
+                          ...selectedProgram,
+                          days: selectedProgram.days.map((day, dayIndex) => 
+                            dayIndex === currentDay
+                              ? {
+                                  ...day,
+                                  exercises: day.exercises.map(ex => ({
+                                    ...ex,
+                                    sets: ex.sets.map(set => ({
+                                      ...set,
+                                      reps: Array.isArray(set.reps) ? set.reps : (typeof set.reps === 'number' ? Math.round(set.reps * 1.05) : set.reps),
+                                      weight: Array.isArray(set.weight) ? set.weight : (typeof set.weight === 'number' ? Math.round(set.weight * 1.05 * 2) / 2 : set.weight)
+                                    }))
+                                  }))
+                                }
+                              : day
+                          )
+                        };
+                        setSelectedProgram(updatedProgram);
+                        setTimeout(() => autoSaveChanges(updatedProgram), 500);
+                      }
+                    }}
+                    className="group flex flex-col items-center justify-center p-4 bg-gradient-to-br from-orange-500/20 to-orange-600/30 hover:from-orange-500/40 hover:to-orange-600/50 rounded-xl border border-orange-500/30 hover:border-orange-400/60 transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/20"
+                  >
+                    <div className="text-2xl font-black text-orange-300 group-hover:text-orange-200 group-hover:scale-110 transition-transform duration-200">+5%</div>
+                    <div className="text-xs text-orange-200/70 group-hover:text-orange-100 mt-1">Volume</div>
+                  </button>
+                </div>
+
+                <div className="mt-4 p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                  <p className="text-xs text-purple-200/80 text-center">
+                    ⚡ These actions apply to ALL {currentDayData.exercises.length} exercises in {currentDayData.name}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Exercises */}
             <div className="space-y-4">
               {currentDayData?.exercises && currentDayData.exercises.length > 0 ? (
