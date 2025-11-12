@@ -34,7 +34,8 @@ import {
   Eye,
   Copy,
   MoreVertical,
-  Camera
+  Camera,
+  Pill
 } from 'lucide-react';
 import { Client, Food, Meal, NutritionPlan, WorkoutPlan, Workout, Exercise } from '../types';
 import { UltraModernNutritionEditor } from './UltraModernNutritionEditor';
@@ -43,6 +44,7 @@ import { IndependentMuscleGroupCharts } from './IndependentMuscleGroupCharts';
 import { UltraModernWeeklyWeightLogger } from './UltraModernWeeklyWeightLogger';
 import WeeklyPhotoGallery from './WeeklyPhotoGallery';
 import { PerformanceAnalytics } from './PerformanceAnalytics';
+import { SupplementsManager } from './SupplementsManager';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { dbGetClientPhotos } from '../lib/db';
 
@@ -74,6 +76,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
   const [shareUrl, setShareUrl] = useState<string>('');
   const [showShareModal, setShowShareModal] = useState(false);
   const [weeklyPhotos, setWeeklyPhotos] = useState<any[]>([]);
+  const [showSupplementsManager, setShowSupplementsManager] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -210,6 +213,13 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
             </div>
             
             <div className="flex items-center space-x-1 sm:space-x-3 w-full sm:w-auto justify-end">
+              <button
+                onClick={() => setShowSupplementsManager(true)}
+                className="group relative p-2 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 hover:from-purple-500/20 hover:to-pink-500/20 border border-purple-500/30 hover:border-purple-500/50 transition-all duration-300"
+                title="Manage Supplements & Hydration"
+              >
+                <Pill className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+              </button>
               <button
                 onClick={() => setShowStats(!showStats)}
                 className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200"
@@ -429,6 +439,14 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
               </div>
             </div>
           </div>
+        )}
+
+        {/* Supplements Manager Modal */}
+        {showSupplementsManager && (
+          <SupplementsManager
+            client={client}
+            onClose={() => setShowSupplementsManager(false)}
+          />
         )}
       </div>
     </div>

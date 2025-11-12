@@ -2,6 +2,7 @@ import { useState, useEffect, Suspense, lazy } from 'react';
 import { ModernLoadingScreen } from './components/ModernLoadingScreen';
 import { CoachLogin } from './components/CoachLogin';
 import { ClientLogin } from './components/ClientLogin';
+import { ToastProvider } from './contexts/ToastContext';
 
 // Lazy load heavy components
 const UnbreakableSteamClientsManager = lazy(() => import('./components/UnbreakableSteamClientsManager').then(module => ({ default: module.UnbreakableSteamClientsManager })));
@@ -963,48 +964,51 @@ function App() {
     }
   };
 
-  // Show loading while checking authentication
-  if (isCheckingAuth || isLoading) {
-    return <ModernLoadingScreen message="Loading UnbreakableSteam..." />;
-  }
-
-  // Check if this is a client link
-  const urlParams = new URLSearchParams(window.location.search);
-  const clientShareId = urlParams.get('client');
-  const isClientLink = !!clientShareId;
-
-  // Show appropriate login screen if not authenticated
-  if (!isAuthenticated) {
-    if (isClientLink) {
-      // Extract client ID from share URL
-      const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
-      const uuidMatch = clientShareId.match(uuidPattern);
-      const extractedClientId = uuidMatch ? uuidMatch[1] : clientShareId;
-      
-      return <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />;
-    } else {
-      return <CoachLogin onLoginSuccess={handleCoachLoginSuccess} />;
-    }
-  }
-
-  // Protect coach views
-  if (!isClientLink && authType !== 'coach') {
-    return <CoachLogin onLoginSuccess={handleCoachLoginSuccess} />;
-  }
-
-  // Protect client views
-  if (isClientLink && authType !== 'client') {
-    const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
-    const uuidMatch = clientShareId.match(uuidPattern);
-    const extractedClientId = uuidMatch ? uuidMatch[1] : clientShareId;
-    
-    return <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />;
-  }
-
+  // Wrap everything with ToastProvider
   return (
-    <div className="min-h-screen bg-gray-900">
-      <div className="relative z-10">
-        <Suspense fallback={<ModernLoadingScreen message="Loading component..." />}>
+    <ToastProvider>
+      {/* Show loading while checking authentication */}
+      {(isCheckingAuth || isLoading) ? (
+        <ModernLoadingScreen message="Loading UnbreakableSteam..." />
+      ) : (() => {
+        // Check if this is a client link
+        const urlParams = new URLSearchParams(window.location.search);
+        const clientShareId = urlParams.get('client');
+        const isClientLink = !!clientShareId;
+
+        // Show appropriate login screen if not authenticated
+        if (!isAuthenticated) {
+          if (isClientLink) {
+            // Extract client ID from share URL
+            const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+            const uuidMatch = clientShareId.match(uuidPattern);
+            const extractedClientId = uuidMatch ? uuidMatch[1] : clientShareId;
+            
+            return <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />;
+          } else {
+            return <CoachLogin onLoginSuccess={handleCoachLoginSuccess} />;
+          }
+        }
+
+        // Protect coach views
+        if (!isClientLink && authType !== 'coach') {
+          return <CoachLogin onLoginSuccess={handleCoachLoginSuccess} />;
+        }
+
+        // Protect client views
+        if (isClientLink && authType !== 'client') {
+          const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+          const uuidMatch = clientShareId.match(uuidPattern);
+          const extractedClientId = uuidMatch ? uuidMatch[1] : clientShareId;
+          
+          return <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />;
+        }
+
+        // Main app content
+        return (
+      <div className="min-h-screen bg-gray-900">
+        <div className="relative z-10">
+          <Suspense fallback={<ModernLoadingScreen message="Loading component..." />}>
         {appState.currentView === 'clients' && (
           <UnbreakableSteamClientsManager
               isDark={appState.isDark}
@@ -1100,6 +1104,9 @@ function App() {
         </Suspense>
       </div>
     </div>
+        );
+      })()}
+    </ToastProvider>
   );
 }
 

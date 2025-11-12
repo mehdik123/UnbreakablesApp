@@ -7,12 +7,22 @@ import {
   ArrowLeft,
   Camera,
   BarChart3,
-  Crown
+  Crown,
+  Pill
 } from 'lucide-react';
 import { Client, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
 import { ErrorBoundary } from './ErrorBoundary';
+import { useToast } from '../contexts/ToastContext';
+import { useSwipeGesture } from '../hooks/useSwipeGesture';
+import { 
+  WorkoutDaySkeleton, 
+  NutritionPlanSkeleton, 
+  WeightChartSkeleton,
+  PhotoGridSkeleton,
+  AnalyticsSkeleton
+} from './LoadingSkeletons';
 
 // Lazy load heavy components
 const ClientNutritionView = lazy(() => import('./ClientNutritionView').then(module => ({ default: module.ClientNutritionView })));
@@ -23,6 +33,7 @@ const UltraModernWeeklyWeightLogger = lazy(() => import('./UltraModernWeeklyWeig
 const IndependentMuscleGroupCharts = lazy(() => import('./IndependentMuscleGroupCharts').then(module => ({ default: module.IndependentMuscleGroupCharts })));
 const WeeklyPhotoUpload = lazy(() => import('./WeeklyPhotoUpload').then(module => ({ default: module.default })));
 const PerformanceAnalytics = lazy(() => import('./PerformanceAnalytics').then(module => ({ default: module.PerformanceAnalytics })));
+const ClientSupplementsView = lazy(() => import('./ClientSupplementsView').then(module => ({ default: module.ClientSupplementsView })));
 
 interface ModernClientInterfaceProps {
   client: Client;
@@ -40,7 +51,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   client,
   isDark
 }) => {
-  const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress' | 'weight' | 'photos' | 'performance'>('workout');
+  const [activeTab, setActiveTab] = useState<'nutrition' | 'supplements' | 'workout' | 'progress' | 'weight' | 'photos' | 'performance'>('workout');
   const [currentWeek, setCurrentWeek] = useState<number>(() => {
     return client.workoutAssignment?.currentWeek || 1;
   });
@@ -49,6 +60,9 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const [weeklyPhotos, setWeeklyPhotos] = useState<any[]>([]);
   const [showMotivationQuote, setShowMotivationQuote] = useState(true);
   const [databaseClientId, setDatabaseClientId] = useState<string | null>(null);
+  const [isLoadingTab, setIsLoadingTab] = useState(false);
+  
+  const toast = useToast();
 
   // Memoize motivational quotes
   const motivationQuotes = useMemo(() => [
@@ -64,10 +78,27 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     [motivationQuotes]
   );
 
-  // Memoize event handlers
-  const handleTabChange = useCallback((tabId: string) => {
+  // Memoize event handlers with loading and toast
+  const handleTabChange = useCallback(async (tabId: string) => {
+    setIsLoadingTab(true);
     setActiveTab(tabId as any);
-  }, []);
+    
+    // Simulate loading for better UX
+    await new Promise(resolve => setTimeout(resolve, 300));
+    setIsLoadingTab(false);
+    
+    const tabNames: Record<string, string> = {
+      nutrition: 'Nutrition Plan',
+      supplements: 'Supplements & Hydration',
+      workout: 'Workout Program',
+      progress: 'Progress Tracking',
+      weight: 'Weight Journal',
+      photos: 'Progress Photos',
+      performance: 'Performance Analytics'
+    };
+    
+    toast.info(`Switched to ${tabNames[tabId] || tabId}`);
+  }, [toast]);
 
   const handleRefresh = useCallback(() => {
     window.location.reload();
@@ -523,6 +554,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 emoji: '🥗'
               },
               { 
+                id: 'supplements', 
+                label: 'Supplements', 
+                icon: Pill, 
+                gradient: 'from-purple-500 to-pink-500',
+                activeColor: 'text-purple-400',
+                activeBg: 'bg-purple-500/20',
+                emoji: '💊'
+              },
+              { 
                 id: 'workout', 
                 label: 'Workouts', 
                 icon: Dumbbell, 
@@ -612,9 +652,35 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         </div>
       </div>
 
-      {/* Content Area */}
-      <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 pb-8 sm:pb-12">
-        <Suspense fallback={<LoadingSpinner />}>
+      {/* Content Area with swipe support */}
+      <div 
+        className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 pb-24 sm:pb-12"
+        {...useSwipeGesture({
+          onSwipeLeft: () => {
+            const tabs = ['nutrition', 'supplements', 'workout', 'progress', 'performance', 'weight', 'photos'];
+            const currentIndex = tabs.indexOf(activeTab);
+            if (currentIndex < tabs.length - 1) {
+              handleTabChange(tabs[currentIndex + 1]);
+            }
+          },
+          onSwipeRight: () => {
+            const tabs = ['nutrition', 'supplements', 'workout', 'progress', 'performance', 'weight', 'photos'];
+            const currentIndex = tabs.indexOf(activeTab);
+            if (currentIndex > 0) {
+              handleTabChange(tabs[currentIndex - 1]);
+            }
+          }
+        })}
+      >
+        <Suspense fallback={
+          activeTab === 'nutrition' ? <NutritionPlanSkeleton /> :
+          activeTab === 'supplements' ? <NutritionPlanSkeleton /> :
+          activeTab === 'workout' ? <WorkoutDaySkeleton /> :
+          activeTab === 'weight' ? <WeightChartSkeleton /> :
+          activeTab === 'photos' ? <PhotoGridSkeleton /> :
+          activeTab === 'performance' ? <AnalyticsSkeleton /> :
+          <LoadingSpinner />
+        }>
           {activeTab === 'nutrition' ? (
             <ErrorBoundary>
               <ClientNutritionView
@@ -622,6 +688,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 isDark={isDark}
                 nutritionPlan={nutritionPlan}
               />
+            </ErrorBoundary>
+          ) : activeTab === 'supplements' ? (
+            <ErrorBoundary>
+              <ClientSupplementsView clientId={databaseClientId || client.id} />
             </ErrorBoundary>
           ) : activeTab === 'workout' ? (
             <ClientWorkoutView
@@ -675,6 +745,82 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             </div>
           ) : null}
         </Suspense>
+      </div>
+
+      {/* Mobile Bottom Navigation - Fixed at bottom */}
+      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-2xl border-t border-slate-700/50 safe-area-bottom">
+        <div className="flex items-center justify-around px-2 py-3">
+          {[
+            { 
+              id: 'nutrition', 
+              label: 'Nutrition', 
+              icon: Utensils, 
+              color: 'text-green-400',
+              activeBg: 'bg-green-500/20'
+            },
+            { 
+              id: 'supplements', 
+              label: 'Supps', 
+              icon: Pill, 
+              color: 'text-purple-400',
+              activeBg: 'bg-purple-500/20'
+            },
+            { 
+              id: 'workout', 
+              label: 'Workout', 
+              icon: Dumbbell, 
+              color: 'text-red-400',
+              activeBg: 'bg-red-500/20'
+            },
+            { 
+              id: 'progress', 
+              label: 'Progress', 
+              icon: TrendingUp, 
+              color: 'text-blue-400',
+              activeBg: 'bg-blue-500/20'
+            },
+            { 
+              id: 'weight', 
+              label: 'Weight', 
+              icon: Scale, 
+              color: 'text-pink-400',
+              activeBg: 'bg-pink-500/20'
+            },
+            { 
+              id: 'photos', 
+              label: 'Photos', 
+              icon: Camera, 
+              color: 'text-indigo-400',
+              activeBg: 'bg-indigo-500/20'
+            }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`flex flex-col items-center justify-center min-w-[60px] py-2 px-3 rounded-xl transition-all duration-300 ${
+                activeTab === tab.id
+                  ? `${tab.activeBg} scale-110`
+                  : 'active:scale-95'
+              }`}
+            >
+              <tab.icon className={`w-6 h-6 mb-1 transition-all duration-300 ${
+                activeTab === tab.id 
+                  ? `${tab.color} drop-shadow-lg`
+                  : 'text-slate-400'
+              }`} />
+              <span className={`text-[9px] font-bold transition-all duration-300 ${
+                activeTab === tab.id 
+                  ? tab.color
+                  : 'text-slate-500'
+              }`}>
+                {tab.label}
+              </span>
+              {activeTab === tab.id && (
+                <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 rounded-b-full ${tab.activeBg} opacity-50`} />
+              )}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
