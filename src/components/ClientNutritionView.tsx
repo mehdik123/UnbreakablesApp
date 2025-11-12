@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Utensils, 
-  Clock,
   Flame,
   Star,
   Eye,
@@ -42,25 +41,22 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
   const [showInstructions, setShowInstructions] = useState<{ [mealId: string]: boolean }>({});
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [currentMealIndex, setCurrentMealIndex] = useState<{ [slotId: string]: number }>({});
+  const isTogglingContent = React.useRef(false);
 
   // Use loaded nutrition plan - no fallback mock data
   const displayNutritionPlan: NutritionPlan | null = nutritionPlan;
 
-  // Create individual scroll refs for each meal slot
-  const [scrollRefs, setScrollRefs] = useState<{ [slotId: string]: React.RefObject<HTMLDivElement> }>({});
+  // Create individual scroll refs for each meal slot - use useRef to avoid re-renders
+  const scrollRefsRef = React.useRef<{ [slotId: string]: React.RefObject<HTMLDivElement> }>({});
 
   // Get or create scroll ref for a slot
-  const getScrollRef = (slotId: string) => {
-    if (!scrollRefs[slotId]) {
-      const newRef = React.createRef<HTMLDivElement>();
-      setScrollRefs(prev => ({
-        ...prev,
-        [slotId]: newRef
-      }));
-      return newRef;
+  const getScrollRef = React.useCallback((slotId: string) => {
+    if (!scrollRefsRef.current[slotId]) {
+      scrollRefsRef.current[slotId] = React.createRef<HTMLDivElement>();
+      console.log('🆕 CREATING NEW SCROLL REF:', { slotId });
     }
-    return scrollRefs[slotId];
-  };
+    return scrollRefsRef.current[slotId];
+  }, []);
 
   // Scroll function for meals
   const scrollMeal = (slotId: string, direction: 'left' | 'right') => {
@@ -130,8 +126,32 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
       let startX = 0;
       let startScrollLeft = 0;
       let isDragging = false;
+      let touchStartedOnInteractive = false;
 
       const handleTouchStart = (e: TouchEvent) => {
+        // Check if touch started on an interactive element (button, input, etc.)
+        const target = e.target as HTMLElement;
+        const isButton = target.closest('button');
+        const isInput = target.closest('input, textarea, select, a');
+        const isInteractive = isButton || isInput;
+        
+        console.log('🫳 TOUCH START on container:', {
+          slotId,
+          isButton: !!isButton,
+          isInput: !!isInput,
+          isInteractive,
+          targetTag: target.tagName,
+          targetClasses: target.className
+        });
+        
+        if (isInteractive) {
+          touchStartedOnInteractive = true;
+          isDragging = false;
+          console.log('🫳 TOUCH START - Interactive element detected, scroll disabled');
+          return;
+        }
+        
+        touchStartedOnInteractive = false;
         startX = e.touches[0].clientX;
         startScrollLeft = container.scrollLeft;
         isDragging = true;
@@ -146,6 +166,14 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
       };
 
       const handleTouchEnd = () => {
+        // If touch started on an interactive element, don't process scroll
+        if (touchStartedOnInteractive) {
+          console.log('👆 TOUCH END - Ignoring, started on interactive element');
+          touchStartedOnInteractive = false;
+          isDragging = false;
+          return;
+        }
+        
         if (!isDragging) return;
         isDragging = false;
         
@@ -158,16 +186,34 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
         const clampedIndex = Math.min(Math.max(0, currentIndex), totalItems - 1);
         const newScroll = clampedIndex * containerWidth;
         
+        console.log('👆 TOUCH END - SNAPPING:', {
+          slotId,
+          currentScroll,
+          containerWidth,
+          calculatedIndex: currentIndex,
+          clampedIndex,
+          willScrollTo: newScroll
+        });
+        
         container.scrollTo({
           left: newScroll,
           behavior: 'smooth'
         });
 
         // Update meal index immediately
-        setCurrentMealIndex(prev => ({
-          ...prev,
-          [slotId]: clampedIndex
-        }));
+        setCurrentMealIndex(prev => {
+          const newState = {
+            ...prev,
+            [slotId]: clampedIndex
+          };
+          console.log('👆 TOUCH END - INDEX UPDATED:', {
+            slotId,
+            oldIndex: prev[slotId],
+            newIndex: clampedIndex,
+            allIndexes: newState
+          });
+          return newState;
+        });
       };
 
       const handleScroll = () => {
@@ -178,10 +224,28 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
         const currentIndex = Math.round(currentScroll / containerWidth);
         const clampedIndex = Math.min(Math.max(0, currentIndex), totalItems - 1);
         
-        setCurrentMealIndex(prev => ({
-          ...prev,
-          [slotId]: clampedIndex
-        }));
+        console.log('📜 SCROLL EVENT:', {
+          slotId,
+          currentScroll,
+          containerWidth,
+          calculatedIndex: currentIndex,
+          clampedIndex,
+          totalItems
+        });
+        
+        setCurrentMealIndex(prev => {
+          const newState = {
+            ...prev,
+            [slotId]: clampedIndex
+          };
+          console.log('📜 MEAL INDEX UPDATED FROM SCROLL:', {
+            slotId,
+            oldIndex: prev[slotId],
+            newIndex: clampedIndex,
+            allIndexes: newState
+          });
+          return newState;
+        });
       };
 
       container.addEventListener('touchstart', handleTouchStart, { passive: false });
@@ -235,38 +299,84 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
     loadNutritionPlan();
   }, [client.id, client.nutritionPlan, propNutritionPlan]);
 
-  // Ensure scroll positions are set correctly when nutrition plan loads
+  // Ensure scroll positions are set correctly when nutrition plan loads - run once
   useEffect(() => {
     if (!displayNutritionPlan?.mealSlots) return;
 
-    // Only reset scroll positions if they haven't been set yet
+    // Only initialize scroll positions if they haven't been set yet
     displayNutritionPlan.mealSlots.forEach(slot => {
-      const scrollRef = getScrollRef(slot.id);
-      if (scrollRef.current && currentMealIndex[slot.id] === undefined) {
-        scrollRef.current.scrollLeft = 0;
-        setCurrentMealIndex(prev => ({
-          ...prev,
-          [slot.id]: 0
-        }));
+      if (currentMealIndex[slot.id] === undefined) {
+        console.log('🟢 INITIALIZING MEAL INDEX:', {
+          slotId: slot.id,
+          settingIndexTo: 0
+        });
+        setCurrentMealIndex(prev => {
+          // Double-check it's still undefined to avoid race conditions
+          if (prev[slot.id] === undefined) {
+            return {
+              ...prev,
+              [slot.id]: 0
+            };
+          }
+          return prev;
+        });
       }
     });
   }, [displayNutritionPlan?.mealSlots]);
 
   // Prevent scroll position from being reset on re-renders
+  // DISABLED - This was causing the scroll reset bug
+  // The scroll position should be controlled by touch/scroll events only
+  /*
   useEffect(() => {
-    if (!displayNutritionPlan?.mealSlots) return;
+    console.log('🟡 SCROLL RESET EFFECT TRIGGERED:', {
+      isTogglingContent: isTogglingContent.current,
+      hasMealSlots: !!displayNutritionPlan?.mealSlots,
+      currentMealIndexes: currentMealIndex
+    });
+    
+    // Don't reset scroll when toggling ingredients/instructions
+    if (isTogglingContent.current) {
+      console.log('🟡 SCROLL RESET BLOCKED - Currently toggling content');
+      return;
+    }
+    if (!displayNutritionPlan?.mealSlots) {
+      console.log('🟡 SCROLL RESET BLOCKED - No meal slots');
+      return;
+    }
 
     displayNutritionPlan.mealSlots.forEach(slot => {
       const scrollRef = getScrollRef(slot.id);
       if (scrollRef.current && currentMealIndex[slot.id] !== undefined) {
         const expectedScroll = currentMealIndex[slot.id] * scrollRef.current.clientWidth;
-        if (Math.abs(scrollRef.current.scrollLeft - expectedScroll) > 10) {
-
+        const actualScroll = scrollRef.current.scrollLeft;
+        const difference = Math.abs(actualScroll - expectedScroll);
+        const threshold = scrollRef.current.clientWidth / 2;
+        
+        console.log('🟡 SCROLL CHECK:', {
+          slotId: slot.id,
+          currentMealIndex: currentMealIndex[slot.id],
+          expectedScroll,
+          actualScroll,
+          difference,
+          threshold,
+          willReset: difference > threshold
+        });
+        
+        // Only reset if significantly off (more than half a screen width)
+        if (difference > threshold) {
+          console.log('🔴 RESETTING SCROLL POSITION!', {
+            slotId: slot.id,
+            from: actualScroll,
+            to: expectedScroll,
+            reason: 'Difference > threshold'
+          });
           scrollRef.current.scrollLeft = expectedScroll;
         }
       }
     });
-  }, [currentMealIndex]);
+  }, [currentMealIndex, displayNutritionPlan?.mealSlots, showIngredients, showInstructions]);
+  */
 
   const toggleFavorite = (mealId: string) => {
     setFavoriteMeals(prev => 
@@ -276,18 +386,62 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
     );
   };
 
-  const toggleIngredients = (mealId: string) => {
-    setShowIngredients(prev => ({
-      ...prev,
-      [mealId]: !prev[mealId]
-    }));
+  const toggleIngredients = (uniqueKey: string) => {
+    console.log('🔵 TOGGLE INGREDIENTS CLICKED:', {
+      uniqueKey,
+      currentState: showIngredients[uniqueKey],
+      allCurrentMealIndexes: currentMealIndex,
+      isTogglingBefore: isTogglingContent.current
+    });
+    
+    isTogglingContent.current = true;
+    setShowIngredients(prev => {
+      const newState = {
+        ...prev,
+        [uniqueKey]: !prev[uniqueKey]
+      };
+      console.log('🔵 INGREDIENTS STATE UPDATED:', {
+        uniqueKey,
+        oldValue: prev[uniqueKey],
+        newValue: newState[uniqueKey],
+        allStates: newState
+      });
+      return newState;
+    });
+    
+    setTimeout(() => {
+      isTogglingContent.current = false;
+      console.log('🔵 TOGGLE FLAG CLEARED after 300ms');
+    }, 300);
   };
 
-  const toggleInstructions = (mealId: string) => {
-    setShowInstructions(prev => ({
-      ...prev,
-      [mealId]: !prev[mealId]
-    }));
+  const toggleInstructions = (uniqueKey: string) => {
+    console.log('🟣 TOGGLE INSTRUCTIONS CLICKED:', {
+      uniqueKey,
+      currentState: showInstructions[uniqueKey],
+      allCurrentMealIndexes: currentMealIndex,
+      isTogglingBefore: isTogglingContent.current
+    });
+    
+    isTogglingContent.current = true;
+    setShowInstructions(prev => {
+      const newState = {
+        ...prev,
+        [uniqueKey]: !prev[uniqueKey]
+      };
+      console.log('🟣 INSTRUCTIONS STATE UPDATED:', {
+        uniqueKey,
+        oldValue: prev[uniqueKey],
+        newValue: newState[uniqueKey],
+        allStates: newState
+      });
+      return newState;
+    });
+    
+    setTimeout(() => {
+      isTogglingContent.current = false;
+      console.log('🟣 TOGGLE FLAG CLEARED after 300ms');
+    }, 300);
   };
 
   const getMealIcon = (mealId: string) => {
@@ -312,28 +466,57 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
     }
   };
 
-  // Handle PDF export
-  const handleExportPDF = async () => {
-    if (!displayNutritionPlan) return;
+  // Calculate daily totals based ONLY on currently selected meals
+  const dailyTotals = React.useMemo(() => {
+    if (!displayNutritionPlan?.mealSlots) {
+      return { calories: 0, protein: 0, carbs: 0, fats: 0 };
+    }
 
-    // Calculate total nutrition
-    const totalNutrition = displayNutritionPlan.mealSlots.reduce(
+    return displayNutritionPlan.mealSlots.reduce(
       (acc, slot) => {
-        slot.selectedMeals.forEach(meal => {
-          acc.calories += meal.totalCalories || 0;
-          acc.protein += meal.totalProtein || 0;
-          acc.carbs += meal.totalCarbs || 0;
-          acc.fats += meal.totalFats || 0;
-        });
+        // Get the currently selected meal index for this slot
+        const selectedIndex = currentMealIndex[slot.id] || 0;
+        const selectedMeal = slot.selectedMeals[selectedIndex];
+        
+        if (selectedMeal) {
+          const meal = selectedMeal.meal;
+          const quantity = selectedMeal.quantity;
+          
+          // Calculate macros for this specific meal
+          const calories = meal.ingredients.reduce((total, ingredient) => 
+            total + (ingredient.food.kcal * ingredient.quantity * quantity / 100), 0
+          );
+          const protein = meal.ingredients.reduce((total, ingredient) => 
+            total + (ingredient.food.protein * ingredient.quantity * quantity / 100), 0
+          );
+          const carbs = meal.ingredients.reduce((total, ingredient) => 
+            total + (ingredient.food.carbs * ingredient.quantity * quantity / 100), 0
+          );
+          const fats = meal.ingredients.reduce((total, ingredient) => 
+            total + (ingredient.food.fat * ingredient.quantity * quantity / 100), 0
+          );
+          
+          acc.calories += calories;
+          acc.protein += protein;
+          acc.carbs += carbs;
+          acc.fats += fats;
+        }
+        
         return acc;
       },
       { calories: 0, protein: 0, carbs: 0, fats: 0 }
     );
+  }, [displayNutritionPlan, currentMealIndex]);
 
+  // Handle PDF export
+  const handleExportPDF = async () => {
+    if (!displayNutritionPlan) return;
+
+    // Use the currently calculated totals (based on selected meals only)
     await exportEnhancedNutritionPDF({
       clientName: client.name,
       mealSlots: displayNutritionPlan.mealSlots,
-      totalNutrition
+      totalNutrition: dailyTotals
     });
   };
 
@@ -414,7 +597,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                 <div className="text-slate-400 text-xs md:text-sm font-medium">Meal Times</div>
               </div>
               <div className="text-center">
-                <div className="text-lg md:text-2xl font-bold text-orange-400">{displayNutritionPlan?.dailyCalories || 0}</div>
+                <div className="text-lg md:text-2xl font-bold text-orange-400">{Math.round(dailyTotals.calories)}</div>
                 <div className="text-slate-400 text-xs md:text-sm font-medium">Daily Calories</div>
               </div>
               <div className="text-center">
@@ -453,7 +636,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                   <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl md:rounded-2xl blur-md opacity-30"></div>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg md:text-2xl font-black text-white">{displayNutritionPlan?.dailyCalories || 0}</div>
+                  <div className="text-lg md:text-2xl font-black text-white">{Math.round(dailyTotals.calories)}</div>
                   <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Calories</div>
                 </div>
               </div>
@@ -478,7 +661,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl md:rounded-2xl blur-md opacity-30"></div>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg md:text-2xl font-black text-white">{displayNutritionPlan?.macronutrients?.protein?.grams || 0}g</div>
+                  <div className="text-lg md:text-2xl font-black text-white">{Math.round(dailyTotals.protein)}g</div>
                   <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Protein</div>
                 </div>
               </div>
@@ -503,7 +686,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                   <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl md:rounded-2xl blur-md opacity-30"></div>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg md:text-2xl font-black text-white">{displayNutritionPlan?.macronutrients?.carbohydrates?.grams || 0}g</div>
+                  <div className="text-lg md:text-2xl font-black text-white">{Math.round(dailyTotals.carbs)}g</div>
                   <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Carbs</div>
                 </div>
               </div>
@@ -528,7 +711,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl md:rounded-2xl blur-md opacity-30"></div>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg md:text-2xl font-black text-white">{displayNutritionPlan?.macronutrients?.fats?.grams || 0}g</div>
+                  <div className="text-lg md:text-2xl font-black text-white">{Math.round(dailyTotals.fats)}g</div>
                   <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Fats</div>
                 </div>
               </div>
@@ -563,12 +746,6 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         {slot.name}
                       </h2>
                       <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 md:space-x-6 text-slate-300">
-                        <div className="flex items-center space-x-1 md:space-x-2">
-                          <Clock className="w-4 h-4 md:w-5 md:h-5 text-orange-400" />
-                          <span className="font-semibold text-sm md:text-lg">
-                            {slot.name === 'Breakfast' ? '08:00' : slot.name === 'Lunch' ? '13:00' : '19:00'}
-                          </span>
-                        </div>
                         <div className="flex items-center space-x-1 md:space-x-2">
                           <Target className="w-4 h-4 md:w-5 md:h-5 text-orange-400" />
                           <span className="font-semibold text-sm md:text-lg">{slot.selectedMeals.length} meal{slot.selectedMeals.length > 1 ? 's' : ''}</span>
@@ -620,22 +797,36 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                   return null;
                 }
 
+                // Create unique key for this meal instance
+                const uniqueMealKey = `${slot.id}-${mealIndex}`;
+                
+                console.log('🍽️ RENDERING MEAL:', {
+                  slotId: slot.id,
+                  mealIndex,
+                  uniqueMealKey,
+                  isVisible,
+                  mealName: meal.name,
+                  showingIngredients: showIngredients[uniqueMealKey],
+                  showingInstructions: showInstructions[uniqueMealKey]
+                });
+                
                 return (
                   <div 
-                    key={`${slot.id}-${meal.id}`} 
+                    key={uniqueMealKey} 
                     data-scroll-item
-                    className="group relative md:transition-all md:duration-500 md:hover:scale-105 w-full min-w-full flex-shrink-0"
+                    className="relative w-full min-w-full flex-shrink-0"
                     style={{ 
                       touchAction: 'pan-y', 
                       WebkitTouchCallout: 'none',
                       userSelect: 'none',
-                      WebkitUserSelect: 'none'
+                      WebkitUserSelect: 'none',
+                      WebkitTapHighlightColor: 'transparent'
                     }}
                   >
                     {/* Enhanced Modern Meal Card */}
-                    <div className="group relative overflow-hidden rounded-3xl border md:transition-all md:duration-500 md:hover:scale-105 md:hover:shadow-2xl border-slate-700/50 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-800/50 backdrop-blur-xl md:hover:border-slate-600/50">
+                    <div className="relative overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-800/50 backdrop-blur-xl">
                       {/* Background Pattern */}
-                      <div className="absolute inset-0 opacity-5 md:group-hover:opacity-10 transition-opacity duration-500">
+                      <div className="absolute inset-0 opacity-5">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent rounded-full -translate-y-16 translate-x-16"></div>
                         <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-white/10 to-transparent rounded-full translate-y-12 -translate-x-12"></div>
                       </div>
@@ -645,18 +836,25 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         <img
                           src={meal.image}
                           alt={meal.name}
-                          className="w-full h-full object-cover md:group-hover:scale-110 transition-transform duration-500"
+                          className="w-full h-full object-cover"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent" />
                         
                         {/* Mobile-Optimized Favorite button */}
                         <div className="absolute top-3 md:top-4 left-3 md:left-4">
                           <button
-                            onClick={() => toggleFavorite(meal.id)}
-                            className={`w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl backdrop-blur-sm transition-colors duration-300 shadow-lg ${
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              toggleFavorite(meal.id);
+                            }}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchMove={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => e.stopPropagation()}
+                            className={`w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl backdrop-blur-sm transition-colors duration-300 shadow-lg active:scale-95 ${
                               favoriteMeals.includes(meal.id)
                                 ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-yellow-500/50'
-                                : 'bg-slate-800/80 text-slate-300 md:hover:bg-slate-700/80'
+                                : 'bg-slate-800/80 text-slate-300'
                             }`}
                           >
                             <Star className={`w-4 h-4 md:w-5 md:h-5 mx-auto ${favoriteMeals.includes(meal.id) ? 'fill-current' : ''}`} />
@@ -665,7 +863,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
                         {/* Mobile-Optimized Meal name overlay */}
                         <div className="absolute bottom-3 md:bottom-4 left-3 md:left-4 right-3 md:right-4">
-                          <h3 className="text-lg md:text-2xl font-black text-white mb-2 md:mb-3 md:group-hover:text-orange-300 transition-colors duration-300 leading-tight">
+                          <h3 className="text-lg md:text-2xl font-black text-white mb-2 md:mb-3 leading-tight">
                             {meal.name}
                           </h3>
                           <div className="flex items-center space-x-3 md:space-x-6 text-white/90">
@@ -711,11 +909,28 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         {/* Ultra Modern Horizontal Action Buttons */}
                         <div className="flex items-center gap-2 mb-3">
                           <button
-                            onClick={() => toggleIngredients(meal.id)}
-                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors duration-300 text-xs flex-1 ${
-                              showIngredients[meal.id]
+                            onClick={(e) => {
+                              console.log('🔵 INGREDIENTS BUTTON CLICKED:', {
+                                uniqueMealKey,
+                                mealIndex,
+                                slotId: slot.id,
+                                currentScrollLeft: getScrollRef(slot.id).current?.scrollLeft,
+                                currentMealIndexForSlot: currentMealIndex[slot.id]
+                              });
+                              e.stopPropagation();
+                              e.preventDefault();
+                              toggleIngredients(uniqueMealKey);
+                            }}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchMove={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => {
+                              e.stopPropagation();
+                              console.log('🔵 BUTTON TOUCH END - Stopped propagation');
+                            }}
+                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors duration-300 text-xs flex-1 active:scale-95 ${
+                              showIngredients[uniqueMealKey]
                                 ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/20'
-                                : 'bg-slate-700/50 text-slate-300 md:hover:bg-slate-600/50 border border-slate-600/50'
+                                : 'bg-slate-700/50 text-slate-300 border border-slate-600/50'
                             }`}
                           >
                             <ChefHat className="w-3 h-3" />
@@ -723,11 +938,28 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                             <span className="font-bold sm:hidden">Ingr.</span>
                           </button>
                           <button
-                            onClick={() => toggleInstructions(meal.id)}
-                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors duration-300 text-xs flex-1 ${
-                              showInstructions[meal.id]
+                            onClick={(e) => {
+                              console.log('🟣 INSTRUCTIONS BUTTON CLICKED:', {
+                                uniqueMealKey,
+                                mealIndex,
+                                slotId: slot.id,
+                                currentScrollLeft: getScrollRef(slot.id).current?.scrollLeft,
+                                currentMealIndexForSlot: currentMealIndex[slot.id]
+                              });
+                              e.stopPropagation();
+                              e.preventDefault();
+                              toggleInstructions(uniqueMealKey);
+                            }}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            onTouchMove={(e) => e.stopPropagation()}
+                            onTouchEnd={(e) => {
+                              e.stopPropagation();
+                              console.log('🟣 BUTTON TOUCH END - Stopped propagation');
+                            }}
+                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors duration-300 text-xs flex-1 active:scale-95 ${
+                              showInstructions[uniqueMealKey]
                                 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/20'
-                                : 'bg-slate-700/50 text-slate-300 md:hover:bg-slate-600/50 border border-slate-600/50'
+                                : 'bg-slate-700/50 text-slate-300 border border-slate-600/50'
                             }`}
                           >
                             <BookOpen className="w-3 h-3" />
@@ -737,7 +969,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         </div>
                       
                         {/* Ultra Compact Ingredients Panel - Optimized */}
-                        {showIngredients[meal.id] && (
+                        {showIngredients[uniqueMealKey] && (
                           <div className="border-t border-slate-700/30 pt-2 mt-2 space-y-1">
                             {meal.ingredients.map((ingredient, idx) => (
                               <div key={idx} className="bg-gradient-to-r from-slate-800/30 via-slate-700/20 to-slate-800/30 rounded-lg p-1.5 border border-slate-600/20">
@@ -758,7 +990,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         )}
 
                         {/* Ultra Compact Instructions Panel - Optimized */}
-                        {showInstructions[meal.id] && (
+                        {showInstructions[uniqueMealKey] && (
                           <div className="border-t border-slate-700/30 pt-2 mt-2">
                             <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg p-2 border border-purple-500/20">
                               <p className="text-slate-200 leading-tight text-[11px]">

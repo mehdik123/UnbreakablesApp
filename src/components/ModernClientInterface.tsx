@@ -255,37 +255,64 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         });
         
         if (isSupabaseReady && supabase && client.id) {
-          const { data: cRow } = await supabase
-            .from('clients')
-            .select('id')
-            .eq('full_name', client.name)
-            .maybeSingle();
-          
-
-          
-          if (cRow?.id) {
-            const { data: assignment, error: assignmentError } = await supabase
-              .from('workout_assignments')
-              .select('*')
-              .eq('client_id', cRow.id)
-              .eq('is_active', true)
-              .order('last_modified_at', { ascending: false })
-              .limit(1)
+          try {
+            const { data: cRow } = await supabase
+              .from('clients')
+              .select('id')
+              .eq('full_name', client.name)
               .maybeSingle();
             
-            console.log('🔄 CLIENT SYNC DEBUG - Assignment query result:', {
-              assignment,
-              assignmentError,
-              hasProgramJson: !!assignment?.program_json,
-              programJson: assignment?.program_json,
-              currentWeek: assignment?.current_week,
-              lastModifiedAt: assignment?.last_modified_at
-            });
+
             
-            if (assignmentError) {
-              console.error('❌ CLIENT SYNC ERROR - Assignment query failed:', assignmentError);
-              return;
-            }
+            if (cRow?.id) {
+              // Retry logic for workout assignments query
+              let assignment = null;
+              let assignmentError = null;
+              let retries = 3;
+              
+              while (retries > 0) {
+                try {
+                  const result = await supabase
+                    .from('workout_assignments')
+                    .select('*')
+                    .eq('client_id', cRow.id)
+                    .eq('is_active', true)
+                    .order('last_modified_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                  
+                  assignment = result.data;
+                  assignmentError = result.error;
+                  
+                  // If successful, break the retry loop
+                  if (!assignmentError || assignmentError.code !== '') {
+                    break;
+                  }
+                } catch (fetchError) {
+                  console.warn(`⚠️ Network error, retrying... (${retries} attempts left)`, fetchError);
+                  retries--;
+                  if (retries > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
+                  } else {
+                    assignmentError = { message: 'Network error after retries', details: String(fetchError), hint: '', code: 'NETWORK_ERROR' };
+                  }
+                }
+              }
+              
+              console.log('🔄 CLIENT SYNC DEBUG - Assignment query result:', {
+                assignment,
+                assignmentError,
+                hasProgramJson: !!assignment?.program_json,
+                programJson: assignment?.program_json,
+                currentWeek: assignment?.current_week,
+                lastModifiedAt: assignment?.last_modified_at
+              });
+              
+              if (assignmentError) {
+                console.error('❌ CLIENT SYNC ERROR - Assignment query failed:', assignmentError);
+                // Don't return - continue with local data
+                return;
+              }
             
             if (assignment?.program_json) {
 
@@ -322,6 +349,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             }
           } else {
 
+          }
+          } catch (networkError) {
+            console.error('❌ NETWORK ERROR - Failed to fetch workout assignment:', networkError);
+            // Continue with local data if network fails
           }
         } else {
           console.log('⚠️ CLIENT SYNC - Missing requirements:', {

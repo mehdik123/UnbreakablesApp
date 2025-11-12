@@ -76,3 +76,27 @@ html, body, #root {
 .horizontal-scroll > * {
   scroll-snap-align: start;
 }
+
+/* Prevent iOS tap highlights and zoom on double tap */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* Prevent zoom on iOS for touch elements */
+button, input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* Prevent image zoom/long press on mobile */
+img {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Allow interaction with buttons and inputs */
+button, input, select, textarea, a {
+  pointer-events: auto;
+}
