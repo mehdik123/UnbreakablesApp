@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
-  Scale
+  Scale,
+  Ruler
 } from 'lucide-react';
 import { WeightEntry, Client } from '../types';
 import { logClientWeight, getClientWeightLogs, deleteClientWeight } from '../lib/progressTracking';
 import { UltraModernWeightChart } from './UltraModernWeightChart';
 import { WeightStatsGrid } from './WeightStatsCards';
 import { WeeklyWeightOverview } from './WeeklyWeightOverview';
+import { BodyMeasurementsTab } from './BodyMeasurementsTab';
 
 interface UltraModernWeeklyWeightLoggerProps {
   client: Client;
@@ -33,6 +35,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
   maxWeeks,
   isDark
 }) => {
+  const [activeTab, setActiveTab] = useState<'weight' | 'measurements'>('weight');
   const [selectedWeek, setSelectedWeek] = useState(initialWeek);
   const [weeklyData, setWeeklyData] = useState<Record<number, Record<string, WeightEntry>>>({});
   const [editingCell, setEditingCell] = useState<{week: number, day: string} | null>(null);
@@ -324,45 +327,83 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
 
   return (
     <div className="space-y-4 md:space-y-8">
-      {/* Header with Week Navigation */}
+      {/* Header with Tabs and Week Navigation */}
       <div className="bg-gray-900 backdrop-blur-xl border border-gray-700 rounded-3xl p-4 md:p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 md:space-x-3">
-            <Scale className="w-5 h-5 md:w-6 md:h-6 text-[#dc1e3a]" />
-            <h3 className="text-lg md:text-2xl font-bold text-white">Weight Tracking</h3>
+        {/* Tabs */}
+        <div className="flex items-center justify-between mb-4 md:mb-6">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setActiveTab('weight')}
+              className={`flex items-center space-x-2 px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl font-semibold transition-all duration-300 ${
+                activeTab === 'weight'
+                  ? 'bg-[#dc1e3a] text-white shadow-lg shadow-[#dc1e3a]/30'
+                  : 'bg-gray-800 text-white/60 hover:bg-gray-700 hover:text-white'
+              }`}
+            >
+              <Scale className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="text-xs md:text-base">Weight</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('measurements')}
+              className={`flex items-center space-x-2 px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl font-semibold transition-all duration-300 ${
+                activeTab === 'measurements'
+                  ? 'bg-[#dc1e3a] text-white shadow-lg shadow-[#dc1e3a]/30'
+                  : 'bg-gray-800 text-white/60 hover:bg-gray-700 hover:text-white'
+              }`}
+            >
+              <Ruler className="w-4 h-4 md:w-5 md:h-5" />
+              <span className="text-xs md:text-base">Measurements</span>
+            </button>
           </div>
           
-          {/* Week Navigation */}
-          <div className="flex items-center space-x-2 md:space-x-4">
+          {/* Week Navigation - Ultra Modern */}
+          <div className="flex items-center gap-1">
+            {/* Previous Week Button */}
             <button
               onClick={() => setSelectedWeek(Math.max(1, selectedWeek - 1))}
               disabled={selectedWeek <= 1}
-              className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-white transition-all duration-300 hover:scale-105 touch-target"
+              className="group relative w-7 h-7 rounded-lg overflow-hidden transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-110 active:scale-95"
             >
-              <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 group-hover:from-gray-600 group-hover:to-gray-700 transition-all duration-300"></div>
+              <div className="absolute inset-0 bg-gradient-to-tr from-[#dc1e3a]/0 via-[#dc1e3a]/0 to-[#dc1e3a]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative w-full h-full flex items-center justify-center">
+                <ChevronLeft className="w-3.5 h-3.5 text-white group-hover:text-[#dc1e3a] transition-colors duration-300" />
+              </div>
             </button>
             
-            <div className="flex items-center space-x-2 md:space-x-3 px-2 md:px-4 py-1 md:py-2 bg-[#dc1e3a]/20 rounded-xl md:rounded-2xl">
-              <span className="text-white/80 text-xs md:text-sm font-medium">Week</span>
-              <span className="text-white text-lg md:text-xl font-bold">{selectedWeek}</span>
-              <span className="text-white/60 text-xs md:text-sm">of {maxWeeks}</span>
+            {/* Week Display */}
+            <div className="relative px-3 py-1 overflow-hidden rounded-lg">
+              <div className="absolute inset-0 bg-gradient-to-r from-[#dc1e3a]/20 via-[#dc1e3a]/30 to-[#dc1e3a]/20"></div>
+              <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent"></div>
+              <div className="relative flex items-center gap-0.5 text-xs font-bold">
+                <span className="text-white">{selectedWeek}</span>
+                <span className="text-white/40">/</span>
+                <span className="text-white/60">{maxWeeks}</span>
+              </div>
             </div>
             
+            {/* Next Week Button */}
             <button
               onClick={() => setSelectedWeek(Math.min(maxWeeks, selectedWeek + 1))}
               disabled={selectedWeek >= maxWeeks}
-              className="p-2 md:p-3 rounded-xl md:rounded-2xl bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed text-white transition-all duration-300 hover:scale-105 touch-target"
+              className="group relative w-7 h-7 rounded-lg overflow-hidden transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-110 active:scale-95"
             >
-              <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 group-hover:from-gray-600 group-hover:to-gray-700 transition-all duration-300"></div>
+              <div className="absolute inset-0 bg-gradient-to-tl from-[#dc1e3a]/0 via-[#dc1e3a]/0 to-[#dc1e3a]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative w-full h-full flex items-center justify-center">
+                <ChevronRight className="w-3.5 h-3.5 text-white group-hover:text-[#dc1e3a] transition-colors duration-300" />
+              </div>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Ultra-Modern Weight Tracking Interface */}
-      <div className="space-y-4 md:space-y-8">
-        {/* Weekly Overview with Interactive Cards */}
-        <div className="bg-gray-900 backdrop-blur-xl border border-gray-700 rounded-3xl p-4 md:p-8 relative overflow-hidden group">
+      {/* Tab Content */}
+      {activeTab === 'weight' ? (
+        /* Ultra-Modern Weight Tracking Interface */
+        <div className="space-y-4 md:space-y-8">
+          {/* Weekly Overview with Interactive Cards */}
+          <div className="bg-gray-900 backdrop-blur-xl border border-gray-700 rounded-3xl p-4 md:p-8 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-r from-[#dc1e3a]/5 via-transparent to-[#dc1e3a]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4 md:mb-8">
@@ -474,9 +515,17 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
           averageWeight={getAverageWeight()}
         />
 
-        {/* Weight Progress Chart */}
-        <UltraModernWeightChart entries={getAllWeightEntries()} />
-      </div>
+          {/* Weight Progress Chart */}
+          <UltraModernWeightChart entries={getAllWeightEntries()} />
+        </div>
+      ) : (
+        /* Body Measurements Tab */
+        <BodyMeasurementsTab
+          client={client}
+          currentWeek={selectedWeek}
+          maxWeeks={maxWeeks}
+        />
+      )}
     </div>
   );
 };

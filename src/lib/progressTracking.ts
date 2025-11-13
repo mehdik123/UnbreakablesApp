@@ -511,3 +511,184 @@ async function getExercisePerformanceLogs(clientId: string): Promise<ExercisePer
     loggedAt: new Date(log.logged_at)
   }));
 }
+
+// ========== BODY MEASUREMENTS FUNCTIONS ==========
+
+export interface BodyMeasurement {
+  id: string;
+  clientId: string;
+  weekNumber: number;
+  measurementDate: Date;
+  bodyFatPercentage?: number;
+  neck?: number;
+  chest?: number;
+  shoulders?: number;
+  bicepLeft?: number;
+  bicepRight?: number;
+  forearmLeft?: number;
+  forearmRight?: number;
+  waist?: number;
+  hips?: number;
+  thighLeft?: number;
+  thighRight?: number;
+  calfLeft?: number;
+  calfRight?: number;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Save or update body measurements for a specific week
+ */
+export async function saveBodyMeasurement(params: {
+  clientId: string;
+  weekNumber: number;
+  measurementDate?: string;
+  bodyFatPercentage?: number;
+  neck?: number;
+  chest?: number;
+  shoulders?: number;
+  bicepLeft?: number;
+  bicepRight?: number;
+  forearmLeft?: number;
+  forearmRight?: number;
+  waist?: number;
+  hips?: number;
+  thighLeft?: number;
+  thighRight?: number;
+  calfLeft?: number;
+  calfRight?: number;
+  notes?: string;
+}): Promise<BodyMeasurement> {
+  if (!supabase) throw new Error('Supabase not initialized');
+
+  const measurementPayload = {
+    client_id: params.clientId,
+    week_number: params.weekNumber,
+    measurement_date: params.measurementDate || new Date().toISOString().split('T')[0],
+    body_fat_percentage: params.bodyFatPercentage,
+    neck: params.neck,
+    chest: params.chest,
+    shoulders: params.shoulders,
+    bicep_left: params.bicepLeft,
+    bicep_right: params.bicepRight,
+    forearm_left: params.forearmLeft,
+    forearm_right: params.forearmRight,
+    waist: params.waist,
+    hips: params.hips,
+    thigh_left: params.thighLeft,
+    thigh_right: params.thighRight,
+    calf_left: params.calfLeft,
+    calf_right: params.calfRight,
+    notes: params.notes
+  };
+
+  const { data, error } = await supabase
+    .from('body_measurements')
+    .upsert(measurementPayload, {
+      onConflict: 'client_id,week_number'
+    })
+    .select('*')
+    .single();
+
+  if (error) throw error;
+
+  return mapBodyMeasurementFromDB(data);
+}
+
+/**
+ * Get all body measurements for a client
+ */
+export async function getClientBodyMeasurements(clientId: string): Promise<BodyMeasurement[]> {
+  if (!supabase) throw new Error('Supabase not initialized');
+
+  const { data, error } = await supabase
+    .from('body_measurements')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('week_number', { ascending: true });
+
+  if (error) throw error;
+
+  return (data || []).map(mapBodyMeasurementFromDB);
+}
+
+/**
+ * Get body measurement for a specific week
+ */
+export async function getBodyMeasurementByWeek(
+  clientId: string,
+  weekNumber: number
+): Promise<BodyMeasurement | null> {
+  if (!supabase) throw new Error('Supabase not initialized');
+
+  const { data, error } = await supabase
+    .from('body_measurements')
+    .select('*')
+    .eq('client_id', clientId)
+    .eq('week_number', weekNumber)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return data ? mapBodyMeasurementFromDB(data) : null;
+}
+
+/**
+ * Delete body measurement
+ */
+export async function deleteBodyMeasurement(measurementId: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase not initialized');
+
+  const { error } = await supabase
+    .from('body_measurements')
+    .delete()
+    .eq('id', measurementId);
+
+  if (error) throw error;
+}
+
+/**
+ * Calculate percentage change between two measurements
+ */
+export function calculateMeasurementChange(
+  current: number | undefined,
+  previous: number | undefined
+): { change: number; percentageChange: number } | null {
+  if (!current || !previous) return null;
+
+  const change = current - previous;
+  const percentageChange = ((change / previous) * 100);
+
+  return { change, percentageChange };
+}
+
+/**
+ * Helper function to map database record to BodyMeasurement type
+ */
+function mapBodyMeasurementFromDB(data: any): BodyMeasurement {
+  return {
+    id: data.id,
+    clientId: data.client_id,
+    weekNumber: data.week_number,
+    measurementDate: new Date(data.measurement_date),
+    bodyFatPercentage: data.body_fat_percentage ? parseFloat(data.body_fat_percentage) : undefined,
+    neck: data.neck ? parseFloat(data.neck) : undefined,
+    chest: data.chest ? parseFloat(data.chest) : undefined,
+    shoulders: data.shoulders ? parseFloat(data.shoulders) : undefined,
+    bicepLeft: data.bicep_left ? parseFloat(data.bicep_left) : undefined,
+    bicepRight: data.bicep_right ? parseFloat(data.bicep_right) : undefined,
+    forearmLeft: data.forearm_left ? parseFloat(data.forearm_left) : undefined,
+    forearmRight: data.forearm_right ? parseFloat(data.forearm_right) : undefined,
+    waist: data.waist ? parseFloat(data.waist) : undefined,
+    hips: data.hips ? parseFloat(data.hips) : undefined,
+    thighLeft: data.thigh_left ? parseFloat(data.thigh_left) : undefined,
+    thighRight: data.thigh_right ? parseFloat(data.thigh_right) : undefined,
+    calfLeft: data.calf_left ? parseFloat(data.calf_left) : undefined,
+    calfRight: data.calf_right ? parseFloat(data.calf_right) : undefined,
+    notes: data.notes,
+    createdAt: new Date(data.created_at),
+    updatedAt: new Date(data.updated_at)
+  };
+}
