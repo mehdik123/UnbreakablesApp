@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { 
   Dumbbell, 
@@ -14,8 +14,7 @@ import {
   Plus,
   Minus,
   Heart,
-  Edit3,
-  Eye
+  Save
 } from 'lucide-react';
 import { Client, WorkoutProgram } from '../types';
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking';
@@ -25,6 +24,9 @@ interface ClientWorkoutViewProps {
   client: Client;
   currentWeek: number;
   isDark: boolean;
+  onWeekChange?: (week: number) => void;
+  /** Called when assignment is saved or loaded so parent (e.g. charts) can use latest data */
+  onAssignmentUpdated?: (assignment: ClientWorkoutAssignment) => void;
 }
 
 interface ClientWorkoutAssignment {
@@ -45,7 +47,9 @@ interface ClientWorkoutViewCombinedProps {
 
 export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   client,
-  currentWeek
+  currentWeek,
+  onWeekChange,
+  onAssignmentUpdated
 }) => {
   const [currentDay, setCurrentDay] = useState(0);
   const [completedExercises, setCompletedExercises] = useState<{ [exerciseId: string]: boolean }>({});
@@ -55,7 +59,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const SHARED_KEY = `client_${client.id}_assignment`;
   const [sharedVersion, setSharedVersion] = useState<number>(0);
-  const [isEditMode, setIsEditMode] = useState(false);
+  // Local state to track the assignment so we can update it after client edits
+  const [localAssignment, setLocalAssignment] = useState<ClientWorkoutAssignment | null>(client.workoutAssignment || null);
 
   // Performance tracking
   const { recordExercise } = usePerformanceTracking({
@@ -87,32 +92,36 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       
       if (!dbExercises) return program;
       
-      // Create a map for quick lookup
-      const exerciseMap = new Map();
-      dbExercises.forEach(ex => {
-        exerciseMap.set(ex.name, ex);
+      const exerciseMap = new Map<string, { video_url?: string; muscle_group?: string }>();
+      dbExercises.forEach((ex: any) => {
+        if (ex?.name) {
+          exerciseMap.set(ex.name.trim().toLowerCase(), ex);
+          exerciseMap.set(ex.name, ex);
+        }
       });
-      
-      // Enrich the program
+      const lookup = (name: string) =>
+        exerciseMap.get(name) || (name && exerciseMap.get(name.trim().toLowerCase()));
+
       const enrichedProgram = {
         ...program,
         days: program.days?.map((day: any) => ({
           ...day,
-          exercises: day.exercises?.map((workoutEx: any) => {
-            const dbExercise = exerciseMap.get(workoutEx.exercise.name);
+          exercises: (day.exercises || []).map((workoutEx: any) => {
+            const name = workoutEx.exercise?.name || workoutEx.exercise?.id || workoutEx.name;
+            const dbExercise = name ? lookup(name) : null;
             if (dbExercise) {
               return {
                 ...workoutEx,
                 exercise: {
                   ...workoutEx.exercise,
-                  videoUrl: dbExercise.video_url,
-                  muscleGroup: dbExercise.muscle_group
-                }
+                  videoUrl: dbExercise.video_url ?? workoutEx.exercise?.videoUrl,
+                  muscleGroup: dbExercise.muscle_group ?? workoutEx.exercise?.muscleGroup,
+                },
               };
             }
             return workoutEx;
-          }) || []
-        })) || []
+          }),
+        })) || [],
       };
       
       return enrichedProgram;
@@ -145,11 +154,15 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             if (asg?.id) {
               setAssignmentId(asg.id);
               if (asg.program_json) {
-                // Enrich exercise data with video URLs from Supabase exercises table
-                const enrichedProgram = await enrichProgramWithVideoUrls(asg.program_json);
+                const raw = asg.program_json as any;
+                const enrichedProgram = await enrichProgramWithVideoUrls(raw);
                 setWorkoutProgram(enrichedProgram as WorkoutProgram);
+                // Keep local assignment in sync so getCurrentWeekProgram and saveClientEdits have correct shape
+                const weeks = raw.weeks || (raw.days ? [{ weekNumber: 1, isUnlocked: true, isCompleted: false, days: raw.days, exercises: [] }] : []);
+                const loaded = { program: enrichedProgram, weeks, lastModifiedBy: raw.lastModifiedBy, lastModifiedAt: raw.lastModifiedAt } as any;
+                setLocalAssignment(loaded);
+                onAssignmentUpdated?.(loaded);
               }
-              // Current week is managed by parent component
               if (typeof asg.current_day === 'number') setCurrentDay(Math.max(0, (asg.current_day || 1) - 1));
               setSharedVersion(asg.version || 0);
               return;
@@ -160,14 +173,39 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       // Fallback to local storage or prop
       try {
         const sharedRaw = localStorage.getItem(SHARED_KEY);
+        let programToSet: WorkoutProgram | null = null;
+        
         if (sharedRaw) {
           const shared = JSON.parse(sharedRaw);
           if (shared?.workoutAssignment?.program) {
-            setWorkoutProgram(shared.workoutAssignment.program);
+            programToSet = shared.workoutAssignment.program;
             setSharedVersion(shared.version || 0);
           }
         } else if (client.workoutAssignment?.program) {
-          setWorkoutProgram(client.workoutAssignment.program);
+          programToSet = client.workoutAssignment.program;
+        }
+
+        // Merge current week's data if available
+        if (programToSet) {
+          // Ensure program has a valid days array
+          if (!programToSet.days || !Array.isArray(programToSet.days)) {
+            programToSet = {
+              ...programToSet,
+              days: []
+            };
+          }
+          
+          const currentWeekData = client.workoutAssignment?.weeks?.find((w: any) => w.weekNumber === currentWeek);
+          if (currentWeekData && currentWeekData.days && Array.isArray(currentWeekData.days) && currentWeekData.days.length > 0) {
+            programToSet = {
+              ...programToSet,
+              days: programToSet.days.map((day: any, dayIndex: number) => {
+                const weekDay = currentWeekData.days[dayIndex];
+                return weekDay || day;
+              })
+            };
+          }
+          setWorkoutProgram(programToSet);
         }
       } catch {}
     })();
@@ -202,16 +240,21 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           filter: `id=eq.${assignmentId}`
         }, async (payload) => {
           const row: any = payload.new;
-          if (row.program_json && row.last_modified_by !== 'client') {
-            // Enrich the updated program with video URLs
-            const enrichedProgram = await enrichProgramWithVideoUrls(row.program_json);
-            setWorkoutProgram(enrichedProgram as WorkoutProgram);
-            setSharedVersion(row.version || 0);
-            
-            // Update current week/day if changed
-            if (typeof row.current_day === 'number' && row.current_day !== currentDay + 1) {
-              setCurrentDay(Math.max(0, (row.current_day || 1) - 1));
-            }
+          if (!row.program_json) return;
+          if (row.last_modified_by === 'client') return;
+          const raw = row.program_json as any;
+          const enrichedProgram = await enrichProgramWithVideoUrls(raw);
+          const weeks = raw.weeks ?? (raw.days?.length ? [{ weekNumber: 1, isUnlocked: true, isCompleted: false, days: raw.days, exercises: [] }] : []);
+          const updated = { program: enrichedProgram, weeks, lastModifiedBy: raw.lastModifiedBy, lastModifiedAt: raw.lastModifiedAt } as any;
+          setWorkoutProgram(enrichedProgram as WorkoutProgram);
+          setLocalAssignment(updated);
+          setSharedVersion(row.version || 0);
+          onAssignmentUpdated?.(updated);
+          if (typeof row.current_week === 'number' && row.current_week !== currentWeek && onWeekChange) {
+            onWeekChange(row.current_week);
+          }
+          if (typeof row.current_day === 'number' && row.current_day !== currentDay + 1) {
+            setCurrentDay(Math.max(0, (row.current_day || 1) - 1));
           }
         })
         .subscribe();
@@ -219,17 +262,97 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         supabase?.removeChannel(channel); 
       };
     }
-  }, [assignmentId, currentWeek, currentDay]);
+  }, [assignmentId, currentWeek, currentDay, onAssignmentUpdated]);
+
+  // Sync localAssignment with client prop when it changes
+  useEffect(() => {
+    if (client.workoutAssignment) {
+      setLocalAssignment(client.workoutAssignment);
+    }
+  }, [client.workoutAssignment]);
+
+  // Initialize completedExercises from persisted set.completed in current week (replace when week changes)
+  useEffect(() => {
+    const assignment = localAssignment || client.workoutAssignment;
+    const weekData = assignment?.weeks?.find((w: any) => w.weekNumber === currentWeek);
+    const days = weekData?.days;
+    const next: { [exerciseId: string]: boolean } = {};
+    if (days && Array.isArray(days)) {
+      days.forEach((day: any) => {
+        (day.exercises || []).forEach((ex: any) => {
+          const allSetsComplete = (ex.sets || []).every((s: any) => s.completed === true);
+          if (allSetsComplete && ex.id) next[ex.id] = true;
+        });
+      });
+    }
+    setCompletedExercises(next);
+  }, [currentWeek, localAssignment?.weeks, client.workoutAssignment?.weeks]);
+
+  // Merge week-specific data into the program for display. Prefer week's days when present so we never show empty after save.
+  const getCurrentWeekProgram = (): WorkoutProgram => {
+    const assignment = localAssignment || client.workoutAssignment;
+    const baseProgram = workoutProgram || assignment?.program;
+    const currentWeekData = assignment?.weeks?.find((w: any) => w.weekNumber === currentWeek);
+    const weekDays = currentWeekData?.days && Array.isArray(currentWeekData.days) ? currentWeekData.days : null;
+
+    // If we have week-specific days, use them directly. Merge videoUrl/muscleGroup by exercise name so videos persist after edits and week order differs.
+    if (weekDays && weekDays.length > 0) {
+      const baseDays = baseProgram?.days && Array.isArray(baseProgram.days) ? baseProgram.days : [];
+      const byName: Record<string, { videoUrl?: string; muscleGroup?: string }> = {};
+      baseDays.forEach((d: any) => {
+        (d.exercises || []).forEach((ex: any) => {
+          const name = (ex.exercise?.name ?? ex.exercise?.id ?? ex.name ?? '').toString().trim().toLowerCase();
+          if (name && (ex.exercise?.videoUrl || ex.exercise?.muscleGroup)) {
+            byName[name] = {
+              videoUrl: ex.exercise?.videoUrl ?? byName[name]?.videoUrl,
+              muscleGroup: ex.exercise?.muscleGroup ?? byName[name]?.muscleGroup,
+            };
+          }
+        });
+      });
+      const daysWithVideos = weekDays.map((weekDay: any) => {
+        return {
+          ...weekDay,
+          exercises: (weekDay.exercises || []).map((ex: any) => {
+            const name = (ex.exercise?.name ?? ex.exercise?.id ?? ex.name ?? '').toString().trim().toLowerCase();
+            const meta = name ? byName[name] : null;
+            return {
+              ...ex,
+              exercise: {
+                ...ex.exercise,
+                videoUrl: meta?.videoUrl ?? ex.exercise?.videoUrl,
+                muscleGroup: meta?.muscleGroup ?? ex.exercise?.muscleGroup,
+              },
+            };
+          }),
+        };
+      });
+      return {
+        ...(baseProgram || { id: '', name: '', description: '', days: [], createdAt: new Date(), updatedAt: new Date() }),
+        days: daysWithVideos,
+      } as WorkoutProgram;
+    }
+
+    if (!baseProgram || !baseProgram.days || !Array.isArray(baseProgram.days)) {
+      return {
+        id: 'ppl-program',
+        name: 'Push Pull Legs',
+        description: '3-day split focusing on push, pull, and leg movements',
+        duration: 12,
+        days: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as WorkoutProgram;
+    }
+
+    return {
+      ...baseProgram,
+      days: baseProgram.days,
+    };
+  };
 
   // Use assigned workout program or fallback to mock data
-  const currentWorkoutProgram = workoutProgram || client.workoutAssignment?.program || {
-    id: 'ppl-program',
-    name: 'Push Pull Legs',
-    description: '3-day split focusing on push, pull, and leg movements',
-    duration: 12,
-    difficulty: 'intermediate',
-    days: []
-  };
+  const currentWorkoutProgram = getCurrentWeekProgram();
   
   // Heuristic: detect obviously old data (fallback sample IDs or missing videoUrl)
   // Only show old data warning if we have exercises but no video URLs AND no Supabase assignment
@@ -242,8 +365,25 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   // Check if using old data (not CSV data)
 
   const currentDayData = currentWorkoutProgram?.days?.[currentDay];
-  // Simplified logic - all weeks are accessible
   const isDayUnlocked = true;
+
+  const deployedWeeks = (localAssignment?.weeks || client.workoutAssignment?.weeks || []) as { weekNumber: number; isCompleted?: boolean }[];
+  const currentWeekData = deployedWeeks.find((w) => w.weekNumber === currentWeek);
+  const isCurrentWeekComplete = currentWeekData?.isCompleted === true;
+  const hasNextWeek = deployedWeeks.some((w) => w.weekNumber === currentWeek + 1);
+  const showWaitingForCoach = isCurrentWeekComplete && !hasNextWeek;
+
+  // When client selects a week, persist to DB so sync doesn't overwrite back to previous week
+  const handleWeekSelect = useCallback((newWeek: number) => {
+    if (isSupabaseReady && supabase && assignmentId) {
+      supabase
+        .from('workout_assignments')
+        .update({ current_week: newWeek })
+        .eq('id', assignmentId)
+        .then(() => {});
+    }
+    onWeekChange?.(newWeek);
+  }, [assignmentId, onWeekChange]);
 
   // If no workout program is assigned, show a message
   if (!workoutProgram && !client.workoutAssignment?.program) {
@@ -308,6 +448,52 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 
 
 
+  const persistExerciseCompletion = async (exerciseId: string, completed: boolean) => {
+    const assignment = localAssignment || client.workoutAssignment;
+    if (!assignment?.weeks) return;
+    const now = new Date().toISOString();
+    const updatedWeeks = assignment.weeks.map((w: any) => {
+      if (w.weekNumber !== currentWeek) return w;
+      return {
+        ...w,
+        days: (w.days || []).map((day: any) => ({
+          ...day,
+          exercises: (day.exercises || []).map((ex: any) =>
+            ex.id !== exerciseId
+              ? ex
+              : {
+                  ...ex,
+                  sets: (ex.sets || []).map((s: any) => ({
+                    ...s,
+                    completed: completed,
+                    completedAt: completed ? now : undefined,
+                  })),
+                }
+          ),
+        })),
+      };
+    });
+    const updatedAssignment = {
+      ...assignment,
+      weeks: updatedWeeks,
+      lastModifiedBy: 'client' as const,
+      lastModifiedAt: new Date(),
+    };
+    if (isSupabaseReady && supabase && assignmentId) {
+      await supabase
+        .from('workout_assignments')
+        .update({
+          program_json: updatedAssignment as any,
+          last_modified_by: 'client',
+          version: (sharedVersion || 0) + 1,
+        })
+        .eq('id', assignmentId);
+    }
+    localStorage.setItem(SHARED_KEY, JSON.stringify({ workoutAssignment: updatedAssignment, version: (sharedVersion || 0) + 1, lastModified: new Date().toISOString() }));
+    setSharedVersion((v) => v + 1);
+    setLocalAssignment(updatedAssignment);
+  };
+
   const completeExercise = (exerciseId: string) => {
     const isCurrentlyCompleted = completedExercises[exerciseId];
     const newCompletedState = !isCurrentlyCompleted;
@@ -317,6 +503,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       [exerciseId]: newCompletedState
     }));
 
+    persistExerciseCompletion(exerciseId, newCompletedState);
+
     // Record performance data when exercise is completed
     if (newCompletedState && workoutProgram) {
       const currentDayData = workoutProgram.days[currentDay];
@@ -325,10 +513,13 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       if (exercise) {
         const actualSets = exercise.sets.map((set, setIndex) => {
           const exerciseDataForSet = exerciseData[exerciseId]?.[setIndex];
+          // Handle dropsets: if reps/weight are arrays, use the first value or sum
+          const defaultReps = Array.isArray(set.reps) ? set.reps[0] || 0 : (typeof set.reps === 'number' ? set.reps : 0);
+          const defaultWeight = Array.isArray(set.weight) ? set.weight[0] || 0 : (typeof set.weight === 'number' ? set.weight : 0);
           return {
             setId: set.id,
-            actualReps: exerciseDataForSet?.reps || set.reps,
-            actualWeight: exerciseDataForSet?.weight || set.weight,
+            actualReps: exerciseDataForSet?.reps || defaultReps,
+            actualWeight: exerciseDataForSet?.weight || defaultWeight,
             completed: true
           };
         });
@@ -381,6 +572,198 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         }
       }
     }));
+  };
+
+  // Save client edits to workout assignment (called when user clicks Save)
+  const saveClientEdits = async () => {
+    const assignment = localAssignment || client.workoutAssignment;
+    const programToUse = workoutProgram || assignment?.program;
+    // Use display program when base program has no days (e.g. multi-week: data lives in weeks[].days only)
+    const displayProgram = getCurrentWeekProgram();
+
+    if (!assignment) {
+      console.warn('⚠️ Cannot save: Missing assignment');
+      return;
+    }
+
+    try {
+      // Get current week's data or create new - use deep copy to avoid mutations
+      const existingWeeks = assignment.weeks 
+        ? assignment.weeks.map((w: any) => ({
+            ...w,
+            days: w.days?.map((day: any) => ({
+              ...day,
+              exercises: day.exercises?.map((ex: any) => ({
+                ...ex,
+                sets: ex.sets?.map((set: any) => ({ ...set }))
+              }))
+            }))
+          }))
+        : [];
+      
+      let currentWeekData = existingWeeks.find((w: any) => w.weekNumber === currentWeek);
+
+      // Source days: week-specific, or what we're actually displaying (displayProgram.days), or program template
+      const programDays = programToUse?.days && Array.isArray(programToUse.days) ? programToUse.days : [];
+      const displayDays = displayProgram?.days && Array.isArray(displayProgram.days) ? displayProgram.days : [];
+      const sourceDays = currentWeekData?.days && Array.isArray(currentWeekData.days) && currentWeekData.days.length > 0
+        ? currentWeekData.days
+        : (displayDays.length > 0 ? displayDays : programDays);
+
+      if (!sourceDays || sourceDays.length === 0) {
+        console.warn('⚠️ Cannot save: No valid days data for current week');
+        return;
+      }
+
+      // Build videoUrl/muscleGroup lookup (from program or display so we have something)
+      const baseDays = programDays.length > 0 ? programDays : displayDays;
+      const videoByName: Record<string, { videoUrl?: string; muscleGroup?: string }> = {};
+      baseDays.forEach((d: any) => {
+        (d.exercises || []).forEach((ex: any) => {
+          const n = (ex.exercise?.name ?? ex.exercise?.id ?? ex.name ?? '').toString().trim().toLowerCase();
+          if (n && (ex.exercise?.videoUrl || ex.exercise?.muscleGroup)) {
+            videoByName[n] = {
+              videoUrl: ex.exercise?.videoUrl ?? videoByName[n]?.videoUrl,
+              muscleGroup: ex.exercise?.muscleGroup ?? videoByName[n]?.muscleGroup,
+            };
+          }
+        });
+      });
+
+      // Create updated days with client's edits applied and videoUrl/muscleGroup preserved so videos don't disappear after save
+      const updatedDays = sourceDays.map((day: any) => ({
+        ...day,
+        exercises: (day.exercises && Array.isArray(day.exercises) ? day.exercises : []).map((exercise: any) => {
+          const exName = (exercise.exercise?.name ?? exercise.exercise?.id ?? exercise.name ?? '').toString().trim().toLowerCase();
+          const videoMeta = exName ? videoByName[exName] : null;
+          // Get client's edits for this exercise
+          const exerciseEdits = exerciseData[exercise.id] || {};
+          const dropsetEdits = dropsetData[exercise.id] || {};
+
+          return {
+            ...exercise,
+            exercise: {
+              ...exercise.exercise,
+              videoUrl: videoMeta?.videoUrl ?? exercise.exercise?.videoUrl,
+              muscleGroup: videoMeta?.muscleGroup ?? exercise.exercise?.muscleGroup,
+            },
+            sets: (exercise.sets && Array.isArray(exercise.sets) ? exercise.sets : []).map((set: any, setIndex: number) => {
+              // Apply regular set edits
+              if (exerciseEdits[setIndex]) {
+                return {
+                  ...set,
+                  reps: exerciseEdits[setIndex].reps ?? set.reps,
+                  weight: exerciseEdits[setIndex].weight ?? set.weight
+                };
+              }
+
+              // Apply dropset edits
+              if (set.isDropset && dropsetEdits[setIndex] && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+                const dropsetEdit = dropsetEdits[setIndex];
+                return {
+                  ...set,
+                  reps: set.reps.map((rep: any, roundIndex: number) => dropsetEdit[roundIndex]?.reps ?? rep),
+                  weight: set.weight.map((weight: any, roundIndex: number) => dropsetEdit[roundIndex]?.weight ?? weight)
+                };
+              }
+
+              return { ...set }; // Deep copy to avoid mutations
+            })
+          };
+        })
+      }));
+
+      // Update or create current week data
+      if (!currentWeekData) {
+        currentWeekData = {
+          weekNumber: currentWeek,
+          isUnlocked: true,
+          isCompleted: false,
+          exercises: [],
+          days: updatedDays
+        };
+        existingWeeks.push(currentWeekData);
+      } else {
+        // Update existing week data - create new object to avoid mutations
+        const weekIndex = existingWeeks.findIndex((w: any) => w.weekNumber === currentWeek);
+        if (weekIndex !== -1) {
+          existingWeeks[weekIndex] = {
+            ...currentWeekData,
+            days: updatedDays
+          };
+        }
+      }
+
+      // Prefer a program that has valid .days so post-save validation passes
+      const programWithDays = (displayProgram?.days && Array.isArray(displayProgram.days))
+        ? displayProgram
+        : (assignment.program?.days && Array.isArray(assignment.program.days))
+          ? assignment.program
+          : (programToUse?.days && Array.isArray(programToUse.days))
+            ? programToUse
+            : { ...(assignment.program || programToUse || {}), days: updatedDays };
+      const updatedAssignment = {
+        ...assignment,
+        program: programWithDays,
+        weeks: existingWeeks,
+        lastModifiedBy: 'client' as const,
+        lastModifiedAt: new Date()
+      };
+
+      // Save to Supabase if available
+      if (isSupabaseReady && supabase && assignmentId) {
+        await supabase
+          .from('workout_assignments')
+          .update({
+            program_json: updatedAssignment as any,
+            current_week: currentWeek,
+            last_modified_by: 'client',
+            version: (sharedVersion || 0) + 1
+          })
+          .eq('id', assignmentId);
+      }
+
+      // Save to localStorage for real-time sync
+      const sharedData = {
+        workoutAssignment: updatedAssignment,
+        version: (sharedVersion || 0) + 1,
+        lastModified: new Date().toISOString()
+      };
+      localStorage.setItem(SHARED_KEY, JSON.stringify(sharedData));
+      setSharedVersion(prev => prev + 1);
+
+      // Update client in clients list
+      const clientsRaw = localStorage.getItem('clients');
+      if (clientsRaw) {
+        const clients = JSON.parse(clientsRaw);
+        const updated = Array.isArray(clients)
+          ? clients.map((c: any) => (c.id === client.id ? { ...c, workoutAssignment: updatedAssignment } : c))
+          : clients;
+        localStorage.setItem('clients', JSON.stringify(updated));
+      }
+
+      // Ensure the updated assignment has a valid program (with .days array) before updating state
+      if (!updatedAssignment.program || !Array.isArray(updatedAssignment.program.days)) {
+        console.error('❌ Invalid program structure in updated assignment');
+        return;
+      }
+
+      // Update local assignment state so getCurrentWeekProgram() can see the updated week data
+      setLocalAssignment(updatedAssignment);
+      onAssignmentUpdated?.(updatedAssignment as ClientWorkoutAssignment);
+
+      // DO NOT update workoutProgram state - it should remain as the template
+      // The getCurrentWeekProgram() function will merge week-specific data when displaying
+      // This ensures the original program structure is preserved
+
+      console.log('✅ Client edits saved successfully', {
+        hasProgram: !!updatedAssignment.program,
+        programDays: updatedAssignment.program?.days?.length,
+        weeksCount: updatedAssignment.weeks?.length
+      });
+    } catch (error) {
+      console.error('❌ Error saving client edits:', error);
+    }
   };
 
   // Function to get YouTube thumbnail
@@ -493,7 +876,49 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       </div>
 
       <div className="px-3 sm:px-4 py-3 sm:py-4 space-y-4 sm:space-y-6 pb-20 max-w-full overflow-x-hidden">
-        
+        {/* Week navigation - only deployed weeks */}
+        {deployedWeeks.length > 0 && onWeekChange && (
+          <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-2xl border border-gray-700/50 p-4 shadow-xl">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-gray-400 text-sm font-medium">Week</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {deployedWeeks.map((w) => {
+                const isActive = w.weekNumber === currentWeek;
+                const completed = (w as any).isCompleted === true;
+                return (
+                  <button
+                    key={w.weekNumber}
+                    onClick={() => handleWeekSelect(w.weekNumber)}
+                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                      isActive
+                        ? 'bg-[#dc1e3a] text-white'
+                        : completed
+                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                        : 'bg-gray-700/50 text-gray-300 border border-gray-600/50 hover:bg-gray-700'
+                    }`}
+                  >
+                    Week {w.weekNumber}{completed ? ' ✓' : ''}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Waiting for coach to deploy next week */}
+        {showWaitingForCoach && (
+          <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+              <Zap className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <p className="font-semibold text-amber-200">Great work!</p>
+              <p className="text-sm text-amber-200/90">Your coach is preparing your next week. Check back soon.</p>
+            </div>
+          </div>
+        )}
+
         {/* Day Navigation - Ultra Modern Design with Theme Colors */}
         <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-4 sm:p-6 shadow-2xl">
           <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -625,44 +1050,11 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                 <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
                   <div className="text-right">
                     <div className="text-lg sm:text-2xl font-bold text-[#dc1e3a]">
-                      {Object.values(completedExercises).filter(Boolean).length}/{currentDayData.exercises.length}
+                      {currentDayData.exercises.length}
                     </div>
-                    <div className="text-gray-400 text-xs">Completed</div>
+                    <div className="text-gray-400 text-xs">Exercises</div>
                   </div>
-                  {/* Edit Mode Toggle Button - Mobile Optimized */}
-                  <button
-                    onClick={() => setIsEditMode(!isEditMode)}
-                    className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold transition-all duration-300 flex items-center space-x-1 sm:space-x-2 text-xs sm:text-sm ${
-                      isEditMode
-                        ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/10 text-green-400 border border-green-500/30 hover:from-green-500/30 hover:to-emerald-500/20'
-                        : 'bg-gradient-to-r from-[#dc1e3a]/20 to-red-500/10 text-[#dc1e3a] border border-[#dc1e3a]/30 hover:from-[#dc1e3a]/30 hover:to-red-500/20 hover:text-white'
-                    }`}
-                  >
-                    {isEditMode ? (
-                      <>
-                        <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
-                        <span className="hidden sm:inline">View Mode</span>
-                        <span className="sm:hidden">View</span>
-                      </>
-                    ) : (
-                      <>
-                        <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
-                        <span className="hidden sm:inline">Edit Mode</span>
-                        <span className="sm:hidden">Edit</span>
-                      </>
-                    )}
-                  </button>
                 </div>
-              </div>
-              
-              {/* Progress Bar - Mobile Optimized */}
-              <div className="w-full bg-gray-700/50 rounded-full h-2 sm:h-3 overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-[#dc1e3a] to-red-600 rounded-full transition-all duration-500 ease-out"
-                  style={{ 
-                    width: `${(Object.values(completedExercises).filter(Boolean).length / currentDayData.exercises.length) * 100}%` 
-                  }}
-                ></div>
               </div>
             </div>
 
@@ -784,33 +1176,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                     </div>
                   </div>
 
-                  {/* Mark Complete Button - Mobile Optimized */}
-                  <div className="flex justify-center mb-3 sm:mb-6">
-                    <button
-                      onClick={() => completeExercise(exercise.id)}
-                      className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 ${
-                        completedExercises[exercise.id]
-                          ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/10 text-green-400 border border-green-500/30 hover:from-green-500/30 hover:to-emerald-500/20'
-                          : 'bg-gradient-to-r from-[#dc1e3a]/20 to-red-500/10 text-[#dc1e3a] border border-[#dc1e3a]/30 hover:from-[#dc1e3a]/30 hover:to-red-500/20 hover:text-white'
-                      }`}
-                    >
-                      {completedExercises[exercise.id] ? (
-                        <div className="flex items-center space-x-1 sm:space-x-2">
-                          <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>Completed</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center space-x-1 sm:space-x-2">
-                          <Circle className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>Mark Complete</span>
-                        </div>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Sets & Reps Section - Ultra Modern Design - Mobile Optimized */}
-                  {!completedExercises[exercise.id] && (
-                    <div className="space-y-3 sm:space-y-6">
+                  {/* Sets & Reps Section - always visible; Save per exercise */}
+                  <div className="space-y-3 sm:space-y-6">
                       <div className="flex items-center justify-between mb-2 sm:mb-3">
                         <div className="flex items-center space-x-1 sm:space-x-2">
                           <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-md sm:rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
@@ -819,7 +1186,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                           <div>
                             <h6 className="text-xs sm:text-sm font-bold text-white">Sets & Reps</h6>
                             <p className="text-gray-400 text-xs">
-                              {isEditMode ? 'Track your performance' : 'View workout details'}
+                              Track your performance
                             </p>
                           </div>
                         </div>
@@ -862,53 +1229,39 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                   <h6 className="text-[10px] font-semibold text-blue-300 uppercase">Reps</h6>
                                   <Target className="w-3 h-3 text-blue-400" />
                                 </div>
-                                {isEditMode ? (
-                                  <div className="flex items-center justify-center gap-1">
-                                    <button
-                                      onClick={() => {
-                                        const currentReps = exerciseData[exercise.id]?.[setIndex]?.reps || set.reps;
-                                        const newReps = typeof currentReps === 'number' ? Math.max(0, currentReps - 1) : 0;
-                                        updateExerciseData(exercise.id, setIndex, 'reps', newReps);
-                                      }}
-                                      className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
-                                    >
-                                        <Minus className="w-3 h-3" />
-                                    </button>
-                                    <div className="text-center px-1 flex-1 min-w-[30px]">
-                                      <div className="text-sm font-bold text-blue-300 leading-tight">
-                                        {set.isDropset && Array.isArray(set.reps) 
-                                          ? set.reps.join('→') 
-                                          : (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps)
-                                        }
-                                      </div>
-                                      <div className="text-blue-400 text-[9px] leading-tight">
-                                        {set.isDropset ? 'dropset' : ''}
-                                      </div>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        const currentReps = exerciseData[exercise.id]?.[setIndex]?.reps || set.reps;
-                                        const newReps = typeof currentReps === 'number' ? currentReps + 1 : 1;
-                                        updateExerciseData(exercise.id, setIndex, 'reps', newReps);
-                                      }}
-                                      className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
-                                    >
-                                        <Plus className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div className="text-center">
-                                    <div className="text-sm font-bold text-blue-300">
+                                <div className="flex items-center justify-center gap-1">
+                                  <button
+                                    onClick={() => {
+                                      const currentReps = exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps;
+                                      const newReps = typeof currentReps === 'number' ? Math.max(0, currentReps - 1) : 0;
+                                      updateExerciseData(exercise.id, setIndex, 'reps', newReps);
+                                    }}
+                                    className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <div className="text-center px-1 flex-1 min-w-[30px]">
+                                    <div className="text-sm font-bold text-blue-300 leading-tight">
                                       {set.isDropset && Array.isArray(set.reps) 
                                         ? set.reps.join('→') 
-                                        : (exerciseData[exercise.id]?.[setIndex]?.reps || set.reps)
+                                        : (exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps)
                                       }
                                     </div>
-                                    <div className="text-blue-400 text-[9px]">
+                                    <div className="text-blue-400 text-[9px] leading-tight">
                                       {set.isDropset ? 'dropset' : 'reps'}
                                     </div>
                                   </div>
-                                )}
+                                  <button
+                                    onClick={() => {
+                                      const currentReps = exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps;
+                                      const newReps = typeof currentReps === 'number' ? currentReps + 1 : 1;
+                                      updateExerciseData(exercise.id, setIndex, 'reps', newReps);
+                                    }}
+                                    className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </div>
                               </div>
 
                               {/* Weight Section - Compact Mobile Design */}
@@ -917,49 +1270,37 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                   <h6 className="text-[10px] font-semibold text-purple-300 uppercase">Weight</h6>
                                   <Zap className="w-3 h-3 text-purple-400" />
                                 </div>
-                                {isEditMode ? (
-                                  <div className="flex items-center justify-center gap-1">
-                                    <button
-                                      onClick={() => {
-                                        const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight || set.weight;
-                                        const newWeight = typeof currentWeight === 'number' ? Math.max(0, currentWeight - 2.5) : 0;
-                                        updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
-                                      }}
-                                      className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
-                                    >
-                                        <Minus className="w-3 h-3" />
-                                    </button>
-                                    <div className="text-center px-1 flex-1 min-w-[30px]">
-                                      <div className="text-sm font-bold text-purple-300 leading-tight truncate">
-                                        {set.isDropset && Array.isArray(set.weight) 
-                                          ? set.weight.join('→') + 'kg'
-                                          : (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) + 'kg'
-                                        }
-                                      </div>
-                                      <div className="text-purple-400 text-[9px] leading-tight">kg</div>
-                                    </div>
-                                    <button
-                                      onClick={() => {
-                                        const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight || set.weight;
-                                        const newWeight = typeof currentWeight === 'number' ? currentWeight + 2.5 : 2.5;
-                                        updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
-                                      }}
-                                      className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
-                                    >
-                                        <Plus className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div className="text-center">
-                                    <div className="text-sm font-bold text-purple-300">
+                                <div className="flex items-center justify-center gap-1">
+                                  <button
+                                    onClick={() => {
+                                      const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
+                                      const newWeight = typeof currentWeight === 'number' ? Math.max(0, currentWeight - 2.5) : 0;
+                                      updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
+                                    }}
+                                    className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <div className="text-center px-1 flex-1 min-w-[30px]">
+                                    <div className="text-sm font-bold text-purple-300 leading-tight truncate">
                                       {set.isDropset && Array.isArray(set.weight) 
                                         ? set.weight.join('→') + 'kg'
-                                        : (exerciseData[exercise.id]?.[setIndex]?.weight || set.weight) + 'kg'
+                                        : (exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight) + 'kg'
                                       }
                                     </div>
-                                    <div className="text-purple-400 text-[9px]">weight</div>
+                                    <div className="text-purple-400 text-[9px] leading-tight">kg</div>
                                   </div>
-                                )}
+                                  <button
+                                    onClick={() => {
+                                      const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
+                                      const newWeight = typeof currentWeight === 'number' ? currentWeight + 2.5 : 2.5;
+                                      updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
+                                    }}
+                                    className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </div>
                               </div>
                               
                             </div>
@@ -967,8 +1308,18 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                     ))}
                   </div>
 
+                  {/* Save button for this exercise - saves performance to Supabase and updates coach + charts */}
+                  <div className="flex justify-center mt-4 pt-4 border-t border-gray-700/50">
+                    <button
+                      type="button"
+                      onClick={() => saveClientEdits()}
+                      className="px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white border border-green-500/30 shadow-lg text-sm sm:text-base"
+                    >
+                      <Save className="w-4 h-4 sm:w-5 sm:h-5" />
+                      Save
+                    </button>
+                  </div>
                 </div>
-                  )}
 
                   {exercise.notes && (
                     <div className="mt-6 p-6 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-2xl backdrop-blur-sm">

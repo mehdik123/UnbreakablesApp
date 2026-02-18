@@ -10,7 +10,7 @@ import {
   Crown,
   Pill
 } from 'lucide-react';
-import { Client, NutritionPlan } from '../types';
+import { Client, ClientWorkoutAssignment, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -55,6 +55,8 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const [currentWeek, setCurrentWeek] = useState<number>(() => {
     return client.workoutAssignment?.currentWeek || 1;
   });
+  // Latest assignment (from save or sync) so Progress charts and Performance see client edits
+  const [effectiveWorkoutAssignment, setEffectiveWorkoutAssignment] = useState(client.workoutAssignment ?? undefined);
   
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [weeklyPhotos, setWeeklyPhotos] = useState<any[]>([]);
@@ -77,6 +79,11 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     motivationQuotes[new Date().getDay() % motivationQuotes.length], 
     [motivationQuotes]
   );
+
+  // Keep effective assignment in sync with prop and with sync fetch
+  useEffect(() => {
+    setEffectiveWorkoutAssignment(client.workoutAssignment ?? undefined);
+  }, [client.workoutAssignment]);
 
   // Memoize event handlers with loading and toast
   const handleTabChange = useCallback(async (tabId: string) => {
@@ -329,37 +336,33 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               }
             
             if (assignment?.program_json) {
-
-
-
-              
-              const freshWeeks = assignment.program_json.weeks || [];
-
-              
+              const raw = assignment.program_json as any;
+              const base = client.workoutAssignment;
+              const freshAssignment: ClientWorkoutAssignment = {
+                id: base?.id ?? '',
+                clientId: base?.clientId ?? client.id,
+                clientName: base?.clientName ?? client.name,
+                startDate: base?.startDate ?? new Date(),
+                duration: base?.duration ?? 12,
+                currentWeek: assignment.current_week ?? base?.currentWeek ?? 1,
+                currentDay: base?.currentDay ?? 0,
+                weeks: raw.weeks || [],
+                progressionRules: base?.progressionRules ?? [],
+                isActive: base?.isActive ?? true,
+                program: raw.program || raw,
+                lastModifiedBy: raw.lastModifiedBy,
+                lastModifiedAt: raw.lastModifiedAt ? new Date(raw.lastModifiedAt) : undefined,
+              };
+              setEffectiveWorkoutAssignment(freshAssignment);
+              const freshWeeks = raw.weeks || [];
               if (freshWeeks.length > 0) {
-                // Removed unlockedWeeks logic - using simplified currentWeek only
-                
-                // Simple: Use the current_week field directly from the assignment
-                const newCurrentWeek = assignment.current_week || 1;
-                console.log('🔄 CLIENT SYNC DEBUG - Raw assignment data:', {
-                  current_week: assignment.current_week,
-                  program_json_weeks: assignment.program_json.weeks,
-                  last_modified_at: assignment.last_modified_at
-                });
-
-
-                
-                if (newCurrentWeek !== currentWeek) {
-
-                  setCurrentWeek(newCurrentWeek);
-                } else {
-
-                }
-              } else {
-
+                const deployedWeekNumbers = freshWeeks.map((w: any) => w.weekNumber);
+                const rawWeek = assignment.current_week || 1;
+                const newCurrentWeek = deployedWeekNumbers.includes(rawWeek)
+                  ? rawWeek
+                  : Math.min(rawWeek, Math.max(...deployedWeekNumbers)) || deployedWeekNumbers[0];
+                if (newCurrentWeek !== currentWeek) setCurrentWeek(newCurrentWeek);
               }
-            } else {
-
             }
           } else {
 
@@ -383,10 +386,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     return () => clearInterval(interval);
   }, [client.id, client.name, currentWeek]);
 
+  const assignmentForWeeks = effectiveWorkoutAssignment ?? client.workoutAssignment;
+  const clientForCharts = useMemo(
+    () => ({ ...client, workoutAssignment: effectiveWorkoutAssignment ?? client.workoutAssignment }),
+    [client, effectiveWorkoutAssignment, client.workoutAssignment]
+  );
   const getWeekStatus = (weekNumber: number): 'locked' | 'active' | 'completed' => {
-    if (!client.workoutAssignment?.weeks) return 'locked';
+    if (!assignmentForWeeks?.weeks) return 'locked';
     
-    const week = client.workoutAssignment.weeks.find(w => w.weekNumber === weekNumber);
+    const week = assignmentForWeeks.weeks.find(w => w.weekNumber === weekNumber);
     if (!week) return 'locked';
     
     return WeekProgressionManager.getWeekStatus(week);
@@ -698,6 +706,20 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               client={client}
               currentWeek={currentWeek}
               isDark={isDark}
+              onWeekChange={setCurrentWeek}
+              onAssignmentUpdated={(a) => setEffectiveWorkoutAssignment(prev => ({
+                id: prev?.id ?? client.workoutAssignment?.id ?? '',
+                clientId: prev?.clientId ?? client.workoutAssignment?.clientId ?? client.id,
+                clientName: prev?.clientName ?? client.workoutAssignment?.clientName ?? client.name,
+                startDate: prev?.startDate ?? client.workoutAssignment?.startDate ?? new Date(),
+                duration: prev?.duration ?? client.workoutAssignment?.duration ?? 12,
+                currentDay: prev?.currentDay ?? client.workoutAssignment?.currentDay ?? 0,
+                progressionRules: prev?.progressionRules ?? client.workoutAssignment?.progressionRules ?? [],
+                isActive: prev?.isActive ?? client.workoutAssignment?.isActive ?? true,
+                ...client.workoutAssignment,
+                ...prev,
+                ...a,
+              } as ClientWorkoutAssignment))}
             />
           ) : activeTab === 'progress' ? (
             <div className="h-full">
@@ -710,14 +732,14 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                   <span>Back to Nutrition</span>
                 </button>
               </div>
-              <IndependentMuscleGroupCharts client={client} isDark={isDark} />
+              <IndependentMuscleGroupCharts client={clientForCharts} isDark={isDark} />
             </div>
           ) : activeTab === 'performance' ? (
             <PerformanceAnalytics
               clientId={databaseClientId || client.id}
               clientName={client.name}
               isDark={isDark}
-              workoutAssignment={client.workoutAssignment}
+              workoutAssignment={effectiveWorkoutAssignment ?? client.workoutAssignment}
             />
           ) : activeTab === 'weight' ? (
             <UltraModernWeeklyWeightLogger

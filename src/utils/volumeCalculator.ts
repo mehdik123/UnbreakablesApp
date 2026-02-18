@@ -117,3 +117,70 @@ export function getMuscleGroupsFromProgram(program: WorkoutProgram): string[] {
   
   return Array.from(muscleGroups).sort();
 }
+
+/** Week-level volume: { week: number, [muscleGroup: string]: number } */
+export interface MuscleVolumeData {
+  week: number;
+  [muscleGroup: string]: number | string;
+}
+
+/**
+ * Compute weekly volume from workout assignment (same source as Progress charts).
+ * Each week's volume uses that week's days only. Sync, no async.
+ */
+export function computeVolumeFromAssignment(
+  workoutAssignment: { program?: { days?: any[] }; weeks?: any[] } | null | undefined,
+  muscleGroups: string[]
+): MuscleVolumeData[] {
+  if (!workoutAssignment?.program) return [];
+  const deployedWeeks = (workoutAssignment.weeks || [])
+    .filter((w: any) => w.weekNumber != null)
+    .sort((a: any, b: any) => a.weekNumber - b.weekNumber);
+  const weeksToShow =
+    deployedWeeks.length > 0
+      ? deployedWeeks.map((w: any) => w.weekNumber)
+      : [1];
+  const programDays =
+    workoutAssignment.program?.days && Array.isArray(workoutAssignment.program.days)
+      ? workoutAssignment.program.days
+      : [];
+  const chartData: MuscleVolumeData[] = [];
+  for (const week of weeksToShow) {
+    const weekData: MuscleVolumeData = { week };
+    const volumeTally: { [key: string]: number } = {};
+    const weekSpecificData = deployedWeeks.find((w: any) => w.weekNumber === week);
+    const daysToProcess =
+      weekSpecificData?.days?.length > 0
+        ? weekSpecificData.days
+        : deployedWeeks.length === 0 && week === 1 && programDays.length > 0
+          ? programDays
+          : [];
+    for (const day of daysToProcess) {
+      for (const workoutExercise of day.exercises || []) {
+        const muscleGroup = workoutExercise.exercise?.muscleGroup;
+        if (!muscleGroup) continue;
+        let exerciseVolume = 0;
+        for (const set of workoutExercise.sets || []) {
+          if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+            for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+              const rep = typeof set.reps[i] === 'number' ? set.reps[i] : 0;
+              const weight = typeof set.weight[i] === 'number' ? Math.max(set.weight[i], 1) : 1;
+              exerciseVolume += rep * weight;
+            }
+          } else {
+            const reps = typeof set.reps === 'number' ? set.reps : 0;
+            const weight = typeof set.weight === 'number' ? Math.max(set.weight, 1) : 1;
+            exerciseVolume += reps * weight;
+          }
+        }
+        const normalized = muscleGroup.charAt(0).toUpperCase() + muscleGroup.slice(1).toLowerCase();
+        volumeTally[normalized] = (volumeTally[normalized] || 0) + exerciseVolume;
+      }
+    }
+    muscleGroups.forEach((mg) => {
+      weekData[mg] = volumeTally[mg] || 0;
+    });
+    chartData.push(weekData);
+  }
+  return chartData;
+}

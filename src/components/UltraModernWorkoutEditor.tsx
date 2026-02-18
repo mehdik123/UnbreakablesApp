@@ -5,8 +5,7 @@ import {
   Dumbbell, 
   Plus, 
   Minus,
-  ChevronLeft, 
-  ChevronRight,
+  ChevronLeft,
   ChevronDown,
   User,
   CheckCircle,
@@ -14,17 +13,22 @@ import {
   Target,
   Play,
   Zap,
-  Activity,
   Trash2,
   Copy,
   X,
 } from 'lucide-react';
-import { Client, ClientWorkoutAssignment, WorkoutProgram, WorkoutExercise, Exercise, WorkoutDay } from '../types';
+import { Client, ClientWorkoutAssignment, WorkoutProgram, WorkoutExercise, Exercise, WorkoutWeek } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { exercises } from '../data/exercises';
 import { dbListWorkoutPrograms, dbUpdateWorkoutAssignment } from '../lib/db';
-// import { WeekProgressionManager } from '../utils/weekProgressionManager';
-// import { unlockWeek, canUnlockWeek, getNextUnlockableWeek } from '../utils/weekUnlockManager';
+import {
+  createInitialWeek,
+  createNextWeekFromActuals,
+  getNextWeekNumber,
+  canCreateNextWeek,
+  addWeekToAssignment,
+  markWeekAsDeployed,
+} from '../utils/weekCreation';
 
 interface UltraModernWorkoutEditorProps {
   client: Client;
@@ -136,6 +140,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     field: 'exercise' | 'reps' | 'weight' | 'rest';
   } | null>(null);
   const [showExerciseSearch, setShowExerciseSearch] = useState<string | null>(null);
+  const [showCreateWeekModal, setShowCreateWeekModal] = useState(false);
+  const [draftNewWeek, setDraftNewWeek] = useState<WorkoutWeek | null>(null);
 
 
   // FIX: Real-time sync via Supabase if available, else storage key
@@ -161,9 +167,12 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
             if (asg?.id) {
               setAssignmentId(asg.id);
               if (asg.program_json) {
-                setSelectedProgram(asg.program_json as unknown as WorkoutProgram);
-                setShowProgramSelection(false); // Hide template selection, show workout editor
-                
+                const prog = asg.program_json as any;
+                const cw = asg.current_week || 1;
+                const weekData = prog.weeks?.find((w: any) => w.weekNumber === cw);
+                const daysToShow = weekData?.days && weekData.days.length > 0 ? weekData.days : prog.days;
+                setSelectedProgram({ ...prog, days: daysToShow || [] } as unknown as WorkoutProgram);
+                setShowProgramSelection(false);
               }
               if (asg.current_week) setCurrentWeek(asg.current_week);
               if (typeof asg.current_day === 'number') setCurrentDay(Math.max(0, (asg.current_day || 1) - 1));
@@ -199,15 +208,34 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         }, (payload) => {
           const row: any = payload.new;
           if (row?.program_json && row.last_modified_by === 'client') {
-            setSelectedProgram(row.program_json as WorkoutProgram);
+            const prog = row.program_json;
+            const cw = currentWeek;
+            const weekData = prog.weeks?.find((w: any) => w.weekNumber === cw);
+            const daysForWeek = weekData?.days?.length ? weekData.days : prog.days;
+            setSelectedProgram({
+              ...prog,
+              days: daysForWeek || prog.days || [],
+            } as WorkoutProgram);
             setSharedVersion(row.version || 0);
-            
-            // Update current week/day if changed
-            if (row.current_week && row.current_week !== currentWeek) {
+            if (row.current_week != null && row.current_week !== currentWeek) {
               setCurrentWeek(row.current_week);
             }
             if (typeof row.current_day === 'number' && row.current_day !== currentDay + 1) {
               setCurrentDay(Math.max(0, (row.current_day || 1) - 1));
+            }
+            // Propagate to parent so coach UI (and charts) show client's edits
+            const existing = client.workoutAssignment;
+            if (existing) {
+              const updated: ClientWorkoutAssignment = {
+                ...existing,
+                program: prog.program || prog,
+                weeks: prog.weeks ?? existing.weeks ?? [],
+                currentWeek: typeof row.current_week === 'number' ? row.current_week : existing.currentWeek ?? 1,
+                currentDay: typeof row.current_day === 'number' ? row.current_day : existing.currentDay ?? 0,
+                lastModifiedBy: 'client',
+                lastModifiedAt: prog.lastModifiedAt ? new Date(prog.lastModifiedAt) : new Date(),
+              };
+              onSaveAssignment(updated);
             }
           }
         })
@@ -328,80 +356,29 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   }, [client.id, client.workoutAssignment?.id, isSupabaseReady]); // Only run when client or assignment ID changes
 
 
-  const createWeekBasedWorkout = (program: WorkoutProgram, numberOfWeeks: number) => {
-    const weekData = [];
-    
-    for (let week = 1; week <= numberOfWeeks; week++) {
-      // Create complete workout structure for all days
-      const weekDays: WorkoutDay[] = program.days ? program.days.map((day, dayIndex) => ({
-        ...day,
-        exercises: day.exercises.map((exercise, exerciseIndex) => ({
-          ...exercise,
-          id: `${exercise.exercise.id}-day-${dayIndex}-week-${week}-exercise-${exerciseIndex}`,
-          // Preserve the original exercise data including videoUrl
-          exercise: exercise.exercise,
-          sets: exercise.sets.map((set, setIndex) => ({
-            ...set,
-            id: `${exercise.exercise.id}-day-${dayIndex}-week-${week}-exercise-${exerciseIndex}-set-${setIndex}`,
-            // Apply progression based on week number
-            reps: week === 1 ? set.reps : set.reps + (week - 1) * 2,
-            weight: week === 1 ? set.weight : set.weight + (week - 1) * 2.5
-          }))
-        }))
-      })) : [];
-      
-      // Create exercises for the current day only (for backward compatibility)
-      const currentDayExercises: WorkoutExercise[] = program.days && program.days[currentDay]?.exercises 
-        ? program.days[currentDay].exercises.map((exercise, exerciseIndex) => ({
-            ...exercise,
-            id: `${exercise.exercise.id}-day-${currentDay}-week-${week}-exercise-${exerciseIndex}`,
-            // Preserve the original exercise data including videoUrl
-            exercise: exercise.exercise,
-            sets: exercise.sets.map((set, setIndex) => ({
-              ...set,
-              id: `${exercise.exercise.id}-day-${currentDay}-week-${week}-exercise-${exerciseIndex}-set-${setIndex}`,
-              // Apply progression based on week number
-              reps: week === 1 ? set.reps : set.reps + (week - 1) * 2,
-              weight: week === 1 ? set.weight : set.weight + (week - 1) * 2.5
-            }))
-          }))
-        : [];
-      
-      weekData.push({
-        weekNumber: week,
-        isUnlocked: week === 1, // Only first week is unlocked initially
-        isCompleted: false,
-        exercises: currentDayExercises,
-        days: weekDays // Add the complete days structure
-      } as any);
-    }
-    
-    return weekData;
-  };
-
   const handleSelectProgram = (program: WorkoutProgram) => {
-    setSelectedProgram(program);
     setShowProgramSelection(false);
     setShowModificationInterface(false);
     setIsEditingTemplate(false);
-    
-    // Create week-based workout structure
-    // Removed weekData - no longer needed with simplified logic
-    // Removed setWeeks - no longer needed
-    
-    // Automatically save the assignment when selecting a template
+
+    // Progressive deployment: only Week 1 exists initially (no formula-based future weeks)
+    const week1 = createInitialWeek(program);
+    setSelectedProgram({ ...program, days: week1.days });
+    setCurrentWeek(1);
+    setCurrentDay(0);
+
     const assignment: ClientWorkoutAssignment = {
       id: Date.now().toString(),
       clientId: client.id,
       clientName: client.name || 'Unknown Client',
-      program: program,
+      program: { ...program, days: week1.days },
       startDate: new Date(),
       duration: client.numberOfWeeks,
       currentWeek: 1,
       currentDay: 1,
-      weeks: [], // Empty array - using simple currentWeek only
+      weeks: [week1],
       progressionRules: [],
-      isActive: true
+      isActive: true,
     };
 
     onSaveAssignment(assignment);
@@ -416,8 +393,20 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     }
 
     try {
-      // STEP 1: Save current week's data before switching
-      let updatedWeeks = client.workoutAssignment.weeks || [];
+      // STEP 1: Save current week's data before switching. Use latest weeks (e.g. from realtime) so we don't overwrite client edits.
+      const baseWeeks = (selectedProgram as any)?.weeks ?? client.workoutAssignment?.weeks ?? [];
+      let updatedWeeks = Array.isArray(baseWeeks)
+        ? baseWeeks.map((w: any) => ({
+            ...w,
+            days: w.days?.map((day: any) => ({
+              ...day,
+              exercises: day.exercises?.map((ex: any) => ({
+                ...ex,
+                sets: ex.sets?.map((set: any) => ({ ...set })) || []
+              })) || []
+            })) || []
+          }))
+        : [];
       
       if (selectedProgram) {
         
@@ -429,11 +418,11 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
                 // Dropset volume: sum of (reps[i] * weight[i]) for each round
                 for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
-                  currentWeekVolume += set.reps[i] * set.weight[i];
+                  currentWeekVolume += (typeof set.reps[i] === 'number' ? set.reps[i] : 0) * (typeof set.weight[i] === 'number' ? set.weight[i] : 0);
                 }
               } else {
                 // Regular set volume
-                currentWeekVolume += set.reps * set.weight;
+                currentWeekVolume += (typeof set.reps === 'number' ? set.reps : 0) * (typeof set.weight === 'number' ? set.weight : 0);
               }
             });
           });
@@ -471,88 +460,27 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         onSaveAssignment(updatedAssignment);
       }
 
-      // STEP 2: Initialize new week if it doesn't exist
-      let finalWeeks = updatedWeeks; // Use the updated weeks from STEP 1
-      const existingNewWeekData = finalWeeks.find(w => w.weekNumber === newWeek);
-      
-      if (!existingNewWeekData) {
-        
-        if (selectedProgram && selectedProgram.days && selectedProgram.days.length > 0) {
-          
-          // Calculate the volume from the previous week's final state
-          let previousWeekVolume = 0;
-          selectedProgram.days.forEach(day => {
-            day.exercises.forEach(exercise => {
-              exercise.sets.forEach(set => {
-                if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
-                  // Dropset volume: sum of (reps[i] * weight[i]) for each round
-                  for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
-                    previousWeekVolume += set.reps[i] * set.weight[i];
-                  }
-                } else {
-                  // Regular set volume
-                  previousWeekVolume += set.reps * set.weight;
-                }
-              });
-            });
-          });
-          
-          // Initialize new week with PREVIOUS WEEK'S FINAL STATE (cumulative progression)
-          const newWeekData = {
-            weekNumber: newWeek,
-            isUnlocked: true,
-            isCompleted: false,
-            exercises: [],
-            days: selectedProgram.days.map(day => ({
-              ...day,
-              exercises: day.exercises.map(exercise => ({
-                ...exercise,
-                sets: exercise.sets.map(set => ({ ...set })) // Deep copy of sets
-              }))
-            }))
-          };
-          
-          finalWeeks = [...finalWeeks, newWeekData];
-        } else if (client.workoutAssignment.program && client.workoutAssignment.program.days) {
-          
-          // Initialize new week with BASE PROGRAM DATA as fallback
-          const newWeekData = {
-            weekNumber: newWeek,
-            isUnlocked: true,
-            isCompleted: false,
-            exercises: [],
-            days: client.workoutAssignment.program.days.map(day => ({
-              ...day,
-              exercises: day.exercises.map(exercise => ({
-                ...exercise,
-                sets: exercise.sets.map(set => ({ ...set })) // Deep copy of sets
-              }))
-            }))
-          };
-          
-          finalWeeks = [...finalWeeks, newWeekData];
-        } else {
-        }
-      }
+      // STEP 2: Use latest weeks from selectedProgram (updated by realtime) so client edits are visible when switching week.
+      const weeksSource = (selectedProgram as any)?.weeks ?? client.workoutAssignment?.weeks ?? updatedWeeks;
+      const finalWeeks = Array.isArray(weeksSource) ? weeksSource : updatedWeeks;
+      const targetWeekData = finalWeeks.find((w: any) => w.weekNumber === newWeek);
 
-      // STEP 3: Load the target week's data into selectedProgram
-      const targetWeekData = finalWeeks.find(w => w.weekNumber === newWeek);
-      
+      // STEP 3: Load the target week's data into selectedProgram (only if week exists)
       if (targetWeekData && targetWeekData.days && targetWeekData.days.length > 0) {
         
         // Calculate the volume of the week being loaded
         let loadedWeekVolume = 0;
-        targetWeekData.days.forEach(day => {
-          day.exercises.forEach(exercise => {
-            exercise.sets.forEach(set => {
+        targetWeekData.days.forEach((day: any) => {
+          day.exercises.forEach((exercise: any) => {
+            exercise.sets.forEach((set: any) => {
               if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
                 // Dropset volume: sum of (reps[i] * weight[i]) for each round
                 for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
-                  loadedWeekVolume += set.reps[i] * set.weight[i];
+                  loadedWeekVolume += (typeof set.reps[i] === 'number' ? set.reps[i] : 0) * (typeof set.weight[i] === 'number' ? set.weight[i] : 0);
                 }
               } else {
                 // Regular set volume
-                loadedWeekVolume += set.reps * set.weight;
+                loadedWeekVolume += (typeof set.reps === 'number' ? set.reps : 0) * (typeof set.weight === 'number' ? set.weight : 0);
               }
             });
           });
@@ -607,10 +535,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
           ...client.workoutAssignment,
           currentWeek: newWeek,
           weeks: finalWeeks,
-          program: {
-            ...client.workoutAssignment.program,
-            weeks: finalWeeks
-          },
+          program: client.workoutAssignment.program,
           lastModifiedBy: 'coach',
           lastModifiedAt: new Date()
         };
@@ -622,66 +547,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       }
     } catch (error) {
 
-    }
-  };
-
-  // Auto-save function for coach changes - saves to current week only
-  const autoSaveChanges = (updatedProgram: WorkoutProgram) => {
-    if (client.workoutAssignment) {
-
-
-
-      
-      // Calculate current week volume for tracking
-      let currentWeekVolume = 0;
-      updatedProgram.days.forEach(day => {
-        day.exercises.forEach(exercise => {
-          exercise.sets.forEach(set => {
-            if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
-              // Dropset volume: sum of (reps[i] * weight[i]) for each round
-              for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
-                currentWeekVolume += set.reps[i] * set.weight[i];
-              }
-            } else {
-              // Regular set volume
-              currentWeekVolume += set.reps * set.weight;
-            }
-          });
-        });
-      });
-
-      
-      // Create week-specific data for the current week
-      const currentWeekData = {
-        weekNumber: currentWeek,
-        isUnlocked: true,
-        isCompleted: false,
-        exercises: [],
-        days: updatedProgram.days.map(day => ({
-          ...day,
-          exercises: day.exercises.map(exercise => ({
-            ...exercise,
-            sets: exercise.sets.map(set => ({ ...set })) // Deep copy of sets
-          }))
-        }))
-      };
-
-      // Update or add week-specific data (preserve other weeks)
-      const existingWeeks = client.workoutAssignment.weeks || [];
-      const updatedWeeks = existingWeeks.filter(w => w.weekNumber !== currentWeek);
-      updatedWeeks.push(currentWeekData);
-
-      const updatedAssignment = {
-        ...client.workoutAssignment,
-        program: updatedProgram, // Keep the base program updated
-        weeks: updatedWeeks, // Store week-specific data
-        lastModifiedBy: 'coach' as const,
-        lastModifiedAt: new Date()
-      };
-
-
-
-      onSaveAssignment(updatedAssignment);
     }
   };
 
@@ -707,13 +572,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         )
       };
       
-      // Update selectedProgram immediately
       setSelectedProgram(updatedProgram);
-      
-      // Auto-save after modification (immediate)
-      handleSaveAssignment();
     }
-    
     setShowExerciseSearch(null);
   };
 
@@ -736,15 +596,9 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         }))
       };
       
-      // Update selectedProgram immediately
       setSelectedProgram(updatedProgram);
-      
-      // Auto-save after modification (immediate)
-      handleSaveAssignment();
     }
   };
-
-
 
   // Handle superset toggle
   const handleToggleSuperset = (exerciseId: string) => {
@@ -797,7 +651,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       };
       
       setSelectedProgram(updatedProgram);
-      handleSaveAssignment();
     }
   };
 
@@ -824,7 +677,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       };
       
       setSelectedProgram(updatedProgram);
-      handleSaveAssignment();
     }
   };
 
@@ -861,7 +713,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       };
       
       setSelectedProgram(updatedProgram);
-      handleSaveAssignment();
     }
   };
 
@@ -899,7 +750,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       };
       
       setSelectedProgram(updatedProgram);
-      handleSaveAssignment();
     }
   };
 
@@ -937,7 +787,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       };
       
       setSelectedProgram(updatedProgram);
-      handleSaveAssignment();
     }
   };
 
@@ -981,8 +830,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       
       // Update source of truth only; weeks derive from selectedProgram effect
       setSelectedProgram(updatedProgram);
-      // Auto-save the changes
-      handleSaveAssignment(updatedProgram);
     }
   };
 
@@ -1024,8 +871,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       
       // Update source of truth only; weeks derive from selectedProgram effect
       setSelectedProgram(updatedProgram);
-      // Save latest program explicitly to avoid boomerang
-      setTimeout(() => handleSaveAssignment(updatedProgram), 25);
       
 
     }
@@ -1082,9 +927,16 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     const updatedProgram = enrichedProgram;
 
 
-    // Get existing week-specific data or create new
-    const existingWeeks = client.workoutAssignment?.weeks || [];
-    
+    // Get existing week-specific data; merge current week's edited days from selectedProgram so Save persists coach edits
+    const existingWeeks = (client.workoutAssignment?.weeks || []).map((w: any) =>
+      w.weekNumber === currentWeek && programRef.days?.length
+        ? { ...w, days: programRef.days.map((d: any) => ({ ...d, exercises: (d.exercises || []).map((e: any) => ({ ...e, sets: (e.sets || []).map((s: any) => ({ ...s })) })) })) }
+        : w
+    );
+    // If current week not in list, add it
+    const hasCurrentWeek = existingWeeks.some((w: any) => w.weekNumber === currentWeek);
+    const weeksToSave = hasCurrentWeek ? existingWeeks : [...existingWeeks, { weekNumber: currentWeek, isUnlocked: true, isCompleted: false, exercises: [], days: programRef.days }];
+
     const assignment: ClientWorkoutAssignment = {
       id: client.workoutAssignment?.id || Date.now().toString(),
       clientId: client.id,
@@ -1094,7 +946,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       duration: client.numberOfWeeks,
       currentWeek: currentWeek,
       currentDay: currentDay + 1,
-      weeks: existingWeeks, // Use existing week-specific data
+      weeks: weeksToSave,
       progressionRules: [],
       isActive: true,
       // Real-time sync tracking
@@ -1246,23 +1098,21 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               </div>
             )}
             
-            {/* Assignment Controls - Only show when program is selected - Mobile Optimized */}
-            {selectedProgram && !showProgramSelection && (
+            {/* General Save - persists to Supabase, updates client interface and muscle charts */}
+            {selectedProgram && !showProgramSelection && client.workoutAssignment && (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
                 <button
                   onClick={() => handleSaveAssignment()}
-                  className="flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-all duration-200 text-sm"
+                  className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-semibold transition-all duration-200 text-sm shadow-lg"
+                  title="Save to Supabase and update client view and progress charts"
                 >
-                  <Save className="w-4 h-4" />
-                  <span className="hidden sm:inline">Assign to Client</span>
-                  <span className="sm:hidden">Assign</span>
+                  <Save className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span>Save</span>
                 </button>
-                
-                {/* Show modification indicator if there are changes */}
                 {hasModifications && (
-                  <div className="text-xs sm:text-sm text-yellow-400 text-center sm:text-left">
-                    ⚠️ Changes detected - Will assign to Week {currentWeek}
-                  </div>
+                  <span className="text-xs sm:text-sm text-amber-400 text-center sm:text-left">
+                    Unsaved changes — click Save to update client &amp; charts
+                  </span>
                 )}
               </div>
             )}
@@ -1317,52 +1167,30 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 
                 <button
                   onClick={async () => {
-                    if (!client.workoutAssignment || client.workoutAssignment.currentWeek >= client.workoutAssignment.duration) return;
-                    
-                    const newWeek = client.workoutAssignment.currentWeek + 1;
-                    
-                    
-                    // Initialize weeks array if it doesn't exist
-                    let currentWeeks = client.workoutAssignment.weeks || [];
-                    
-                    // If weeks array is empty, create it based on the program duration
-                    if (currentWeeks.length === 0) {
-
-                      currentWeeks = Array.from({ length: client.workoutAssignment.duration }, (_, index) => ({
-                        weekNumber: index + 1,
-                        isUnlocked: index === 0, // Only week 1 is unlocked by default
-                        isCompleted: false,
-                        exercises: [],
-                        days: []
-                      }));
+                    if (!client.workoutAssignment || !canCreateNextWeek(client.workoutAssignment)) return;
+                    // Use latest saved data from DB so new week copies actual saved performance, not unsaved edits
+                    let savedWeeks = client.workoutAssignment.weeks || [];
+                    if (isSupabaseReady && supabase && assignmentId) {
+                      const { data: row } = await supabase
+                        .from('workout_assignments')
+                        .select('program_json')
+                        .eq('id', assignmentId)
+                        .maybeSingle();
+                      const prog = (row as any)?.program_json;
+                      if (prog?.weeks?.length) savedWeeks = prog.weeks;
                     }
-                    
-                    // Update the weeks array to unlock the new week
-                    const updatedWeeks = currentWeeks.map(week => {
-                      if (week.weekNumber === newWeek) {
-
-                        return { ...week, isUnlocked: true };
-                      }
-                      return week;
-                    });
-                    
-                    const updatedAssignment: ClientWorkoutAssignment = {
-                      ...client.workoutAssignment,
-                      currentWeek: newWeek,
-                      weeks: updatedWeeks,
-                      lastModifiedBy: 'coach' as const,
-                      lastModifiedAt: new Date()
-                    };
-                    
-                    
-                    // Update local state and database in one operation
-                    await onSaveAssignment(updatedAssignment);
+                    const prevWeek = savedWeeks[savedWeeks.length - 1];
+                    if (!prevWeek?.days?.length) return;
+                    const nextNum = getNextWeekNumber({ ...client.workoutAssignment, weeks: savedWeeks });
+                    const draft = createNextWeekFromActuals(prevWeek, nextNum);
+                    setDraftNewWeek(draft);
+                    setShowCreateWeekModal(true);
                   }}
-                  disabled={!client.workoutAssignment || client.workoutAssignment.currentWeek >= client.workoutAssignment.duration}
+                  disabled={!client.workoutAssignment || !canCreateNextWeek(client.workoutAssignment)}
                   className="flex items-center justify-center space-x-3 px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-slate-700 disabled:opacity-50 text-white rounded-xl font-medium transition-all duration-200"
                 >
-                  <ChevronRight className="w-5 h-5" />
-                  <span>Next Week</span>
+                  <Plus className="w-5 h-5" />
+                  <span>Create Week {client.workoutAssignment ? getNextWeekNumber(client.workoutAssignment) : ''}</span>
                 </button>
               </div>
 
@@ -1373,36 +1201,11 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                   <label className="text-slate-300 font-medium">Week:</label>
                   <select
                     value={client.workoutAssignment.currentWeek}
-                    onChange={async (e) => {
-                      const newWeek = parseInt(e.target.value);
-                      if (!client.workoutAssignment) return;
-                      
-                      // Update database first
-                      if (client.workoutAssignment.id) {
-                        const { error } = await dbUpdateWorkoutAssignment(client.workoutAssignment.id, {
-                          current_week: newWeek,
-                          last_modified_by: 'coach'
-                        });
-                        
-                        if (error) {
-
-                          return;
-                        }
-                      }
-                      
-                      const updatedAssignment: ClientWorkoutAssignment = {
-                        ...client.workoutAssignment,
-                        currentWeek: newWeek,
-                        lastModifiedBy: 'coach' as const,
-                        lastModifiedAt: new Date()
-                      };
-                      
-                      await onSaveAssignment(updatedAssignment);
-                    }}
+                    onChange={(e) => handleWeekChange(parseInt(e.target.value))}
                     className="px-4 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    {Array.from({ length: client.workoutAssignment.duration }, (_, i) => i + 1).map(week => (
-                      <option key={week} value={week}>Week {week}</option>
+                    {(client.workoutAssignment.weeks || []).map((w) => (
+                      <option key={w.weekNumber} value={w.weekNumber}>Week {w.weekNumber}{w.isCompleted ? ' ✓' : ''}</option>
                     ))}
                   </select>
                 </div>
@@ -1410,41 +1213,11 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                 {/* Save Current Week Button */}
                 <div className="mt-4 flex justify-center">
                   <button
-                    onClick={async () => {
-                      if (!client.workoutAssignment) return;
-                      
-                      try {
-                        // Save the current week data to the database
-                        const updatedAssignment: ClientWorkoutAssignment = {
-                          ...client.workoutAssignment,
-                          program: selectedProgram || client.workoutAssignment.program,
-                          lastModifiedBy: 'coach' as const,
-                          lastModifiedAt: new Date()
-                        };
-                        
-                        // Update in database
-                        if (isSupabaseReady && supabase && assignmentId) {
-                          await supabase
-                            .from('workout_assignments')
-                            .update({
-                              program_json: updatedAssignment as unknown as any,
-                              current_week: updatedAssignment.currentWeek,
-                              current_day: updatedAssignment.currentDay,
-                              last_modified_by: 'coach',
-                              version: (sharedVersion || 0) + 1
-                            })
-                            .eq('id', assignmentId);
-                        }
-                        
-                        await onSaveAssignment(updatedAssignment);
-                      } catch (error) {
-
-                      }
-                    }}
+                    onClick={() => handleSaveAssignment()}
                     className="flex items-center space-x-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg"
                   >
                     <Save className="w-5 h-5" />
-                    <span>Save Current Week Data</span>
+                    <span>Save</span>
                   </button>
                 </div>
               </div>
@@ -1813,6 +1586,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                         id: `set-${Date.now()}`,
                                         reps: lastSet?.reps || 8,
                                         weight: lastSet?.weight || 50,
+                                        isDropset: false,
                                         completed: false
                                       });
                                       setCustomWorkout(prev => ({ ...prev, days: newDays }));
@@ -1832,7 +1606,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                   <span className="text-slate-400 text-xs w-8">Set {setIndex + 1}</span>
                                   <input
                                     type="number"
-                                    value={set.reps}
+                                    value={Array.isArray(set.reps) ? set.reps[0] : set.reps}
                                     onChange={(e) => {
                                       const newDays = [...customWorkout.days];
                                       newDays[dayIndex].exercises[exerciseIndex].sets[setIndex].reps = parseInt(e.target.value) || 0;
@@ -1859,7 +1633,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                   <span className="text-slate-400 text-xs">reps</span>
                                   <input
                                     type="number"
-                                    value={set.weight}
+                                    value={Array.isArray(set.weight) ? set.weight[0] : set.weight}
                                     onChange={(e) => {
                                       const newDays = [...customWorkout.days];
                                       newDays[dayIndex].exercises[exerciseIndex].sets[setIndex].weight = parseFloat(e.target.value) || 0;
@@ -1970,15 +1744,27 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                       workoutPrograms.push(finalProgram);
                     }
                     
-                    // Set as selected program and create workout
-                    setSelectedProgram(finalProgram);
-                    // Generate week data for the program
-                    createWeekBasedWorkout(finalProgram, client.numberOfWeeks);
-                    
-                    // Go to workout interface
+                    // Progressive deployment: only Week 1 created
+                    const week1 = createInitialWeek(finalProgram);
+                    setSelectedProgram({ ...finalProgram, days: week1.days });
+                    setCurrentWeek(1);
+                    setCurrentDay(0);
                     setShowModificationInterface(false);
                     setShowProgramSelection(false);
                     setCustomWorkout({ name: '', description: '', days: [] });
+                    onSaveAssignment({
+                      id: Date.now().toString(),
+                      clientId: client.id,
+                      clientName: client.name || 'Unknown Client',
+                      program: { ...finalProgram, days: week1.days },
+                      startDate: new Date(),
+                      duration: client.numberOfWeeks,
+                      currentWeek: 1,
+                      currentDay: 1,
+                      weeks: [week1],
+                      progressionRules: [],
+                      isActive: true,
+                    });
                   }}
                   className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
                 >
@@ -2010,9 +1796,9 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           onChange={(e) => handleWeekChange(parseInt(e.target.value))}
                           className="appearance-none bg-gradient-to-r from-slate-800 to-slate-700 border border-slate-600/50 rounded-2xl px-6 py-3 pr-10 text-white font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 hover:from-slate-700 hover:to-slate-600 shadow-lg backdrop-blur-sm"
                         >
-                          {Array.from({ length: client.numberOfWeeks || 12 }, (_, i) => i + 1).map(week => (
-                            <option key={week} value={week} className="bg-slate-800 text-white">
-                              Week {week}
+                          {(client.workoutAssignment?.weeks || []).map((w) => (
+                            <option key={w.weekNumber} value={w.weekNumber} className="bg-slate-800 text-white">
+                              Week {w.weekNumber}{w.isCompleted ? ' ✓' : w.isUnlocked ? ' (Active)' : ''}
                             </option>
                           ))}
                         </select>
@@ -2121,7 +1907,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           )
                         };
                         setSelectedProgram(updatedProgram);
-                        setTimeout(() => autoSaveChanges(updatedProgram), 500);
                       }
                     }}
                     className="group flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-500/20 to-blue-600/30 hover:from-blue-500/40 hover:to-blue-600/50 rounded-xl border border-blue-500/30 hover:border-blue-400/60 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20"
@@ -2152,7 +1937,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           )
                         };
                         setSelectedProgram(updatedProgram);
-                        setTimeout(() => autoSaveChanges(updatedProgram), 500);
                       }
                     }}
                     className="group flex flex-col items-center justify-center p-4 bg-gradient-to-br from-cyan-500/20 to-cyan-600/30 hover:from-cyan-500/40 hover:to-cyan-600/50 rounded-xl border border-cyan-500/30 hover:border-cyan-400/60 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/20"
@@ -2175,7 +1959,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                     ...ex,
                                     sets: ex.sets.map(set => ({
                                       ...set,
-                                      weight: (set.weight || 0) + 2.5
+                                      weight: (typeof set.weight === 'number' ? (set.weight || 0) + 2.5 : set.weight)
                                     }))
                                   }))
                                 }
@@ -2183,7 +1967,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           )
                         };
                         setSelectedProgram(updatedProgram);
-                        setTimeout(() => autoSaveChanges(updatedProgram), 500);
                       }
                     }}
                     className="group flex flex-col items-center justify-center p-4 bg-gradient-to-br from-green-500/20 to-green-600/30 hover:from-green-500/40 hover:to-green-600/50 rounded-xl border border-green-500/30 hover:border-green-400/60 transition-all duration-300 hover:shadow-lg hover:shadow-green-500/20"
@@ -2206,7 +1989,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                     ...ex,
                                     sets: ex.sets.map(set => ({
                                       ...set,
-                                      weight: (set.weight || 0) + 5
+                                      weight: (typeof set.weight === 'number' ? (set.weight || 0) + 5 : set.weight)
                                     }))
                                   }))
                                 }
@@ -2214,7 +1997,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           )
                         };
                         setSelectedProgram(updatedProgram);
-                        setTimeout(() => autoSaveChanges(updatedProgram), 500);
                       }
                     }}
                     className="group flex flex-col items-center justify-center p-4 bg-gradient-to-br from-emerald-500/20 to-emerald-600/30 hover:from-emerald-500/40 hover:to-emerald-600/50 rounded-xl border border-emerald-500/30 hover:border-emerald-400/60 transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/20"
@@ -2246,7 +2028,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           )
                         };
                         setSelectedProgram(updatedProgram);
-                        setTimeout(() => autoSaveChanges(updatedProgram), 500);
                       }
                     }}
                     className="group flex flex-col items-center justify-center p-4 bg-gradient-to-br from-orange-500/20 to-orange-600/30 hover:from-orange-500/40 hover:to-orange-600/50 rounded-xl border border-orange-500/30 hover:border-orange-400/60 transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/20"
@@ -2337,7 +2118,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                                 ...ex,
                                                 sets: ex.sets.map(set => ({
                                                   ...set,
-                                                  reps: set.reps + 2
+                                                  reps: (typeof set.reps === 'number' ? set.reps + 2 : set.reps)
                                                 }))
                                               }
                                             : ex
@@ -2347,7 +2128,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                 )
                               };
                               setSelectedProgram(updatedProgram);
-                              setTimeout(() => autoSaveChanges(updatedProgram), 500);
                             }
                           }}
                           className="group w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/30 hover:from-blue-500/40 hover:to-blue-600/50 text-blue-300 hover:text-blue-200 transition-all duration-300 flex items-center justify-center text-[10px] sm:text-xs font-bold border border-blue-500/20 hover:border-blue-400/40 hover:shadow-lg hover:shadow-blue-500/20 flex-shrink-0"
@@ -2372,7 +2152,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                                 ...ex,
                                                 sets: ex.sets.map(set => ({
                                                   ...set,
-                                                  weight: set.weight + 2.5
+                                                  weight: (typeof set.weight === 'number' ? set.weight + 2.5 : set.weight)
                                                 }))
                                               }
                                             : ex
@@ -2382,7 +2162,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                 )
                               };
                               setSelectedProgram(updatedProgram);
-                              setTimeout(() => autoSaveChanges(updatedProgram), 500);
                             }
                           }}
                           className="group w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-br from-green-500/20 to-green-600/30 hover:from-green-500/40 hover:to-green-600/50 text-green-300 hover:text-green-200 transition-all duration-300 flex items-center justify-center text-[10px] sm:text-xs font-bold border border-green-500/20 hover:border-green-400/40 hover:shadow-lg hover:shadow-green-500/20 flex-shrink-0"
@@ -2419,7 +2198,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                 )
                               };
                               setSelectedProgram(updatedProgram);
-                              setTimeout(() => autoSaveChanges(updatedProgram), 500);
                             }
                           }}
                           className="group w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/30 hover:from-purple-500/40 hover:to-purple-600/50 text-purple-300 hover:text-purple-200 transition-all duration-300 flex items-center justify-center border border-purple-500/20 hover:border-purple-400/40 hover:shadow-lg hover:shadow-purple-500/20 flex-shrink-0"
@@ -2682,6 +2460,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                   id: `set-${Date.now()}`,
                                   reps: 8,
                                   weight: 50,
+                                  isDropset: false,
                                   completed: false
                                 }
                               ],
@@ -2783,6 +2562,156 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
             </div>
           </div>
         )}
+
+          {/* Create Next Week Modal */}
+          {showCreateWeekModal && draftNewWeek && client.workoutAssignment && (() => {
+            const prevWeek = client.workoutAssignment.weeks?.find((w) => w.weekNumber === draftNewWeek.weekNumber - 1);
+            const updateDraftSet = (dayIdx: number, exIdx: number, setIdx: number, field: 'reps' | 'weight', value: number) => {
+              setDraftNewWeek((prev) => {
+                if (!prev?.days) return prev;
+                const days = prev.days.map((day, di) =>
+                  di !== dayIdx
+                    ? day
+                    : {
+                        ...day,
+                        exercises: day.exercises.map((ex, ei) =>
+                          ei !== exIdx
+                            ? ex
+                            : {
+                                ...ex,
+                                sets: ex.sets.map((s, si) =>
+                                  si !== setIdx ? s : { ...s, [field]: value }
+                                ),
+                              }
+                        ),
+                      }
+                );
+                return { ...prev, days };
+              });
+            };
+            return (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                <div className="bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+                  <div className="flex items-center justify-between p-6 border-b border-slate-700">
+                    <h2 className="text-xl font-bold text-white">
+                      Create Week {draftNewWeek.weekNumber} from Week {draftNewWeek.weekNumber - 1} actuals
+                    </h2>
+                    <button
+                      onClick={() => { setShowCreateWeekModal(false); setDraftNewWeek(null); }}
+                      className="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-400 uppercase mb-3">Week {draftNewWeek.weekNumber - 1} actuals (reference)</h3>
+                      <div className="space-y-4 text-sm">
+                        {prevWeek?.days?.map((day, di) => (
+                          <div key={di} className="bg-slate-700/30 rounded-xl p-4">
+                            <div className="font-medium text-white mb-2">{day.name}</div>
+                            {day.exercises?.map((ex, ei) => (
+                              <div key={ei} className="ml-2 mb-2">
+                                <div className="text-slate-300">{ex.exercise?.name}</div>
+                                <div className="text-slate-500 text-xs">
+                                  {ex.sets?.map((s, si) => (
+                                    <span key={si}>
+                                      Set {si + 1}: {typeof s.reps === 'number' ? s.reps : (s.reps as number[])?.[0]}×{typeof s.weight === 'number' ? s.weight : (s.weight as number[])?.[0]}kg
+                                      {si < (ex.sets?.length ?? 0) - 1 ? ', ' : ''}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-slate-400 uppercase mb-3">Week {draftNewWeek.weekNumber} draft (edit for progressive overload)</h3>
+                      <div className="space-y-4 text-sm">
+                        {draftNewWeek.days?.map((day, dayIdx) => (
+                          <div key={dayIdx} className="bg-slate-700/30 rounded-xl p-4">
+                            <div className="font-medium text-white mb-2">{day.name}</div>
+                            {day.exercises?.map((ex, exIdx) => (
+                              <div key={exIdx} className="ml-2 mb-3">
+                                <div className="text-slate-300 mb-1">{ex.exercise?.name}</div>
+                                <div className="flex flex-wrap gap-2">
+                                  {ex.sets?.map((set, setIdx) => (
+                                    <div key={setIdx} className="flex items-center gap-1 bg-slate-800 rounded px-2 py-1">
+                                      <span className="text-slate-500 text-xs">Set {setIdx + 1}</span>
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        value={typeof set.reps === 'number' ? set.reps : (set.reps as number[])?.[0] ?? 0}
+                                        onChange={(e) => updateDraftSet(dayIdx, exIdx, setIdx, 'reps', parseInt(e.target.value, 10) || 0)}
+                                        className="w-12 px-1 py-0.5 bg-slate-700 border border-slate-600 rounded text-white text-xs"
+                                      />
+                                      <span className="text-slate-500">×</span>
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        step={0.5}
+                                        value={typeof set.weight === 'number' ? set.weight : (set.weight as number[])?.[0] ?? 0}
+                                        onChange={(e) => updateDraftSet(dayIdx, exIdx, setIdx, 'weight', parseFloat(e.target.value) || 0)}
+                                        className="w-14 px-1 py-0.5 bg-slate-700 border border-slate-600 rounded text-white text-xs"
+                                      />
+                                      <span className="text-slate-500 text-xs">kg</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-700">
+                    <button
+                      onClick={() => { setShowCreateWeekModal(false); setDraftNewWeek(null); }}
+                      className="px-4 py-2 rounded-xl bg-slate-600 hover:bg-slate-500 text-white"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!draftNewWeek || !client.workoutAssignment) return;
+                        const deployed = markWeekAsDeployed(draftNewWeek);
+                        const updated = addWeekToAssignment(client.workoutAssignment, deployed);
+                        const programJsonToSave = {
+                          ...client.workoutAssignment.program,
+                          weeks: updated.weeks,
+                        };
+                        if (client.workoutAssignment.id) {
+                          const { error } = await dbUpdateWorkoutAssignment(client.workoutAssignment.id, {
+                            program_json: programJsonToSave,
+                            current_week: updated.currentWeek,
+                            last_modified_by: 'coach',
+                          });
+                          if (error) {
+                            console.error('Deploy failed:', error);
+                            return;
+                          }
+                        }
+                        setCurrentWeek(deployed.weekNumber);
+                        setSelectedProgram({
+                          ...client.workoutAssignment.program,
+                          days: deployed.days,
+                        });
+                        onSaveAssignment(updated);
+                        setShowCreateWeekModal(false);
+                        setDraftNewWeek(null);
+                      }}
+                      className="px-6 py-2 rounded-xl bg-green-600 hover:bg-green-500 text-white font-medium"
+                    >
+                      Deploy to Client
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           </>
         )}
 

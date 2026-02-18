@@ -194,6 +194,7 @@ export interface WorkoutSet {
   weight: number | number[]; // Can be single number or array for dropsets
   isDropset: boolean; // Flag to indicate if this set is a dropset
   completed: boolean;
+  completedAt?: string; // ISO timestamp when set was marked complete
   restPeriod?: number; // in seconds
   notes?: string;
   rpe?: number; // Rate of Perceived Exertion 1-10
@@ -232,8 +233,9 @@ export interface WorkoutWeek {
   isCompleted: boolean;
   exercises: WorkoutExercise[];
   progressionNotes?: string;
-  completedAt?: Date;
-  startDate?: Date;
+  completedAt?: Date | string; // When client marked week complete
+  startDate?: Date | string;
+  deployedAt?: string; // ISO timestamp when coach deployed this week to client
   days: WorkoutDay[];
 }
 

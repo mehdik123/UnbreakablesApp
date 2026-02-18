@@ -266,119 +266,85 @@ export const UltraModernNutritionView: React.FC<UltraModernNutritionViewProps> =
   }
 
   try {
+    // --- HERO SECTION REWRITE START ---
+    // Find the top "hero meal" (first meal of the day or the soonest upcoming)
+    const firstSlot = displayNutritionPlan?.mealSlots?.[0];
+    const featuredMeal = firstSlot?.selectedMeals?.[0]?.meal || null;
+    // Macros/targets, fallback to 0 if not present
+    const caloriesGoal = displayNutritionPlan?.dailyCalories || 0;
+    const proteinGoal = displayNutritionPlan?.macronutrients?.protein?.grams || 0;
+    const carbsGoal = displayNutritionPlan?.macronutrients?.carbohydrates?.grams || 0;
+    const fatsGoal = displayNutritionPlan?.macronutrients?.fats?.grams || 0;
+
+    // --- SUPER MODERN HERO ---
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
-        <div className="max-w-7xl mx-auto space-y-8">
-        
-        {/* Header with animated title */}
-        <div className="text-center mb-8">
-          <div className="relative inline-block">
-            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent animate-pulse">
-              Nutrition Program
-            </h1>
-            <div className="absolute -top-2 -right-2 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center animate-bounce">
-              <Crown className="w-4 h-4 text-yellow-600" />
-            </div>
-            {/* Animated particles */}
-            <div className="absolute -top-4 -left-4 w-2 h-2 bg-purple-400 rounded-full animate-ping" />
-            <div className="absolute -bottom-2 -right-6 w-3 h-3 bg-pink-400 rounded-full animate-ping delay-300" />
-            <div className="absolute top-1/2 -left-8 w-1 h-1 bg-blue-400 rounded-full animate-ping delay-700" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-2 md:p-4">
+        {/* HERO MACRO + MEAL BANNER */}
+        <div className="max-w-5xl mx-auto mb-8 relative rounded-[2.5rem] overflow-hidden shadow-2xl border border-purple-700/20 backdrop-blur-2xl">
+          {/* Gradient animated overlay */}
+          <div className="absolute inset-0 z-0 animate-pulse-slow bg-gradient-to-br from-purple-700/60 via-pink-700/20 to-blue-700/30" />
+          {/* Featured Meal Image or fallback colored gradient */}
+          <div className="relative h-52 md:h-72">
+            {featuredMeal && featuredMeal.image ? (
+              <img src={featuredMeal.image} alt={featuredMeal.name} className="w-full h-full object-cover object-center opacity-80" />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-purple-800 via-pink-800 to-blue-900 opacity-80" />
+            )}
+            {/* Dark overlay for readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-black/10 pointer-events-none" />
           </div>
-          <p className="text-slate-300 text-lg mt-2">Fuel your transformation with precision nutrition</p>
-          <div className="flex items-center justify-center space-x-2 mt-4">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            <span className="text-sm text-slate-400">Live tracking enabled</span>
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse delay-300" />
-          </div>
-        </div>
-
-        {/* Ultra-modern nutrition overview cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Calories Card */}
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-orange-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300" />
-            <div className="relative bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 hover:border-red-500/50 transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-orange-500 rounded-xl flex items-center justify-center">
-                  <Flame className="w-6 h-6 text-white" />
-                </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold text-white">{dailyProgress.calories}</div>
-                  <div className="text-sm text-slate-400">of {displayNutritionPlan?.dailyCalories || 0} cal</div>
-                </div>
+          {/* HERO MACRO STATS & MEAL TITLE OVERLAY */}
+          <div className="absolute left-0 bottom-0 z-10 w-full flex flex-col md:flex-row md:items-end items-center justify-between p-6 md:p-10 gap-y-4">
+            {/* Macros Big Badges */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-6 mb-2 md:mb-0">
+              <div className="bg-white/10 border border-red-500/30 rounded-xl flex flex-col items-center py-2 px-4 shadow-md">
+                <span className="text-2xl sm:text-3xl font-bold text-orange-300 drop-shadow-lg">{dailyProgress.calories}</span>
+                <span className="uppercase text-xs tracking-widest text-slate-200">Calories</span>
+                <span className="text-[11px] text-slate-400">/ {caloriesGoal}</span>
               </div>
-              <div className="w-full bg-slate-700/50 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-red-500 to-orange-500 h-2 rounded-full transition-all duration-500" 
-                  style={{ width: `${Math.min((dailyProgress.calories / (displayNutritionPlan?.dailyCalories || 1)) * 100, 100)}%` }}
-                />
+              <div className="bg-white/10 border border-blue-500/30 rounded-xl flex flex-col items-center py-2 px-4 shadow-md">
+                <span className="text-2xl sm:text-3xl font-bold text-blue-300 drop-shadow-lg">{dailyProgress.protein}g</span>
+                <span className="uppercase text-xs tracking-widest text-slate-200">Protein</span>
+                <span className="text-[11px] text-slate-400">/ {proteinGoal}g</span>
+              </div>
+              <div className="bg-white/10 border border-green-500/30 rounded-xl flex flex-col items-center py-2 px-4 shadow-md">
+                <span className="text-2xl sm:text-3xl font-bold text-green-300 drop-shadow-lg">{dailyProgress.carbs}g</span>
+                <span className="uppercase text-xs tracking-widest text-slate-200">Carbs</span>
+                <span className="text-[11px] text-slate-400">/ {carbsGoal}g</span>
+              </div>
+              <div className="bg-white/10 border border-purple-500/30 rounded-xl flex flex-col items-center py-2 px-4 shadow-md">
+                <span className="text-2xl sm:text-3xl font-bold text-purple-300 drop-shadow-lg">{dailyProgress.fats}g</span>
+                <span className="uppercase text-xs tracking-widest text-slate-200">Fats</span>
+                <span className="text-[11px] text-slate-400">/ {fatsGoal}g</span>
               </div>
             </div>
-          </div>
-
-          {/* Protein Card */}
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300" />
-            <div className="relative bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 hover:border-blue-500/50 transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
-                  <Dumbbell className="w-6 h-6 text-white" />
-                </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold text-white">{dailyProgress.protein}g</div>
-                  <div className="text-sm text-slate-400">of {displayNutritionPlan?.macronutrients?.protein?.grams || 0}g</div>
+            {/* FEATURED MEAL: name, quick info */}
+            {featuredMeal && (
+              <div className="text-right md:mr-4">
+                <h2 className="text-2xl md:text-4xl font-extrabold text-white drop-shadow-xl mb-1">{featuredMeal.name}</h2>
+                <div className="flex items-center justify-end gap-x-4 text-slate-300 text-xs">
+                  <span className="bg-red-600/90 font-bold rounded-full px-2 py-1 mr-2">Breakfast</span>
+                  <span className="flex items-center"><Flame className="inline w-4 h-4 mr-1" /> {firstSlot ? firstSlot.selectedMeals[0].quantity : ''} serving(s)</span>
                 </div>
               </div>
-              <div className="w-full bg-slate-700/50 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all duration-500" 
-                  style={{ width: `${Math.min((dailyProgress.protein / (displayNutritionPlan?.macronutrients?.protein?.grams || 1)) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Carbs Card */}
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300" />
-            <div className="relative bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 hover:border-green-500/50 transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
-                  <Wheat className="w-6 h-6 text-white" />
-                </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold text-white">{dailyProgress.carbs}g</div>
-                  <div className="text-sm text-slate-400">of {displayNutritionPlan?.macronutrients?.carbohydrates?.grams || 0}g</div>
-                </div>
-              </div>
-              <div className="w-full bg-slate-700/50 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-500" 
-                  style={{ width: `${Math.min((dailyProgress.carbs / (displayNutritionPlan?.macronutrients?.carbohydrates?.grams || 1)) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Fats Card */}
-          <div className="group relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all duration-300" />
-            <div className="relative bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 hover:border-purple-500/50 transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                  <Apple className="w-6 h-6 text-white" />
-                </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold text-white">{dailyProgress.fats}g</div>
-                  <div className="text-sm text-slate-400">of {displayNutritionPlan?.macronutrients?.fats?.grams || 0}g</div>
-                </div>
-              </div>
-              <div className="w-full bg-slate-700/50 rounded-full h-2">
-                <div 
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500" 
-                  style={{ width: `${Math.min((dailyProgress.fats / (displayNutritionPlan?.macronutrients?.fats?.grams || 1)) * 100, 100)}%` }}
-                />
-              </div>
+            )}
+            {/* Export PDF button */}
+            <div className="md:absolute md:bottom-8 md:right-8 flex-shrink-0">
+              <button
+                onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}
+                className="mr-3 md:mr-6 px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-500 text-white font-bold shadow-lg hover:scale-105 hover:shadow-green-400/30 outline-none transition"
+              >
+                View Full Plan ↓
+              </button>
+              <button
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold shadow-lg hover:scale-105 hover:shadow-purple-400/30 outline-none transition"
+                onClick={() => {
+                  // Scroll down and show print dialog for current page
+                  setTimeout(() => window.print(), 400);
+                }}
+              >
+                Export PDF
+              </button>
             </div>
           </div>
         </div>
@@ -470,182 +436,138 @@ export const UltraModernNutritionView: React.FC<UltraModernNutritionViewProps> =
                   const meal = selectedMeal.meal;
                   const quantity = selectedMeal.quantity;
                   const isCompleted = completedMeals[meal.id];
-                  
                   // Calculate macronutrients using the optimized calculator
                   const mealNutrition = OptimizedNutritionCalculator.calculateMealNutrition(meal, quantity);
-                  
                   return (
                     <div 
                       key={`${slot.id}-${meal.id}`}
-                      className={`group relative transition-all duration-500 hover:scale-105 ${
-                        isCompleted ? 'opacity-75' : ''
+                      className={`group relative transition-transform duration-300 hover:scale-105 hover:shadow-2xl hover:z-10 ${
+                        isCompleted ? 'opacity-65 grayscale' : ''
                       }`}
+                      style={{ perspective: 1200, zIndex: 0 }}
                     >
-                      {/* Animated background */}
-                      <div className={`absolute inset-0 bg-gradient-to-r ${getRandomGradient(mealIndex)} rounded-3xl blur-xl group-hover:blur-2xl transition-all duration-300 opacity-20`} />
-                      
-                      {/* Main card */}
-                      <div className={`relative bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-3xl overflow-hidden transition-all duration-300 group-hover:border-purple-500/50 ${
-                        isCompleted ? 'ring-2 ring-green-500/50' : ''
-                      }`}>
-                        
-                        {/* Meal Image with Overlay */}
-                        <div className="relative h-48 overflow-hidden">
+                      {/* Animated and layered background */}
+                      <div className={`absolute inset-0 bg-gradient-to-r ${getRandomGradient(mealIndex)} rounded-3xl blur-xl opacity-30`} style={{ zIndex: 1 }} />
+
+                      {/* Main card with 3D shadow */}
+                      <div className={`relative bg-slate-800/70 backdrop-blur-xl border border-slate-700/60 rounded-3xl overflow-hidden transition-all duration-300 group-hover:border-purple-500/50 ${
+                        isCompleted ? 'ring-2 ring-green-400/70' : 'shadow-xl'
+                      }`} style={{ zIndex: 2 }}>
+                        {/* Meal image with floating macro badges */}
+                        <div className="relative h-44 overflow-hidden">
                           <img
                             src={meal.image}
                             alt={meal.name}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
-                          
-                          {/* Completion badge */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-transparent to-transparent" />
+
+                          {/* Macro floating badges */}
+                          <div className="absolute bottom-3 left-3 flex flex-row gap-2 z-10">
+                            <span className="flex items-center px-2 py-1 rounded-lg bg-orange-400/80 text-xs font-bold text-white shadow-xl backdrop-blur-md animate-fadeIn">{mealNutrition.calories} cal</span>
+                            <span className="flex items-center px-2 py-1 rounded-lg bg-blue-500/80 text-xs font-bold text-white shadow-xl backdrop-blur-md animate-fadeIn">{mealNutrition.protein}g P</span>
+                            <span className="flex items-center px-2 py-1 rounded-lg bg-green-500/80 text-xs font-bold text-white shadow-xl backdrop-blur-md animate-fadeIn">{mealNutrition.carbs}g C</span>
+                            <span className="flex items-center px-2 py-1 rounded-lg bg-purple-500/80 text-xs font-bold text-white shadow-xl backdrop-blur-md animate-fadeIn">{mealNutrition.fat}g F</span>
+                          </div>
+                          {/* Favorite button on top-left */}
+                          <div className="absolute top-3 left-3">
+                            <button
+                              onClick={() => toggleFavorite(meal.id)}
+                              className={`w-8 h-8 rounded-full backdrop-blur-md transition-all duration-300 shadow-lg border-2 border-yellow-400/60 ${
+                                favoriteMeals.includes(meal.id)
+                                  ? 'bg-yellow-400/80 text-white scale-110 shadow-yellow-400/60 animate-glow'
+                                  : 'bg-slate-800/80 text-slate-200 hover:bg-yellow-200/70 hover:shadow-yellow-300/40'
+                              }`}
+                              aria-label="Favorite Meal"
+                            >
+                              <Star className={`w-5 h-5 mx-auto ${favoriteMeals.includes(meal.id) ? 'fill-current' : ''}`} />
+                            </button>
+                          </div>
+                          {/* Meal completed mark */}
                           {isCompleted && (
-                            <div className="absolute top-4 right-4 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center animate-pulse">
+                            <div className="absolute top-3 right-3 w-8 h-8 rounded-full bg-green-500 flex items-center justify-center animate-bounce shadow-lg z-20">
                               <CheckCircle className="w-5 h-5 text-white" />
                             </div>
                           )}
-
-                          {/* Favorite button */}
-                          <div className="absolute top-4 left-4">
-                            <button
-                              onClick={() => toggleFavorite(meal.id)}
-                              className={`w-8 h-8 rounded-full backdrop-blur-sm transition-all duration-300 ${
-                                favoriteMeals.includes(meal.id)
-                                  ? 'bg-yellow-500/90 text-white shadow-lg'
-                                  : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/80'
-                              }`}
-                            >
-                              <Star className={`w-4 h-4 mx-auto ${favoriteMeals.includes(meal.id) ? 'fill-current' : ''}`} />
-                            </button>
-                          </div>
-
-                          {/* Meal name overlay */}
-                          <div className="absolute bottom-4 left-4 right-4">
-                            <h3 className="text-xl font-bold text-white mb-2 group-hover:text-purple-300 transition-colors duration-300">
-                              {meal.name}
-                            </h3>
-                            <div className="flex items-center space-x-4 text-sm text-slate-200">
-                              <div className="flex items-center space-x-1">
-                                <Flame className="w-4 h-4" />
-                                <span>{mealNutrition.calories} cal</span>
-                              </div>
-                              <div className="flex items-center space-x-1">
-                                <Dumbbell className="w-4 h-4" />
-                                <span>{mealNutrition.protein}g protein</span>
-                              </div>
-                            </div>
-                          </div>
                         </div>
-
-                        {/* Card Content */}
+                        {/* Meal name and details */}
                         <div className="p-6">
-                          {/* Macronutrients Grid */}
-                          <div className="grid grid-cols-3 gap-3 mb-4">
-                            <div className="text-center p-3 bg-slate-700/30 rounded-xl">
-                              <div className="text-lg font-bold text-blue-400">{mealNutrition.protein}g</div>
-                              <div className="text-xs text-slate-400">Protein</div>
-                            </div>
-                            <div className="text-center p-3 bg-slate-700/30 rounded-xl">
-                              <div className="text-lg font-bold text-green-400">{mealNutrition.carbs}g</div>
-                              <div className="text-xs text-slate-400">Carbs</div>
-                            </div>
-                            <div className="text-center p-3 bg-slate-700/30 rounded-xl">
-                              <div className="text-lg font-bold text-purple-400">{mealNutrition.fat}g</div>
-                              <div className="text-xs text-slate-400">Fats</div>
-                            </div>
+                          <h3 className="text-xl font-extrabold text-white mb-2 group-hover:text-purple-300 transition-colors duration-300 truncate">
+                            {meal.name}
+                          </h3>
+                          <div className="flex flex-wrap gap-2 mb-2 text-sm">
+                            <span className="bg-white/10 border border-orange-400 rounded-lg px-2 py-1 text-orange-300 font-bold">{mealNutrition.calories} cal</span>
+                            <span className="bg-white/10 border border-blue-400 rounded-lg px-2 py-1 text-blue-300">{mealNutrition.protein}g protein</span>
+                            <span className="bg-white/10 border border-green-400 rounded-lg px-2 py-1 text-green-300">{mealNutrition.carbs}g carbs</span>
+                            <span className="bg-white/10 border border-purple-400 rounded-lg px-2 py-1 text-purple-300">{mealNutrition.fat}g fat</span>
+                          </div>
+                          <div className="mb-4 flex justify-between">
+                            <span className="text-slate-300 font-medium">Serving Size</span>
+                            <span className="text-white font-bold">{quantity} serving{quantity > 1 ? 's' : ''}</span>
                           </div>
 
-                          {/* Quantity */}
-                          <div className="mb-4 p-3 bg-slate-700/30 rounded-xl">
-                            <div className="flex items-center justify-between">
-                              <span className="text-slate-300 font-medium">Serving Size</span>
-                              <span className="text-white font-bold">{quantity} serving{quantity > 1 ? 's' : ''}</span>
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="grid grid-cols-2 gap-3 mb-4">
+                          {/* Card action row bolder & mobile friendly */}
+                          <div className="grid grid-cols-2 gap-2 md:gap-3 mb-2">
                             <button
                               onClick={() => toggleIngredients(meal.id)}
-                              className={`flex items-center justify-center space-x-2 px-4 py-3 rounded-xl font-medium transition-all duration-300 ${
+                              className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-xl font-semibold transition-all duration-200 text-xs md:text-base shadow group-hover:scale-105 active:scale-100 ${
                                 showIngredients[meal.id]
-                                  ? 'bg-green-600/20 text-green-400 border border-green-600/30'
-                                  : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 border border-slate-600/30'
-                              }`}
+                                  ? 'bg-green-500/20 text-green-300 border border-green-400'
+                                  : 'bg-slate-700/60 text-slate-200 border border-slate-600/20 hover:bg-green-800/20 hover:text-green-200'
+                              } animate-fadeIn`}
                             >
                               <ChefHat className="w-4 h-4" />
                               <span>Ingredients</span>
                             </button>
                             <button
                               onClick={() => toggleInstructions(meal.id)}
-                              className={`flex items-center justify-center space-x-2 px-4 py-3 rounded-xl font-medium transition-all duration-300 ${
+                              className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-xl font-semibold transition-all duration-200 text-xs md:text-base shadow group-hover:scale-105 active:scale-100 ${
                                 showInstructions[meal.id]
-                                  ? 'bg-green-600/20 text-green-400 border border-green-600/30'
-                                  : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 border border-slate-600/30'
-                              }`}
+                                  ? 'bg-blue-500/20 text-blue-200 border border-blue-400'
+                                  : 'bg-slate-700/60 text-slate-200 border border-slate-600/20 hover:bg-blue-800/20 hover:text-blue-100'
+                              } animate-fadeIn`}
                             >
                               <BookOpen className="w-4 h-4" />
                               <span>Instructions</span>
                             </button>
                           </div>
-
-                          {/* Complete meal button */}
                           <button
                             onClick={() => toggleMealCompletion(meal.id)}
-                            className={`w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                            className={`w-full flex items-center justify-center space-x-2 px-3 py-2 rounded-xl font-semibold transition-all duration-300 text-xs md:text-base shadow group-hover:scale-105 mt-1 ${
                               isCompleted
-                                ? 'bg-green-600/20 text-green-400 border border-green-600/30'
-                                : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
-                            }`}
+                                ? 'bg-green-600/20 text-green-400 border border-green-400 scale-100 shadow-green-400/40 animate-shake'
+                                : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-0 hover:from-purple-700 hover:to-pink-700 hover:shadow-purple-700/60'
+                            } animate-fadeIn`}
                           >
-                            {isCompleted ? (
-                              <>
-                                <CheckCircle className="w-4 h-4" />
-                                <span>Completed</span>
-                              </>
-                            ) : (
-                              <>
-                                <Target className="w-4 h-4" />
-                                <span>Mark Complete</span>
-                              </>
-                            )}
+                            {isCompleted ? (<><CheckCircle className="w-4 h-4" /><span>Completed</span></>) : (<><Target className="w-4 h-4" /><span>Mark Complete</span></>)}
                           </button>
                         </div>
-
-                        {/* Ingredients Panel */}
-                        {showIngredients[meal.id] && (
-                          <div className="border-t border-slate-700/50 p-6 bg-slate-800/30">
-                            <h5 className="font-bold text-white mb-4 flex items-center space-x-2">
-                              <ChefHat className="w-4 h-4 text-green-400" />
-                              <span>Ingredients</span>
-                            </h5>
-                            <div className="space-y-2">
-                              {meal.ingredients.map((ingredient, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-3 bg-slate-700/30 rounded-xl">
-                                  <span className="text-slate-300 font-medium">{ingredient.food.name}</span>
-                                  <div className="flex items-center space-x-3 text-sm text-slate-400">
-                                    <span>{ingredient.quantity}g</span>
-                                    <span className="text-green-400">•</span>
-                                    <span>{Math.round(ingredient.food.kcal * ingredient.quantity / 100)} cal</span>
+                        {/* Animated panel transitions for ingredients/instructions */}
+                        <div className="transition-all duration-300 ease-in-out overflow-hidden">
+                          {showIngredients[meal.id] && (
+                            <div className="border-t border-slate-700 p-4 bg-slate-900/80 animate-fadeIn">
+                              <h5 className="font-bold text-green-300 mb-3 flex items-center space-x-2">
+                                <ChefHat className="w-4 h-4 text-green-400" /> <span>Ingredients</span>
+                              </h5>
+                              <div className="space-y-2">
+                                {meal.ingredients.map((ingredient, idx) => (
+                                  <div key={idx} className="flex items-center justify-between bg-slate-800/40 p-2 rounded-lg">
+                                    <span className="text-slate-100 font-medium">{ingredient.food.name}</span>
+                                    <span className="text-sm text-slate-400">{ingredient.quantity}g • {Math.round(ingredient.food.kcal * ingredient.quantity / 100)} cal</span>
                                   </div>
-                                </div>
-                              ))}
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
-
-                        {/* Instructions Panel */}
-                        {showInstructions[meal.id] && (
-                          <div className="border-t border-slate-700/50 p-6 bg-slate-800/30">
-                            <h5 className="font-bold text-white mb-4 flex items-center space-x-2">
-                              <BookOpen className="w-4 h-4 text-green-400" />
-                              <span>Cooking Instructions</span>
-                            </h5>
-                            <p className="text-slate-300 leading-relaxed">
-                              {meal.cookingInstructions}
-                            </p>
-                          </div>
-                        )}
+                          )}
+                          {showInstructions[meal.id] && (
+                            <div className="border-t border-slate-700 p-4 bg-slate-900/80 animate-fadeIn">
+                              <h5 className="font-bold text-blue-200 mb-3 flex items-center space-x-2">
+                                <BookOpen className="w-4 h-4 text-blue-400" /> <span>Cooking Instructions</span>
+                              </h5>
+                              <p className="text-slate-200 leading-relaxed">{meal.cookingInstructions}</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

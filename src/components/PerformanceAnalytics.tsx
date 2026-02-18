@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp,
   TrendingDown,
@@ -11,6 +11,7 @@ import {
   ArrowDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { computeVolumeFromAssignment } from '../utils/volumeCalculator';
 
 interface MuscleGroupData {
   name: string;
@@ -40,7 +41,6 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
   clientName,
   workoutAssignment
 }) => {
-  const [muscleGroups, setMuscleGroups] = useState<MuscleGroupData[]>([]);
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [imageErrors, setImageErrors] = useState<{ [key: string]: boolean }>({});
@@ -135,258 +135,122 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
     );
   };
 
+  // Fetch muscle groups once on mount (same as Progress charts) — no refetch on assignment change
+  const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
   useEffect(() => {
-    loadPerformanceData();
-  }, [clientId, workoutAssignment]);
+    let cancelled = false;
+    (async () => {
+      if (!supabase) return;
+      try {
+        const { data, error } = await supabase
+          .from('exercises')
+          .select('muscle_group')
+          .not('muscle_group', 'is', null);
+        if (cancelled || error) return;
+        const raw = data?.map((item: { muscle_group: string }) => item.muscle_group) || [];
+        const normalized = [
+          ...new Set(
+            raw
+              .filter((g: string) => g && g.trim() !== '')
+              .map((g: string) => g.trim().charAt(0).toUpperCase() + g.trim().slice(1).toLowerCase())
+          )
+        ];
+        setAvailableMuscleGroups(normalized);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
-  const loadPerformanceData = async () => {
-    setIsLoading(true);
-    
-    try {
-      if (!workoutAssignment || !workoutAssignment.program) {
-        console.log('No workout assignment available');
-        setIsLoading(false);
-        return;
+  // Derive analytics from assignment using shared weekly volume (no async, no reload every second)
+  const muscleGroups = useMemo((): MuscleGroupData[] => {
+    if (!workoutAssignment?.program || availableMuscleGroups.length === 0) return [];
+    const volumeData = computeVolumeFromAssignment(workoutAssignment, availableMuscleGroups);
+    const currentWeekNumber = workoutAssignment.currentWeek || 1;
+    const result: MuscleGroupData[] = [];
+
+    availableMuscleGroups.forEach((muscleGroup) => {
+      const weeklyVolumes = volumeData.map((week) => (week[muscleGroup] as number) || 0);
+      const currentWeekIndex = volumeData.findIndex((w) => w.week === currentWeekNumber);
+      const previousWeekIndex = volumeData.findIndex((w) => w.week === currentWeekNumber - 1);
+      const week1Index = volumeData.findIndex((w) => w.week === 1);
+
+      const currentWeekVolume = currentWeekIndex >= 0 ? ((volumeData[currentWeekIndex][muscleGroup] as number) || 0) : 0;
+      const previousWeekVolume = previousWeekIndex >= 0 ? ((volumeData[previousWeekIndex][muscleGroup] as number) || 0) : 0;
+      const week1Volume = week1Index >= 0 ? ((volumeData[week1Index][muscleGroup] as number) || 0) : 0;
+
+      let changePercentage = 0;
+      if (previousWeekVolume > 0) {
+        changePercentage = ((currentWeekVolume - previousWeekVolume) / previousWeekVolume) * 100;
+      } else if (currentWeekVolume > 0 && previousWeekVolume === 0) {
+        changePercentage = 100;
       }
 
-      // Get unique muscle groups from exercises
-      if (!supabase) {
-        console.error('Supabase client not initialized');
-        setIsLoading(false);
-        return;
+      let totalProgressPercentage = 0;
+      if (week1Volume > 0) {
+        totalProgressPercentage = ((currentWeekVolume - week1Volume) / week1Volume) * 100;
+      } else if (currentWeekVolume > 0 && week1Volume === 0) {
+        totalProgressPercentage = 100;
       }
 
-      const { data: muscleGroupData, error: muscleGroupError } = await supabase
-        .from('exercises')
-        .select('muscle_group')
-        .not('muscle_group', 'is', null);
-      
-      if (muscleGroupError) {
-        console.error('Error fetching muscle groups:', muscleGroupError);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Extract and normalize unique muscle groups
-      const rawMuscleGroups = muscleGroupData?.map(item => item.muscle_group) || [];
-      const normalizedMuscleGroups = rawMuscleGroups
-        .filter(group => group && group.trim() !== '')
-        .map(group => group.trim())
-        .map(group => group.charAt(0).toUpperCase() + group.slice(1).toLowerCase());
-      
-      const uniqueMuscleGroups = [...new Set(normalizedMuscleGroups)];
-
-      // Calculate volume data from workout assignment (same logic as progress charts)
-      const volumeData = await calculateVolumeFromAssignment(workoutAssignment, uniqueMuscleGroups);
-      
-      console.log('Performance Analytics - Volume Data:', volumeData);
-      console.log('Performance Analytics - Current Week:', workoutAssignment.currentWeek);
-      console.log('Performance Analytics - Muscle Groups:', uniqueMuscleGroups);
-
-      // Transform volume data into muscle group analytics
-      const muscleGroupsData: MuscleGroupData[] = [];
-      const currentWeekNumber = workoutAssignment.currentWeek || 1;
-      
-      uniqueMuscleGroups.forEach(muscleGroup => {
-        const weeklyVolumes = volumeData.map(week => week[muscleGroup] as number || 0);
-        
-        // Get current and previous week volumes based on actual week number
-        const currentWeekIndex = volumeData.findIndex(week => week.week === currentWeekNumber);
-        const previousWeekIndex = volumeData.findIndex(week => week.week === currentWeekNumber - 1);
-        const week1Index = volumeData.findIndex(week => week.week === 1);
-        
-        const currentWeekVolume = currentWeekIndex >= 0 ? (volumeData[currentWeekIndex][muscleGroup] as number || 0) : 0;
-        const previousWeekVolume = previousWeekIndex >= 0 ? (volumeData[previousWeekIndex][muscleGroup] as number || 0) : 0;
-        const week1Volume = week1Index >= 0 ? (volumeData[week1Index][muscleGroup] as number || 0) : 0;
-        
-        // Calculate week-to-week change percentage
-        let changePercentage = 0;
-        if (previousWeekVolume > 0) {
-          changePercentage = ((currentWeekVolume - previousWeekVolume) / previousWeekVolume) * 100;
-        } else if (currentWeekVolume > 0 && previousWeekVolume === 0) {
-          changePercentage = 100;
-        }
-
-        // Calculate total progress from Week 1
-        let totalProgressPercentage = 0;
-        if (week1Volume > 0) {
-          totalProgressPercentage = ((currentWeekVolume - week1Volume) / week1Volume) * 100;
-        } else if (currentWeekVolume > 0 && week1Volume === 0) {
-          totalProgressPercentage = 100;
-        }
-
-        // Calculate average volume of completed weeks (excluding future weeks with 0 volume)
-        const completedWeeksVolumes = weeklyVolumes.slice(0, currentWeekNumber).filter(vol => vol > 0);
-        const averageVolume = completedWeeksVolumes.length > 0 
-          ? completedWeeksVolumes.reduce((sum, vol) => sum + vol, 0) / completedWeeksVolumes.length 
+      const completedWeeksVolumes = weeklyVolumes.slice(0, currentWeekNumber).filter((vol) => vol > 0);
+      const averageVolume =
+        completedWeeksVolumes.length > 0
+          ? completedWeeksVolumes.reduce((sum, vol) => sum + vol, 0) / completedWeeksVolumes.length
           : 0;
 
-        // Calculate vs average percentage
-        let vsAveragePercentage = 0;
-        if (averageVolume > 0) {
-          vsAveragePercentage = ((currentWeekVolume - averageVolume) / averageVolume) * 100;
-        }
+      let vsAveragePercentage = 0;
+      if (averageVolume > 0) {
+        vsAveragePercentage = ((currentWeekVolume - averageVolume) / averageVolume) * 100;
+      }
 
-        // Calculate consistency score (coefficient of variation inverted to 0-100 scale)
-        let consistencyScore = 0;
-        if (completedWeeksVolumes.length >= 2 && averageVolume > 0) {
-          // Calculate standard deviation
-          const variance = completedWeeksVolumes.reduce((sum, vol) => 
-            sum + Math.pow(vol - averageVolume, 2), 0
-          ) / completedWeeksVolumes.length;
-          const stdDev = Math.sqrt(variance);
-          
-          // Coefficient of variation (lower is more consistent)
-          const cv = (stdDev / averageVolume) * 100;
-          
-          // Convert to consistency score (0-100, where 100 is perfect consistency)
-          // A CV of 0% = 100 score, CV of 50%+ = 0 score
-          consistencyScore = Math.max(0, Math.min(100, 100 - (cv * 2)));
-        } else {
-          consistencyScore = 100; // Perfect score if only 1 week
-        }
+      let consistencyScore = 0;
+      if (completedWeeksVolumes.length >= 2 && averageVolume > 0) {
+        const variance =
+          completedWeeksVolumes.reduce((sum, vol) => sum + Math.pow(vol - averageVolume, 2), 0) /
+          completedWeeksVolumes.length;
+        const stdDev = Math.sqrt(variance);
+        const cv = (stdDev / averageVolume) * 100;
+        consistencyScore = Math.max(0, Math.min(100, 100 - cv * 2));
+      } else {
+        consistencyScore = 100;
+      }
 
-        // Determine trend
-        let trend: 'increasing' | 'decreasing' | 'stable' | 'fluctuating' = 'stable';
-        
-        if (weeklyVolumes.length >= 3) {
-          const last3Weeks = weeklyVolumes.slice(-3);
-          const isIncreasing = last3Weeks.every((vol, idx) => idx === 0 || vol >= last3Weeks[idx - 1]);
-          const isDecreasing = last3Weeks.every((vol, idx) => idx === 0 || vol <= last3Weeks[idx - 1]);
-          
-          if (isIncreasing && changePercentage > 1) {
-            trend = 'increasing';
-          } else if (isDecreasing && changePercentage < -1) {
-            trend = 'decreasing';
-          } else if (Math.abs(changePercentage) <= 1) {
-            trend = 'stable';
-          } else {
-            trend = 'fluctuating';
-          }
-        } else if (weeklyVolumes.length === 2) {
-          if (changePercentage > 1) {
-            trend = 'increasing';
-          } else if (changePercentage < -1) {
-            trend = 'decreasing';
-          } else {
-            trend = 'stable';
-          }
-        }
+      let trend: 'increasing' | 'decreasing' | 'stable' | 'fluctuating' = 'stable';
+      if (weeklyVolumes.length >= 3) {
+        const last3Weeks = weeklyVolumes.slice(-3);
+        const isIncreasing = last3Weeks.every((vol, idx) => idx === 0 || vol >= last3Weeks[idx - 1]);
+        const isDecreasing = last3Weeks.every((vol, idx) => idx === 0 || vol <= last3Weeks[idx - 1]);
+        if (isIncreasing && changePercentage > 1) trend = 'increasing';
+        else if (isDecreasing && changePercentage < -1) trend = 'decreasing';
+        else if (Math.abs(changePercentage) <= 1) trend = 'stable';
+        else trend = 'fluctuating';
+      } else if (weeklyVolumes.length === 2) {
+        if (changePercentage > 1) trend = 'increasing';
+        else if (changePercentage < -1) trend = 'decreasing';
+        else trend = 'stable';
+      }
 
-        console.log(`${muscleGroup} Analytics:`, {
-          currentWeekVolume,
-          previousWeekVolume,
-          week1Volume,
-          averageVolume,
-          changePercentage,
-          totalProgressPercentage,
-          vsAveragePercentage,
-          consistencyScore
-        });
-
-        muscleGroupsData.push({
-          name: muscleGroup,
-          currentWeekVolume,
-          previousWeekVolume,
-          weeklyHistory: weeklyVolumes,
-          trend,
-          changePercentage,
-          illustration: '', // No longer needed, using dynamic function
-          week1Volume,
-          totalProgressPercentage,
-          averageVolume,
-          vsAveragePercentage,
-          consistencyScore
-        });
+      result.push({
+        name: muscleGroup,
+        currentWeekVolume,
+        previousWeekVolume,
+        weeklyHistory: weeklyVolumes,
+        trend,
+        changePercentage,
+        illustration: '',
+        week1Volume,
+        totalProgressPercentage,
+        averageVolume,
+        vsAveragePercentage,
+        consistencyScore
       });
+    });
 
-      // Sort by muscle group name
-      muscleGroupsData.sort((a, b) => a.name.localeCompare(b.name));
-      
-      setMuscleGroups(muscleGroupsData);
-      setIsLoading(false);
-    } catch (err) {
-      console.error('Error loading performance data:', err);
-      setIsLoading(false);
-    }
-  };
-
-  // Calculate volume directly from workout assignment (same as IndependentMuscleGroupCharts)
-  const calculateVolumeFromAssignment = async (workoutAssignment: any, muscleGroups: string[]): Promise<any[]> => {
-    if (!workoutAssignment.program) return [];
-
-    const maxWeeks = workoutAssignment.duration || 12;
-    const currentWeek = workoutAssignment.currentWeek || 1;
-    const chartData: any[] = [];
-
-    for (let week = 1; week <= maxWeeks; week++) {
-      const weekData: any = { week };
-      
-      // For future weeks, set all muscle groups to 0
-      if (week > currentWeek) {
-        muscleGroups.forEach(muscleGroup => {
-          weekData[muscleGroup] = 0;
-        });
-        chartData.push(weekData);
-        continue;
-      }
-
-      // For past and current weeks, calculate volume from stored data
-      const volumeTally: { [muscleGroup: string]: number } = {};
-      
-      // Check if we have week-specific data stored
-      let daysToProcess = workoutAssignment.program.days;
-      
-      if (workoutAssignment.weeks && workoutAssignment.weeks.length > 0) {
-        const weekSpecificData = workoutAssignment.weeks.find((w: any) => w.weekNumber === week);
-        
-        if (weekSpecificData && weekSpecificData.days && weekSpecificData.days.length > 0) {
-          daysToProcess = weekSpecificData.days;
-        }
-      }
-      
-      // Process each day
-      for (const day of daysToProcess) {
-        for (const workoutExercise of day.exercises) {
-          const muscleGroup = workoutExercise.exercise.muscleGroup;
-          if (!muscleGroup) continue;
-
-          // Calculate volume for this exercise
-          let exerciseVolume = 0;
-          for (const set of workoutExercise.sets) {
-            let setVolume = 0;
-            if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
-              // Dropset volume: sum of (reps[i] * weight[i])
-              for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
-                setVolume += set.reps[i] * Math.max(set.weight[i], 1);
-              }
-            } else {
-              // Regular set volume
-              setVolume = set.reps * Math.max(set.weight, 1);
-            }
-            exerciseVolume += setVolume;
-          }
-
-          // Normalize muscle group name
-          const normalizedMuscleGroup = muscleGroup.charAt(0).toUpperCase() + muscleGroup.slice(1).toLowerCase();
-          
-          if (!volumeTally[normalizedMuscleGroup]) {
-            volumeTally[normalizedMuscleGroup] = 0;
-          }
-          volumeTally[normalizedMuscleGroup] += exerciseVolume;
-        }
-      }
-
-      // Add all muscle groups to week data
-      muscleGroups.forEach(muscleGroup => {
-        weekData[muscleGroup] = volumeTally[muscleGroup] || 0;
-      });
-
-      chartData.push(weekData);
-    }
-
-    return chartData;
-  };
+    result.sort((a, b) => a.name.localeCompare(b.name));
+    return result;
+  }, [workoutAssignment, availableMuscleGroups]);
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
@@ -627,7 +491,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                             key={idx}
                             className="flex-1 bg-gradient-to-t from-purple-500 to-pink-500 rounded-t opacity-60 hover:opacity-100 transition-opacity"
                             style={{
-                              height: `${(volume / Math.max(...muscle.weeklyHistory)) * 100}%`
+                              height: `${muscle.weeklyHistory.length ? (volume / Math.max(1, ...muscle.weeklyHistory)) * 100 : 0}%`
                             }}
                             title={`Week ${idx + 1}: ${volume.toLocaleString()} kg`}
                           />

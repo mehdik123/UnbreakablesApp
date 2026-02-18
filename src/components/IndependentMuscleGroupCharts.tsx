@@ -2,13 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart } from 'recharts';
 import { Activity, TrendingUp, Dumbbell, ChevronDown, ChevronUp, Target, Zap } from 'lucide-react';
 import { Client, ClientWorkoutAssignment, Exercise } from '../types';
-import { getVolumeDataForChart } from '../utils/realtimeVolumeTracker';
 import { supabase } from '../lib/supabaseClient';
-
-interface MuscleVolumeData {
-  week: number;
-  [muscleGroup: string]: number | string;
-}
+import { computeVolumeFromAssignment, MuscleVolumeData } from '../utils/volumeCalculator';
 
 interface IndependentMuscleGroupChartsProps {
   client: Client;
@@ -54,124 +49,54 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
   client,
   isDark
 }) => {
-  const [volumeData, setVolumeData] = useState<MuscleVolumeData[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedCharts, setExpandedCharts] = useState<{ [muscleGroup: string]: boolean }>({});
   const [workoutExercises, setWorkoutExercises] = useState<{ [muscleGroup: string]: Exercise[] }>({});
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
   const [imageErrors, setImageErrors] = useState<{ [key: string]: boolean }>({});
 
-  // Memoize expensive calculations
-  const chartData = useMemo(() => {
-    if (!volumeData.length) return [];
-    return volumeData;
-  }, [volumeData]);
-
-  const muscleGroups = useMemo(() => {
-    return availableMuscleGroups;
-  }, [availableMuscleGroups]);
-
-  // Load volume data and extract exercises
+  // Fetch muscle groups once on mount (static list)
   useEffect(() => {
-    const loadData = async () => {
-      if (!client.workoutAssignment) return;
-      
-      setLoading(true);
+    let cancelled = false;
+    (async () => {
       try {
-        // First, get all unique muscle groups from the exercises table
-        const { data: muscleGroupData, error: muscleGroupError } = await supabase
-          .from('exercises')
-          .select('muscle_group')
-          .not('muscle_group', 'is', null);
-        
-        if (muscleGroupError) {
-          console.error('Error fetching muscle groups:', muscleGroupError);
-          return;
-        }
-        
-        // Extract unique muscle groups and normalize them (remove duplicates and normalize case)
-        const rawMuscleGroups = muscleGroupData?.map(item => item.muscle_group) || [];
-        const normalizedMuscleGroups = rawMuscleGroups
-          .filter(group => group && group.trim() !== '') // Remove empty/null groups
-          .map(group => group.trim()) // Remove whitespace
-          .map(group => group.charAt(0).toUpperCase() + group.slice(1).toLowerCase()); // Normalize case
-        
-        const uniqueMuscleGroups = [...new Set(normalizedMuscleGroups)];
-        setAvailableMuscleGroups(uniqueMuscleGroups);
-
-
-
-        // Calculate volume data directly from current workout assignment
-
-
-
-
-        const chartData = await calculateVolumeFromAssignment(client.workoutAssignment, uniqueMuscleGroups);
-
-        setVolumeData(chartData);
-
-        // Extract exercises by muscle group from workout assignment
-        const exercisesByMuscleGroup: { [muscleGroup: string]: Exercise[] } = {};
-        
-        if (client.workoutAssignment.program) {
-
-          client.workoutAssignment.program.days.forEach((day, dayIndex) => {
-
-            day.exercises.forEach((workoutExercise, exerciseIndex) => {
-              const muscleGroup = workoutExercise.exercise.muscleGroup;
-
-              
-              if (!muscleGroup) {
-
-                return;
-              }
-              
-              // Normalize muscle group name
-              const normalizedMuscleGroup = muscleGroup.charAt(0).toUpperCase() + muscleGroup.slice(1).toLowerCase();
-              
-              if (!exercisesByMuscleGroup[normalizedMuscleGroup]) {
-                exercisesByMuscleGroup[normalizedMuscleGroup] = [];
-              }
-              
-              // Check if exercise already exists (avoid duplicates)
-              const exists = exercisesByMuscleGroup[normalizedMuscleGroup].some(
-                ex => ex.id === workoutExercise.exercise.id
-              );
-              
-              if (!exists) {
-                exercisesByMuscleGroup[normalizedMuscleGroup].push(workoutExercise.exercise);
-              }
-            });
-          });
-        }
-        
-
-        
-        setWorkoutExercises(exercisesByMuscleGroup);
-      } catch (error) {
-        console.error('Error loading muscle group data:', error);
+        const { data, error } = await supabase.from('exercises').select('muscle_group').not('muscle_group', 'is', null);
+        if (cancelled || error) return;
+        const raw = data?.map(item => item.muscle_group) || [];
+        const normalized = [...new Set(raw.filter(Boolean).map((g: string) => g.trim().charAt(0).toUpperCase() + g.trim().slice(1).toLowerCase()))];
+        setAvailableMuscleGroups(normalized);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
-    };
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
-        loadData();
-      }, [client.id, client.workoutAssignment]);
+  // Static chart data: derived from assignment + muscle groups. Recomputes only when they change; no loading spinner.
+  const chartData = useMemo(
+    () => computeVolumeFromAssignment(client.workoutAssignment ?? null, availableMuscleGroups),
+    [client.workoutAssignment, availableMuscleGroups]
+  );
 
-  // Recalculate volume when workout assignment changes
+  // Extract exercises by muscle group once when assignment changes (for display, not for volume)
+  const muscleGroups = useMemo(() => availableMuscleGroups, [availableMuscleGroups]);
+
   useEffect(() => {
-    const recalculateVolume = async () => {
-      if (!client.workoutAssignment || availableMuscleGroups.length === 0) return;
-      
-
-
-      
-      const chartData = await calculateVolumeFromAssignment(client.workoutAssignment, availableMuscleGroups);
-      setVolumeData(chartData);
-    };
-
-    recalculateVolume();
-  }, [client.workoutAssignment, availableMuscleGroups]);
+    if (!client.workoutAssignment?.program?.days) return;
+    const byGroup: { [muscleGroup: string]: Exercise[] } = {};
+    client.workoutAssignment.program.days.forEach((day: any) => {
+      (day.exercises || []).forEach((workoutExercise: any) => {
+        const mg = workoutExercise.exercise?.muscleGroup;
+        if (!mg) return;
+        const norm = mg.charAt(0).toUpperCase() + mg.slice(1).toLowerCase();
+        if (!byGroup[norm]) byGroup[norm] = [];
+        if (!byGroup[norm].some((ex: any) => ex.id === workoutExercise.exercise?.id)) {
+          byGroup[norm].push(workoutExercise.exercise);
+        }
+      });
+    });
+    setWorkoutExercises(byGroup);
+  }, [client.workoutAssignment]);
 
   const toggleChartExpansion = (muscleGroup: string) => {
     setExpandedCharts(prev => ({
@@ -215,112 +140,6 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
   const handleImageError = (muscleGroup: string) => {
     console.warn(`Image not found for ${muscleGroup}`);
     setImageErrors(prev => ({ ...prev, [muscleGroup]: true }));
-  };
-
-  // Calculate volume directly from current workout assignment data
-  const calculateVolumeFromAssignment = async (workoutAssignment: ClientWorkoutAssignment, muscleGroups: string[]): Promise<MuscleVolumeData[]> => {
-    if (!workoutAssignment.program) return [];
-
-    const maxWeeks = workoutAssignment.duration || 12;
-    const currentWeek = workoutAssignment.currentWeek || 1;
-    const chartData: MuscleVolumeData[] = [];
-
-
-
-    for (let week = 1; week <= maxWeeks; week++) {
-      const weekData: MuscleVolumeData = { week };
-      
-      // For future weeks, set all muscle groups to 0
-      if (week > currentWeek) {
-        muscleGroups.forEach(muscleGroup => {
-          weekData[muscleGroup] = 0;
-        });
-        chartData.push(weekData);
-        continue;
-      }
-
-      // For past and current weeks, calculate volume from stored data
-
-      // Calculate volume using week-specific data
-      const volumeTally: { [muscleGroup: string]: number } = {};
-      
-      // Check if we have week-specific data stored
-      let daysToProcess = workoutAssignment.program.days;
-      
-      if (workoutAssignment.weeks && workoutAssignment.weeks.length > 0) {
-        const weekSpecificData = workoutAssignment.weeks.find(w => w.weekNumber === week);
-        console.log(`🔍 VOLUME TRACKING - Week ${week} - Available weeks:`, workoutAssignment.weeks.map(w => ({ 
-          week: w.weekNumber, 
-          hasDays: w.days?.length || 0,
-          isUnlocked: w.isUnlocked,
-          isCompleted: w.isCompleted
-        })));
-
-
-        
-        if (weekSpecificData && weekSpecificData.days && weekSpecificData.days.length > 0) {
-          daysToProcess = weekSpecificData.days;
-
-
-        } else {
-
-        }
-      } else {
-
-      }
-      
-      // Process each day from the appropriate data source
-      for (const day of daysToProcess) {
-        for (const workoutExercise of day.exercises) {
-          const muscleGroup = workoutExercise.exercise.muscleGroup;
-          if (!muscleGroup) {
-
-            continue;
-          }
-
-          // Calculate volume for this exercise
-          let exerciseVolume = 0;
-          for (const set of workoutExercise.sets) {
-            let setVolume = 0;
-            if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
-              // Dropset volume: sum of (reps[i] * weight[i]) for each round
-              for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
-                setVolume += set.reps[i] * Math.max(set.weight[i], 1);
-              }
-            } else {
-              // Regular set volume
-              setVolume = set.reps * Math.max(set.weight, 1);
-            }
-            exerciseVolume += setVolume;
-          }
-
-          // Normalize muscle group name to match the available muscle groups
-          const normalizedMuscleGroup = muscleGroup.charAt(0).toUpperCase() + muscleGroup.slice(1).toLowerCase();
-          
-          if (!volumeTally[normalizedMuscleGroup]) {
-            volumeTally[normalizedMuscleGroup] = 0;
-          }
-          volumeTally[normalizedMuscleGroup] += exerciseVolume;
-          
-
-        }
-      }
-
-      // Add all muscle groups to week data (0 for groups not trained this week)
-      muscleGroups.forEach(muscleGroup => {
-        weekData[muscleGroup] = volumeTally[muscleGroup] || 0;
-      });
-
-      chartData.push(weekData);
-      
-      // Calculate total volume for this week
-      const totalWeekVolume = Object.values(volumeTally).reduce((sum, volume) => sum + volume, 0);
-
-
-    }
-
-
-    return chartData;
   };
 
   if (loading) {
@@ -384,26 +203,26 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
               return sum + exerciseVolume;
             }, 0);
 
-            // Get chart data for this muscle group
-            const chartData = volumeData.map(week => ({
+            // Get chart series for this muscle group (from component chartData)
+            const seriesData = chartData.map(week => ({
               week: week.week,
-              volume: week[muscleGroup] as number || 0,
-              muscleGroup: muscleGroup // Add muscle group to chart data
+              volume: (week[muscleGroup] as number) || 0,
+              muscleGroup
             }));
 
-            // Update current week data to match individual exercise calculation
             const currentWeek = client.workoutAssignment?.currentWeek || 1;
-            const currentWeekIndex = chartData.findIndex(week => week.week === currentWeek);
+            const currentWeekIndex = seriesData.findIndex(week => week.week === currentWeek);
             if (currentWeekIndex !== -1) {
-              chartData[currentWeekIndex].volume = currentWeekVolume;
+              seriesData[currentWeekIndex].volume = currentWeekVolume;
             }
 
-            const totalVolume = chartData.reduce((sum, week) => sum + week.volume, 0);
-            const maxVolume = Math.max(...chartData.map(week => week.volume), 0);
+            const totalVolume = seriesData.reduce((sum, week) => sum + week.volume, 0);
+            const maxVolume = Math.max(...seriesData.map(week => week.volume), 0);
 
-            // Calculate trend
-            const firstWeekVolume = chartData[0]?.volume || 0;
-            const lastWeekVolume = chartData[chartData.length - 1]?.volume || 0;
+            const firstWeekVolume = seriesData[0]?.volume || 0;
+            const completedWeeks = seriesData.filter(week => week.week <= currentWeek);
+            const lastCompletedWeek = completedWeeks[completedWeeks.length - 1];
+            const lastWeekVolume = lastCompletedWeek?.volume || 0;
             const trend = firstWeekVolume > 0 ? ((lastWeekVolume - firstWeekVolume) / firstWeekVolume) * 100 : 0;
 
             return (
@@ -471,7 +290,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                   <div className="h-48 mb-4">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart
-                        data={chartData}
+                        data={seriesData}
                         margin={{
                           top: 10,
                           right: 10,
@@ -816,7 +635,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
             
             <div className="text-center">
               <div className="text-2xl font-bold text-white">
-                {volumeData.length}
+                {chartData.length}
               </div>
               <div className="text-gray-400 text-sm">Weeks Tracked</div>
             </div>

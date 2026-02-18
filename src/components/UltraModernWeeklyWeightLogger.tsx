@@ -19,14 +19,15 @@ interface UltraModernWeeklyWeightLoggerProps {
   isDark: boolean;
 }
 
+// Day 1 to Day 7 per week — no calendar dates
 const DAYS_OF_WEEK = [
-  { key: 'monday', label: 'MON' },
-  { key: 'tuesday', label: 'TUE' },
-  { key: 'wednesday', label: 'WED' },
-  { key: 'thursday', label: 'THU' },
-  { key: 'friday', label: 'FRI' },
-  { key: 'saturday', label: 'SAT' },
-  { key: 'sunday', label: 'SUN' }
+  { key: 'day1', label: 'Day 1' },
+  { key: 'day2', label: 'Day 2' },
+  { key: 'day3', label: 'Day 3' },
+  { key: 'day4', label: 'Day 4' },
+  { key: 'day5', label: 'Day 5' },
+  { key: 'day6', label: 'Day 6' },
+  { key: 'day7', label: 'Day 7' }
 ];
 
 export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLoggerProps> = ({
@@ -55,46 +56,48 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
       
       const data = await getClientWeightLogs(client.id);
       const organizedData: Record<number, Record<string, WeightEntry>> = {};
+      const startDate = client.startDate ? new Date(client.startDate) : null;
+      const dayKeysByIndex = ['day1', 'day2', 'day3', 'day4', 'day5', 'day6', 'day7'];
       
-      data.forEach(entry => {
-        // Calculate week number and day key from the date
-        const date = new Date(entry.date);
-        
-        // Calculate which week this date belongs to (relative to current week)
-        const today = new Date();
-        const currentDay = today.getDay();
-        const daysToMonday = currentDay === 0 ? -6 : 1 - currentDay;
-        const mondayOfCurrentWeek = new Date(today);
-        mondayOfCurrentWeek.setDate(today.getDate() + daysToMonday);
-        
-        // Calculate the difference in days from current week's Monday
-        const daysDiff = Math.floor((date.getTime() - mondayOfCurrentWeek.getTime()) / (1000 * 60 * 60 * 24));
-        const weekNumber = Math.max(1, Math.ceil((daysDiff + 1) / 7));
-        
-        // Get day of week (0 = Sunday, 1 = Monday, etc.)
-        const dayOfWeek = date.getDay();
-        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-        const dayKey = dayNames[dayOfWeek];
-        
-        if (!organizedData[weekNumber]) {
-          organizedData[weekNumber] = {};
-        }
-        
-        // Create a WeightEntry with the required structure
-        const weightEntry: WeightEntry = {
-          id: entry.id,
-          clientId: client.id,
-          weight: entry.weight,
-          date: entry.date,
-          weekNumber: weekNumber,
-          dayKey: dayKey,
-          notes: entry.notes
-        };
-        
-        
-        organizedData[weekNumber][dayKey] = weightEntry;
-      });
-      
+      if (startDate) {
+        data.forEach(entry => {
+          const date = new Date(entry.date);
+          const startMs = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate()).getTime();
+          const dateMs = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+          const daysSinceStart = Math.floor((dateMs - startMs) / (1000 * 60 * 60 * 24));
+          const weekIndex = Math.floor(daysSinceStart / 7);
+          const dayIndex = ((daysSinceStart % 7) + 7) % 7;
+          const weekNumber = Math.min(maxWeeks, Math.max(1, weekIndex + 1));
+          const dayKey = dayKeysByIndex[dayIndex];
+          if (!organizedData[weekNumber]) organizedData[weekNumber] = {};
+          organizedData[weekNumber][dayKey] = {
+            id: entry.id,
+            clientId: client.id,
+            weight: entry.weight,
+            date: entry.date,
+            weekNumber,
+            dayKey,
+            notes: entry.notes
+          };
+        });
+      } else {
+        // No startDate: assign by entry order — first 7 = week 1 day 1..7, next 7 = week 2 day 1..7, etc.
+        const sorted = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        sorted.forEach((entry, i) => {
+          const weekNumber = Math.min(maxWeeks, Math.floor(i / 7) + 1);
+          const dayKey = dayKeysByIndex[i % 7];
+          if (!organizedData[weekNumber]) organizedData[weekNumber] = {};
+          organizedData[weekNumber][dayKey] = {
+            id: entry.id,
+            clientId: client.id,
+            weight: entry.weight,
+            date: entry.date,
+            weekNumber,
+            dayKey,
+            notes: entry.notes
+          };
+        });
+      }
 
       setWeeklyData(organizedData);
     } catch (error) {
@@ -104,35 +107,16 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
     }
   };
 
+  // Produces a stable date for DB save only (Week 1 Day 1..7, Week 2 Day 1..7, etc.) — no current date
   const getDateForWeekAndDay = (weekNumber: number, dayKey: string) => {
-    // Calculate the start of the current week (Monday)
-    const today = new Date();
-    const currentDay = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const daysToMonday = currentDay === 0 ? -6 : 1 - currentDay; // Adjust for Monday start
-    const mondayOfCurrentWeek = new Date(today);
-    mondayOfCurrentWeek.setDate(today.getDate() + daysToMonday);
-    
-    // Calculate the target week's Monday
-    const targetWeekMonday = new Date(mondayOfCurrentWeek);
-    targetWeekMonday.setDate(mondayOfCurrentWeek.getDate() + (weekNumber - 1) * 7);
-    
-    // Map day keys to day indices (Monday = 0, Tuesday = 1, etc.)
     const dayMap: { [key: string]: number } = {
-      'monday': 0,
-      'tuesday': 1,
-      'wednesday': 2,
-      'thursday': 3,
-      'friday': 4,
-      'saturday': 5,
-      'sunday': 6
+      day1: 0, day2: 1, day3: 2, day4: 3, day5: 4, day6: 5, day7: 6
     };
-    
-    const dayIndex = dayMap[dayKey] || 0;
-    const targetDate = new Date(targetWeekMonday);
-    targetDate.setDate(targetWeekMonday.getDate() + dayIndex);
-    
-    
-    return targetDate;
+    const dayIndex = dayMap[dayKey] ?? 0;
+    const base = client.startDate ? new Date(client.startDate) : new Date(2020, 0, 1);
+    const target = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+    target.setDate(target.getDate() + (weekNumber - 1) * 7 + dayIndex);
+    return target;
   };
 
   const getCurrentWeekData = () => {
@@ -251,28 +235,27 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
     }
   };
 
-  // Helper functions for new components
+  // Chart data in order: W1 D1, W1 D2, … W1 D7, W2 D1, … — only slots that have data
   const getAllWeightEntries = () => {
-    const entries: Array<{date: string, weight: number, weekNumber: number, dayKey: string}> = [];
-    Object.keys(weeklyData).forEach(week => {
-      const weekNum = parseInt(week);
-      const weekData = weeklyData[weekNum];
-      if (weekData) {
-        Object.keys(weekData).forEach(day => {
-          const weight = weekData[day]?.weight;
-          if (weight !== undefined) {
-            const date = getDateForWeekAndDay(weekNum, day);
-            entries.push({
-              date: date.toISOString().split('T')[0],
-              weight,
-              weekNumber: weekNum,
-              dayKey: day
-            });
-          }
-        });
+    const dayOrder = ['day1', 'day2', 'day3', 'day4', 'day5', 'day6', 'day7'];
+    const entries: Array<{ label: string; weight: number; weekNumber: number; dayKey: string }> = [];
+    for (let w = 1; w <= maxWeeks; w++) {
+      const weekData = weeklyData[w];
+      if (!weekData) continue;
+      for (let d = 0; d < 7; d++) {
+        const dayKey = dayOrder[d];
+        const entry = weekData[dayKey];
+        if (entry?.weight !== undefined) {
+          entries.push({
+            label: `W${w} D${d + 1}`,
+            weight: entry.weight,
+            weekNumber: w,
+            dayKey
+          });
+        }
       }
-    });
-    return entries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    }
+    return entries;
   };
 
   const getCurrentWeight = () => {
@@ -300,18 +283,12 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
   const getMonthlyChange = () => {
     const entries = getAllWeightEntries();
     if (entries.length < 2) return 0;
-    
-    const now = new Date();
-    const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-    
-    const recentEntries = entries.filter(e => new Date(e.date) >= oneMonthAgo);
-    const oldEntries = entries.filter(e => new Date(e.date) < oneMonthAgo);
-    
+    const recentWeeks = Math.max(1, maxWeeks - 3);
+    const recentEntries = entries.filter((e) => e.weekNumber >= recentWeeks);
+    const oldEntries = entries.filter((e) => e.weekNumber < recentWeeks);
     if (recentEntries.length === 0 || oldEntries.length === 0) return 0;
-    
     const recentAvg = recentEntries.reduce((sum, e) => sum + e.weight, 0) / recentEntries.length;
     const oldAvg = oldEntries.reduce((sum, e) => sum + e.weight, 0) / oldEntries.length;
-    
     return recentAvg - oldAvg;
   };
 
@@ -410,7 +387,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
               <div>
                 <h3 className="text-lg md:text-2xl font-bold text-white mb-1">This Week</h3>
                 <p className="text-white/60 text-xs md:text-sm">
-                  {editingCell ? `Editing ${editingCell.day} - Week ${editingCell.week}` : 'Quick weekly overview - Click to edit'}
+                  {editingCell ? `Week ${editingCell.week} · ${editingCell.day}` : 'Click a slot to log weight'}
                 </p>
               </div>
               <div className="flex items-center space-x-2">
@@ -422,13 +399,11 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
             </div>
 
             <div className="grid grid-cols-7 gap-2 md:gap-3">
-              {DAYS_OF_WEEK.map((day, index) => {
+              {DAYS_OF_WEEK.map((day) => {
                 const dayData = getCurrentWeekData()[day.key];
                 const weight = dayData?.weight;
                 const hasWeight = weight !== undefined;
                 const isEditing = editingCell?.week === selectedWeek && editingCell?.day === day.key;
-                const date = getDateForWeekAndDay(selectedWeek, day.key);
-                const isToday = date.toDateString() === new Date().toDateString();
                 
                 return (
                   <div
@@ -436,8 +411,6 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
                     className={`relative rounded-xl p-2 md:p-4 transition-all duration-300 cursor-pointer ${
                       hasWeight
                         ? 'bg-gray-800 border-2 border-[#dc1e3a] shadow-lg shadow-[#dc1e3a]/20'
-                        : isToday
-                        ? 'bg-gray-800 border-2 border-blue-500'
                         : 'bg-gray-800 border border-gray-600'
                     }`}
                     onClick={() => handleCellClick(selectedWeek, day.key)}
@@ -464,15 +437,10 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
                         }`}>
                           {day.label}
                         </div>
-                        <div className={`text-sm md:text-lg font-bold mb-1 md:mb-2 ${
-                          hasWeight ? 'text-white' : 'text-white/80'
-                        }`}>
-                          {date.getDate()}
-                        </div>
                         <div className={`text-xs md:text-sm font-medium ${
                           hasWeight ? 'text-[#dc1e3a]' : 'text-white/40'
                         }`}>
-                          {hasWeight ? `${weight.toFixed(1)}` : '--'}
+                          {hasWeight ? `${weight.toFixed(1)} kg` : '--'}
                         </div>
                       </div>
                     )}

@@ -1,17 +1,15 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart, ReferenceLine } from 'recharts';
-import { format } from 'date-fns';
-import { TrendingUp } from 'lucide-react';
 
-interface WeightEntry {
-  date: string;
+export interface WeightChartEntry {
+  label: string;
   weight: number;
-  weekNumber: number;
-  dayKey: string;
+  weekNumber?: number;
+  dayKey?: string;
 }
 
 interface UltraModernWeightChartProps {
-  entries: WeightEntry[];
+  entries: WeightChartEntry[];
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -19,9 +17,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return (
       <div className="bg-black/95 backdrop-blur-xl border border-[#dc1e3a]/30 rounded-2xl p-5 shadow-2xl transform scale-105 transition-all duration-200">
         <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-[#dc1e3a] rotate-45 border border-[#dc1e3a]/30"></div>
-        <p className="text-white text-sm font-medium">
-          {format(new Date(label), 'MMM dd, yyyy')}
-        </p>
+        <p className="text-white text-sm font-medium">{label}</p>
         <p className="text-[#dc1e3a] text-xl font-bold flex items-center">
           <span className="w-3 h-3 bg-[#dc1e3a] rounded-full mr-2 animate-pulse"></span>
           {payload[0].value.toFixed(1)} kg
@@ -33,10 +29,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const UltraModernWeightChart: React.FC<UltraModernWeightChartProps> = ({ entries }) => {
-  const chartData = entries.map(entry => ({
-    date: entry.date,
-    weight: entry.weight,
-    timestamp: new Date(entry.date).getTime(),
+  const chartData = entries.map((entry) => ({
+    label: entry.label,
+    weight: entry.weight
   }));
 
   const averageWeight = entries.length > 0 
@@ -94,11 +89,10 @@ export const UltraModernWeightChart: React.FC<UltraModernWeightChartProps> = ({ 
                 </linearGradient>
               </defs>
               <XAxis 
-                dataKey="date"
+                dataKey="label"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: '#ffffff80', fontSize: 13, fontWeight: 500 }}
-                tickFormatter={(value) => format(new Date(value), 'MMM dd')}
+                tick={{ fill: '#ffffff80', fontSize: 12, fontWeight: 500 }}
               />
               <YAxis 
                 axisLine={false}
@@ -130,6 +124,8 @@ export const UltraModernWeightChart: React.FC<UltraModernWeightChartProps> = ({ 
     </div>
   );
 };
+
+
 
 
 
