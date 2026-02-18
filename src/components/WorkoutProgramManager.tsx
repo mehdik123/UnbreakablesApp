@@ -13,6 +13,7 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedProgram, setExpandedProgram] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
   
   // Form state
   const [programName, setProgramName] = useState('');
@@ -20,6 +21,33 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
   const [numberOfDays, setNumberOfDays] = useState(3);
   const [days, setDays] = useState<any[]>([]);
   const [currentDayIndex, setCurrentDayIndex] = useState(0);
+
+  const programToFormState = (prog: any, appendCopy = false) => {
+    const wDays = prog.workout_days || [];
+    const formDays = wDays.map((day: any) => ({
+      order: day.day_order ?? wDays.indexOf(day) + 1,
+      name: day.name || `Day ${(day.day_order ?? 0) || 1}`,
+      exercises: (day.workout_exercises || []).map((ex: any) => {
+        const rawSets = (ex.workout_sets || []).map((s: any) => ({
+          set_order: s.set_order ?? 1,
+          reps: typeof s.reps === 'number' ? s.reps : 10,
+          weight: typeof s.weight === 'number' ? s.weight : 0,
+          rest_seconds: s.rest_seconds ?? 90
+        }));
+        return {
+          exercise_id: ex.exercise_id ?? '',
+          ex_order: ex.ex_order ?? 0,
+          notes: ex.notes || '',
+          sets: rawSets.length ? rawSets : [{ set_order: 1, reps: 10, weight: 0, rest_seconds: 90 }]
+        };
+      })
+    }));
+    setProgramName(appendCopy ? `${prog.name || 'Program'} (Copy)` : (prog.name || ''));
+    setProgramDescription(prog.description || '');
+    setNumberOfDays(formDays.length || 3);
+    setDays(formDays.length ? formDays : [{ order: 1, name: 'Day 1', exercises: [] }]);
+    setCurrentDayIndex(0);
+  };
 
   useEffect(() => {
     loadPrograms();
@@ -70,6 +98,7 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
   };
 
   const handleOpenCreate = () => {
+    setEditingProgramId(null);
     setProgramName('');
     setProgramDescription('');
     setNumberOfDays(3);
@@ -78,18 +107,44 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
     setShowCreateModal(true);
   };
 
+  const handleDuplicate = (prog: any) => {
+    setEditingProgramId(null);
+    programToFormState(prog, true);
+    setShowCreateModal(true);
+  };
+
+  const handleEdit = (prog: any) => {
+    setEditingProgramId(prog.id);
+    programToFormState(prog, false);
+    setShowCreateModal(true);
+  };
+
   const handleSetNumberOfDays = (num: number) => {
     setNumberOfDays(num);
-    const newDays = [];
-    for (let i = 0; i < num; i++) {
-      newDays.push({
-        order: i + 1,
-        name: `Day ${i + 1}`,
-        exercises: []
-      });
-    }
-    setDays(newDays);
-    setCurrentDayIndex(0);
+    setDays((prev) => {
+      const currentLen = prev.length;
+      if (num > currentLen) {
+        // Add new empty days at the end; keep all existing days and their data
+        const next = [...prev];
+        for (let i = currentLen; i < num; i++) {
+          next.push({
+            order: i + 1,
+            name: `Day ${i + 1}`,
+            exercises: []
+          });
+        }
+        return next;
+      }
+      if (num < currentLen) {
+        const wouldLoseData = prev.slice(num).some((d: any) => (d.exercises || []).length > 0);
+        if (wouldLoseData && !confirm(`Remove day(s) ${num + 1} through ${currentLen}? Their exercises will be removed.`)) {
+          return prev;
+        }
+        return prev.slice(0, num);
+      }
+      return prev;
+    });
+    setCurrentDayIndex((prev) => Math.min(prev, num - 1));
   };
 
   const handleUpdateDayName = (index: number, name: string) => {
@@ -171,6 +226,49 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
     setDays(updated);
   };
 
+  const insertDaysExercisesSets = async (programId: string) => {
+    if (!supabase) return;
+    for (const day of days) {
+      const { data: dayData, error: dayError } = await supabase
+        .from('workout_days')
+        .insert({
+          program_id: programId,
+          name: day.name,
+          day_order: day.order
+        })
+        .select()
+        .single();
+      if (dayError) throw dayError;
+
+      for (const ex of day.exercises) {
+        const { data: exData, error: exError } = await supabase
+          .from('workout_exercises')
+          .insert({
+            day_id: dayData.id,
+            exercise_id: ex.exercise_id,
+            ex_order: ex.ex_order,
+            rest: '90',
+            notes: ex.notes || ''
+          })
+          .select()
+          .single();
+        if (exError) throw exError;
+
+        const setsToInsert = (ex.sets || []).map((s: any) => ({
+          workout_exercise_id: exData.id,
+          set_order: s.set_order,
+          reps: s.reps,
+          weight: s.weight,
+          rest_seconds: s.rest_seconds
+        }));
+        if (setsToInsert.length > 0) {
+          const { error: setsError } = await supabase.from('workout_sets').insert(setsToInsert);
+          if (setsError) throw setsError;
+        }
+      }
+    }
+  };
+
   const handleSave = async () => {
     if (!supabase || !programName.trim()) {
       alert('Please enter a program name');
@@ -183,63 +281,42 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
 
     setLoading(true);
     try {
-      // Insert program
-      const { data: prog, error: progError } = await supabase
-        .from('workout_programs')
-        .insert({ name: programName, description: programDescription })
-        .select()
-        .single();
-      
-      if (progError) throw progError;
-
-      // Insert days and exercises
-      for (const day of days) {
-        const { data: dayData, error: dayError } = await supabase
+      if (editingProgramId) {
+        const { data: existingDays } = await supabase
           .from('workout_days')
-          .insert({
-            program_id: prog.id,
-            name: day.name,
-            day_order: day.order
-          })
+          .select('id')
+          .eq('program_id', editingProgramId);
+        const dayIds = (existingDays || []).map((d: any) => d.id);
+        if (dayIds.length > 0) {
+          const { data: existingEx } = await supabase
+            .from('workout_exercises')
+            .select('id')
+            .in('day_id', dayIds);
+          const exIds = (existingEx || []).map((e: any) => e.id);
+          if (exIds.length > 0) {
+            await supabase.from('workout_sets').delete().in('workout_exercise_id', exIds);
+          }
+          await supabase.from('workout_exercises').delete().in('day_id', dayIds);
+        }
+        await supabase.from('workout_days').delete().eq('program_id', editingProgramId);
+        await supabase
+          .from('workout_programs')
+          .update({ name: programName.trim(), description: programDescription.trim() })
+          .eq('id', editingProgramId);
+        await insertDaysExercisesSets(editingProgramId);
+        alert('✅ Program updated successfully!');
+      } else {
+        const { data: prog, error: progError } = await supabase
+          .from('workout_programs')
+          .insert({ name: programName.trim(), description: programDescription.trim() })
           .select()
           .single();
-        
-        if (dayError) throw dayError;
-
-        for (const ex of day.exercises) {
-          const { data: exData, error: exError } = await supabase
-            .from('workout_exercises')
-            .insert({
-              day_id: dayData.id,
-              exercise_id: ex.exercise_id, // Text field
-              ex_order: ex.ex_order,
-              rest: '90', // Default rest value
-              notes: ex.notes || ''
-            })
-            .select()
-            .single();
-          
-          if (exError) throw exError;
-
-          // Insert sets
-          const setsToInsert = ex.sets.map((s: any) => ({
-            workout_exercise_id: exData.id, // FIXED: correct column name
-            set_order: s.set_order,
-            reps: s.reps,
-            weight: s.weight,
-            rest_seconds: s.rest_seconds
-          }));
-
-          const { error: setsError } = await supabase
-            .from('workout_sets')
-            .insert(setsToInsert);
-          
-          if (setsError) throw setsError;
-        }
+        if (progError) throw progError;
+        await insertDaysExercisesSets(prog.id);
+        alert('✅ Program created successfully!');
       }
-
-      alert('✅ Program created successfully!');
       setShowCreateModal(false);
+      setEditingProgramId(null);
       loadPrograms();
     } catch (error: any) {
       console.error('Error:', error);
@@ -346,16 +423,32 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
                         </span>
                       </div>
                     </div>
-                    <div className="flex gap-2 ml-4">
+                    <div className="flex gap-2 ml-4 flex-shrink-0">
                       <button
                         onClick={() => setExpandedProgram(expandedProgram === prog.id ? null : prog.id)}
                         className="p-2 bg-blue-500/20 text-blue-300 rounded-lg hover:bg-blue-500/30"
+                        title="Expand / Collapse"
                       >
                         {expandedProgram === prog.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                       </button>
                       <button
+                        onClick={() => handleDuplicate(prog)}
+                        className="p-2 bg-green-500/20 text-green-300 rounded-lg hover:bg-green-500/30"
+                        title="Duplicate template"
+                      >
+                        <Copy className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => handleEdit(prog)}
+                        className="p-2 bg-amber-500/20 text-amber-300 rounded-lg hover:bg-amber-500/30"
+                        title="Edit template"
+                      >
+                        <Edit3 className="w-5 h-5" />
+                      </button>
+                      <button
                         onClick={() => handleDelete(prog.id, prog.name)}
                         className="p-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30"
+                        title="Delete"
                       >
                         <Trash2 className="w-5 h-5" />
                       </button>
@@ -412,10 +505,19 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
             {/* Modal Header */}
             <div className="p-6 border-b border-white/10 flex items-center justify-between sticky top-0 bg-slate-900/95 backdrop-blur-sm z-10">
               <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                <Plus className="w-6 h-6 text-purple-400" />
-                Create Workout Program
+                {editingProgramId ? (
+                  <>
+                    <Edit3 className="w-6 h-6 text-amber-400" />
+                    Edit Workout Program
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-6 h-6 text-purple-400" />
+                    Create Workout Program
+                  </>
+                )}
               </h2>
-              <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-white/10 rounded-lg">
+              <button onClick={() => { setShowCreateModal(false); setEditingProgramId(null); }} className="p-2 hover:bg-white/10 rounded-lg">
                 <X className="w-6 h-6 text-gray-400" />
               </button>
             </div>
@@ -683,7 +785,7 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
             {/* Footer */}
             <div className="p-6 border-t border-white/10 flex items-center justify-between bg-slate-900/95 sticky bottom-0">
               <button
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => { setShowCreateModal(false); setEditingProgramId(null); }}
                 className="px-6 py-3 bg-white/5 text-white rounded-xl font-semibold hover:bg-white/10"
               >
                 Cancel
@@ -693,8 +795,17 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
                 disabled={!programName.trim() || days.length === 0}
                 className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold flex items-center gap-2 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Plus className="w-5 h-5" />
-                Create Program
+                {editingProgramId ? (
+                  <>
+                    <Edit3 className="w-5 h-5" />
+                    Save changes
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-5 h-5" />
+                    Create Program
+                  </>
+                )}
               </button>
             </div>
           </div>
