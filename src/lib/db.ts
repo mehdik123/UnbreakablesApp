@@ -40,6 +40,23 @@ export async function dbListClientsWithWorkoutAssignments(): Promise<DBResult<an
   return { data: data || [], error };
 }
 
+/** Fetch a single client by id with workout assignments (for client login fallback). */
+export async function dbGetClientWithWorkoutAssignment(clientId: string): Promise<DBResult<any>> {
+  if (!isSupabaseReady || !supabase) return { data: null };
+  const { data, error } = await supabase
+    .from('clients')
+    .select(`
+      *,
+      workout_assignments(
+        *,
+        workout_programs(*)
+      )
+    `)
+    .eq('id', clientId)
+    .maybeSingle();
+  return { data, error };
+}
+
 export async function dbAddClient(payload: { 
   full_name: string;
   number_of_weeks?: number;

@@ -31,7 +31,7 @@ import { foods as defaultFoods } from './data/foods';
 import { meals as defaultMeals } from './data/meals';
 import { exercises as defaultExercises } from './data/exercises';
 import { supabase, isSupabaseReady } from './lib/supabaseClient';
-import { dbListClients, dbListClientsWithWorkoutAssignments, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment } from './lib/db';
+import { dbListClients, dbListClientsWithWorkoutAssignments, dbGetClientWithWorkoutAssignment, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment } from './lib/db';
 import { authService } from './lib/authService';
 
 function App() {
@@ -156,14 +156,8 @@ function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const clientShareId = urlParams.get('client');
     
-    // Load clients and handle share URLs
+    // Load clients and handle share URLs (always load clients so client login can find their data)
     (async () => {
-      // Check if this is a client link and if authentication is needed
-      if (clientShareId && !authService.isAuthenticated()) {
-        setIsCheckingAuth(false);
-        // Will show client login
-        return;
-      }
       let clients: Client[] = [];
       
       // Load clients from Supabase if available; fallback to localStorage
@@ -949,15 +943,52 @@ function App() {
     setAuthType('coach');
   };
 
-  const handleClientLoginSuccess = (clientId: string) => {
+  const handleClientLoginSuccess = async (clientId: string) => {
     setIsAuthenticated(true);
     setAuthType('client');
-    
-    // Load and show client data
-    const foundClient = appState.clients.find(c => c.id === clientId);
+
+    let foundClient = appState.clients.find(c => c.id === clientId);
+    if (!foundClient && isSupabaseReady) {
+      const { data: row } = await dbGetClientWithWorkoutAssignment(clientId);
+      if (row) {
+        const assignment = row.workout_assignments?.find((a: any) => a.is_active) || row.workout_assignments?.[0];
+        const program = assignment?.program_json;
+        const workoutAssignment = assignment ? {
+          id: assignment.id,
+          clientId: row.id,
+          clientName: row.full_name,
+          startDate: new Date(assignment.start_date || Date.now()),
+          duration: assignment.duration_weeks,
+          currentWeek: assignment.current_week || 1,
+          currentDay: assignment.current_day || 1,
+          program,
+          weeks: program?.weeks ?? [],
+          progressionRules: program?.progressionRules ?? [],
+          isActive: assignment.is_active,
+          lastModifiedBy: assignment.last_modified_by
+        } : undefined;
+        foundClient = {
+          id: row.id,
+          name: row.full_name,
+          email: row.email || '',
+          phone: row.phone || '',
+          goal: row.goal || 'maintenance',
+          numberOfWeeks: row.number_of_weeks || 12,
+          startDate: new Date(row.start_date || new Date()),
+          isActive: row.is_active !== false,
+          favorites: row.favorites || [],
+          weightLog: row.weight_log || [],
+          workoutAssignment
+        };
+        setAppState(prev => ({
+          ...prev,
+          clients: prev.clients.some(c => c.id === foundClient!.id) ? prev.clients : [...prev.clients, foundClient!]
+        }));
+      }
+    }
     if (foundClient) {
-      setAppState(prev => ({ 
-        ...prev, 
+      setAppState(prev => ({
+        ...prev,
         currentView: 'client-interface',
         selectedClient: foundClient
       }));

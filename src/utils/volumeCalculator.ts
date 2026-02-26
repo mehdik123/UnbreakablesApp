@@ -126,7 +126,7 @@ export interface MuscleVolumeData {
 
 /**
  * Compute weekly volume from workout assignment (same source as Progress charts).
- * Each week's volume uses that week's days only. Sync, no async.
+ * Each week's volume uses that week's days only. No position-based fallback (avoids misattribution e.g. Abs/Back).
  */
 export function computeVolumeFromAssignment(
   workoutAssignment: { program?: { days?: any[] }; weeks?: any[] } | null | undefined,
@@ -140,10 +140,24 @@ export function computeVolumeFromAssignment(
     deployedWeeks.length > 0
       ? deployedWeeks.map((w: any) => w.weekNumber)
       : [1];
-  const programDays =
+  const programDaysRaw =
     workoutAssignment.program?.days && Array.isArray(workoutAssignment.program.days)
       ? workoutAssignment.program.days
       : [];
+  const week1Days = deployedWeeks[0]?.days && Array.isArray(deployedWeeks[0].days) ? deployedWeeks[0].days : [];
+  const programDays = programDaysRaw.length > 0 ? programDaysRaw : week1Days;
+  // Muscle group lookup by exercise id/name only (no position) to avoid wrong attribution between weeks
+  const programExerciseToMuscleById: Record<string, string> = {};
+  const programExerciseToMuscleByName: Record<string, string> = {};
+  for (const d of programDays) {
+    for (const ex of d.exercises || []) {
+      const id = ex.exercise?.id;
+      const name = ex.exercise?.name;
+      const mg = ex.exercise?.muscleGroup;
+      if (id && mg) programExerciseToMuscleById[id] = mg;
+      if (name && mg) programExerciseToMuscleByName[name.trim().toLowerCase()] = mg;
+    }
+  }
   const chartData: MuscleVolumeData[] = [];
   for (const week of weeksToShow) {
     const weekData: MuscleVolumeData = { week };
@@ -152,12 +166,16 @@ export function computeVolumeFromAssignment(
     const daysToProcess =
       weekSpecificData?.days?.length > 0
         ? weekSpecificData.days
-        : deployedWeeks.length === 0 && week === 1 && programDays.length > 0
+        : week === 1 && programDays.length > 0
           ? programDays
           : [];
     for (const day of daysToProcess) {
       for (const workoutExercise of day.exercises || []) {
-        const muscleGroup = workoutExercise.exercise?.muscleGroup;
+        let muscleGroup = workoutExercise.exercise?.muscleGroup;
+        if (!muscleGroup && workoutExercise.exercise?.id)
+          muscleGroup = programExerciseToMuscleById[workoutExercise.exercise.id];
+        if (!muscleGroup && workoutExercise.exercise?.name)
+          muscleGroup = programExerciseToMuscleByName[workoutExercise.exercise.name.trim().toLowerCase()];
         if (!muscleGroup) continue;
         let exerciseVolume = 0;
         for (const set of workoutExercise.sets || []) {
