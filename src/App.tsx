@@ -175,45 +175,56 @@ function App() {
               // Enrich the program with muscle groups from the database
               let enrichedProgram = assignment.program_json;
               
-              if (enrichedProgram && enrichedProgram.days && supabase) {
+              if (enrichedProgram && supabase) {
                 try {
                   const { data: dbExercises } = await supabase
                     .from('exercises')
                     .select('name, video_url, muscle_group');
                   
                   if (dbExercises) {
-                    const exerciseMap = new Map();
+                    const exerciseMap = new Map<string, any>();
                     dbExercises.forEach((ex: any) => {
-                      exerciseMap.set(ex.name, ex);
+                      if (ex?.name) {
+                        exerciseMap.set(ex.name, ex);
+                        exerciseMap.set(ex.name.trim().toLowerCase(), ex);
+                      }
                     });
-                    
-                    enrichedProgram = {
-                      ...enrichedProgram,
-                      days: enrichedProgram.days.map((day: any) => ({
+                    const enrichExercisesInDays = (days: any[]) =>
+                      (days || []).map((day: any) => ({
                         ...day,
-                        exercises: day.exercises?.map((workoutEx: any) => {
-                          const dbExercise = exerciseMap.get(workoutEx.exercise?.name);
+                        exercises: (day.exercises || []).map((workoutEx: any) => {
+                          const name = workoutEx.exercise?.name ?? workoutEx.exercise?.id ?? workoutEx.name ?? '';
+                          const dbExercise = exerciseMap.get(name) || (name ? exerciseMap.get(String(name).trim().toLowerCase()) : null);
                           if (dbExercise) {
                             return {
                               ...workoutEx,
                               exercise: {
                                 ...workoutEx.exercise,
                                 videoUrl: dbExercise.video_url,
-                                muscleGroup: dbExercise.muscle_group
+                                muscleGroup: dbExercise.muscle_group ?? workoutEx.exercise?.muscleGroup
                               }
                             };
                           }
                           return workoutEx;
-                        }) || []
-                      })) || []
-                    };
-                    
+                        })
+                      }));
+
+                    if (enrichedProgram.days?.length) {
+                      enrichedProgram = {
+                        ...enrichedProgram,
+                        days: enrichExercisesInDays(enrichedProgram.days)
+                      };
+                    }
+                    const weeks = (enrichedProgram.weeks || []).map((w: any) =>
+                      w.days?.length ? { ...w, days: enrichExercisesInDays(w.days) } : w
+                    );
+                    if (weeks.length) enrichedProgram = { ...enrichedProgram, weeks };
                   }
                 } catch (error) {
                   console.error('❌ Failed to enrich program with muscle groups:', error);
                 }
               }
-              
+
               workoutAssignment = {
                 id: assignment.id,
                 clientId: row.id,
@@ -500,54 +511,66 @@ function App() {
   // Workout Assignment Functions
   const handleAssignWorkoutPlan = async (clientId: string, assignment: ClientWorkoutAssignment) => {
     try {
+      let assignmentResult;
+      let error;
 
-      
-      // Initialize weeks array if it doesn't exist
-      let weeksArray = assignment.weeks || [];
+      // Check if assignment already exists in database (needed before deciding weeks array)
+      const existingAssignment = await dbGetClientWorkoutAssignment(clientId);
 
-
-
-      if (weeksArray.length === 0) {
-
+      // Weeks: on update use incoming weeks (do not overwrite with empty placeholder). On create, use placeholder only if none provided.
+      let weeksArray = assignment.weeks ?? [];
+      if (!existingAssignment?.data?.id && weeksArray.length === 0) {
         weeksArray = Array.from({ length: assignment.duration }, (_, index) => ({
           weekNumber: index + 1,
-          isUnlocked: index === 0, // Only week 1 is unlocked by default
+          isUnlocked: index === 0,
           isCompleted: false,
           exercises: [],
           days: []
         }));
       }
-      
-      let assignmentResult;
-      let error;
-      
-      // Check if assignment already exists in database
-      const existingAssignment = await dbGetClientWorkoutAssignment(clientId);
-      
 
+      let programToSave = assignment.program;
+      let weeksToSave = weeksArray;
+      if (isSupabaseReady && supabase && (programToSave?.days?.length || weeksToSave.some((w: any) => w.days?.length))) {
+        try {
+          const { data: dbExercises } = await supabase.from('exercises').select('name, muscle_group');
+          const nameToMuscle = new Map<string, string>();
+          (dbExercises || []).forEach((ex: any) => {
+            if (ex?.name) {
+              nameToMuscle.set(ex.name.trim().toLowerCase(), ex.muscle_group ?? '');
+              nameToMuscle.set(ex.name, ex.muscle_group ?? '');
+            }
+          });
+          const enrichDays = (days: any[]) =>
+            (days || []).map((day: any) => ({
+              ...day,
+              exercises: (day.exercises || []).map((ex: any) => {
+                const name = ex.exercise?.name ?? ex.exercise?.id ?? ex.name ?? '';
+                const mg = name ? (nameToMuscle.get(String(name).trim().toLowerCase()) ?? nameToMuscle.get(name) ?? '') : '';
+                if (!mg) return ex;
+                return { ...ex, exercise: { ...ex.exercise, muscleGroup: mg } };
+              })
+            }));
+          if (programToSave?.days?.length) programToSave = { ...programToSave, days: enrichDays(programToSave.days) };
+          weeksToSave = weeksToSave.map((w: any) => (w.days?.length ? { ...w, days: enrichDays(w.days) } : w));
+        } catch (e) {
+          console.error('Enrich assignment muscle groups:', e);
+        }
+      }
 
-
-
-      
       if (existingAssignment?.data && existingAssignment.data.id) {
 
         console.log('🔄 Assignment data being sent:', {
           assignmentId: existingAssignment.data.id,
           currentWeek: assignment.currentWeek,
-          weeksArray: weeksArray,
-          programData: assignment.program,
+          weeksArray: weeksToSave,
+          programData: programToSave ?? assignment.program,
           hasWeeks: !!assignment.weeks,
           weeksLength: assignment.weeks?.length
         });
-        
-        const programJsonToSave = {
-          ...assignment.program,
-          weeks: weeksArray
-        };
-        
 
+        const programJsonToSave = { ...programToSave, weeks: weeksToSave };
 
-        
         // Update existing assignment
         const updateResult = await dbUpdateWorkoutAssignment(existingAssignment.data.id, {
           program_json: programJsonToSave,
@@ -567,11 +590,8 @@ function App() {
           hasWeeks: !!assignment.weeks,
           weeksLength: assignment.weeks?.length
         });
-        
-        const programJsonToSave = {
-          ...assignment.program,
-          weeks: weeksArray
-        };
+
+        const programJsonToSave = { ...programToSave, weeks: weeksToSave };
         
 
 
@@ -602,10 +622,11 @@ function App() {
 
 
       
-      // Add timestamp to track when the assignment was made
+      // Use enriched program and weeks in state so Progress charts and exercise details show immediately (no 0 volume / 0 exercises)
       const assignmentWithTimestamp = {
         ...assignment,
-        weeks: weeksArray, // Include the initialized weeks array
+        program: programToSave,
+        weeks: weeksToSave,
         id: assignmentResult?.id || assignment.id,
         assignedAt: new Date().toISOString(),
         lastUpdated: new Date().toISOString()

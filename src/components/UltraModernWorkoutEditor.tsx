@@ -926,14 +926,25 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     // Use the enriched program as the source of truth
     const updatedProgram = enrichedProgram;
 
-
-    // Get existing week-specific data; merge current week's edited days from selectedProgram so Save persists coach edits
-    const existingWeeks = (client.workoutAssignment?.weeks || []).map((w: any) =>
+    // Base weeks on latest from DB when available so we don't overwrite client edits (refetch then merge current week only)
+    let baseWeeks = client.workoutAssignment?.weeks || [];
+    if (isSupabaseReady && supabase && assignmentId) {
+      try {
+        const { data: row } = await supabase
+          .from('workout_assignments')
+          .select('program_json')
+          .eq('id', assignmentId)
+          .maybeSingle();
+        const prog = (row as any)?.program_json;
+        if (prog?.weeks?.length) baseWeeks = prog.weeks;
+      } catch (_) {}
+    }
+    // Merge current week's edited days from selectedProgram; leave other weeks unchanged
+    const existingWeeks = baseWeeks.map((w: any) =>
       w.weekNumber === currentWeek && programRef.days?.length
         ? { ...w, days: programRef.days.map((d: any) => ({ ...d, exercises: (d.exercises || []).map((e: any) => ({ ...e, sets: (e.sets || []).map((s: any) => ({ ...s })) })) })) }
         : w
     );
-    // If current week not in list, add it
     const hasCurrentWeek = existingWeeks.some((w: any) => w.weekNumber === currentWeek);
     const weeksToSave = hasCurrentWeek ? existingWeeks : [...existingWeeks, { weekNumber: currentWeek, isUnlocked: true, isCompleted: false, exercises: [], days: programRef.days }];
 

@@ -62,12 +62,11 @@ export function calculateWeeklyVolume(program: WorkoutProgram): { [muscleGroup: 
       for (let setIndex = 0; setIndex < exercise.sets.length; setIndex++) {
         const set = exercise.sets[setIndex];
 
-        
-        // Calculate volume load for this set using universal formula: reps * Math.max(weight, 1)
-        // This handles weighted exercises (weight > 0) and bodyweight exercises (weight = 0)
-        const setVolume = set.reps * Math.max(set.weight, 1);
+        // Volume: if weight is 0 kg (bodyweight) = sum of reps; if weight !== 0 = reps * weight per set
+        const reps = typeof set.reps === 'number' ? set.reps : 0;
+        const weight = typeof set.weight === 'number' ? set.weight : 0;
+        const setVolume = weight === 0 ? reps : reps * weight;
 
-        
         // Add the set volume to the corresponding muscle group
         if (!volumeByMuscleGroup[muscleGroup]) {
           volumeByMuscleGroup[muscleGroup] = 0;
@@ -182,13 +181,13 @@ export function computeVolumeFromAssignment(
           if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
             for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
               const rep = typeof set.reps[i] === 'number' ? set.reps[i] : 0;
-              const weight = typeof set.weight[i] === 'number' ? Math.max(set.weight[i], 1) : 1;
-              exerciseVolume += rep * weight;
+              const w = typeof set.weight[i] === 'number' ? set.weight[i] : 0;
+              exerciseVolume += w === 0 ? rep : rep * w;
             }
           } else {
             const reps = typeof set.reps === 'number' ? set.reps : 0;
-            const weight = typeof set.weight === 'number' ? Math.max(set.weight, 1) : 1;
-            exerciseVolume += reps * weight;
+            const w = typeof set.weight === 'number' ? set.weight : 0;
+            exerciseVolume += w === 0 ? reps : reps * w;
           }
         }
         const normalized = muscleGroup.charAt(0).toUpperCase() + muscleGroup.slice(1).toLowerCase();

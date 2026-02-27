@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Client, ClientWorkoutAssignment, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
+import { enrichProgramAndWeeksWithExercises } from '../utils/enrichAssignment';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useToast } from '../contexts/ToastContext';
@@ -337,6 +338,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             
             if (assignment?.program_json) {
               const raw = assignment.program_json as any;
+              const { program: enrichedProgram, weeks: enrichedWeeks } = await enrichProgramAndWeeksWithExercises(supabase, raw);
               const base = client.workoutAssignment;
               const freshAssignment: ClientWorkoutAssignment = {
                 id: base?.id ?? '',
@@ -346,10 +348,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 duration: base?.duration ?? 12,
                 currentWeek: assignment.current_week ?? base?.currentWeek ?? 1,
                 currentDay: base?.currentDay ?? 0,
-                weeks: raw.weeks || [],
+                weeks: enrichedWeeks.length ? enrichedWeeks : (raw.weeks || []),
                 progressionRules: base?.progressionRules ?? [],
                 isActive: base?.isActive ?? true,
-                program: raw.program || raw,
+                program: enrichedProgram?.days?.length ? enrichedProgram : (raw.program || raw),
                 lastModifiedBy: raw.lastModifiedBy,
                 lastModifiedAt: raw.lastModifiedAt ? new Date(raw.lastModifiedAt) : undefined,
               };
