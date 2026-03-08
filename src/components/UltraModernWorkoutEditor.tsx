@@ -20,6 +20,7 @@ import {
 import { Client, ClientWorkoutAssignment, WorkoutProgram, WorkoutExercise, Exercise, WorkoutWeek } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { exercises } from '../data/exercises';
+import { getAbsFinisherExercises, getCardioFinisherExercises } from '../data/finisherTemplates';
 import { dbListWorkoutPrograms, dbUpdateWorkoutAssignment } from '../lib/db';
 import {
   createInitialWeek,
@@ -140,6 +141,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     field: 'exercise' | 'reps' | 'weight' | 'rest';
   } | null>(null);
   const [showExerciseSearch, setShowExerciseSearch] = useState<string | null>(null);
+  const [showFinisherModal, setShowFinisherModal] = useState<number | null>(null);
   const [showCreateWeekModal, setShowCreateWeekModal] = useState(false);
   const [draftNewWeek, setDraftNewWeek] = useState<WorkoutWeek | null>(null);
 
@@ -1494,17 +1496,26 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     </button>
                   </div>
 
-                  {/* Add Exercise Button */}
-                  <button
-                    onClick={() => {
-                      setSelectedDayIndex(dayIndex);
-                      setShowExerciseModal(true);
-                    }}
-                    className="w-full py-3 border-2 border-dashed border-slate-500 rounded-lg text-slate-400 hover:text-white hover:border-slate-400 transition-all duration-200 flex items-center justify-center space-x-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Add Exercise</span>
-                  </button>
+                  {/* Add Exercise / Add Finisher */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setSelectedDayIndex(dayIndex);
+                        setShowExerciseModal(true);
+                      }}
+                      className="flex-1 py-3 border-2 border-dashed border-slate-500 rounded-lg text-slate-400 hover:text-white hover:border-slate-400 transition-all duration-200 flex items-center justify-center space-x-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add Exercise</span>
+                    </button>
+                    <button
+                      onClick={() => setShowFinisherModal(dayIndex)}
+                      className="flex-1 py-3 border-2 border-dashed border-amber-500/50 rounded-lg text-amber-400/90 hover:text-amber-300 hover:border-amber-400/70 transition-all duration-200 flex items-center justify-center space-x-2"
+                    >
+                      <Zap className="w-4 h-4" />
+                      <span>Add finisher</span>
+                    </button>
+                  </div>
 
                   {/* Exercises List */}
                   {day.exercises.length > 0 && (
@@ -2505,6 +2516,76 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                       </div>
                     ))}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Finisher Modal (Abs / Cardio) */}
+        {showFinisherModal !== null && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 max-w-md w-full overflow-hidden">
+              <div className="p-6 border-b border-slate-700">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white">Add finisher</h3>
+                  <button
+                    onClick={() => setShowFinisherModal(null)}
+                    className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-slate-400 text-sm mt-1">Append an abs or cardio finisher to the end of this day.</p>
+              </div>
+              <div className="p-6 flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    const dayIndex = showFinisherModal;
+                    const day = customWorkout.days[dayIndex];
+                    const startOrder = (day?.exercises?.length ?? 0);
+                    const finisherExercises = getAbsFinisherExercises(exercises, startOrder);
+                    const newDays = [...customWorkout.days];
+                    newDays[dayIndex] = {
+                      ...newDays[dayIndex],
+                      exercises: [...(newDays[dayIndex].exercises || []), ...finisherExercises]
+                    };
+                    setCustomWorkout(prev => ({ ...prev, days: newDays }));
+                    setShowFinisherModal(null);
+                  }}
+                  className="w-full p-4 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600/50 hover:border-amber-500/50 text-left transition-all duration-200 flex items-center gap-4"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                    <Dumbbell className="w-6 h-6 text-amber-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Abs finisher</h4>
+                    <p className="text-slate-400 text-sm">Plank, Crunches, Leg Raises, Bicycle Kicks</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    const dayIndex = showFinisherModal;
+                    const day = customWorkout.days[dayIndex];
+                    const startOrder = (day?.exercises?.length ?? 0);
+                    const finisherExercises = getCardioFinisherExercises(exercises, startOrder);
+                    const newDays = [...customWorkout.days];
+                    newDays[dayIndex] = {
+                      ...newDays[dayIndex],
+                      exercises: [...(newDays[dayIndex].exercises || []), ...finisherExercises]
+                    };
+                    setCustomWorkout(prev => ({ ...prev, days: newDays }));
+                    setShowFinisherModal(null);
+                  }}
+                  className="w-full p-4 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600/50 hover:border-red-500/50 text-left transition-all duration-200 flex items-center gap-4"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
+                    <Zap className="w-6 h-6 text-red-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Cardio finisher</h4>
+                    <p className="text-slate-400 text-sm">Mountain Climbers, Burpees, Jump Squats</p>
+                  </div>
+                </button>
               </div>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { Ingredient, SelectedMeal, NutritionSummary } from '../types';
+import { getEffectiveSelectedMeal } from './mealSlotOverrides';
 
 export const calculateIngredientNutrition = (ingredient: Ingredient) => {
   console.log('🔍 calculateIngredientNutrition called with:', ingredient);
@@ -47,8 +48,8 @@ export const calculateMealNutrition = (selectedMeal: SelectedMeal) => {
   if (!selectedMeal || !selectedMeal.meal) {
     return { kcal: 0, protein: 0, fat: 0, carbs: 0 };
   }
-  
-  const ingredients = selectedMeal.customIngredients || selectedMeal.meal.ingredients;
+  const effective = getEffectiveSelectedMeal(selectedMeal);
+  const ingredients = effective.customIngredients ?? effective.meal.ingredients;
   
   if (!ingredients || !Array.isArray(ingredients)) {
     return { kcal: 0, protein: 0, fat: 0, carbs: 0 };

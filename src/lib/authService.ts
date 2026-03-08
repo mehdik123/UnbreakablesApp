@@ -28,7 +28,7 @@ class AuthService {
   private readonly COACH_PASSWORD = import.meta.env.VITE_COACH_PASSWORD || 'coach123'; // Change this!
   private readonly AUTH_STORAGE_KEY = 'auth_user';
   private readonly AUTH_EXPIRY_KEY = 'auth_expiry';
-  private readonly SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+  private readonly SESSION_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days – stay logged in across refreshes
 
   constructor() {
     this.loadAuthFromStorage();
@@ -38,14 +38,20 @@ class AuthService {
     try {
       const storedUser = localStorage.getItem(this.AUTH_STORAGE_KEY);
       const expiry = localStorage.getItem(this.AUTH_EXPIRY_KEY);
-      
-      if (storedUser && expiry) {
-        const expiryTime = parseInt(expiry, 10);
-        if (Date.now() < expiryTime) {
-          this.currentUser = JSON.parse(storedUser);
-        } else {
-          this.logout(); // Session expired
+
+      if (!storedUser) return;
+
+      const expiryTime = expiry ? parseInt(expiry, 10) : null;
+      const now = Date.now();
+      // Restore session if not expired; if no expiry stored, restore anyway (e.g. old sessions) so refresh doesn't log out
+      if (expiryTime === null || !Number.isFinite(expiryTime) || now < expiryTime) {
+        this.currentUser = JSON.parse(storedUser);
+        // Refresh expiry if missing or invalid so next time we have a valid one
+        if (!expiryTime || !Number.isFinite(expiryTime)) {
+          localStorage.setItem(this.AUTH_EXPIRY_KEY, (now + this.SESSION_DURATION).toString());
         }
+      } else {
+        this.logout();
       }
     } catch (error) {
       console.error('Error loading auth from storage:', error);
@@ -136,6 +142,10 @@ class AuthService {
   }
 
   getCurrentUser(): AuthUser | null {
+    // Re-read from storage so refresh always sees persisted session
+    if (!this.currentUser) {
+      this.loadAuthFromStorage();
+    }
     return this.currentUser;
   }
 

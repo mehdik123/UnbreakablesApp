@@ -203,7 +203,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
               return sum + exerciseVolume;
             }, 0);
 
-            // Get chart series for this muscle group (from component chartData)
+            // Get chart series for this muscle group (from component chartData - assignment.weeks[].days)
             const seriesData = chartData.map(week => ({
               week: week.week,
               volume: (week[muscleGroup] as number) || 0,
@@ -217,7 +217,11 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
             }
 
             const totalVolume = seriesData.reduce((sum, week) => sum + week.volume, 0);
-            const maxVolume = Math.max(...seriesData.map(week => week.volume), 0);
+            // Peak Volume = same as "Total X Volume" in the breakdown so they always match after refresh.
+            // Use breakdown total (currentWeekVolume); fallback to max of chart when program.days is empty.
+            const breakdownTotal = currentWeekVolume;
+            const maxFromChart = chartData.length > 0 ? Math.max(...chartData.map(w => (w[muscleGroup] as number) || 0), 0) : 0;
+            const maxVolume = breakdownTotal > 0 ? breakdownTotal : maxFromChart;
 
             const firstWeekVolume = seriesData[0]?.volume || 0;
             const completedWeeks = seriesData.filter(week => week.week <= currentWeek);

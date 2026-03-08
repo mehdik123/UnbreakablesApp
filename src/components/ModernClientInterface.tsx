@@ -709,19 +709,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               currentWeek={currentWeek}
               isDark={isDark}
               onWeekChange={setCurrentWeek}
-              onAssignmentUpdated={(a) => setEffectiveWorkoutAssignment(prev => ({
-                id: prev?.id ?? client.workoutAssignment?.id ?? '',
-                clientId: prev?.clientId ?? client.workoutAssignment?.clientId ?? client.id,
-                clientName: prev?.clientName ?? client.workoutAssignment?.clientName ?? client.name,
-                startDate: prev?.startDate ?? client.workoutAssignment?.startDate ?? new Date(),
-                duration: prev?.duration ?? client.workoutAssignment?.duration ?? 12,
-                currentDay: prev?.currentDay ?? client.workoutAssignment?.currentDay ?? 0,
-                progressionRules: prev?.progressionRules ?? client.workoutAssignment?.progressionRules ?? [],
-                isActive: prev?.isActive ?? client.workoutAssignment?.isActive ?? true,
-                ...client.workoutAssignment,
-                ...prev,
-                ...a,
-              } as ClientWorkoutAssignment))}
+              onAssignmentUpdated={(a) => {
+                // Use saved assignment directly so Progress charts and coach view see client's volume edits
+                if (a?.weeks != null && a?.program != null) {
+                  setEffectiveWorkoutAssignment(a as ClientWorkoutAssignment);
+                }
+              }}
             />
           ) : activeTab === 'progress' ? (
             <div className="h-full">

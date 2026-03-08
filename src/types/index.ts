@@ -20,11 +20,27 @@ export interface Meal {
   category: 'breakfast' | 'lunch' | 'dinner' | 'snack';
 }
 
+/** Per-slot overrides when the same meal is used for a client who excludes some ingredients or wants a different name/instructions/image. */
+export interface SlotMealOverride {
+  /** Ingredient names to exclude (e.g. ['Avocado']). Nutrition is recalculated without these. */
+  excludedIngredientNames?: string[];
+  /** Override display name (e.g. "Beef with rice" instead of "Beef with rice and avocado"). */
+  nameOverride?: string;
+  /** Override cooking instructions for this client. */
+  instructionsOverride?: string;
+  /** Override image URL for this slot (optional upload). */
+  imageOverride?: string;
+}
+
 export interface SelectedMeal {
   id: string;
   meal: Meal;
   quantity: number;
   customizations: any[];
+  /** Client-specific overrides: exclude ingredients, override name/instructions/image. */
+  slotOverride?: SlotMealOverride;
+  /** Effective ingredients after applying slotOverride (used for nutrition calc and display). */
+  customIngredients?: Ingredient[];
 }
 
 export interface MealSlot {

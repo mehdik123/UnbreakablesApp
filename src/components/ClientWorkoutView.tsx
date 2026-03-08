@@ -137,16 +137,29 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     (async () => {
       if (isSupabaseReady && supabase) {
         try {
-          const { data: cRow } = await supabase
-            .from('clients')
-            .select('id')
-            .eq('full_name', client.name)
-            .maybeSingle();
-          if (cRow?.id) {
+          // Try client_id by client.id first (e.g. share link), then by name lookup
+          let clientDbId: string | null = null;
+          if (client.id) {
+            const byId = await supabase
+              .from('clients')
+              .select('id')
+              .eq('id', client.id)
+              .maybeSingle();
+            if (byId?.data?.id) clientDbId = byId.data.id;
+          }
+          if (!clientDbId) {
+            const byName = await supabase
+              .from('clients')
+              .select('id')
+              .eq('full_name', client.name)
+              .maybeSingle();
+            if (byName?.data?.id) clientDbId = byName.data.id;
+          }
+          if (clientDbId) {
             const { data: asg } = await supabase
               .from('workout_assignments')
               .select('id, program_json, current_week, current_day, version')
-              .eq('client_id', cRow.id)
+              .eq('client_id', clientDbId)
               .eq('is_active', true)
               .order('last_modified_at', { ascending: false })
               .limit(1)
@@ -710,17 +723,15 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         lastModifiedAt: new Date()
       };
 
-      // Save to Supabase if available
-      if (isSupabaseReady && supabase && assignmentId) {
-        await supabase
-          .from('workout_assignments')
-          .update({
-            program_json: updatedAssignment as any,
-            current_week: currentWeek,
-            last_modified_by: 'client',
-            version: (sharedVersion || 0) + 1
-          })
-          .eq('id', assignmentId);
+      // Save to Supabase if available (full assignment so coach and charts see client's edits)
+      if (assignmentId) {
+        const { dbUpdateWorkoutAssignment } = await import('../lib/db');
+        await dbUpdateWorkoutAssignment(assignmentId, {
+          program_json: updatedAssignment as any,
+          current_week: currentWeek,
+          current_day: currentDay + 1,
+          last_modified_by: 'client'
+        });
       }
 
       // Save to localStorage for real-time sync

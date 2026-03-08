@@ -46,8 +46,9 @@ import {
 import { MealCard } from './MealCard';
 import { NutritionSummary } from './NutritionSummary';
 import { IngredientEditor } from './IngredientEditor';
-import { Client, NutritionPlan, SelectedMeal, Meal, Food } from '../types';
-import { calculateTotalNutrition } from '../utils/nutritionCalculator';
+import { Client, NutritionPlan, SelectedMeal, Meal, Food, SlotMealOverride } from '../types';
+import { calculateTotalNutrition, calculateMealNutrition } from '../utils/nutritionCalculator';
+import { getEffectiveSelectedMeal } from '../utils/mealSlotOverrides';
 import { exportToPDF } from '../utils/pdfExport';
 import { dbUpsertNutritionPlan, dbGetNutritionPlan, dbListMeals } from '../lib/db';
 import { supabase } from '../lib/supabaseClient';
@@ -162,6 +163,10 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   // Meal name editing states
   const [editingMealName, setEditingMealName] = useState<string | null>(null);
   const [tempMealName, setTempMealName] = useState('');
+
+  // Slot override (Customize for client) modal
+  const [editingSlotOverride, setEditingSlotOverride] = useState<{ slotId: string; selectedMeal: SelectedMeal } | null>(null);
+  const [slotOverrideDraft, setSlotOverrideDraft] = useState<SlotMealOverride>({});
 
   // Load database meals and existing nutrition plan
   useEffect(() => {
@@ -434,6 +439,45 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
         ? { ...slot, selectedMeals: slot.selectedMeals.filter(m => m.id !== mealId) }
         : slot
     ));
+  };
+
+  const openSlotOverrideModal = (slotId: string, selectedMeal: SelectedMeal) => {
+    setEditingSlotOverride({ slotId, selectedMeal });
+    setSlotOverrideDraft({
+      excludedIngredientNames: selectedMeal.slotOverride?.excludedIngredientNames ?? [],
+      nameOverride: selectedMeal.slotOverride?.nameOverride ?? '',
+      instructionsOverride: selectedMeal.slotOverride?.instructionsOverride ?? '',
+      imageOverride: selectedMeal.slotOverride?.imageOverride ?? ''
+    });
+  };
+
+  const saveSlotOverride = () => {
+    if (!editingSlotOverride) return;
+    const { slotId, selectedMeal } = editingSlotOverride;
+    setMealSlots(prev => prev.map(slot =>
+      slot.id === slotId
+        ? {
+            ...slot,
+            selectedMeals: slot.selectedMeals.map(m =>
+              m.id === selectedMeal.id
+                ? {
+                    ...m,
+                    slotOverride: {
+                      excludedIngredientNames: slotOverrideDraft.excludedIngredientNames?.length
+                        ? slotOverrideDraft.excludedIngredientNames
+                        : undefined,
+                      nameOverride: slotOverrideDraft.nameOverride?.trim() || undefined,
+                      instructionsOverride: slotOverrideDraft.instructionsOverride?.trim() || undefined,
+                      imageOverride: slotOverrideDraft.imageOverride?.trim() || undefined
+                    }
+                  }
+                : m
+            )
+          }
+        : slot
+    ));
+    setEditingSlotOverride(null);
+    setSlotOverrideDraft({});
   };
 
   const handleQuantityChange = (slotId: string, mealId: string, quantity: number) => {
@@ -1682,12 +1726,9 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                   {/* Desktop: Grid layout */}
                   <div className="hidden md:grid md:grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-6">
                     {slot.selectedMeals.map((selectedMeal, mealIdx) => {
-                    const nutrition = selectedMeal.meal.ingredients.reduce((total, ingredient) => ({
-                      calories: total.calories + (ingredient.food.kcal * ingredient.quantity / 100),
-                      protein: total.protein + (ingredient.food.protein * ingredient.quantity / 100),
-                      carbs: total.carbs + (ingredient.food.carbs * ingredient.quantity / 100),
-                      fat: total.fat + (ingredient.food.fat * ingredient.quantity / 100)
-                    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+                    const effectiveMeal = getEffectiveSelectedMeal(selectedMeal);
+                    const nutrition = calculateMealNutrition(selectedMeal);
+                    const nutritionForDisplay = { calories: nutrition.kcal, protein: nutrition.protein, carbs: nutrition.carbs, fat: nutrition.fat };
 
                     const isIngredientsExpanded = expandedIngredients.has(selectedMeal.id);
                     const isInstructionsExpanded = expandedInstructions.has(selectedMeal.id);
@@ -1697,8 +1738,8 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                         {/* Meal Image - Ultra Modern */}
                         <div className="w-full h-40 sm:h-48 rounded-2xl overflow-hidden mb-5 shadow-2xl border-2 border-slate-600/30 group relative">
                           <img 
-                            src={selectedMeal.meal.image} 
-                            alt={selectedMeal.meal.name} 
+                            src={effectiveMeal.meal.image} 
+                            alt={effectiveMeal.meal.name} 
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
@@ -1756,11 +1797,11 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                               </div>
                             ) : (
                               <h4 
-                                onClick={() => handleMealNameEdit(selectedMeal.id, selectedMeal.meal.name)}
+                                onClick={() => handleMealNameEdit(selectedMeal.id, effectiveMeal.meal.name)}
                                 className="text-xl font-bold text-white flex-1 line-clamp-2 leading-tight cursor-pointer hover:text-blue-400 transition-colors"
                                 title="Click to edit meal name"
                               >
-                                {selectedMeal.meal.name}
+                                {effectiveMeal.meal.name}
                               </h4>
                             )}
                           </div>
@@ -1803,6 +1844,13 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                                   >
                                     <Edit3 className="w-4 h-4" />
                                   </button>
+                                  <button
+                                    onClick={() => openSlotOverrideModal(slot.id, selectedMeal)}
+                                    className="p-2.5 rounded-xl text-slate-300 hover:text-amber-400 hover:bg-amber-600/20 border border-slate-600/50 hover:border-amber-500/50 transition-all duration-200 hover:scale-110"
+                                    title="Customize for client (exclude ingredients, override name/instructions/image)"
+                                  >
+                                    <User className="w-4 h-4" />
+                                  </button>
                                 </>
                               )}
                               <button
@@ -1825,7 +1873,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                                 <Flame className="w-4 h-4 text-white" />
                               </div>
                               <p className="text-slate-400 text-xs mb-1 font-medium">Calories</p>
-                              <p className="text-2xl font-bold text-white">{Math.round(nutrition.calories * selectedMeal.quantity)}</p>
+                              <p className="text-2xl font-bold text-white">{Math.round(nutritionForDisplay.calories * selectedMeal.quantity)}</p>
                             </div>
                           </div>
                           <div className="relative group bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-2xl p-4 border border-blue-500/20 hover:border-blue-500/40 transition-all duration-300 overflow-hidden">
@@ -1835,7 +1883,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                                 <Target className="w-4 h-4 text-white" />
                               </div>
                               <p className="text-slate-400 text-xs mb-1 font-medium">Protein</p>
-                              <p className="text-2xl font-bold text-white">{Math.round(nutrition.protein * selectedMeal.quantity)}g</p>
+                              <p className="text-2xl font-bold text-white">{Math.round(nutritionForDisplay.protein * selectedMeal.quantity)}g</p>
                             </div>
                           </div>
                         </div>
@@ -1874,7 +1922,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                           
                           {isIngredientsExpanded && (
                             <div className="space-y-3">
-                              {selectedMeal.meal.ingredients.map((ingredient, idx) => {
+                              {(selectedMeal.meal.ingredients || []).map((ingredient, idx) => {
                                 // Always in edit mode for coaches
                                 const isEditing = true;
                                 const key = `${selectedMeal.id}-${idx}`;
@@ -2536,6 +2584,103 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
           </div>
         </div>
       )}
+
+        {/* Customize for client (slot override) modal */}
+        {editingSlotOverride && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
+              <div className="p-6 border-b border-slate-700">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white">Customize for client</h3>
+                  <button
+                    onClick={() => { setEditingSlotOverride(null); setSlotOverrideDraft({}); }}
+                    className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-slate-400 text-sm mt-1">Exclude ingredients, override name/instructions/image for this slot only.</p>
+              </div>
+              <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                {/* Exclude ingredients */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Exclude ingredients (nutrition recalculated without these)</label>
+                  <div className="space-y-2">
+                    {(editingSlotOverride.selectedMeal.meal.ingredients || []).map((ing) => {
+                      const name = ing.food?.name ?? '';
+                      const excluded = (slotOverrideDraft.excludedIngredientNames ?? []).some(n => n.trim().toLowerCase() === name.trim().toLowerCase());
+                      return (
+                        <label key={name} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={excluded}
+                            onChange={() => {
+                              const current = slotOverrideDraft.excludedIngredientNames ?? [];
+                              const next = excluded
+                                ? current.filter(n => n.trim().toLowerCase() !== name.trim().toLowerCase())
+                                : [...current, name];
+                              setSlotOverrideDraft(prev => ({ ...prev, excludedIngredientNames: next.length ? next : undefined }));
+                            }}
+                            className="rounded border-slate-500 bg-slate-700 text-amber-500 focus:ring-amber-500"
+                          />
+                          <span className="text-white">{name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                {/* Name override */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Override name (optional)</label>
+                  <input
+                    type="text"
+                    value={slotOverrideDraft.nameOverride ?? ''}
+                    onChange={(e) => setSlotOverrideDraft(prev => ({ ...prev, nameOverride: e.target.value }))}
+                    placeholder={editingSlotOverride.selectedMeal.meal.name}
+                    className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+                {/* Instructions override */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Override cooking instructions (optional)</label>
+                  <textarea
+                    value={slotOverrideDraft.instructionsOverride ?? ''}
+                    onChange={(e) => setSlotOverrideDraft(prev => ({ ...prev, instructionsOverride: e.target.value }))}
+                    placeholder="Client-specific instructions"
+                    rows={3}
+                    className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+                  />
+                </div>
+                {/* Image override */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Override image URL (optional)</label>
+                  <input
+                    type="text"
+                    value={slotOverrideDraft.imageOverride ?? ''}
+                    onChange={(e) => setSlotOverrideDraft(prev => ({ ...prev, imageOverride: e.target.value }))}
+                    placeholder="https://..."
+                    className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                </div>
+              </div>
+              <div className="p-6 border-t border-slate-700 flex gap-3">
+                <button
+                  onClick={() => { setEditingSlotOverride(null); setSlotOverrideDraft({}); }}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-700 text-white hover:bg-slate-600 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveSlotOverride}
+                  className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-medium flex items-center justify-center gap-2"
+                >
+                  <CheckCircle className="w-5 h-5" />
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 };

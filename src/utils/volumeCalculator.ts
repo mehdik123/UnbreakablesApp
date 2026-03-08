@@ -168,8 +168,13 @@ export function computeVolumeFromAssignment(
         : week === 1 && programDays.length > 0
           ? programDays
           : [];
+    // Count each exercise only once per week (first occurrence) so chart matches Volume Breakdown and avoids double-counting when same exercise appears in multiple days
+    const seenExerciseIdsThisWeek = new Set<string>();
     for (const day of daysToProcess) {
       for (const workoutExercise of day.exercises || []) {
+        const exId = workoutExercise.exercise?.id;
+        if (exId && seenExerciseIdsThisWeek.has(exId)) continue;
+        if (exId) seenExerciseIdsThisWeek.add(exId);
         let muscleGroup = workoutExercise.exercise?.muscleGroup;
         if (!muscleGroup && workoutExercise.exercise?.id)
           muscleGroup = programExerciseToMuscleById[workoutExercise.exercise.id];

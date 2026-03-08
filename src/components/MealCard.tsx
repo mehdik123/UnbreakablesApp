@@ -3,6 +3,7 @@ import { X, Edit3, ChefHat, Clock, Scale, ChevronDown, ChevronUp, Globe, Heart }
 import { SelectedMeal, Ingredient } from '../types';
 import { IngredientEditor } from './IngredientEditor';
 import { calculateMealNutrition } from '../utils/nutritionCalculator';
+import { getEffectiveSelectedMeal } from '../utils/mealSlotOverrides';
 import { Food } from '../types';
 import { translateText, SupportedLanguage } from '../utils/translate';
 
@@ -52,7 +53,7 @@ export const MealCard: React.FC<MealCardProps> = ({
   };
 
   const getShownInstructions = () => {
-    const base = formatInstructions(selectedMeal.meal.cookingInstructions);
+    const base = formatInstructions(effective.meal.cookingInstructions);
     if (uiLang === 'english') return base;
     return translated ?? base;
   };
@@ -63,7 +64,7 @@ export const MealCard: React.FC<MealCardProps> = ({
       setTranslated(null);
       return;
     }
-    const base = formatInstructions(selectedMeal.meal.cookingInstructions);
+    const base = formatInstructions(effective.meal.cookingInstructions);
     setTranslating(true);
     try {
       const res = await translateText(base, langToCode[value]);
@@ -81,16 +82,16 @@ export const MealCard: React.FC<MealCardProps> = ({
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-start space-x-6">
           <img
-            src={selectedMeal.meal.image}
-            alt={selectedMeal.meal.name}
+            src={effective.meal.image}
+            alt={effective.meal.name}
             className="w-32 h-32 rounded-2xl object-cover shadow-2xl"
           />
           <div>
             <h3 className={`font-bold text-3xl mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              {selectedMeal.meal.name}
+              {effective.meal.name}
             </h3>
             <p className={`text-lg capitalize font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-              {selectedMeal.meal.category}
+              {effective.meal.category}
             </p>
           </div>
         </div>
