@@ -603,7 +603,6 @@ export const UltraModernNutritionView: React.FC<UltraModernNutritionViewProps> =
           </div>
         )}
       </div>
-    </div>
   );
   } catch (error) {
     console.error('🍽️ Error in UltraModernNutritionView render:', error);
