@@ -45,29 +45,6 @@ interface ClientWorkoutViewCombinedProps {
   isDark: boolean;
 }
 
-const MOTIVATIONAL_QUOTES = [
-  'Keep it up! You\'re doing great.',
-  'One set down, you\'ve got this!',
-  'Not much left — finish strong!',
-  'That\'s the spirit! Keep pushing.',
-  'Strong work! One rep at a time.',
-  'You\'re stronger than you think.',
-  'Every set counts. Nice one!',
-  'Crushing it! Don\'t stop now.',
-  'Almost there — stay focused!',
-  'That\'s what we like to see!',
-  'Boom! Another one in the bag.',
-  'You\'re on fire today!',
-  'No pain, no gain. You\'re nailing it.',
-  'Respect! Keep that momentum.',
-  'Beast mode activated!',
-  'Small steps, big results. Well done!',
-  'That set was clean! Next.',
-  'Your future self will thank you.',
-  'Stay consistent — you\'re doing it!',
-  'Another rep closer to your goals!',
-];
-
 export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   client,
   currentWeek,
@@ -84,7 +61,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const [sharedVersion, setSharedVersion] = useState<number>(0);
   // Local state to track the assignment so we can update it after client edits
   const [localAssignment, setLocalAssignment] = useState<ClientWorkoutAssignment | null>(client.workoutAssignment || null);
-  const [motivationalQuote, setMotivationalQuote] = useState<string | null>(null);
 
   // Performance tracking
   const { recordExercise } = usePerformanceTracking({
@@ -611,52 +587,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     }));
   };
 
-  const markSetDone = useCallback(async (exerciseId: string, setIndex: number) => {
-    const assignment = localAssignment || client.workoutAssignment;
-    if (!assignment) return;
-    const weeks = assignment.weeks ? [...assignment.weeks] : [];
-    const weekIdx = weeks.findIndex((w: any) => w.weekNumber === currentWeek);
-    if (weekIdx === -1) return;
-    const week = weeks[weekIdx];
-    const days = week.days && Array.isArray(week.days) ? [...week.days] : [];
-    if (currentDay >= days.length) return;
-    const day = days[currentDay];
-    const exercises = day.exercises && Array.isArray(day.exercises) ? [...day.exercises] : [];
-    const exIdx = exercises.findIndex((ex: any) => ex.id === exerciseId);
-    if (exIdx === -1) return;
-    const ex = exercises[exIdx];
-    const sets = ex.sets && Array.isArray(ex.sets) ? [...ex.sets] : [];
-    if (setIndex >= sets.length) return;
-    const set = sets[setIndex];
-    if ((set as any).completed === true) return;
-    const now = new Date().toISOString();
-    sets[setIndex] = { ...set, completed: true, completedAt: now };
-    exercises[exIdx] = { ...ex, sets };
-    days[currentDay] = { ...day, exercises };
-    weeks[weekIdx] = { ...week, days };
-    const updatedAssignment = { ...assignment, weeks };
-    setLocalAssignment(updatedAssignment);
-    onAssignmentUpdated?.(updatedAssignment as ClientWorkoutAssignment);
-    const sharedVersionVal = typeof sharedVersion === 'number' ? sharedVersion : 0;
-    localStorage.setItem(SHARED_KEY, JSON.stringify({ workoutAssignment: updatedAssignment, version: sharedVersionVal + 1, lastModified: new Date().toISOString() }));
-    setSharedVersion((v) => v + 1);
-    if (assignmentId) {
-      const { dbUpdateWorkoutAssignment } = await import('../lib/db');
-      await dbUpdateWorkoutAssignment(assignmentId, { program_json: updatedAssignment as any, current_week: currentWeek, current_day: currentDay + 1, last_modified_by: 'client' });
-    }
-    const clientsRaw = localStorage.getItem('clients');
-    if (clientsRaw) {
-      try {
-        const clients = JSON.parse(clientsRaw);
-        const updated = Array.isArray(clients) ? clients.map((c: any) => (c.id === client.id ? { ...c, workoutAssignment: updatedAssignment } : c)) : clients;
-        localStorage.setItem('clients', JSON.stringify(updated));
-      } catch (_) {}
-    }
-    const quote = MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)];
-    setMotivationalQuote(quote);
-    setTimeout(() => setMotivationalQuote(null), 3500);
-  }, [localAssignment, client.workoutAssignment, client.id, currentWeek, currentDay, assignmentId, onAssignmentUpdated, SHARED_KEY, sharedVersion]);
-
   // Save client edits to workout assignment (called when user clicks Save)
   const saveClientEdits = async () => {
     const assignment = localAssignment || client.workoutAssignment;
@@ -731,7 +661,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
               muscleGroup: videoMeta?.muscleGroup ?? exercise.exercise?.muscleGroup,
             },
             sets: (exercise.sets && Array.isArray(exercise.sets) ? exercise.sets : []).map((set: any, setIndex: number) => {
-              // Apply regular set edits (preserve completed/completedAt)
+              // Apply regular set edits
               if (exerciseEdits[setIndex]) {
                 return {
                   ...set,
@@ -750,7 +680,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                 };
               }
 
-              return { ...set };
+              return { ...set }; // Deep copy to avoid mutations
             })
           };
         })
@@ -900,13 +830,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-x-hidden relative">
-
-      {/* Motivational quote toast when client marks a set done */}
-      {motivationalQuote && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-3 rounded-xl bg-gradient-to-r from-green-600/95 to-emerald-600/95 text-white text-sm font-medium shadow-lg border border-green-400/30 animate-in fade-in duration-300 max-w-[90vw] text-center">
-          {motivationalQuote}
-        </div>
-      )}
 
       {/* Banner to clear cached data when old data is detected */}
       {isUsingOldData && (
@@ -1390,25 +1313,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                   </button>
                                 </div>
                               </div>
-
-                              {/* Mark set done */}
-                              <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-end">
-                                {(set as any).completed ? (
-                                  <span className="inline-flex items-center gap-1.5 text-green-400 text-xs font-medium">
-                                    <CheckCircle className="w-4 h-4" />
-                                    Done
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => markSetDone(exercise.id, setIndex)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/20 text-green-300 hover:bg-green-500/30 border border-green-500/30 text-xs font-medium transition-all"
-                                  >
-                                    <Circle className="w-3.5 h-3.5" />
-                                    Mark set done
-                                  </button>
-                                )}
-                              </div>
+                              
                             </div>
                       </div>
                     ))}
