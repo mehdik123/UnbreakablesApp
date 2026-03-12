@@ -162,19 +162,20 @@ export function computeVolumeFromAssignment(
     const weekData: MuscleVolumeData = { week };
     const volumeTally: { [key: string]: number } = {};
     const weekSpecificData = deployedWeeks.find((w: any) => w.weekNumber === week);
-    const daysToProcess =
+    let daysToProcess =
       weekSpecificData?.days?.length > 0
         ? weekSpecificData.days
         : week === 1 && programDays.length > 0
           ? programDays
           : [];
-    // Count each exercise only once per week (first occurrence) so chart matches Volume Breakdown and avoids double-counting when same exercise appears in multiple days
-    const seenExerciseIdsThisWeek = new Set<string>();
+    // If this week has no days (e.g. newly created week not yet saved, or stale load), use previous week's days so chart doesn't show a false jump/drop
+    if (daysToProcess.length === 0 && week > 1 && chartData.length > 0) {
+      const prevWeekData = deployedWeeks.find((w: any) => w.weekNumber === week - 1);
+      if (prevWeekData?.days?.length) daysToProcess = prevWeekData.days;
+    }
+    // Sum volume for every occurrence of every exercise (all days) so chart matches Volume Breakdown and Peak Volume
     for (const day of daysToProcess) {
       for (const workoutExercise of day.exercises || []) {
-        const exId = workoutExercise.exercise?.id;
-        if (exId && seenExerciseIdsThisWeek.has(exId)) continue;
-        if (exId) seenExerciseIdsThisWeek.add(exId);
         let muscleGroup = workoutExercise.exercise?.muscleGroup;
         if (!muscleGroup && workoutExercise.exercise?.id)
           muscleGroup = programExerciseToMuscleById[workoutExercise.exercise.id];

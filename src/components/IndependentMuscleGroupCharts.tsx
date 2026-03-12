@@ -78,13 +78,24 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
     [client.workoutAssignment, availableMuscleGroups]
   );
 
-  // Extract exercises by muscle group once when assignment changes (for display, not for volume)
+  // Current week's days: use assignment.weeks[currentWeek].days (client-saved reps/weight) when present, else program.days
+  const currentWeek = client.workoutAssignment?.currentWeek ?? 1;
+  const displayDaysForCurrentWeek = useMemo(() => {
+    const assignment = client.workoutAssignment;
+    if (!assignment) return [];
+    const weekData = assignment.weeks?.find((w: any) => w.weekNumber === currentWeek);
+    const weekDays = weekData?.days && Array.isArray(weekData.days) ? weekData.days : [];
+    const programDays = assignment.program?.days && Array.isArray(assignment.program.days) ? assignment.program.days : [];
+    return weekDays.length > 0 ? weekDays : programDays;
+  }, [client.workoutAssignment, currentWeek]);
+
+  // Extract exercises by muscle group from current week's days (so volume and details use client-saved data)
   const muscleGroups = useMemo(() => availableMuscleGroups, [availableMuscleGroups]);
 
   useEffect(() => {
-    if (!client.workoutAssignment?.program?.days) return;
+    if (displayDaysForCurrentWeek.length === 0) return;
     const byGroup: { [muscleGroup: string]: Exercise[] } = {};
-    client.workoutAssignment.program.days.forEach((day: any) => {
+    displayDaysForCurrentWeek.forEach((day: any) => {
       (day.exercises || []).forEach((workoutExercise: any) => {
         const mg = workoutExercise.exercise?.muscleGroup;
         if (!mg) return;
@@ -96,7 +107,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
       });
     });
     setWorkoutExercises(byGroup);
-  }, [client.workoutAssignment]);
+  }, [client.workoutAssignment, displayDaysForCurrentWeek]);
 
   const toggleChartExpansion = (muscleGroup: string) => {
     setExpandedCharts(prev => ({
@@ -176,30 +187,28 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
             const isExpanded = expandedCharts[muscleGroup];
             const exercises = workoutExercises[muscleGroup] || [];
             
-            // Calculate current week volume from the same source as individual exercises
+            // Calculate current week volume from current week's days (client-saved reps/weight)
             const currentWeekVolume = exercises.reduce((sum, exercise) => {
               let exerciseVolume = 0;
-              if (client.workoutAssignment?.program) {
-                client.workoutAssignment.program.days.forEach(day => {
-                  day.exercises.forEach(workoutExercise => {
-                    if (workoutExercise.exercise.id === exercise.id) {
-                      exerciseVolume = workoutExercise.sets.reduce((setSum, set) => {
-                        if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
-                          // Dropset volume: sum of (reps[i] * weight[i]) for each round
-                          let dropsetVolume = 0;
-                          for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
-                            dropsetVolume += set.reps[i] * Math.max(set.weight[i], 1);
-                          }
-                          return setSum + dropsetVolume;
-                        } else {
-                          // Regular set volume
-                          return setSum + (set.reps * Math.max(set.weight, 1));
+              displayDaysForCurrentWeek.forEach((day: any) => {
+                (day.exercises || []).forEach((workoutExercise: any) => {
+                  if (workoutExercise.exercise?.id === exercise.id) {
+                    (workoutExercise.sets || []).forEach((set: any) => {
+                      if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+                        for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                          const rep = typeof set.reps[i] === 'number' ? set.reps[i] : 0;
+                          const w = typeof set.weight[i] === 'number' ? set.weight[i] : 0;
+                          exerciseVolume += w === 0 ? rep : rep * w;
                         }
-                      }, 0);
-                    }
-                  });
+                      } else {
+                        const r = typeof set.reps === 'number' ? set.reps : 0;
+                        const w = typeof set.weight === 'number' ? set.weight : 0;
+                        exerciseVolume += w === 0 ? r : r * w;
+                      }
+                    });
+                  }
                 });
-              }
+              });
               return sum + exerciseVolume;
             }, 0);
 
@@ -210,7 +219,6 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
               muscleGroup
             }));
 
-            const currentWeek = client.workoutAssignment?.currentWeek || 1;
             const currentWeekIndex = seriesData.findIndex(week => week.week === currentWeek);
             if (currentWeekIndex !== -1) {
               seriesData[currentWeekIndex].volume = currentWeekVolume;
@@ -373,27 +381,25 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                       <div className="space-y-2">
                         {exercises.map((exercise, exerciseIndex) => {
                           let exerciseVolume = 0;
-                          if (client.workoutAssignment?.program) {
-                            client.workoutAssignment.program.days.forEach(day => {
-                              day.exercises.forEach(workoutExercise => {
-                                if (workoutExercise.exercise.id === exercise.id) {
-                                  exerciseVolume = workoutExercise.sets.reduce((sum, set) => {
-                                    if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
-                                      // Dropset volume: sum of (reps[i] * weight[i]) for each round
-                                      let dropsetVolume = 0;
-                                      for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
-                                        dropsetVolume += set.reps[i] * Math.max(set.weight[i], 1);
-                                      }
-                                      return sum + dropsetVolume;
-                                    } else {
-                                      // Regular set volume
-                                      return sum + (set.reps * Math.max(set.weight, 1));
+                          displayDaysForCurrentWeek.forEach((day: any) => {
+                            (day.exercises || []).forEach((workoutExercise: any) => {
+                              if (workoutExercise.exercise?.id === exercise.id) {
+                                (workoutExercise.sets || []).forEach((set: any) => {
+                                  if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+                                    for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                                      const rep = typeof set.reps[i] === 'number' ? set.reps[i] : 0;
+                                      const w = typeof set.weight[i] === 'number' ? set.weight[i] : 0;
+                                      exerciseVolume += w === 0 ? rep : rep * w;
                                     }
-                                  }, 0);
-                                }
-                              });
+                                  } else {
+                                    const r = typeof set.reps === 'number' ? set.reps : 0;
+                                    const w = typeof set.weight === 'number' ? set.weight : 0;
+                                    exerciseVolume += w === 0 ? r : r * w;
+                                  }
+                                });
+                              }
                             });
-                          }
+                          });
                           return (
                             <div key={exercise.id} className="flex justify-between items-center py-1">
                               <span className="text-white/70 text-sm">{exercise.name}</span>
@@ -406,27 +412,25 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                           <span className="text-[#dc1e3a] font-bold text-lg">
                             {exercises.reduce((sum, exercise) => {
                               let exerciseVolume = 0;
-                              if (client.workoutAssignment?.program) {
-                                client.workoutAssignment.program.days.forEach(day => {
-                                  day.exercises.forEach(workoutExercise => {
-                                    if (workoutExercise.exercise.id === exercise.id) {
-                                      exerciseVolume = workoutExercise.sets.reduce((setSum, set) => {
+                              displayDaysForCurrentWeek.forEach((day: any) => {
+                                  (day.exercises || []).forEach((workoutExercise: any) => {
+                                    if (workoutExercise.exercise?.id === exercise.id) {
+                                      (workoutExercise.sets || []).forEach((set: any) => {
                                         if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
-                                          // Dropset volume: sum of (reps[i] * weight[i]) for each round
-                                          let dropsetVolume = 0;
                                           for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
-                                            dropsetVolume += set.reps[i] * Math.max(set.weight[i], 1);
+                                            const rep = typeof set.reps[i] === 'number' ? set.reps[i] : 0;
+                                            const w = typeof set.weight[i] === 'number' ? set.weight[i] : 0;
+                                            exerciseVolume += w === 0 ? rep : rep * w;
                                           }
-                                          return setSum + dropsetVolume;
                                         } else {
-                                          // Regular set volume
-                                          return setSum + (set.reps * Math.max(set.weight, 1));
+                                          const r = typeof set.reps === 'number' ? set.reps : 0;
+                                          const w = typeof set.weight === 'number' ? set.weight : 0;
+                                          exerciseVolume += w === 0 ? r : r * w;
                                         }
-                                      }, 0);
+                                      });
                                     }
                                   });
                                 });
-                              }
                               return sum + exerciseVolume;
                             }, 0).toLocaleString()}kg
                           </span>
@@ -458,33 +462,41 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                       <div className="mt-3 space-y-3">
                         {exercises.length > 0 ? (
                           exercises.map((exercise, exerciseIndex) => {
-                            // Find the exercise in the workout program to get sets data
-                            let exerciseSets: any[] = [];
-                            let totalExerciseVolume = 0;
-                            
-                            if (client.workoutAssignment?.program) {
-                              client.workoutAssignment.program.days.forEach(day => {
-                                day.exercises.forEach(workoutExercise => {
-                                  if (workoutExercise.exercise.id === exercise.id) {
-                                    exerciseSets = workoutExercise.sets;
-                                    // Calculate volume for this exercise: sum of (sets × reps × weight)
-                                    totalExerciseVolume = workoutExercise.sets.reduce((sum, set) => {
-                                      if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
-                                        // Dropset volume: sum of (reps[i] * weight[i]) for each round
-                                        let dropsetVolume = 0;
-                                        for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
-                                          dropsetVolume += set.reps[i] * Math.max(set.weight[i], 1);
-                                        }
-                                        return sum + dropsetVolume;
-                                      } else {
-                                        // Regular set volume
-                                        return sum + (set.reps * Math.max(set.weight, 1));
-                                      }
-                                    }, 0);
-                                  }
-                                });
-                              });
+                            // Collect every day this exercise appears so we show all sets (e.g. Day 1 + Day 3 = 378)
+                            type DaySets = { dayName: string; sets: any[] };
+                            const occurrences: DaySets[] = [];
+                            const volAcc = { vol: 0 };
+                            const exerciseIdMatch = (ex: any) => ex?.id === exercise.id;
+                            const exerciseNameMatch = (ex: any) => (ex?.name || ex?.exercise?.name || '').toString().trim().toLowerCase() === (exercise.name || '').toString().trim().toLowerCase();
+                            const addSetVolume = (set: any, acc: { vol: number }) => {
+                              if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
+                                for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
+                                  const rep = typeof set.reps[i] === 'number' ? set.reps[i] : 0;
+                                  const w = typeof set.weight[i] === 'number' ? set.weight[i] : 0;
+                                  acc.vol += w === 0 ? rep : rep * w;
+                                }
+                              } else {
+                                const r = typeof set.reps === 'number' ? set.reps : 0;
+                                const w = typeof set.weight === 'number' ? set.weight : 0;
+                                acc.vol += w === 0 ? r : r * w;
+                              }
+                            };
+                            const getSetVolume = (set: any): number => {
+                              const acc = { vol: 0 };
+                              addSetVolume(set, acc);
+                              return acc.vol;
+                            };
+                            for (const day of displayDaysForCurrentWeek) {
+                              for (const workoutExercise of day.exercises || []) {
+                                const match = exerciseIdMatch(workoutExercise.exercise) || exerciseNameMatch(workoutExercise.exercise);
+                                if (match) {
+                                  const sets = workoutExercise.sets || [];
+                                  occurrences.push({ dayName: day.name || `Day ${occurrences.length + 1}`, sets });
+                                  sets.forEach((set: any) => addSetVolume(set, volAcc));
+                                }
+                              }
                             }
+                            const totalExerciseVolume = volAcc.vol;
                             
                             return (
                               <div
@@ -513,69 +525,65 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                                   </div>
                                 </div>
                                 
-                                {/* Sets Details */}
-                                {exerciseSets.length > 0 && (
+                                {/* Sets Details: show every day this exercise appears so the total adds up */}
+                                {occurrences.length > 0 && (
                                   <div className="space-y-4">
                                     <div className="flex items-center space-x-2">
                                       <div className="w-2 h-2 bg-[#dc1e3a] rounded-full"></div>
                                       <div className="text-white/80 text-sm font-medium">Sets & Reps Breakdown</div>
                                     </div>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                      {exerciseSets.map((set, setIndex) => (
-                                        <div
-                                          key={setIndex}
-                                          className="bg-gradient-to-br from-white/10 to-white/5 rounded-xl p-3 text-center border border-white/20 hover:from-white/15 hover:to-white/10 transition-all duration-300"
-                                        >
-                                          <div className="text-white text-sm font-bold mb-1">Set {setIndex + 1}</div>
-                                          <div className="text-white/80 text-sm font-medium mb-1">
-                                            {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight) 
-                                              ? `${set.reps.join('→')} × ${set.weight.join('→')}kg`
-                                              : `${set.reps} × ${set.weight}kg`
-                                            }
-                                          </div>
-                                          <div className="text-[#dc1e3a] text-sm font-bold">
-                                            = {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)
-                                              ? (() => {
-                                                  let dropsetVolume = 0;
-                                                  for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
-                                                    dropsetVolume += set.reps[i] * Math.max(set.weight[i], 1);
-                                                  }
-                                                  return dropsetVolume;
-                                                })()
-                                              : (set.reps * Math.max(set.weight, 1))
-                                            }kg
-                                          </div>
+                                    {occurrences.map((occ, occIndex) => (
+                                      <div key={occIndex}>
+                                        {occurrences.length > 1 && (
+                                          <div className="text-white/70 text-sm font-medium mb-2">{occ.dayName}</div>
+                                        )}
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                          {occ.sets.map((set, setIndex) => (
+                                            <div
+                                              key={setIndex}
+                                              className="bg-gradient-to-br from-white/10 to-white/5 rounded-xl p-3 text-center border border-white/20 hover:from-white/15 hover:to-white/10 transition-all duration-300"
+                                            >
+                                              <div className="text-white text-sm font-bold mb-1">Set {setIndex + 1}</div>
+                                              <div className="text-white/80 text-sm font-medium mb-1">
+                                                {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)
+                                                  ? `${set.reps.join('→')} × ${set.weight.join('→')}kg`
+                                                  : `${set.reps} × ${set.weight}kg`
+                                                }
+                                              </div>
+                                              <div className="text-[#dc1e3a] text-sm font-bold">
+                                                = {getSetVolume(set)}kg
+                                              </div>
+                                            </div>
+                                          ))}
                                         </div>
-                                      ))}
-                                    </div>
+                                      </div>
+                                    ))}
                                     
-                                    {/* Volume Calculation Breakdown */}
+                                    {/* Volume Calculation: all sets from all days so total = 378 */}
                                     <div className="mt-4 p-4 bg-gradient-to-br from-white/5 to-white/10 rounded-xl border border-white/20">
                                       <div className="flex items-center space-x-2 mb-3">
                                         <div className="w-2 h-2 bg-[#dc1e3a] rounded-full"></div>
                                         <div className="text-white/80 text-sm font-medium">Volume Calculation</div>
                                       </div>
                                       <div className="space-y-2">
-                                        {exerciseSets.map((set, setIndex) => (
-                                          <div key={setIndex} className="flex justify-between items-center py-1">
-                                            <span className="text-white/70 text-sm">
-                                              Set {setIndex + 1}: {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight) 
-                                                ? `${set.reps.join('→')} reps × ${set.weight.join('→')}kg`
-                                                : `${set.reps} reps × ${set.weight}kg`
-                                              }
-                                            </span>
-                                            <span className="text-white font-bold text-sm">
-                                              = {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)
-                                                ? (() => {
-                                                    let dropsetVolume = 0;
-                                                    for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
-                                                      dropsetVolume += set.reps[i] * Math.max(set.weight[i], 1);
-                                                    }
-                                                    return dropsetVolume;
-                                                  })()
-                                                : (set.reps * Math.max(set.weight, 1))
-                                              }kg
-                                            </span>
+                                        {occurrences.map((occ, occIndex) => (
+                                          <div key={occIndex}>
+                                            {occurrences.length > 1 && (
+                                              <div className="text-white/60 text-xs font-medium mt-2 mb-1">{occ.dayName}</div>
+                                            )}
+                                            {occ.sets.map((set, setIndex) => (
+                                              <div key={setIndex} className="flex justify-between items-center py-1">
+                                                <span className="text-white/70 text-sm">
+                                                  Set {setIndex + 1}: {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)
+                                                    ? `${set.reps.join('→')} reps × ${set.weight.join('→')}kg`
+                                                    : `${set.reps} reps × ${set.weight}kg`
+                                                  }
+                                                </span>
+                                                <span className="text-white font-bold text-sm">
+                                                  = {getSetVolume(set)}kg
+                                                </span>
+                                              </div>
+                                            ))}
                                           </div>
                                         ))}
                                         <div className="border-t border-white/20 pt-2 mt-3 flex justify-between items-center">

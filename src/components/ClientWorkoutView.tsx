@@ -168,7 +168,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
               setAssignmentId(asg.id);
               if (asg.program_json) {
                 const raw = asg.program_json as any;
-                const enrichedProgram = await enrichProgramWithVideoUrls(raw);
+                // program_json is the full assignment { program: { days }, weeks }; enrich the program that has .days so videoUrl is attached
+                const programWithDays = raw.program?.days ? raw.program : raw.days ? raw : null;
+                const programToEnrich = programWithDays || raw.program || raw;
+                const enrichedProgram = await enrichProgramWithVideoUrls(programToEnrich);
                 setWorkoutProgram(enrichedProgram as WorkoutProgram);
                 // Keep local assignment in sync so getCurrentWeekProgram and saveClientEdits have correct shape
                 const weeks = raw.weeks || (raw.days ? [{ weekNumber: 1, isUnlocked: true, isCompleted: false, days: raw.days, exercises: [] }] : []);
@@ -256,7 +259,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           if (!row.program_json) return;
           if (row.last_modified_by === 'client') return;
           const raw = row.program_json as any;
-          const enrichedProgram = await enrichProgramWithVideoUrls(raw);
+          const programWithDays = raw.program?.days ? raw.program : raw.days ? raw : null;
+          const programToEnrich = programWithDays || raw.program || raw;
+          const enrichedProgram = await enrichProgramWithVideoUrls(programToEnrich);
           const weeks = raw.weeks ?? (raw.days?.length ? [{ weekNumber: 1, isUnlocked: true, isCompleted: false, days: raw.days, exercises: [] }] : []);
           const updated = { program: enrichedProgram, weeks, lastModifiedBy: raw.lastModifiedBy, lastModifiedAt: raw.lastModifiedAt } as any;
           setWorkoutProgram(enrichedProgram as WorkoutProgram);

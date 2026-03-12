@@ -1181,9 +1181,9 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                 <button
                   onClick={async () => {
                     if (!client.workoutAssignment || !canCreateNextWeek(client.workoutAssignment)) return;
-                    // Use latest saved data from DB so new week copies actual saved performance, not unsaved edits
+                    // Prefer in-memory weeks (includes realtime client saves) so new week copies actual performance; fallback to DB if needed
                     let savedWeeks = client.workoutAssignment.weeks || [];
-                    if (isSupabaseReady && supabase && assignmentId) {
+                    if (savedWeeks.length === 0 && isSupabaseReady && supabase && assignmentId) {
                       const { data: row } = await supabase
                         .from('workout_assignments')
                         .select('program_json')
