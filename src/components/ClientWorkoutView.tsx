@@ -55,6 +55,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const [completedExercises, setCompletedExercises] = useState<{ [exerciseId: string]: boolean }>({});
   const [exerciseData, setExerciseData] = useState<{ [exerciseId: string]: { [setIndex: number]: { reps: number; weight: number } } }>({});
   const [dropsetData, setDropsetData] = useState<{ [exerciseId: string]: { [dropsetIndex: number]: { [roundIndex: number]: { reps: number; weight: number } } } }>({});
+  const [editingWeightInput, setEditingWeightInput] = useState<Record<string, string>>({});
   const [workoutProgram, setWorkoutProgram] = useState<WorkoutProgram | null>(null);
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const SHARED_KEY = `client_${client.id}_assignment`;
@@ -1280,7 +1281,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                 </div>
                               </div>
 
-                              {/* Weight Section - Compact Mobile Design */}
+                              {/* Weight Section - Compact Mobile Design: +/- buttons + type directly */}
                               <div className="flex-1 bg-gradient-to-r from-purple-500/10 to-purple-600/5 rounded-md p-2 border border-purple-500/20">
                                 <div className="flex items-center justify-between mb-1.5">
                                   <h6 className="text-[10px] font-semibold text-purple-300 uppercase">Weight</h6>
@@ -1292,25 +1293,55 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                       const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
                                       const newWeight = typeof currentWeight === 'number' ? Math.max(0, currentWeight - 2.5) : 0;
                                       updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
+                                      setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
                                     }}
                                     className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
                                   >
                                     <Minus className="w-3 h-3" />
                                   </button>
-                                  <div className="text-center px-1 flex-1 min-w-[30px]">
-                                    <div className="text-sm font-bold text-purple-300 leading-tight truncate">
-                                      {set.isDropset && Array.isArray(set.weight) 
-                                        ? set.weight.join('→') + 'kg'
-                                        : (exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight) + 'kg'
-                                      }
+                                  {set.isDropset && Array.isArray(set.weight) ? (
+                                    <div className="text-center px-1 flex-1 min-w-[30px]">
+                                      <div className="text-sm font-bold text-purple-300 leading-tight truncate">
+                                        {set.weight.join('→') + 'kg'}
+                                      </div>
+                                      <div className="text-purple-400 text-[9px] leading-tight">kg</div>
                                     </div>
-                                    <div className="text-purple-400 text-[9px] leading-tight">kg</div>
-                                  </div>
+                                  ) : (
+                                    <div className="text-center px-0.5 flex-1 min-w-[36px]">
+                                      <input
+                                        type="number"
+                                        min={0}
+                                        step={0.5}
+                                        inputMode="decimal"
+                                        className="w-full text-sm font-bold text-purple-300 bg-purple-500/10 border border-purple-500/30 rounded px-1 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-purple-400 focus:border-purple-400"
+                                        value={editingWeightInput[`${exercise.id}-${setIndex}`] ?? String(typeof set.weight === 'number' ? (exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight) : (exerciseData[exercise.id]?.[setIndex]?.weight ?? 0))}
+                                        onChange={(e) => {
+                                          const raw = e.target.value;
+                                          setEditingWeightInput(prev => ({ ...prev, [`${exercise.id}-${setIndex}`]: raw }));
+                                        }}
+                                        onBlur={() => {
+                                          const key = `${exercise.id}-${setIndex}`;
+                                          const raw = editingWeightInput[key];
+                                          if (raw === undefined) return;
+                                          const parsed = parseFloat(raw.replace(',', '.'));
+                                          const value = Number.isFinite(parsed) ? Math.max(0, parsed) : (exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight ?? 0);
+                                          updateExerciseData(exercise.id, setIndex, 'weight', typeof value === 'number' ? value : 0);
+                                          setEditingWeightInput(prev => { const next = { ...prev }; delete next[key]; return next; });
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                        }}
+                                        aria-label="Weight in kg"
+                                      />
+                                      <div className="text-purple-400 text-[9px] leading-tight">kg</div>
+                                    </div>
+                                  )}
                                   <button
                                     onClick={() => {
                                       const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
                                       const newWeight = typeof currentWeight === 'number' ? currentWeight + 2.5 : 2.5;
                                       updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
+                                      setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
                                     }}
                                     className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
                                   >
