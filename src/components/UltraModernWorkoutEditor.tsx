@@ -504,7 +504,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 
       }
 
-      // STEP 4: Update the current week in the database
+      // STEP 4: Persist weeks data but keep client's active week unchanged
       if (client.workoutAssignment?.id) {
         // CRITICAL FIX: Save ALL week data including the updated weeks array
         const programJsonToSave = {
@@ -514,7 +514,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 
         const { error } = await dbUpdateWorkoutAssignment(client.workoutAssignment.id, {
           program_json: programJsonToSave,  // Save complete program with all weeks
-          current_week: newWeek,
           last_modified_by: 'coach'
         });
 
@@ -535,7 +534,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         // Update the client's workout assignment with all week data
         const finalAssignment: ClientWorkoutAssignment = {
           ...client.workoutAssignment,
-          currentWeek: newWeek,
+          currentWeek: client.workoutAssignment.currentWeek,
           weeks: finalWeeks,
           program: client.workoutAssignment.program,
           lastModifiedBy: 'coach',
@@ -1157,21 +1156,10 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={async () => {
-                    if (!client.workoutAssignment || client.workoutAssignment.currentWeek <= 1) return;
-                    
-                    const newWeek = client.workoutAssignment.currentWeek - 1;
-                    
-                    const updatedAssignment: ClientWorkoutAssignment = {
-                      ...client.workoutAssignment,
-                      currentWeek: newWeek,
-                      lastModifiedBy: 'coach' as const,
-                      lastModifiedAt: new Date()
-                    };
-                    
-                    // Update local state and database in one operation
-                    await onSaveAssignment(updatedAssignment);
+                    if (currentWeek <= 1) return;
+                    await handleWeekChange(currentWeek - 1);
                   }}
-                  disabled={!client.workoutAssignment || client.workoutAssignment.currentWeek <= 1}
+                  disabled={!client.workoutAssignment || currentWeek <= 1}
                   className="flex items-center justify-center space-x-3 px-6 py-4 bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:opacity-50 text-white rounded-xl font-medium transition-all duration-200"
                 >
                   <ChevronLeft className="w-5 h-5" />
@@ -1213,7 +1201,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                 <div className="flex items-center justify-center space-x-4">
                   <label className="text-slate-300 font-medium">Week:</label>
                   <select
-                    value={client.workoutAssignment.currentWeek}
+                    value={currentWeek}
                     onChange={(e) => handleWeekChange(parseInt(e.target.value))}
                     className="px-4 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
