@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef, Suspense, lazy } from 'react';
 import {
   Utensils,
   Dumbbell,
@@ -56,6 +56,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const [currentWeek, setCurrentWeek] = useState<number>(() => {
     return client.workoutAssignment?.currentWeek || 1;
   });
+  /** After client picks a week, ignore DB/prop sync briefly so polling does not snap back before `current_week` persists */
+  const weekSyncLockUntilRef = useRef(0);
+  const handleClientWeekChange = useCallback((week: number) => {
+    setCurrentWeek(week);
+    weekSyncLockUntilRef.current = Date.now() + 8000;
+  }, []);
   // Latest assignment (from save or sync) so Progress charts and Performance see client edits
   const [effectiveWorkoutAssignment, setEffectiveWorkoutAssignment] = useState(client.workoutAssignment ?? undefined);
   
@@ -179,12 +185,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     };
 
     loadNutritionPlan();
+  }, [client.id, client.nutritionPlan]);
 
-    // Sync current week from coach's assignment
-    if (client.workoutAssignment?.currentWeek) {
-      setCurrentWeek(client.workoutAssignment.currentWeek);
-    }
-  }, [client.id, client.nutritionPlan, client.workoutAssignment?.currentWeek]);
+  // When parent passes an updated active week (e.g. coach changed it), apply unless client just picked a week
+  useEffect(() => {
+    const w = client.workoutAssignment?.currentWeek;
+    if (w == null || w < 1) return;
+    if (Date.now() < weekSyncLockUntilRef.current) return;
+    setCurrentWeek(w);
+  }, [client.workoutAssignment?.currentWeek]);
 
   // Real-time sync for current week from database
   useEffect(() => {
@@ -203,25 +212,19 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         if (cRow?.id) {
           const { data: assignment } = await supabase
             .from('workout_assignments')
-            .select('current_week')
+            .select('current_week, last_modified_by')
             .eq('client_id', cRow.id)
             .eq('is_active', true)
             .order('last_modified_at', { ascending: false })
             .limit(1)
             .maybeSingle();
-          
-          if (assignment?.current_week && assignment.current_week !== currentWeek) {
 
-            setCurrentWeek(assignment.current_week);
-            
-            // Also update the workout assignment object
-            if (client.workoutAssignment) {
-              const updatedAssignment = {
-                ...client.workoutAssignment,
-                currentWeek: assignment.current_week
-              };
-              // Trigger a re-render by updating the client object
-              // This will be handled by the parent component
+          if (assignment?.current_week && assignment.current_week !== currentWeek) {
+            if (assignment.last_modified_by === 'coach') {
+              weekSyncLockUntilRef.current = 0;
+            }
+            if (Date.now() >= weekSyncLockUntilRef.current) {
+              setCurrentWeek(assignment.current_week);
             }
           }
         }
@@ -249,8 +252,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         (payload) => {
 
           if (payload.new.current_week && payload.new.current_week !== currentWeek) {
-
-            setCurrentWeek(payload.new.current_week);
+            if (payload.new.last_modified_by === 'coach') {
+              weekSyncLockUntilRef.current = 0;
+            }
+            if (Date.now() >= weekSyncLockUntilRef.current) {
+              setCurrentWeek(payload.new.current_week);
+            }
           }
         }
       )
@@ -358,12 +365,17 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               setEffectiveWorkoutAssignment(freshAssignment);
               const freshWeeks = raw.weeks || [];
               if (freshWeeks.length > 0) {
-                const deployedWeekNumbers = freshWeeks.map((w: any) => w.weekNumber);
-                const rawWeek = assignment.current_week || 1;
-                const newCurrentWeek = deployedWeekNumbers.includes(rawWeek)
-                  ? rawWeek
-                  : Math.min(rawWeek, Math.max(...deployedWeekNumbers)) || deployedWeekNumbers[0];
-                if (newCurrentWeek !== currentWeek) setCurrentWeek(newCurrentWeek);
+                if (assignment.last_modified_by === 'coach') {
+                  weekSyncLockUntilRef.current = 0;
+                }
+                if (Date.now() >= weekSyncLockUntilRef.current) {
+                  const deployedWeekNumbers = freshWeeks.map((w: any) => w.weekNumber);
+                  const rawWeek = assignment.current_week || 1;
+                  const newCurrentWeek = deployedWeekNumbers.includes(rawWeek)
+                    ? rawWeek
+                    : Math.min(rawWeek, Math.max(...deployedWeekNumbers)) || deployedWeekNumbers[0];
+                  if (newCurrentWeek !== currentWeek) setCurrentWeek(newCurrentWeek);
+                }
               }
             }
           } else {
@@ -708,7 +720,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               client={client}
               currentWeek={currentWeek}
               isDark={isDark}
-              onWeekChange={setCurrentWeek}
+              onWeekChange={handleClientWeekChange}
               onAssignmentUpdated={(a) => {
                 // Use saved assignment directly so Progress charts and coach view see client's volume edits
                 if (a?.weeks != null && a?.program != null) {

@@ -392,17 +392,20 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const hasNextWeek = deployedWeeks.some((w) => w.weekNumber === currentWeek + 1);
   const showWaitingForCoach = isCurrentWeekComplete && !hasNextWeek;
 
-  // When client selects a week, persist to DB so sync doesn't overwrite back to previous week
-  const handleWeekSelect = useCallback((newWeek: number) => {
-    if (isSupabaseReady && supabase && assignmentId) {
-      supabase
-        .from('workout_assignments')
-        .update({ current_week: newWeek })
-        .eq('id', assignmentId)
-        .then(() => {});
-    }
-    onWeekChange?.(newWeek);
-  }, [assignmentId, onWeekChange]);
+  // When client selects a week: update UI immediately (parent may lock sync), then persist so polling/realtime match
+  const handleWeekSelect = useCallback(
+    async (newWeek: number) => {
+      onWeekChange?.(newWeek);
+      if (isSupabaseReady && supabase && assignmentId) {
+        const { error } = await supabase
+          .from('workout_assignments')
+          .update({ current_week: newWeek, last_modified_by: 'client' })
+          .eq('id', assignmentId);
+        if (error) console.error('Failed to persist week selection:', error);
+      }
+    },
+    [assignmentId, onWeekChange, isSupabaseReady, supabase]
+  );
 
   // If no workout program is assigned, show a message
   if (!workoutProgram && !client.workoutAssignment?.program) {
@@ -1281,72 +1284,100 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                 </div>
                               </div>
 
-                              {/* Weight Section - Compact Mobile Design: +/- buttons + type directly */}
-                              <div className="flex-1 bg-gradient-to-r from-purple-500/10 to-purple-600/5 rounded-md p-2 border border-purple-500/20">
-                                <div className="flex items-center justify-between mb-1.5">
-                                  <h6 className="text-[10px] font-semibold text-purple-300 uppercase">Weight</h6>
-                                  <Zap className="w-3 h-3 text-purple-400" />
-                                </div>
-                                <div className="flex items-center justify-center gap-1">
-                                  <button
-                                    onClick={() => {
-                                      const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
-                                      const newWeight = typeof currentWeight === 'number' ? Math.max(0, currentWeight - 2.5) : 0;
-                                      updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
-                                      setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
-                                    }}
-                                    className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </button>
-                                  {set.isDropset && Array.isArray(set.weight) ? (
-                                    <div className="text-center px-1 flex-1 min-w-[30px]">
-                                      <div className="text-sm font-bold text-purple-300 leading-tight truncate">
-                                        {set.weight.join('→') + 'kg'}
+                              {/* Weight — ultra-modern: glass card, ±2.5kg + direct type (no spinners) */}
+                              <div className="flex-1 relative min-w-0 rounded-xl overflow-hidden border border-white/10 bg-slate-900/70 backdrop-blur-xl shadow-lg shadow-black/20">
+                                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#dc1e3a]/[0.08] via-transparent to-violet-500/[0.06]" />
+                                <div className="relative p-2 sm:p-2.5">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h6 className="text-[10px] font-bold tracking-[0.12em] text-white/70 uppercase">Weight</h6>
+                                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#dc1e3a]/15 border border-[#dc1e3a]/25">
+                                      <Zap className="w-3.5 h-3.5 text-[#dc1e3a]" />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-stretch gap-1.5 sm:gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
+                                        const newWeight = typeof currentWeight === 'number' ? Math.max(0, currentWeight - 2.5) : 0;
+                                        updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
+                                        setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
+                                      }}
+                                      className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/15 text-white/90 hover:border-[#dc1e3a]/40 hover:text-[#dc1e3a] active:scale-95 transition-all duration-200 flex items-center justify-center"
+                                      aria-label="Decrease weight 2.5 kg"
+                                    >
+                                      <Minus className="w-4 h-4" />
+                                    </button>
+                                    {set.isDropset && Array.isArray(set.weight) ? (
+                                      <div className="flex-1 min-w-0 flex flex-col items-center justify-center rounded-xl bg-black/30 border border-white/10 px-2 py-1">
+                                        <div className="text-sm font-bold text-white tabular-nums leading-tight truncate max-w-full">
+                                          {set.weight.join(' → ')}
+                                          <span className="text-white/50 font-semibold text-xs ml-0.5">kg</span>
+                                        </div>
+                                        <span className="text-[9px] text-white/40 mt-0.5">Dropset</span>
                                       </div>
-                                      <div className="text-purple-400 text-[9px] leading-tight">kg</div>
-                                    </div>
-                                  ) : (
-                                    <div className="text-center px-0.5 flex-1 min-w-[36px]">
-                                      <input
-                                        type="number"
-                                        min={0}
-                                        step={0.5}
-                                        inputMode="decimal"
-                                        className="w-full text-sm font-bold text-purple-300 bg-purple-500/10 border border-purple-500/30 rounded px-1 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-purple-400 focus:border-purple-400"
-                                        value={editingWeightInput[`${exercise.id}-${setIndex}`] ?? String(typeof set.weight === 'number' ? (exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight) : (exerciseData[exercise.id]?.[setIndex]?.weight ?? 0))}
-                                        onChange={(e) => {
-                                          const raw = e.target.value;
-                                          setEditingWeightInput(prev => ({ ...prev, [`${exercise.id}-${setIndex}`]: raw }));
-                                        }}
-                                        onBlur={() => {
-                                          const key = `${exercise.id}-${setIndex}`;
-                                          const raw = editingWeightInput[key];
-                                          if (raw === undefined) return;
-                                          const parsed = parseFloat(raw.replace(',', '.'));
-                                          const value = Number.isFinite(parsed) ? Math.max(0, parsed) : (exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight ?? 0);
-                                          updateExerciseData(exercise.id, setIndex, 'weight', typeof value === 'number' ? value : 0);
-                                          setEditingWeightInput(prev => { const next = { ...prev }; delete next[key]; return next; });
-                                        }}
-                                        onKeyDown={(e) => {
-                                          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                                        }}
-                                        aria-label="Weight in kg"
-                                      />
-                                      <div className="text-purple-400 text-[9px] leading-tight">kg</div>
-                                    </div>
-                                  )}
-                                  <button
-                                    onClick={() => {
-                                      const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
-                                      const newWeight = typeof currentWeight === 'number' ? currentWeight + 2.5 : 2.5;
-                                      updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
-                                      setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
-                                    }}
-                                    className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </button>
+                                    ) : (
+                                      <div className="flex-1 min-w-0 flex flex-col justify-center rounded-xl bg-black/35 border border-white/10 px-1.5 py-1 shadow-inner">
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          step={0.5}
+                                          inputMode="decimal"
+                                          placeholder="0"
+                                          className="w-full bg-transparent text-center text-base sm:text-lg font-bold text-white tabular-nums tracking-tight
+                                            placeholder:text-white/25 focus:outline-none focus:ring-0
+                                            [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                          value={
+                                            editingWeightInput[`${exercise.id}-${setIndex}`] ??
+                                            String(
+                                              typeof set.weight === 'number'
+                                                ? exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight
+                                                : exerciseData[exercise.id]?.[setIndex]?.weight ?? 0
+                                            )
+                                          }
+                                          onChange={(e) => {
+                                            setEditingWeightInput(prev => ({
+                                              ...prev,
+                                              [`${exercise.id}-${setIndex}`]: e.target.value,
+                                            }));
+                                          }}
+                                          onBlur={() => {
+                                            const key = `${exercise.id}-${setIndex}`;
+                                            const raw = editingWeightInput[key];
+                                            if (raw === undefined) return;
+                                            const parsed = parseFloat(raw.replace(',', '.'));
+                                            const fallback =
+                                              exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight ?? 0;
+                                            const value = Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
+                                            updateExerciseData(exercise.id, setIndex, 'weight', typeof value === 'number' ? value : 0);
+                                            setEditingWeightInput(prev => {
+                                              const next = { ...prev };
+                                              delete next[key];
+                                              return next;
+                                            });
+                                          }}
+                                          onKeyDown={(e) => {
+                                            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                          }}
+                                          aria-label="Weight in kilograms"
+                                        />
+                                        <span className="text-[9px] text-center text-white/40 font-medium">kg · tap to type</span>
+                                      </div>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
+                                        const newWeight = typeof currentWeight === 'number' ? currentWeight + 2.5 : 2.5;
+                                        updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
+                                        setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
+                                      }}
+                                      className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#dc1e3a]/25 to-[#dc1e3a]/10 border border-[#dc1e3a]/35 text-white hover:from-[#dc1e3a]/35 hover:to-[#dc1e3a]/15 active:scale-95 transition-all duration-200 flex items-center justify-center"
+                                      aria-label="Increase weight 2.5 kg"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                    </button>
+                                  </div>
                                 </div>
                               </div>
                               
