@@ -8,7 +8,8 @@ import {
   Camera,
   BarChart3,
   Crown,
-  Pill
+  Pill,
+  Languages
 } from 'lucide-react';
 import { Client, ClientWorkoutAssignment, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
@@ -16,6 +17,7 @@ import { enrichProgramAndWeeksWithExercises } from '../utils/enrichAssignment';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useToast } from '../contexts/ToastContext';
+import { useClientLocale } from '../contexts/ClientLocaleContext';
 import { useSwipeGesture } from '../hooks/useSwipeGesture';
 import { 
   WorkoutDaySkeleton, 
@@ -72,20 +74,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const [isLoadingTab, setIsLoadingTab] = useState(false);
   
   const toast = useToast();
+  const { locale, setLocale, t, isRtl } = useClientLocale();
 
-  // Memoize motivational quotes
-  const motivationQuotes = useMemo(() => [
-    { text: "Your only limit is you", emoji: "🔥" },
-    { text: "Push yourself, because no one else will", emoji: "💪" },
-    { text: "Great things never come from comfort zones", emoji: "⚡" },
-    { text: "Don't stop when you're tired, stop when you're done", emoji: "🎯" },
-    { text: "The pain you feel today will be the strength you feel tomorrow", emoji: "🏆" }
-  ], []);
-
-  const todayQuote = useMemo(() => 
-    motivationQuotes[new Date().getDay() % motivationQuotes.length], 
-    [motivationQuotes]
-  );
+  const todayQuote = useMemo(() => {
+    const i = new Date().getDay() % 5;
+    return t(`motivation.${i}`);
+  }, [t, locale]);
 
   // Keep effective assignment in sync with prop and with sync fetch
   useEffect(() => {
@@ -101,18 +95,18 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     await new Promise(resolve => setTimeout(resolve, 300));
     setIsLoadingTab(false);
     
-    const tabNames: Record<string, string> = {
-      nutrition: 'Nutrition Plan',
-      supplements: 'Supplements & Hydration',
-      workout: 'Workout Program',
-      progress: 'Progress Tracking',
-      weight: 'Weight Journal',
-      photos: 'Progress Photos',
-      performance: 'Performance Analytics'
+    const tabLabelKeys: Record<string, string> = {
+      nutrition: 'nav.nutrition',
+      supplements: 'nav.supplements',
+      workout: 'nav.workouts',
+      progress: 'nav.progress',
+      weight: 'nav.weight',
+      photos: 'nav.photos',
+      performance: 'nav.analytics',
     };
-    
-    toast.info(`Switched to ${tabNames[tabId] || tabId}`);
-  }, [toast]);
+    const label = t(tabLabelKeys[tabId] || tabId);
+    toast.info(t('toast.switched', { tab: label }));
+  }, [toast, t]);
 
   const handleRefresh = useCallback(() => {
     window.location.reload();
@@ -418,8 +412,94 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const completedWeeks = Math.max(0, currentWeek - 1); // Weeks before current week are considered completed
   const progressPercentage = Math.round((currentWeek / (client.numberOfWeeks || 12)) * 100);
 
+  const desktopNavTabs = useMemo(
+    () =>
+      [
+        {
+          id: 'nutrition',
+          labelKey: 'nav.nutrition',
+          icon: Utensils,
+          gradient: 'from-green-500 to-emerald-500',
+          activeColor: 'text-green-400',
+          activeBg: 'bg-green-500/20',
+          emoji: '🥗',
+        },
+        {
+          id: 'supplements',
+          labelKey: 'nav.supplements',
+          icon: Pill,
+          gradient: 'from-purple-500 to-pink-500',
+          activeColor: 'text-purple-400',
+          activeBg: 'bg-purple-500/20',
+          emoji: '💊',
+        },
+        {
+          id: 'workout',
+          labelKey: 'nav.workouts',
+          icon: Dumbbell,
+          gradient: 'from-red-500 to-orange-500',
+          activeColor: 'text-red-400',
+          activeBg: 'bg-red-500/20',
+          emoji: '💪',
+        },
+        {
+          id: 'progress',
+          labelKey: 'nav.progress',
+          icon: TrendingUp,
+          gradient: 'from-blue-500 to-indigo-500',
+          activeColor: 'text-blue-400',
+          activeBg: 'bg-blue-500/20',
+          emoji: '📊',
+        },
+        {
+          id: 'performance',
+          labelKey: 'nav.analytics',
+          icon: BarChart3,
+          gradient: 'from-violet-500 to-fuchsia-500',
+          activeColor: 'text-violet-400',
+          activeBg: 'bg-violet-500/20',
+          emoji: '📈',
+        },
+        {
+          id: 'weight',
+          labelKey: 'nav.weight',
+          icon: Scale,
+          gradient: 'from-purple-500 to-pink-500',
+          activeColor: 'text-purple-400',
+          activeBg: 'bg-purple-500/20',
+          emoji: '⚖️',
+        },
+        {
+          id: 'photos',
+          labelKey: 'nav.photos',
+          icon: Camera,
+          gradient: 'from-indigo-500 to-cyan-500',
+          activeColor: 'text-indigo-400',
+          activeBg: 'bg-indigo-500/20',
+          emoji: '📸',
+        },
+      ] as const,
+    [t, locale]
+  );
+
+  const mobileNavTabs = useMemo(
+    () =>
+      [
+        { id: 'nutrition', labelKey: 'nav.nutrition', icon: Utensils, color: 'text-green-400', activeBg: 'bg-green-500/20' },
+        { id: 'supplements', labelKey: 'nav.supps', icon: Pill, color: 'text-purple-400', activeBg: 'bg-purple-500/20' },
+        { id: 'workout', labelKey: 'nav.workout', icon: Dumbbell, color: 'text-red-400', activeBg: 'bg-red-500/20' },
+        { id: 'progress', labelKey: 'nav.progress', icon: TrendingUp, color: 'text-blue-400', activeBg: 'bg-blue-500/20' },
+        { id: 'weight', labelKey: 'nav.weight', icon: Scale, color: 'text-pink-400', activeBg: 'bg-pink-500/20' },
+        { id: 'photos', labelKey: 'nav.photos', icon: Camera, color: 'text-indigo-400', activeBg: 'bg-indigo-500/20' },
+      ] as const,
+    [t, locale]
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div
+      className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"
+      dir={isRtl ? 'rtl' : 'ltr'}
+    >
       {/* Background Effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse"></div>
@@ -437,9 +517,9 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 </div>
                 <div>
                   <h1 className="text-xl md:text-3xl font-bold text-white">
-                    Welcome back, {client.name.split(' ')[0]}!
+                    {t('modern.welcomeBack', { name: client.name.split(' ')[0] })}
                   </h1>
-                  <p className="text-purple-300 text-sm md:text-lg font-medium">Ready to crush your goals? 🔥</p>
+                  <p className="text-purple-300 text-sm md:text-lg font-medium">{t('modern.readyCrush')}</p>
                 </div>
               </div>
             </div>
@@ -448,22 +528,45 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             <div className="hidden md:flex items-center space-x-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-white">{currentWeek}</div>
-                <div className="text-purple-300 text-sm font-medium">Current Week</div>
+                <div className="text-purple-300 text-sm font-medium">{t('modern.currentWeek')}</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-400">{completedWeeks}</div>
-                <div className="text-purple-300 text-sm font-medium">Completed</div>
+                <div className="text-purple-300 text-sm font-medium">{t('modern.completed')}</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-yellow-400">{progressPercentage}%</div>
-                <div className="text-purple-300 text-sm font-medium">Progress</div>
+                <div className="text-purple-300 text-sm font-medium">{t('modern.progress')}</div>
               </div>
-              <button
-                onClick={handleRefresh}
-                className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-xl text-sm font-semibold transition-all duration-200"
-              >
-                🔄 Refresh
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 rounded-xl bg-slate-700/50 border border-slate-600/50 p-1">
+                  <Languages className="w-4 h-4 text-purple-300 shrink-0 ml-1" aria-hidden />
+                  <button
+                    type="button"
+                    onClick={() => setLocale('en')}
+                    className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                      locale === 'en' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {t('modern.langEnglish')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLocale('ar')}
+                    className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                      locale === 'ar' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {t('modern.langArabic')}
+                  </button>
+                </div>
+                <button
+                  onClick={handleRefresh}
+                  className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-xl text-sm font-semibold transition-all duration-200"
+                >
+                  {t('modern.refresh')}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -476,10 +579,9 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-pink-500/5"></div>
             <div className="relative flex items-center justify-between">
               <div className="flex items-center space-x-4">
-                <div className="text-4xl">{todayQuote.emoji}</div>
                 <div>
-                  <p className="text-xl font-semibold text-white mb-1">{todayQuote.text}</p>
-                  <p className="text-purple-300 font-medium">Daily Motivation</p>
+                  <p className="text-xl font-semibold text-white mb-1">{todayQuote}</p>
+                  <p className="text-purple-300 font-medium">{t('modern.dailyMotivation')}</p>
                 </div>
               </div>
               <button
@@ -498,8 +600,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         <div className="bg-gradient-to-br from-slate-900/80 to-purple-900/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-purple-500/20 p-4 sm:p-8 shadow-2xl">
           <div className="flex items-center justify-between mb-4 sm:mb-8">
             <div className="flex-1">
-              <h2 className="text-lg sm:text-2xl font-bold text-white mb-1 sm:mb-2">Your Journey</h2>
-              <p className="text-purple-300 text-sm sm:text-base font-medium">Week {currentWeek} of {client.numberOfWeeks}</p>
+              <h2 className="text-lg sm:text-2xl font-bold text-white mb-1 sm:mb-2">{t('modern.yourJourney')}</h2>
+              <p className="text-purple-300 text-sm sm:text-base font-medium">
+                {t('modern.weekOf', { current: currentWeek, total: client.numberOfWeeks || 12 })}
+              </p>
             </div>
             
             {/* Circular Progress - Mobile Optimized */}
@@ -537,7 +641,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
                   <div className="text-sm sm:text-xl font-bold text-white">{progressPercentage}%</div>
-                  <div className="text-purple-300 text-xs hidden sm:block font-medium">Complete</div>
+                  <div className="text-purple-300 text-xs hidden sm:block font-medium">{t('modern.complete')}</div>
                 </div>
               </div>
             </div>
@@ -546,8 +650,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
           {/* Week Progress Bar */}
           <div className="space-y-3 sm:space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-white font-semibold text-sm sm:text-base">Weekly Progress</span>
-              <span className="text-purple-300 text-xs sm:text-sm font-medium">Week {currentWeek} of {client.numberOfWeeks}</span>
+              <span className="text-white font-semibold text-sm sm:text-base">{t('modern.weeklyProgress')}</span>
+              <span className="text-purple-300 text-xs sm:text-sm font-medium">
+                {t('modern.weekOf', { current: currentWeek, total: client.numberOfWeeks || 12 })}
+              </span>
             </div>
             <div className="w-full bg-slate-700/50 rounded-full h-2 sm:h-3 overflow-hidden">
               <div
@@ -564,72 +670,25 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       {/* Modern Horizontal Mobile Navbar */}
       <div className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-2xl">
         <div className="max-w-7xl mx-auto px-3 sm:px-6">
+          <div className="flex md:hidden items-center justify-end gap-2 py-2 border-b border-slate-700/40">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wide">{t('modern.language')}</span>
+            <button
+              type="button"
+              onClick={() => setLocale('en')}
+              className={`px-2 py-1 rounded-lg text-xs font-semibold ${locale === 'en' ? 'bg-purple-600 text-white' : 'text-slate-400'}`}
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocale('ar')}
+              className={`px-2 py-1 rounded-lg text-xs font-semibold ${locale === 'ar' ? 'bg-purple-600 text-white' : 'text-slate-400'}`}
+            >
+              عربي
+            </button>
+          </div>
           <div className="flex items-center justify-around py-2 sm:py-3">
-            {[
-              { 
-                id: 'nutrition', 
-                label: 'Nutrition', 
-                icon: Utensils, 
-                gradient: 'from-green-500 to-emerald-500',
-                activeColor: 'text-green-400',
-                activeBg: 'bg-green-500/20',
-                emoji: '🥗'
-              },
-              { 
-                id: 'supplements', 
-                label: 'Supplements', 
-                icon: Pill, 
-                gradient: 'from-purple-500 to-pink-500',
-                activeColor: 'text-purple-400',
-                activeBg: 'bg-purple-500/20',
-                emoji: '💊'
-              },
-              { 
-                id: 'workout', 
-                label: 'Workouts', 
-                icon: Dumbbell, 
-                gradient: 'from-red-500 to-orange-500',
-                activeColor: 'text-red-400',
-                activeBg: 'bg-red-500/20',
-                emoji: '💪'
-              },
-              { 
-                id: 'progress', 
-                label: 'Progress', 
-                icon: TrendingUp, 
-                gradient: 'from-blue-500 to-indigo-500',
-                activeColor: 'text-blue-400',
-                activeBg: 'bg-blue-500/20',
-                emoji: '📊'
-              },
-              { 
-                id: 'performance', 
-                label: 'Analytics', 
-                icon: BarChart3, 
-                gradient: 'from-violet-500 to-fuchsia-500',
-                activeColor: 'text-violet-400',
-                activeBg: 'bg-violet-500/20',
-                emoji: '📈'
-              },
-              { 
-                id: 'weight', 
-                label: 'Weight', 
-                icon: Scale, 
-                gradient: 'from-purple-500 to-pink-500',
-                activeColor: 'text-purple-400',
-                activeBg: 'bg-purple-500/20',
-                emoji: '⚖️'
-              },
-              { 
-                id: 'photos', 
-                label: 'Photos', 
-                icon: Camera, 
-                gradient: 'from-indigo-500 to-cyan-500',
-                activeColor: 'text-indigo-400',
-                activeBg: 'bg-indigo-500/20',
-                emoji: '📸'
-              }
-            ].map((tab) => (
+            {desktopNavTabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
@@ -661,7 +720,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                     ? tab.activeColor 
                     : 'text-slate-400 group-hover:text-slate-300'
                 }`}>
-                  {tab.label}
+                  {t(tab.labelKey)}
                 </span>
                 
                 {/* Active underline */}
@@ -736,7 +795,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                   className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
                 >
                   <ArrowLeft className="w-5 h-5" />
-                  <span>Back to Nutrition</span>
+                  <span>{t('progress.backToNutrition')}</span>
                 </button>
               </div>
               <IndependentMuscleGroupCharts client={clientForCharts} isDark={isDark} />
@@ -761,7 +820,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
                 <h2 className="text-2xl font-bold text-white mb-4 flex items-center">
                   <Camera className="w-6 h-6 mr-3 text-indigo-400" />
-                  Upload Week {currentWeek} Photos
+                  {t('photos.uploadWeek', { week: currentWeek })}
                 </h2>
                 <WeeklyPhotoUpload
                   clientId={databaseClientId || client.id}
@@ -778,55 +837,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
       {/* Mobile Bottom Navigation - Fixed at bottom */}
       <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-2xl border-t border-slate-700/50 safe-area-bottom">
-        <div className="flex items-center justify-around px-2 py-3">
-          {[
-            { 
-              id: 'nutrition', 
-              label: 'Nutrition', 
-              icon: Utensils, 
-              color: 'text-green-400',
-              activeBg: 'bg-green-500/20'
-            },
-            { 
-              id: 'supplements', 
-              label: 'Supps', 
-              icon: Pill, 
-              color: 'text-purple-400',
-              activeBg: 'bg-purple-500/20'
-            },
-            { 
-              id: 'workout', 
-              label: 'Workout', 
-              icon: Dumbbell, 
-              color: 'text-red-400',
-              activeBg: 'bg-red-500/20'
-            },
-            { 
-              id: 'progress', 
-              label: 'Progress', 
-              icon: TrendingUp, 
-              color: 'text-blue-400',
-              activeBg: 'bg-blue-500/20'
-            },
-            { 
-              id: 'weight', 
-              label: 'Weight', 
-              icon: Scale, 
-              color: 'text-pink-400',
-              activeBg: 'bg-pink-500/20'
-            },
-            { 
-              id: 'photos', 
-              label: 'Photos', 
-              icon: Camera, 
-              color: 'text-indigo-400',
-              activeBg: 'bg-indigo-500/20'
-            }
-          ].map((tab) => (
+        <div className="flex items-center justify-around px-2 py-3 relative">
+          {mobileNavTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`flex flex-col items-center justify-center min-w-[60px] py-2 px-3 rounded-xl transition-all duration-300 ${
+              className={`relative flex flex-col items-center justify-center min-w-[60px] py-2 px-3 rounded-xl transition-all duration-300 ${
                 activeTab === tab.id
                   ? `${tab.activeBg} scale-110`
                   : 'active:scale-95'
@@ -842,7 +858,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                   ? tab.color
                   : 'text-slate-500'
               }`}>
-                {tab.label}
+                {t(tab.labelKey)}
               </span>
               {activeTab === tab.id && (
                 <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 rounded-b-full ${tab.activeBg} opacity-50`} />

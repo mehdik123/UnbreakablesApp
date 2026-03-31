@@ -19,6 +19,7 @@ import {
 import { Client, WorkoutProgram } from '../types';
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking';
 import { useHorizontalScroll } from '../hooks/useHorizontalScroll';
+import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -57,6 +58,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const [dropsetData, setDropsetData] = useState<{ [exerciseId: string]: { [dropsetIndex: number]: { [roundIndex: number]: { reps: number; weight: number } } } }>({});
   const [editingWeightInput, setEditingWeightInput] = useState<Record<string, string>>({});
   const [workoutProgram, setWorkoutProgram] = useState<WorkoutProgram | null>(null);
+  const { t } = useClientLocale();
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const SHARED_KEY = `client_${client.id}_assignment`;
   const [sharedVersion, setSharedVersion] = useState<number>(0);
@@ -416,10 +418,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             <Dumbbell className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400" />
             </div>
           <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
-            No Workout Plan Assigned
+            {t('workout.noPlanTitle')}
           </h3>
           <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mb-4">
-            Your coach hasn't assigned a workout plan yet. Please check back later or contact your coach.
+            {t('workout.noPlanBody')}
           </p>
           <div className="space-x-2">
             <button 
@@ -429,7 +431,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
               }}
               className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg text-xs sm:text-sm"
             >
-              Clear Cache & Reload
+              {t('workout.clearReload')}
             </button>
           </div>
             </div>
@@ -446,11 +448,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             <Dumbbell className="w-8 h-8 text-yellow-400" />
           </div>
           <h3 className="text-xl font-semibold text-yellow-400 mb-2">
-            ⚠️ Old Data Detected
+            {t('workout.oldDataTitle')}
           </h3>
           <p className="text-yellow-300 mb-4">
-            This client is using old cached data instead of the fresh CSV exercise database. 
-            The coach needs to re-assign the workout plan to use the correct exercise names and video links.
+            {t('workout.oldDataBody')}
           </p>
           <div className="space-x-2">
             <button
@@ -460,7 +461,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
               }}
               className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm"
             >
-              Clear Cache & Reload
+              {t('workout.clearReload')}
             </button>
           </div>
         </div>
@@ -843,12 +844,12 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       {/* Banner to clear cached data when old data is detected */}
       {isUsingOldData && (
         <div className="px-4 py-3 bg-amber-600/20 border-b border-amber-600/30 text-amber-200 flex items-center justify-between">
-          <span className="text-sm">Old cached workout data detected. Clear and reload to use latest video links.</span>
+          <span className="text-sm">{t('workout.cacheBanner')}</span>
             <button
             onClick={clearClientCachedWorkout}
             className="px-3 py-1 bg-amber-500/30 hover:bg-amber-500/40 rounded text-xs"
           >
-            Clear cached workout
+            {t('workout.clearCached')}
           </button>
         </div>
       )}
@@ -900,7 +901,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         {deployedWeeks.length > 0 && onWeekChange && (
           <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-2xl border border-gray-700/50 p-4 shadow-xl">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-400 text-sm font-medium">Week</span>
+              <span className="text-gray-400 text-sm font-medium">{t('workout.weekLabel')}</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {deployedWeeks.map((w) => {
@@ -918,7 +919,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                         : 'bg-gray-700/50 text-gray-300 border border-gray-600/50 hover:bg-gray-700'
                     }`}
                   >
-                    Week {w.weekNumber}{completed ? ' ✓' : ''}
+                    {t('workout.weekN', { n: w.weekNumber })}{completed ? ' ✓' : ''}
                   </button>
                 );
               })}
@@ -947,13 +948,13 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                 <Calendar className="w-5 h-5 text-[#dc1e3a]" />
               </div>
               <div>
-                <h4 className="text-lg sm:text-xl font-bold text-white">Workout Days</h4>
-                <p className="text-gray-400 text-xs sm:text-sm">Select your training day</p>
+                <h4 className="text-lg sm:text-xl font-bold text-white">{t('workout.daysTitle')}</h4>
+                <p className="text-gray-400 text-xs sm:text-sm">{t('workout.daysSubtitle')}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-[#dc1e3a] rounded-full animate-pulse"></div>
-              <span className="text-xs text-gray-400">Active</span>
+              <span className="text-xs text-gray-400">{t('workout.active')}</span>
             </div>
           </div>
           
@@ -1044,8 +1045,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                   <Lock className="w-4 h-4 text-yellow-400" />
                 </div>
                 <div>
-                  <p className="text-yellow-300 text-sm font-medium">Week Locked</p>
-                  <p className="text-yellow-400/80 text-xs">Complete previous weeks to unlock this training week</p>
+                  <p className="text-yellow-300 text-sm font-medium">{t('workout.weekLocked')}</p>
+                  <p className="text-yellow-400/80 text-xs">{t('workout.weekLockedBody')}</p>
                 </div>
               </div>
         </div>
@@ -1064,7 +1065,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm sm:text-xl font-bold text-white truncate">{currentDayData.name}</h3>
-                    <p className="text-gray-400 text-xs sm:text-sm">Week {currentWeek} • {currentDayData.exercises.length} exercises</p>
+                    <p className="text-gray-400 text-xs sm:text-sm">
+                      {t('workout.weekExercises', { week: currentWeek, count: currentDayData.exercises.length })}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
@@ -1072,7 +1075,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                     <div className="text-lg sm:text-2xl font-bold text-[#dc1e3a]">
                       {currentDayData.exercises.length}
                     </div>
-                    <div className="text-gray-400 text-xs">Exercises</div>
+                    <div className="text-gray-400 text-xs">{t('workout.exercises')}</div>
                   </div>
                 </div>
               </div>
@@ -1118,7 +1121,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                         </div>
                         <div className="flex items-center space-x-1 bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
                           <Dumbbell className="w-2 h-2 sm:w-3 sm:h-3 text-emerald-400" />
-                          <span className="text-xs font-medium text-emerald-300">{exercise.sets.length} sets</span>
+                          <span className="text-xs font-medium text-emerald-300">
+                            {t('workout.setsCount', { n: exercise.sets.length })}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1131,7 +1136,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                         <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-md sm:rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
                           <Play className="w-2 h-2 sm:w-3 sm:h-3 text-[#dc1e3a]" />
                         </div>
-                        <h6 className="text-xs sm:text-sm font-semibold text-white">Exercise Demonstration</h6>
+                        <h6 className="text-xs sm:text-sm font-semibold text-white">{t('workout.demoTitle')}</h6>
                       </div>
                       
                     <a 
@@ -1158,8 +1163,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                             <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
                               <div className="text-center text-gray-400">
                                 <div className="text-6xl mb-4">🎥</div>
-                                <div className="text-lg font-medium">No video available</div>
-                                <div className="text-sm text-gray-500 mt-2">Video demonstration coming soon</div>
+                                <div className="text-lg font-medium">{t('workout.noVideo')}</div>
+                                <div className="text-sm text-gray-500 mt-2">{t('workout.noVideoSub')}</div>
                             </div>
                           </div>
                         )}
@@ -1172,8 +1177,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                               <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center mb-3 mx-auto group-hover:bg-gray-600 transition-all duration-300">
                                 <Play className="w-5 h-5 text-white ml-1" />
                             </div>
-                              <p className="text-white text-sm font-medium">Watch Demonstration</p>
-                              <p className="text-gray-400 text-xs mt-1">Click to open on YouTube</p>
+                              <p className="text-white text-sm font-medium">{t('workout.watchDemo')}</p>
+                              <p className="text-gray-400 text-xs mt-1">{t('workout.watchYoutube')}</p>
                           </div>
                         </div>
                           
@@ -1187,7 +1192,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                             <div className="bg-black/80 text-white text-sm px-3 py-2 rounded-lg backdrop-blur-sm">
                               <div className="flex items-center space-x-2">
                                 <Play className="w-4 h-4" />
-                                <span>Watch Now</span>
+                                <span>{t('workout.watchNow')}</span>
                               </div>
                     </div>
                     </div>
@@ -1204,15 +1209,15 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                             <Dumbbell className="w-2 h-2 sm:w-3 sm:h-3 text-[#dc1e3a]" />
                           </div>
                           <div>
-                            <h6 className="text-xs sm:text-sm font-bold text-white">Sets & Reps</h6>
+                            <h6 className="text-xs sm:text-sm font-bold text-white">{t('workout.setsReps')}</h6>
                             <p className="text-gray-400 text-xs">
-                              Track your performance
+                              {t('workout.trackPerformance')}
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="text-sm sm:text-lg font-bold text-[#dc1e3a]">{exercise.sets.length}</div>
-                          <div className="text-gray-400 text-xs">Sets</div>
+                          <div className="text-gray-400 text-xs">{t('workout.sets')}</div>
                         </div>
                       </div>
 
@@ -1230,10 +1235,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                 </div>
                                 <div className="flex items-center space-x-1">
                                   <span className="text-xs sm:text-sm font-semibold text-white">
-                                    Set {setIndex + 1}
+                                    {t('workout.setN', { n: setIndex + 1 })}
                                     {set.isDropset && (
                                       <span className="ml-2 px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full">
-                                        Dropset
+                                        {t('workout.dropset')}
                                       </span>
                                     )}
                                   </span>
@@ -1246,7 +1251,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                               {/* Reps Section - Compact Mobile Design */}
                               <div className="flex-1 bg-gradient-to-r from-blue-500/10 to-blue-600/5 rounded-md p-2 border border-blue-500/20">
                                 <div className="flex items-center justify-between mb-1.5">
-                                  <h6 className="text-[10px] font-semibold text-blue-300 uppercase">Reps</h6>
+                                  <h6 className="text-[10px] font-semibold text-blue-300 uppercase">{t('workout.reps')}</h6>
                                   <Target className="w-3 h-3 text-blue-400" />
                                 </div>
                                 <div className="flex items-center justify-center gap-1">
@@ -1268,7 +1273,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                       }
                                     </div>
                                     <div className="text-blue-400 text-[9px] leading-tight">
-                                      {set.isDropset ? 'dropset' : 'reps'}
+                                      {set.isDropset ? t('workout.dropset') : t('workout.reps')}
                                     </div>
                                   </div>
                                   <button
@@ -1289,7 +1294,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#dc1e3a]/[0.08] via-transparent to-violet-500/[0.06]" />
                                 <div className="relative p-2 sm:p-2.5">
                                   <div className="flex items-center justify-between mb-2">
-                                    <h6 className="text-[10px] font-bold tracking-[0.12em] text-white/70 uppercase">Weight</h6>
+                                    <h6 className="text-[10px] font-bold tracking-[0.12em] text-white/70 uppercase">{t('workout.weight')}</h6>
                                     <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#dc1e3a]/15 border border-[#dc1e3a]/25">
                                       <Zap className="w-3.5 h-3.5 text-[#dc1e3a]" />
                                     </div>
@@ -1312,9 +1317,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                       <div className="flex-1 min-w-0 flex flex-col items-center justify-center rounded-xl bg-black/30 border border-white/10 px-2 py-1">
                                         <div className="text-sm font-bold text-white tabular-nums leading-tight truncate max-w-full">
                                           {set.weight.join(' → ')}
-                                          <span className="text-white/50 font-semibold text-xs ml-0.5">kg</span>
+                                          <span className="text-white/50 font-semibold text-xs ml-0.5">{t('workout.kg')}</span>
                                         </div>
-                                        <span className="text-[9px] text-white/40 mt-0.5">Dropset</span>
+                                        <span className="text-[9px] text-white/40 mt-0.5">{t('workout.dropset')}</span>
                                       </div>
                                     ) : (
                                       <div className="flex-1 min-w-0 flex flex-col justify-center rounded-xl bg-black/35 border border-white/10 px-1.5 py-1 shadow-inner">
@@ -1359,9 +1364,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                           onKeyDown={(e) => {
                                             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                                           }}
-                                          aria-label="Weight in kilograms"
+                                          aria-label={t('workout.weightAria')}
                                         />
-                                        <span className="text-[9px] text-center text-white/40 font-medium">kg · tap to type</span>
+                                        <span className="text-[9px] text-center text-white/40 font-medium">{t('workout.kgTapType')}</span>
                                       </div>
                                     )}
                                     <button
@@ -1373,7 +1378,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                         setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
                                       }}
                                       className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#dc1e3a]/25 to-[#dc1e3a]/10 border border-[#dc1e3a]/35 text-white hover:from-[#dc1e3a]/35 hover:to-[#dc1e3a]/15 active:scale-95 transition-all duration-200 flex items-center justify-center"
-                                      aria-label="Increase weight 2.5 kg"
+                                      aria-label={t('workout.increaseWeight')}
                                     >
                                       <Plus className="w-4 h-4" />
                                     </button>
@@ -1394,7 +1399,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                       className="px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white border border-green-500/30 shadow-lg text-sm sm:text-base"
                     >
                       <Save className="w-4 h-4 sm:w-5 sm:h-5" />
-                      Save
+                      {t('workout.save')}
                     </button>
                   </div>
                 </div>
@@ -1406,7 +1411,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                           <Heart className="w-4 h-4 text-blue-400" />
                         </div>
                         <div>
-                          <h6 className="text-sm font-semibold text-blue-300 mb-2">Exercise Notes</h6>
+                          <h6 className="text-sm font-semibold text-blue-300 mb-2">{t('workout.exerciseNotes')}</h6>
                           <p className="text-blue-200 text-sm leading-relaxed">{exercise.notes}</p>
                         </div>
                       </div>
@@ -1427,14 +1432,14 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
               <Lock className="w-8 h-8 text-slate-400" />
             </div>
             <h3 className="text-lg font-bold text-white mb-3">
-              Week {currentWeek} is Locked
+              {t('workout.weekNLocked', { week: currentWeek })}
             </h3>
             <p className="text-slate-400 text-sm mb-4">
-              Complete previous weeks to unlock this week's workouts.
+              {t('workout.weekLockedFull')}
             </p>
             <div className="flex items-center justify-center space-x-2 text-slate-500">
               <Flame className="w-4 h-4" />
-              <span className="text-sm">Keep pushing forward!</span>
+              <span className="text-sm">{t('workout.keepPushing')}</span>
           </div>
         </div>
         )}

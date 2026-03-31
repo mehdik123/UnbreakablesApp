@@ -3,6 +3,7 @@ import { ModernLoadingScreen } from './components/ModernLoadingScreen';
 import { CoachLogin } from './components/CoachLogin';
 import { ClientLogin } from './components/ClientLogin';
 import { ToastProvider } from './contexts/ToastContext';
+import { ClientLocaleProvider } from './contexts/ClientLocaleContext';
 
 // Lazy load heavy components
 const UnbreakableSteamClientsManager = lazy(() => import('./components/UnbreakableSteamClientsManager').then(module => ({ default: module.UnbreakableSteamClientsManager })));
@@ -1105,10 +1106,12 @@ function App() {
         )}
 
         {appState.currentView === 'client-interface' && appState.selectedClient && (
-          <ModernClientInterface
-            client={appState.selectedClient}
-            isDark={appState.isDark}
-          />
+          <ClientLocaleProvider>
+            <ModernClientInterface
+              client={appState.selectedClient}
+              isDark={appState.isDark}
+            />
+          </ClientLocaleProvider>
         )}
 
         {appState.currentView === 'client-view' && clientViewData && (
