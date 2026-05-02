@@ -9,7 +9,9 @@ import {
   BarChart3,
   Crown,
   Pill,
-  Languages
+  Languages,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { Client, ClientWorkoutAssignment, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
@@ -55,6 +57,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   isDark
 }) => {
   const [activeTab, setActiveTab] = useState<'nutrition' | 'supplements' | 'workout' | 'progress' | 'weight' | 'photos' | 'performance'>('workout');
+  const [useDarkTheme, setUseDarkTheme] = useState<boolean>(() => {
+    const saved = localStorage.getItem('client_interface_theme');
+    // Default to dark mode when no preference exists
+    if (!saved) return true;
+    return saved === 'dark';
+  });
   const [currentWeek, setCurrentWeek] = useState<number>(() => {
     return client.workoutAssignment?.currentWeek || 1;
   });
@@ -75,6 +83,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   
   const toast = useToast();
   const { locale, setLocale, t, isRtl } = useClientLocale();
+
+  useEffect(() => {
+    localStorage.setItem('client_interface_theme', useDarkTheme ? 'dark' : 'light');
+  }, [useDarkTheme]);
 
   const todayQuote = useMemo(() => {
     const i = new Date().getDay() % 5;
@@ -489,6 +501,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         { id: 'supplements', labelKey: 'nav.supps', icon: Pill, color: 'text-purple-400', activeBg: 'bg-purple-500/20' },
         { id: 'workout', labelKey: 'nav.workout', icon: Dumbbell, color: 'text-red-400', activeBg: 'bg-red-500/20' },
         { id: 'progress', labelKey: 'nav.progress', icon: TrendingUp, color: 'text-blue-400', activeBg: 'bg-blue-500/20' },
+        { id: 'performance', labelKey: 'nav.analytics', icon: BarChart3, color: 'text-violet-400', activeBg: 'bg-violet-500/20' },
         { id: 'weight', labelKey: 'nav.weight', icon: Scale, color: 'text-pink-400', activeBg: 'bg-pink-500/20' },
         { id: 'photos', labelKey: 'nav.photos', icon: Camera, color: 'text-indigo-400', activeBg: 'bg-indigo-500/20' },
       ] as const,
@@ -497,7 +510,11 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900"
+      className={`min-h-screen ${
+        useDarkTheme
+          ? 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900'
+          : 'bg-gradient-to-br from-slate-50 via-white to-indigo-50'
+      }`}
       dir={isRtl ? 'rtl' : 'ltr'}
     >
       {/* Background Effects */}
@@ -507,7 +524,11 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       </div>
 
       {/* Header */}
-      <div className="relative z-10 bg-slate-800/95 backdrop-blur-xl border-b border-slate-700/50 shadow-lg">
+      <div className={`relative z-10 backdrop-blur-xl border-b shadow-lg ${
+        useDarkTheme
+          ? 'bg-slate-800/95 border-slate-700/50'
+          : 'bg-white/90 border-slate-200'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -516,10 +537,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                   <Crown className="w-6 h-6 md:w-8 md:h-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-xl md:text-3xl font-bold text-white">
+                  <h1 className={`text-xl md:text-3xl font-bold ${useDarkTheme ? 'text-white' : 'text-slate-900'}`}>
                     {t('modern.welcomeBack', { name: client.name.split(' ')[0] })}
                   </h1>
-                  <p className="text-purple-300 text-sm md:text-lg font-medium">{t('modern.readyCrush')}</p>
+                  <p className={`text-sm md:text-lg font-medium ${useDarkTheme ? 'text-purple-300' : 'text-indigo-600'}`}>{t('modern.readyCrush')}</p>
                 </div>
               </div>
             </div>
@@ -527,25 +548,31 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             {/* Quick Stats */}
             <div className="hidden md:flex items-center space-x-6">
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">{currentWeek}</div>
-                <div className="text-purple-300 text-sm font-medium">{t('modern.currentWeek')}</div>
+                <div className={`text-2xl font-bold ${useDarkTheme ? 'text-white' : 'text-slate-900'}`}>{currentWeek}</div>
+                <div className={`text-sm font-medium ${useDarkTheme ? 'text-purple-300' : 'text-slate-600'}`}>{t('modern.currentWeek')}</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-400">{completedWeeks}</div>
-                <div className="text-purple-300 text-sm font-medium">{t('modern.completed')}</div>
+                <div className={`text-sm font-medium ${useDarkTheme ? 'text-purple-300' : 'text-slate-600'}`}>{t('modern.completed')}</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-yellow-400">{progressPercentage}%</div>
-                <div className="text-purple-300 text-sm font-medium">{t('modern.progress')}</div>
+                <div className={`text-sm font-medium ${useDarkTheme ? 'text-purple-300' : 'text-slate-600'}`}>{t('modern.progress')}</div>
               </div>
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1 rounded-xl bg-slate-700/50 border border-slate-600/50 p-1">
-                  <Languages className="w-4 h-4 text-purple-300 shrink-0 ml-1" aria-hidden />
+                <div className={`flex items-center gap-1 rounded-xl p-1 ${
+                  useDarkTheme ? 'bg-slate-700/50 border border-slate-600/50' : 'bg-slate-100 border border-slate-200'
+                }`}>
+                  <Languages className={`w-4 h-4 shrink-0 ml-1 ${useDarkTheme ? 'text-purple-300' : 'text-indigo-600'}`} aria-hidden />
                   <button
                     type="button"
                     onClick={() => setLocale('en')}
                     className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                      locale === 'en' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
+                      locale === 'en'
+                        ? 'bg-purple-600 text-white'
+                        : useDarkTheme
+                          ? 'text-slate-400 hover:text-white'
+                          : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     {t('modern.langEnglish')}
@@ -554,12 +581,28 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                     type="button"
                     onClick={() => setLocale('ar')}
                     className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                      locale === 'ar' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
+                      locale === 'ar'
+                        ? 'bg-purple-600 text-white'
+                        : useDarkTheme
+                          ? 'text-slate-400 hover:text-white'
+                          : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     {t('modern.langArabic')}
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setUseDarkTheme(prev => !prev)}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                    useDarkTheme
+                      ? 'bg-slate-700 text-slate-200 hover:bg-slate-600'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {useDarkTheme ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                  {useDarkTheme ? 'Light' : 'Dark'}
+                </button>
                 <button
                   onClick={handleRefresh}
                   className="px-4 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-xl text-sm font-semibold transition-all duration-200"
@@ -597,11 +640,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
       {/* Progress Ring */}
       <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
-        <div className="bg-gradient-to-br from-slate-900/80 to-purple-900/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-purple-500/20 p-4 sm:p-8 shadow-2xl">
+        <div className={`backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-8 shadow-2xl ${
+          useDarkTheme
+            ? 'bg-gradient-to-br from-slate-900/80 to-purple-900/80 border border-purple-500/20'
+            : 'bg-white/90 border border-slate-200'
+        }`}>
           <div className="flex items-center justify-between mb-4 sm:mb-8">
             <div className="flex-1">
-              <h2 className="text-lg sm:text-2xl font-bold text-white mb-1 sm:mb-2">{t('modern.yourJourney')}</h2>
-              <p className="text-purple-300 text-sm sm:text-base font-medium">
+              <h2 className={`text-lg sm:text-2xl font-bold mb-1 sm:mb-2 ${useDarkTheme ? 'text-white' : 'text-slate-900'}`}>{t('modern.yourJourney')}</h2>
+              <p className={`text-sm sm:text-base font-medium ${useDarkTheme ? 'text-purple-300' : 'text-slate-600'}`}>
                 {t('modern.weekOf', { current: currentWeek, total: client.numberOfWeeks || 12 })}
               </p>
             </div>
@@ -640,7 +687,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-sm sm:text-xl font-bold text-white">{progressPercentage}%</div>
+                  <div className={`text-sm sm:text-xl font-bold ${useDarkTheme ? 'text-white' : 'text-slate-900'}`}>{progressPercentage}%</div>
                   <div className="text-purple-300 text-xs hidden sm:block font-medium">{t('modern.complete')}</div>
                 </div>
               </div>
@@ -650,11 +697,46 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
           {/* Week Progress Bar */}
           <div className="space-y-3 sm:space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-white font-semibold text-sm sm:text-base">{t('modern.weeklyProgress')}</span>
-              <span className="text-purple-300 text-xs sm:text-sm font-medium">
+              <span className={`font-semibold text-sm sm:text-base ${useDarkTheme ? 'text-white' : 'text-slate-900'}`}>{t('modern.weeklyProgress')}</span>
+              <span className={`text-xs sm:text-sm font-medium ${useDarkTheme ? 'text-purple-300' : 'text-slate-600'}`}>
                 {t('modern.weekOf', { current: currentWeek, total: client.numberOfWeeks || 12 })}
               </span>
             </div>
+      {/* Language + theme controls */}
+      <div className="relative z-20 px-3 pb-2">
+        <div className={`flex items-center justify-between rounded-2xl px-3 py-2 ${
+          useDarkTheme ? 'bg-slate-800/80 border border-slate-700/60' : 'bg-white/95 border border-slate-200'
+        }`}>
+          <div className="flex items-center gap-2">
+            <Languages className={`w-4 h-4 ${useDarkTheme ? 'text-purple-300' : 'text-indigo-600'}`} />
+            <button
+              type="button"
+              onClick={() => setLocale('en')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${locale === 'en' ? 'bg-purple-600 text-white' : useDarkTheme ? 'text-slate-300' : 'text-slate-700'}`}
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocale('ar')}
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${locale === 'ar' ? 'bg-purple-600 text-white' : useDarkTheme ? 'text-slate-300' : 'text-slate-700'}`}
+            >
+              عربي
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => setUseDarkTheme(prev => !prev)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold ${
+              useDarkTheme ? 'bg-slate-700 text-slate-100' : 'bg-slate-100 text-slate-700'
+            }`}
+          >
+            {useDarkTheme ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            {useDarkTheme ? 'Light' : 'Dark'}
+          </button>
+        </div>
+      </div>
+
             <div className="w-full bg-slate-700/50 rounded-full h-2 sm:h-3 overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-1000 relative overflow-hidden"
@@ -667,8 +749,8 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         </div>
       </div>
 
-      {/* Modern Horizontal Mobile Navbar */}
-      <div className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-2xl">
+      {/* Top nav hidden: using one global bottom navbar */}
+      <div className="hidden sticky top-0 z-50 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-2xl">
         <div className="max-w-7xl mx-auto px-3 sm:px-6">
           <div className="flex md:hidden items-center justify-end gap-2 py-2 border-b border-slate-700/40">
             <span className="text-[10px] text-slate-500 uppercase tracking-wide">{t('modern.language')}</span>
@@ -766,7 +848,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             <ErrorBoundary>
               <ClientNutritionView
                 client={client}
-                isDark={isDark}
+                isDark={useDarkTheme}
                 nutritionPlan={nutritionPlan}
               />
             </ErrorBoundary>
@@ -835,14 +917,16 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         </Suspense>
       </div>
 
-      {/* Mobile Bottom Navigation - Fixed at bottom */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-2xl border-t border-slate-700/50 safe-area-bottom">
-        <div className="flex items-center justify-around px-2 py-3 relative">
+      {/* Bottom Navigation - Fixed on all screens */}
+      <div className={`fixed bottom-0 left-0 right-0 z-[70] backdrop-blur-2xl border-t safe-area-bottom ${
+        useDarkTheme ? 'bg-slate-900/95 border-slate-700/50' : 'bg-white/95 border-slate-200'
+      }`}>
+        <div className="max-w-7xl mx-auto flex items-center justify-around gap-1 overflow-x-auto px-2 py-3 relative">
           {mobileNavTabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`relative flex flex-col items-center justify-center min-w-[60px] py-2 px-3 rounded-xl transition-all duration-300 ${
+              className={`relative flex-shrink-0 flex flex-col items-center justify-center min-w-[64px] py-2 px-3 rounded-xl transition-all duration-300 ${
                 activeTab === tab.id
                   ? `${tab.activeBg} scale-110`
                   : 'active:scale-95'
