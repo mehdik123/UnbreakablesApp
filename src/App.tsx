@@ -32,7 +32,8 @@ import { foods as defaultFoods } from './data/foods';
 import { meals as defaultMeals } from './data/meals';
 import { exercises as defaultExercises } from './data/exercises';
 import { supabase, isSupabaseReady } from './lib/supabaseClient';
-import { dbListClients, dbListClientsWithWorkoutAssignments, dbGetClientWithWorkoutAssignment, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment } from './lib/db';
+import { dbListClients, dbListClientsWithWorkoutAssignments, dbGetClientWithWorkoutAssignment, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment, dbUpsertNutritionPlan, dbGetNutritionPlan } from './lib/db';
+import { buildDuplicatedClient, DuplicateClientOptions } from './utils/duplicateClientProgram';
 import { authService } from './lib/authService';
 
 function App() {
@@ -422,47 +423,79 @@ function App() {
     localStorage.setItem('clients', JSON.stringify(updatedClients));
   };
 
-  const handleDuplicateClient = (client: Client) => {
-    const duplicatedClient: Client = {
-      ...client,
-      id: Date.now().toString(),
-      name: `${client.name} (Copy)`,
-      startDate: new Date(),
-      // Duplicate nutrition plan if exists
-      nutritionPlan: client.nutritionPlan ? {
-        ...client.nutritionPlan,
-        id: Date.now().toString() + '_nutrition',
-        clientId: Date.now().toString(),
-        clientName: `${client.name} (Copy)`,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      } : undefined,
-      // Duplicate workout assignment if exists
-      workoutAssignment: client.workoutAssignment ? {
-        ...client.workoutAssignment,
-        id: Date.now().toString() + '_workout',
-        clientId: Date.now().toString(),
-        clientName: `${client.name} (Copy)`,
-        startDate: new Date(),
-        weeks: client.workoutAssignment.weeks?.map(week => ({
-          ...week,
-          days: week.days?.map(day => ({
-            ...day,
-            exercises: day.exercises?.map((exercise: any) => ({
-              ...exercise,
-              id: `${exercise.id}_copy_${Date.now()}`
-            })) || []
-          })) || []
-        })) || []
-      } : undefined,
-      // Reset weight log and favorites
-      weightLog: [],
-      favorites: []
-    };
-    
+  const handleDuplicateClient = async (
+    client: Client,
+    options: DuplicateClientOptions
+  ) => {
+    let sourceClient = client;
+
+    if (isSupabaseReady && !client.nutritionPlan) {
+      const { data: planJson } = await dbGetNutritionPlan(client.id);
+      if (planJson) {
+        sourceClient = { ...client, nutritionPlan: planJson };
+      }
+    }
+
+    const duplicatedClient = buildDuplicatedClient(sourceClient, options);
+
+    if (isSupabaseReady) {
+      const { data, error } = await dbAddClient({
+        full_name: duplicatedClient.name,
+        number_of_weeks: duplicatedClient.numberOfWeeks,
+        goal: duplicatedClient.goal,
+        email: duplicatedClient.email,
+        phone: duplicatedClient.phone,
+        start_date: duplicatedClient.startDate.toISOString().split('T')[0],
+        is_active: duplicatedClient.isActive,
+        favorites: duplicatedClient.favorites,
+        weight_log: duplicatedClient.weightLog,
+      });
+
+      if (error || !data) {
+        console.error('Failed to duplicate client:', error);
+        alert(`Could not duplicate client: ${error?.message || 'Unknown error'}`);
+        return;
+      }
+
+      duplicatedClient.id = data.id;
+
+      if (duplicatedClient.nutritionPlan) {
+        const planForDb = {
+          ...duplicatedClient.nutritionPlan,
+          clientId: data.id,
+          clientName: duplicatedClient.name,
+        };
+        await dbUpsertNutritionPlan(data.id, planForDb);
+        duplicatedClient.nutritionPlan = planForDb;
+      }
+
+      if (duplicatedClient.workoutAssignment) {
+        const assignment = {
+          ...duplicatedClient.workoutAssignment,
+          clientId: data.id,
+          clientName: duplicatedClient.name,
+        };
+        await handleAssignWorkoutPlan(data.id, assignment);
+        duplicatedClient.workoutAssignment = assignment;
+      }
+
+      setAppState((prev) => ({
+        ...prev,
+        clients: [...prev.clients, duplicatedClient],
+      }));
+      return;
+    }
+
     const newClients = [...appState.clients, duplicatedClient];
-    setAppState(prev => ({ ...prev, clients: newClients }));
+    setAppState((prev) => ({ ...prev, clients: newClients }));
     localStorage.setItem('clients', JSON.stringify(newClients));
+
+    if (duplicatedClient.nutritionPlan) {
+      localStorage.setItem(
+        `nutrition_plan_${duplicatedClient.id}`,
+        JSON.stringify(duplicatedClient.nutritionPlan)
+      );
+    }
   };
 
   // Navigation Functions

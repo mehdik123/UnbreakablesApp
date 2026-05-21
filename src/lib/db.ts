@@ -83,7 +83,15 @@ export async function dbAddClient(payload: {
   return { data, error };
 }
 
-export async function dbUpdateClient(id: string, updates: { full_name?: string }): Promise<DBResult<any>> {
+export async function dbUpdateClient(id: string, updates: {
+  full_name?: string;
+  number_of_weeks?: number;
+  goal?: string;
+  email?: string;
+  phone?: string;
+  start_date?: string;
+  is_active?: boolean;
+}): Promise<DBResult<any>> {
   if (!isSupabaseReady || !supabase) return { data: null };
   const { data, error } = await supabase.from('clients').update(updates).eq('id', id).select('*').maybeSingle();
   return { data, error };
