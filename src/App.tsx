@@ -19,6 +19,7 @@ const WorkoutProgramManager = lazy(() => import('./components/WorkoutProgramMana
 // const SimpleWorkoutEditor = lazy(() => import('./components/SimpleWorkoutEditor').then(module => ({ default: module.SimpleWorkoutEditor })));
 const TemplatesBuilder = lazy(() => import('./components/TemplatesBuilder'));
 import './styles/mobile.css';
+import './styles/client-mobile.css';
 import { 
   AppState, 
   Client, 
@@ -35,12 +36,19 @@ import { supabase, isSupabaseReady } from './lib/supabaseClient';
 import { dbListClients, dbListClientsWithWorkoutAssignments, dbGetClientWithWorkoutAssignment, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment, dbUpsertNutritionPlan, dbGetNutritionPlan } from './lib/db';
 import { buildDuplicatedClient, DuplicateClientOptions } from './utils/duplicateClientProgram';
 import { authService } from './lib/authService';
+import {
+  getInitialAuthState,
+  saveClientPortalPath,
+  ensureClientPortalUrl,
+  extractClientIdFromShareParam,
+} from './lib/sessionRestore';
 
 function App() {
-  // Authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authType, setAuthType] = useState<'none' | 'coach' | 'client'>('none');
+  const initialAuth = getInitialAuthState();
+  const [isAuthenticated, setIsAuthenticated] = useState(initialAuth.isAuthenticated);
+  const [authType, setAuthType] = useState<'none' | 'coach' | 'client'>(initialAuth.authType);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [sessionRestored, setSessionRestored] = useState(false);
   
   const [appState, setAppState] = useState<AppState>({
     currentView: 'clients',
@@ -54,18 +62,95 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [clientViewData, setClientViewData] = useState<any>(null);
 
-  // Check authentication on mount
+  // Sync auth from storage on mount (handles refresh without login flash)
   useEffect(() => {
-    const checkAuth = () => {
-      const currentUser = authService.getCurrentUser();
-      if (currentUser) {
-        setIsAuthenticated(true);
-        setAuthType(currentUser.type);
-      }
-      setIsCheckingAuth(false);
-    };
-    checkAuth();
+    const currentUser = authService.getCurrentUser();
+    if (currentUser) {
+      authService.touchSession();
+      setIsAuthenticated(true);
+      setAuthType(currentUser.type);
+    }
+    setIsCheckingAuth(false);
   }, []);
+
+  const openClientInterface = async (clientId: string) => {
+    let foundClient = appState.clients.find((c) => c.id === clientId);
+    if (!foundClient && isSupabaseReady) {
+      const { data: row } = await dbGetClientWithWorkoutAssignment(clientId);
+      if (row) {
+        const assignment =
+          row.workout_assignments?.find((a: any) => a.is_active) ||
+          row.workout_assignments?.[0];
+        const program = assignment?.program_json;
+        const workoutAssignment = assignment
+          ? {
+              id: assignment.id,
+              clientId: row.id,
+              clientName: row.full_name,
+              startDate: new Date(assignment.start_date || Date.now()),
+              duration: assignment.duration_weeks,
+              currentWeek: assignment.current_week || 1,
+              currentDay: assignment.current_day || 1,
+              program,
+              weeks: program?.weeks ?? [],
+              progressionRules: program?.progressionRules ?? [],
+              isActive: assignment.is_active,
+              lastModifiedBy: assignment.last_modified_by,
+            }
+          : undefined;
+        foundClient = {
+          id: row.id,
+          name: row.full_name,
+          email: row.email || '',
+          phone: row.phone || '',
+          goal: row.goal || 'maintenance',
+          numberOfWeeks: row.number_of_weeks || 12,
+          startDate: new Date(row.start_date || new Date()),
+          isActive: row.is_active !== false,
+          favorites: row.favorites || [],
+          weightLog: row.weight_log || [],
+          workoutAssignment,
+        };
+        setAppState((prev) => ({
+          ...prev,
+          clients: prev.clients.some((c) => c.id === foundClient!.id)
+            ? prev.clients
+            : [...prev.clients, foundClient!],
+        }));
+      }
+    }
+    if (foundClient) {
+      setAppState((prev) => ({
+        ...prev,
+        currentView: 'client-interface',
+        selectedClient: foundClient,
+      }));
+    }
+    return foundClient;
+  };
+
+  // After refresh: restore client portal when session is still valid
+  useEffect(() => {
+    if (isCheckingAuth || isLoading || sessionRestored || !isAuthenticated) return;
+
+    const user = authService.getCurrentUser();
+    if (user?.type !== 'client' || !user.clientId) {
+      setSessionRestored(true);
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const shareId = params.get('client');
+    let targetId = user.clientId;
+    if (shareId) {
+      targetId = extractClientIdFromShareParam(shareId);
+    } else {
+      ensureClientPortalUrl(user.clientId);
+    }
+
+    saveClientPortalPath();
+    openClientInterface(targetId).finally(() => setSessionRestored(true));
+  }, [isCheckingAuth, isLoading, isAuthenticated, sessionRestored]);
 
   // Load real food database and exercises from database
   useEffect(() => {
@@ -996,58 +1081,19 @@ function App() {
   const handleCoachLoginSuccess = () => {
     setIsAuthenticated(true);
     setAuthType('coach');
+    setAppState((prev) => ({
+      ...prev,
+      currentView: prev.currentView === 'client-interface' ? 'clients' : prev.currentView,
+      selectedClient: null,
+    }));
   };
 
   const handleClientLoginSuccess = async (clientId: string) => {
     setIsAuthenticated(true);
     setAuthType('client');
-
-    let foundClient = appState.clients.find(c => c.id === clientId);
-    if (!foundClient && isSupabaseReady) {
-      const { data: row } = await dbGetClientWithWorkoutAssignment(clientId);
-      if (row) {
-        const assignment = row.workout_assignments?.find((a: any) => a.is_active) || row.workout_assignments?.[0];
-        const program = assignment?.program_json;
-        const workoutAssignment = assignment ? {
-          id: assignment.id,
-          clientId: row.id,
-          clientName: row.full_name,
-          startDate: new Date(assignment.start_date || Date.now()),
-          duration: assignment.duration_weeks,
-          currentWeek: assignment.current_week || 1,
-          currentDay: assignment.current_day || 1,
-          program,
-          weeks: program?.weeks ?? [],
-          progressionRules: program?.progressionRules ?? [],
-          isActive: assignment.is_active,
-          lastModifiedBy: assignment.last_modified_by
-        } : undefined;
-        foundClient = {
-          id: row.id,
-          name: row.full_name,
-          email: row.email || '',
-          phone: row.phone || '',
-          goal: row.goal || 'maintenance',
-          numberOfWeeks: row.number_of_weeks || 12,
-          startDate: new Date(row.start_date || new Date()),
-          isActive: row.is_active !== false,
-          favorites: row.favorites || [],
-          weightLog: row.weight_log || [],
-          workoutAssignment
-        };
-        setAppState(prev => ({
-          ...prev,
-          clients: prev.clients.some(c => c.id === foundClient!.id) ? prev.clients : [...prev.clients, foundClient!]
-        }));
-      }
-    }
-    if (foundClient) {
-      setAppState(prev => ({
-        ...prev,
-        currentView: 'client-interface',
-        selectedClient: foundClient
-      }));
-    }
+    saveClientPortalPath();
+    await openClientInterface(clientId);
+    setSessionRestored(true);
   };
 
   // Wrap everything with ToastProvider
@@ -1083,11 +1129,18 @@ function App() {
 
         // Protect client views
         if (isClientLink && authType !== 'client') {
-          const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
-          const uuidMatch = clientShareId.match(uuidPattern);
-          const extractedClientId = uuidMatch ? uuidMatch[1] : clientShareId;
-          
+          const extractedClientId = extractClientIdFromShareParam(clientShareId);
           return <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />;
+        }
+
+        if (
+          isAuthenticated &&
+          authType === 'client' &&
+          isClientLink &&
+          !appState.selectedClient &&
+          !sessionRestored
+        ) {
+          return <ModernLoadingScreen message="Restoring your session..." />;
         }
 
         // Main app content

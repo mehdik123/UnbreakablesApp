@@ -306,12 +306,8 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
   }
 
   return (
-    <div className={`min-h-screen pb-24 ${
-      isDark
-        ? 'bg-[radial-gradient(ellipse_at_top,#1f1147_0%,#0a1632_35%,#07142b_70%)] text-white'
-        : 'bg-[radial-gradient(ellipse_at_top,#f5f7ff_0%,#ffffff_55%,#f8fbff_100%)] text-slate-900'
-    }`}>
-      <div className="max-w-md mx-auto px-3 pt-4 space-y-4">
+    <div className={isDark ? 'text-white' : 'text-slate-900'}>
+      <div className="max-w-md mx-auto px-1 pt-1 space-y-3">
         <div className={`h-2 rounded-full overflow-hidden border shadow-[0_0_20px_rgba(56,189,248,0.18)] ${
           isDark ? 'bg-slate-800/90 border-slate-700/80' : 'bg-slate-200 border-slate-300'
         }`}>
@@ -321,7 +317,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
           />
         </div>
 
-        <div className={`relative rounded-3xl p-4 overflow-hidden ${
+        <div className={`relative rounded-xl p-3 overflow-hidden ${
           isDark
             ? 'border border-purple-400/25 bg-gradient-to-br from-[#1d1b46]/95 via-[#161d43]/95 to-[#101f3e]/90 shadow-[0_18px_50px_rgba(73,53,160,0.45)]'
             : 'border border-slate-200 bg-gradient-to-br from-white via-indigo-50/60 to-white shadow-[0_12px_35px_rgba(30,64,175,0.12)]'

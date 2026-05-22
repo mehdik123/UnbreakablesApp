@@ -61,9 +61,18 @@ class AuthService {
   private saveAuthToStorage(user: AuthUser) {
     try {
       localStorage.setItem(this.AUTH_STORAGE_KEY, JSON.stringify(user));
-      localStorage.setItem(this.AUTH_EXPIRY_KEY, (Date.now() + this.SESSION_DURATION).toString());
+      this.touchSession();
     } catch (error) {
       console.error('Error saving auth to storage:', error);
+    }
+  }
+
+  /** Extend session expiry (call on login and each page load while logged in). */
+  touchSession() {
+    try {
+      localStorage.setItem(this.AUTH_EXPIRY_KEY, (Date.now() + this.SESSION_DURATION).toString());
+    } catch (error) {
+      console.error('Error extending session:', error);
     }
   }
 
@@ -150,6 +159,9 @@ class AuthService {
   }
 
   isAuthenticated(): boolean {
+    if (!this.currentUser) {
+      this.loadAuthFromStorage();
+    }
     return this.currentUser !== null;
   }
 
