@@ -854,48 +854,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         </div>
       )}
 
-      {/* Mobile Header - Responsive for all devices */}
-      <div className="bg-slate-800 border-b border-slate-700/50">
-        <div className="px-3 sm:px-4 py-3 sm:py-4 max-w-full">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <button className="p-1.5 sm:p-2 -ml-1 sm:-ml-2">
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="text-base sm:text-lg font-semibold text-white truncate">{client.name}'s Program</h1>
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              <button className="p-1.5 sm:p-2">
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </button>
-              <button className="p-1.5 sm:p-2">
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                </svg>
-              </button>
-              <button className="p-1.5 sm:p-2">
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-            </button>
-          </div>
-        </div>
-
-
-          {/* Performance tracking indicator */}
-          {client.workoutAssignment?.lastModifiedBy === 'client' && (
-            <div className="flex items-center justify-center space-x-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-xs text-green-400 font-medium">
-                Performance tracked - Coach can see your progress
-              </span>
-          </div>
-        )}
-        </div>
-      </div>
-
       <div className="px-3 sm:px-4 py-3 sm:py-4 space-y-4 sm:space-y-6 pb-20 max-w-full overflow-x-hidden">
         {/* Week navigation - only deployed weeks */}
         {deployedWeeks.length > 0 && onWeekChange && (
@@ -962,7 +920,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           <div className="relative">
             <div 
               ref={daysScrollRef}
-              className="overflow-x-auto scrollbar-hide horizontal-scroll"
+              data-horizontal-scroll="true"
+              className="overflow-x-auto scrollbar-hide horizontal-scroll touch-pan-x"
+              style={{ WebkitOverflowScrolling: 'touch' }}
             >
               <div className="flex space-x-3 sm:space-x-4 pb-2 min-w-max">
                 {currentWorkoutProgram?.days?.map((day, index) => {
@@ -1201,78 +1161,63 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                     </div>
                   </div>
 
-                  {/* Sets & Reps Section - always visible; Save per exercise */}
-                  <div className="space-y-3 sm:space-y-6">
-                      <div className="flex items-center justify-between mb-2 sm:mb-3">
-                        <div className="flex items-center space-x-1 sm:space-x-2">
-                          <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-md sm:rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
+                  {/* Sets & Reps Section */}
+                  <div className="space-y-2 sm:space-y-4">
+                      <div className="flex items-center justify-between mb-1 sm:mb-2">
+                        <div className="flex items-center space-x-1.5">
+                          <div className="w-4 h-4 sm:w-6 sm:h-6 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-md flex items-center justify-center border border-[#dc1e3a]/30">
                             <Dumbbell className="w-2 h-2 sm:w-3 sm:h-3 text-[#dc1e3a]" />
                           </div>
-                          <div>
-                            <h6 className="text-xs sm:text-sm font-bold text-white">{t('workout.setsReps')}</h6>
-                            <p className="text-gray-400 text-xs">
-                              {t('workout.trackPerformance')}
-                            </p>
-                          </div>
+                          <h6 className="text-[11px] sm:text-sm font-bold text-white">{t('workout.setsReps')}</h6>
                         </div>
                         <div className="text-right">
-                          <div className="text-sm sm:text-lg font-bold text-[#dc1e3a]">{exercise.sets.length}</div>
-                          <div className="text-gray-400 text-xs">{t('workout.sets')}</div>
+                          <span className="text-xs sm:text-lg font-bold text-[#dc1e3a]">{exercise.sets.length}</span>
+                          <span className="text-gray-400 text-[10px] sm:text-xs ml-1">{t('workout.sets')}</span>
                         </div>
                       </div>
 
-                      {/* Set-based organization - Enhanced with Superset & Dropset Support */}
-                      <div className="space-y-2 sm:space-y-4">
+                      <div className="space-y-1.5 sm:space-y-3">
                         {exercise.sets.map((set, setIndex) => (
-                          <div key={setIndex} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 border transition-all duration-300 bg-gradient-to-br from-gray-800/60 to-gray-900/40 border-gray-700/50 hover:border-[#dc1e3a]/20`}>
-                            <div className="flex items-center justify-between mb-2 sm:mb-3">
-                              {/* Set Number */}
-                              <div className="flex items-center space-x-1 sm:space-x-2">
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md sm:rounded-lg flex items-center justify-center border bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 border-[#dc1e3a]/30">
-                                  <span className="text-xs sm:text-sm font-bold text-[#dc1e3a]">
-                                    {setIndex + 1}
-                                  </span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <span className="text-xs sm:text-sm font-semibold text-white">
-                                    {t('workout.setN', { n: setIndex + 1 })}
-                                    {set.isDropset && (
-                                      <span className="ml-2 px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full">
-                                        {t('workout.dropset')}
-                                      </span>
-                                    )}
-                                  </span>
-                                </div>
+                          <div key={setIndex} className="rounded-lg sm:rounded-xl p-1.5 sm:p-3 border bg-gradient-to-br from-gray-800/60 to-gray-900/40 border-gray-700/50">
+                            <div className="flex items-center gap-1.5 mb-1 sm:mb-2">
+                              <div className="w-4 h-4 sm:w-6 sm:h-6 rounded-md flex items-center justify-center border bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 border-[#dc1e3a]/30">
+                                <span className="text-[10px] sm:text-sm font-bold text-[#dc1e3a]">{setIndex + 1}</span>
                               </div>
+                              <span className="text-[11px] sm:text-sm font-semibold text-white">
+                                {t('workout.setN', { n: setIndex + 1 })}
+                                {set.isDropset && (
+                                  <span className="ml-1 px-1.5 py-0.5 bg-purple-500/20 text-purple-300 text-[9px] sm:text-xs rounded-full">
+                                    {t('workout.dropset')}
+                                  </span>
+                                )}
+                              </span>
                             </div>
-                              
-                            {/* Reps & Weight Controls - Mobile Optimized */}
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              {/* Reps Section - Compact Mobile Design */}
-                              <div className="flex-1 bg-gradient-to-r from-blue-500/10 to-blue-600/5 rounded-md p-2 border border-blue-500/20">
-                                <div className="flex items-center justify-between mb-1.5">
-                                  <h6 className="text-[10px] font-semibold text-blue-300 uppercase">{t('workout.reps')}</h6>
-                                  <Target className="w-3 h-3 text-blue-400" />
+
+                            {/* Reps + Weight side by side on mobile */}
+                            <div className="flex flex-row gap-1.5 sm:gap-2">
+                              <div className="flex-1 min-w-0 bg-gradient-to-r from-blue-500/10 to-blue-600/5 rounded-md p-1.5 sm:p-2 border border-blue-500/20">
+                                <div className="flex items-center justify-between mb-1">
+                                  <h6 className="text-[9px] sm:text-[10px] font-semibold text-blue-300 uppercase">{t('workout.reps')}</h6>
+                                  <Target className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-400" />
                                 </div>
-                                <div className="flex items-center justify-center gap-1">
+                                <div className="flex items-center justify-center gap-0.5">
                                   <button
                                     onClick={() => {
                                       const currentReps = exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps;
                                       const newReps = typeof currentReps === 'number' ? Math.max(0, currentReps - 1) : 0;
                                       updateExerciseData(exercise.id, setIndex, 'reps', newReps);
                                     }}
-                                    className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                    className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 border border-blue-500/30 text-blue-300 flex items-center justify-center"
                                   >
                                     <Minus className="w-3 h-3" />
                                   </button>
-                                  <div className="text-center px-1 flex-1 min-w-[30px]">
-                                    <div className="text-sm font-bold text-blue-300 leading-tight">
-                                      {set.isDropset && Array.isArray(set.reps) 
-                                        ? set.reps.join('→') 
-                                        : (exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps)
-                                      }
+                                  <div className="text-center px-0.5 flex-1 min-w-[24px]">
+                                    <div className="text-xs sm:text-sm font-bold text-blue-300 leading-tight">
+                                      {set.isDropset && Array.isArray(set.reps)
+                                        ? set.reps.join('→')
+                                        : (exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps)}
                                     </div>
-                                    <div className="text-blue-400 text-[9px] leading-tight">
+                                    <div className="text-blue-400 text-[8px] sm:text-[9px] leading-tight hidden sm:block">
                                       {set.isDropset ? t('workout.dropset') : t('workout.reps')}
                                     </div>
                                   </div>
@@ -1282,24 +1227,23 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                       const newReps = typeof currentReps === 'number' ? currentReps + 1 : 1;
                                       updateExerciseData(exercise.id, setIndex, 'reps', newReps);
                                     }}
-                                    className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
+                                    className="w-7 h-7 sm:w-8 sm:h-8 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 border border-blue-500/30 text-blue-300 flex items-center justify-center"
                                   >
                                     <Plus className="w-3 h-3" />
                                   </button>
                                 </div>
                               </div>
 
-                              {/* Weight — ultra-modern: glass card, ±2.5kg + direct type (no spinners) */}
-                              <div className="flex-1 relative min-w-0 rounded-xl overflow-hidden border border-white/10 bg-slate-900/70 backdrop-blur-xl shadow-lg shadow-black/20">
+                              <div className="flex-1 min-w-0 relative rounded-lg sm:rounded-xl overflow-hidden border border-white/10 bg-slate-900/70 backdrop-blur-xl">
                                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#dc1e3a]/[0.08] via-transparent to-violet-500/[0.06]" />
-                                <div className="relative p-2 sm:p-2.5">
-                                  <div className="flex items-center justify-between mb-2">
-                                    <h6 className="text-[10px] font-bold tracking-[0.12em] text-white/70 uppercase">{t('workout.weight')}</h6>
-                                    <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#dc1e3a]/15 border border-[#dc1e3a]/25">
-                                      <Zap className="w-3.5 h-3.5 text-[#dc1e3a]" />
+                                <div className="relative p-1.5 sm:p-2.5">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <h6 className="text-[9px] sm:text-[10px] font-bold tracking-wider text-white/70 uppercase">{t('workout.weight')}</h6>
+                                    <div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-[#dc1e3a]/15 border border-[#dc1e3a]/25">
+                                      <Zap className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-[#dc1e3a]" />
                                     </div>
                                   </div>
-                                  <div className="flex items-stretch gap-1.5 sm:gap-2">
+                                  <div className="flex items-stretch gap-1">
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -1308,7 +1252,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                         updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
                                         setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
                                       }}
-                                      className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/15 text-white/90 hover:border-[#dc1e3a]/40 hover:text-[#dc1e3a] active:scale-95 transition-all duration-200 flex items-center justify-center"
+                                      className="shrink-0 w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-white/[0.08] to-white/[0.02] border border-white/15 text-white/90 flex items-center justify-center"
                                       aria-label="Decrease weight 2.5 kg"
                                     >
                                       <Minus className="w-4 h-4" />
@@ -1329,7 +1273,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                           step={0.5}
                                           inputMode="decimal"
                                           placeholder="0"
-                                          className="w-full bg-transparent text-center text-base sm:text-lg font-bold text-white tabular-nums tracking-tight
+                                          className="w-full bg-transparent text-center text-sm sm:text-lg font-bold text-white tabular-nums
                                             placeholder:text-white/25 focus:outline-none focus:ring-0
                                             [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                           value={
@@ -1366,7 +1310,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                           }}
                                           aria-label={t('workout.weightAria')}
                                         />
-                                        <span className="text-[9px] text-center text-white/40 font-medium">{t('workout.kgTapType')}</span>
+                                        <span className="text-[8px] sm:text-[9px] text-center text-white/40 font-medium hidden sm:block">{t('workout.kgTapType')}</span>
                                       </div>
                                     )}
                                     <button
@@ -1377,7 +1321,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                         updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
                                         setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
                                       }}
-                                      className="shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#dc1e3a]/25 to-[#dc1e3a]/10 border border-[#dc1e3a]/35 text-white hover:from-[#dc1e3a]/35 hover:to-[#dc1e3a]/15 active:scale-95 transition-all duration-200 flex items-center justify-center"
+                                      className="shrink-0 w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-br from-[#dc1e3a]/25 to-[#dc1e3a]/10 border border-[#dc1e3a]/35 text-white flex items-center justify-center"
                                       aria-label={t('workout.increaseWeight')}
                                     >
                                       <Plus className="w-4 h-4" />
