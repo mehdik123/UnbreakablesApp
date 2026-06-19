@@ -38,8 +38,6 @@ import { buildDuplicatedClient, DuplicateClientOptions } from './utils/duplicate
 import { authService } from './lib/authService';
 import {
   getInitialAuthState,
-  saveClientPortalPath,
-  ensureClientPortalUrl,
   extractClientIdFromShareParam,
 } from './lib/sessionRestore';
 
@@ -129,27 +127,22 @@ function App() {
     return foundClient;
   };
 
-  // After refresh: restore client portal when session is still valid
+  // After refresh of a client link (?client=...), keep the client in their portal.
+  // We never rewrite the URL: bare root stays on the coach login/dashboard.
   useEffect(() => {
     if (isCheckingAuth || isLoading || sessionRestored || !isAuthenticated) return;
 
     const user = authService.getCurrentUser();
-    if (user?.type !== 'client' || !user.clientId) {
+    const shareId = new URLSearchParams(window.location.search).get('client');
+
+    if (user?.type !== 'client' || !shareId) {
       setSessionRestored(true);
       return;
     }
 
-    const params = new URLSearchParams(window.location.search);
-    const shareId = params.get('client');
-    let targetId = user.clientId;
-    if (shareId) {
-      targetId = extractClientIdFromShareParam(shareId);
-    } else {
-      ensureClientPortalUrl(user.clientId);
-    }
-
-    saveClientPortalPath();
-    openClientInterface(targetId).finally(() => setSessionRestored(true));
+    openClientInterface(extractClientIdFromShareParam(shareId)).finally(() =>
+      setSessionRestored(true)
+    );
   }, [isCheckingAuth, isLoading, isAuthenticated, sessionRestored]);
 
   // Load real food database and exercises from database
@@ -1091,7 +1084,6 @@ function App() {
   const handleClientLoginSuccess = async (clientId: string) => {
     setIsAuthenticated(true);
     setAuthType('client');
-    saveClientPortalPath();
     await openClientInterface(clientId);
     setSessionRestored(true);
   };
