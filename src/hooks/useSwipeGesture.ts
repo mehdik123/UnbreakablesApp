@@ -8,6 +8,25 @@ interface SwipeConfig {
   minSwipeDistance?: number;
 }
 
+/** True when touch started inside a horizontally scrollable region (e.g. workout day picker). */
+function isInsideHorizontalScrollArea(target: EventTarget | null): boolean {
+  let el = target instanceof HTMLElement ? target : null;
+  while (el) {
+    if (el.dataset.horizontalScroll === 'true' || el.classList.contains('horizontal-scroll')) {
+      return true;
+    }
+    const { overflowX } = window.getComputedStyle(el);
+    if (
+      (overflowX === 'auto' || overflowX === 'scroll') &&
+      el.scrollWidth > el.clientWidth + 2
+    ) {
+      return true;
+    }
+    el = el.parentElement;
+  }
+  return false;
+}
+
 export const useSwipeGesture = (config: SwipeConfig) => {
   const {
     onSwipeLeft,
@@ -19,9 +38,11 @@ export const useSwipeGesture = (config: SwipeConfig) => {
 
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const touchEnd = useRef<{ x: number; y: number } | null>(null);
+  const touchStartTarget = useRef<EventTarget | null>(null);
 
   const onTouchStart = useCallback((e: TouchEvent) => {
     touchEnd.current = null;
+    touchStartTarget.current = e.target;
     touchStart.current = {
       x: e.targetTouches[0].clientX,
       y: e.targetTouches[0].clientY
@@ -37,6 +58,11 @@ export const useSwipeGesture = (config: SwipeConfig) => {
 
   const onTouchEnd = useCallback(() => {
     if (!touchStart.current || !touchEnd.current) return;
+
+    if (isInsideHorizontalScrollArea(touchStartTarget.current)) {
+      touchStartTarget.current = null;
+      return;
+    }
 
     const distanceX = touchStart.current.x - touchEnd.current.x;
     const distanceY = touchStart.current.y - touchEnd.current.y;
@@ -55,6 +81,7 @@ export const useSwipeGesture = (config: SwipeConfig) => {
         onSwipeDown();
       }
     }
+    touchStartTarget.current = null;
   }, [onSwipeLeft, onSwipeRight, onSwipeUp, onSwipeDown, minSwipeDistance]);
 
   return {

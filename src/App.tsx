@@ -3,6 +3,7 @@ import { ModernLoadingScreen } from './components/ModernLoadingScreen';
 import { CoachLogin } from './components/CoachLogin';
 import { ClientLogin } from './components/ClientLogin';
 import { ToastProvider } from './contexts/ToastContext';
+import { ClientLocaleProvider } from './contexts/ClientLocaleContext';
 
 // Lazy load heavy components
 const UnbreakableSteamClientsManager = lazy(() => import('./components/UnbreakableSteamClientsManager').then(module => ({ default: module.UnbreakableSteamClientsManager })));
@@ -18,6 +19,7 @@ const WorkoutProgramManager = lazy(() => import('./components/WorkoutProgramMana
 // const SimpleWorkoutEditor = lazy(() => import('./components/SimpleWorkoutEditor').then(module => ({ default: module.SimpleWorkoutEditor })));
 const TemplatesBuilder = lazy(() => import('./components/TemplatesBuilder'));
 import './styles/mobile.css';
+import './styles/client-mobile.css';
 import { 
   AppState, 
   Client, 
@@ -31,14 +33,20 @@ import { foods as defaultFoods } from './data/foods';
 import { meals as defaultMeals } from './data/meals';
 import { exercises as defaultExercises } from './data/exercises';
 import { supabase, isSupabaseReady } from './lib/supabaseClient';
-import { dbListClients, dbListClientsWithWorkoutAssignments, dbGetClientWithWorkoutAssignment, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment } from './lib/db';
+import { dbListClients, dbListClientsWithWorkoutAssignments, dbGetClientWithWorkoutAssignment, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment, dbUpsertNutritionPlan, dbGetNutritionPlan } from './lib/db';
+import { buildDuplicatedClient, DuplicateClientOptions } from './utils/duplicateClientProgram';
 import { authService } from './lib/authService';
+import {
+  getInitialAuthState,
+  extractClientIdFromShareParam,
+} from './lib/sessionRestore';
 
 function App() {
-  // Authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authType, setAuthType] = useState<'none' | 'coach' | 'client'>('none');
+  const initialAuth = getInitialAuthState();
+  const [isAuthenticated, setIsAuthenticated] = useState(initialAuth.isAuthenticated);
+  const [authType, setAuthType] = useState<'none' | 'coach' | 'client'>(initialAuth.authType);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [sessionRestored, setSessionRestored] = useState(false);
   
   const [appState, setAppState] = useState<AppState>({
     currentView: 'clients',
@@ -52,18 +60,90 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [clientViewData, setClientViewData] = useState<any>(null);
 
-  // Check authentication on mount
+  // Sync auth from storage on mount (handles refresh without login flash)
   useEffect(() => {
-    const checkAuth = () => {
-      const currentUser = authService.getCurrentUser();
-      if (currentUser) {
-        setIsAuthenticated(true);
-        setAuthType(currentUser.type);
-      }
-      setIsCheckingAuth(false);
-    };
-    checkAuth();
+    const currentUser = authService.getCurrentUser();
+    if (currentUser) {
+      authService.touchSession();
+      setIsAuthenticated(true);
+      setAuthType(currentUser.type);
+    }
+    setIsCheckingAuth(false);
   }, []);
+
+  const openClientInterface = async (clientId: string) => {
+    let foundClient = appState.clients.find((c) => c.id === clientId);
+    if (!foundClient && isSupabaseReady) {
+      const { data: row } = await dbGetClientWithWorkoutAssignment(clientId);
+      if (row) {
+        const assignment =
+          row.workout_assignments?.find((a: any) => a.is_active) ||
+          row.workout_assignments?.[0];
+        const program = assignment?.program_json;
+        const workoutAssignment = assignment
+          ? {
+              id: assignment.id,
+              clientId: row.id,
+              clientName: row.full_name,
+              startDate: new Date(assignment.start_date || Date.now()),
+              duration: assignment.duration_weeks,
+              currentWeek: assignment.current_week || 1,
+              currentDay: assignment.current_day || 1,
+              program,
+              weeks: program?.weeks ?? [],
+              progressionRules: program?.progressionRules ?? [],
+              isActive: assignment.is_active,
+              lastModifiedBy: assignment.last_modified_by,
+            }
+          : undefined;
+        foundClient = {
+          id: row.id,
+          name: row.full_name,
+          email: row.email || '',
+          phone: row.phone || '',
+          goal: row.goal || 'maintenance',
+          numberOfWeeks: row.number_of_weeks || 12,
+          startDate: new Date(row.start_date || new Date()),
+          isActive: row.is_active !== false,
+          favorites: row.favorites || [],
+          weightLog: row.weight_log || [],
+          workoutAssignment,
+        };
+        setAppState((prev) => ({
+          ...prev,
+          clients: prev.clients.some((c) => c.id === foundClient!.id)
+            ? prev.clients
+            : [...prev.clients, foundClient!],
+        }));
+      }
+    }
+    if (foundClient) {
+      setAppState((prev) => ({
+        ...prev,
+        currentView: 'client-interface',
+        selectedClient: foundClient,
+      }));
+    }
+    return foundClient;
+  };
+
+  // After refresh of a client link (?client=...), keep the client in their portal.
+  // We never rewrite the URL: bare root stays on the coach login/dashboard.
+  useEffect(() => {
+    if (isCheckingAuth || isLoading || sessionRestored || !isAuthenticated) return;
+
+    const user = authService.getCurrentUser();
+    const shareId = new URLSearchParams(window.location.search).get('client');
+
+    if (user?.type !== 'client' || !shareId) {
+      setSessionRestored(true);
+      return;
+    }
+
+    openClientInterface(extractClientIdFromShareParam(shareId)).finally(() =>
+      setSessionRestored(true)
+    );
+  }, [isCheckingAuth, isLoading, isAuthenticated, sessionRestored]);
 
   // Load real food database and exercises from database
   useEffect(() => {
@@ -421,47 +501,79 @@ function App() {
     localStorage.setItem('clients', JSON.stringify(updatedClients));
   };
 
-  const handleDuplicateClient = (client: Client) => {
-    const duplicatedClient: Client = {
-      ...client,
-      id: Date.now().toString(),
-      name: `${client.name} (Copy)`,
-      startDate: new Date(),
-      // Duplicate nutrition plan if exists
-      nutritionPlan: client.nutritionPlan ? {
-        ...client.nutritionPlan,
-        id: Date.now().toString() + '_nutrition',
-        clientId: Date.now().toString(),
-        clientName: `${client.name} (Copy)`,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      } : undefined,
-      // Duplicate workout assignment if exists
-      workoutAssignment: client.workoutAssignment ? {
-        ...client.workoutAssignment,
-        id: Date.now().toString() + '_workout',
-        clientId: Date.now().toString(),
-        clientName: `${client.name} (Copy)`,
-        startDate: new Date(),
-        weeks: client.workoutAssignment.weeks?.map(week => ({
-          ...week,
-          days: week.days?.map(day => ({
-            ...day,
-            exercises: day.exercises?.map((exercise: any) => ({
-              ...exercise,
-              id: `${exercise.id}_copy_${Date.now()}`
-            })) || []
-          })) || []
-        })) || []
-      } : undefined,
-      // Reset weight log and favorites
-      weightLog: [],
-      favorites: []
-    };
-    
+  const handleDuplicateClient = async (
+    client: Client,
+    options: DuplicateClientOptions
+  ) => {
+    let sourceClient = client;
+
+    if (isSupabaseReady && !client.nutritionPlan) {
+      const { data: planJson } = await dbGetNutritionPlan(client.id);
+      if (planJson) {
+        sourceClient = { ...client, nutritionPlan: planJson };
+      }
+    }
+
+    const duplicatedClient = buildDuplicatedClient(sourceClient, options);
+
+    if (isSupabaseReady) {
+      const { data, error } = await dbAddClient({
+        full_name: duplicatedClient.name,
+        number_of_weeks: duplicatedClient.numberOfWeeks,
+        goal: duplicatedClient.goal,
+        email: duplicatedClient.email,
+        phone: duplicatedClient.phone,
+        start_date: duplicatedClient.startDate.toISOString().split('T')[0],
+        is_active: duplicatedClient.isActive,
+        favorites: duplicatedClient.favorites,
+        weight_log: duplicatedClient.weightLog,
+      });
+
+      if (error || !data) {
+        console.error('Failed to duplicate client:', error);
+        alert(`Could not duplicate client: ${error?.message || 'Unknown error'}`);
+        return;
+      }
+
+      duplicatedClient.id = data.id;
+
+      if (duplicatedClient.nutritionPlan) {
+        const planForDb = {
+          ...duplicatedClient.nutritionPlan,
+          clientId: data.id,
+          clientName: duplicatedClient.name,
+        };
+        await dbUpsertNutritionPlan(data.id, planForDb);
+        duplicatedClient.nutritionPlan = planForDb;
+      }
+
+      if (duplicatedClient.workoutAssignment) {
+        const assignment = {
+          ...duplicatedClient.workoutAssignment,
+          clientId: data.id,
+          clientName: duplicatedClient.name,
+        };
+        await handleAssignWorkoutPlan(data.id, assignment);
+        duplicatedClient.workoutAssignment = assignment;
+      }
+
+      setAppState((prev) => ({
+        ...prev,
+        clients: [...prev.clients, duplicatedClient],
+      }));
+      return;
+    }
+
     const newClients = [...appState.clients, duplicatedClient];
-    setAppState(prev => ({ ...prev, clients: newClients }));
+    setAppState((prev) => ({ ...prev, clients: newClients }));
     localStorage.setItem('clients', JSON.stringify(newClients));
+
+    if (duplicatedClient.nutritionPlan) {
+      localStorage.setItem(
+        `nutrition_plan_${duplicatedClient.id}`,
+        JSON.stringify(duplicatedClient.nutritionPlan)
+      );
+    }
   };
 
   // Navigation Functions
@@ -962,58 +1074,18 @@ function App() {
   const handleCoachLoginSuccess = () => {
     setIsAuthenticated(true);
     setAuthType('coach');
+    setAppState((prev) => ({
+      ...prev,
+      currentView: prev.currentView === 'client-interface' ? 'clients' : prev.currentView,
+      selectedClient: null,
+    }));
   };
 
   const handleClientLoginSuccess = async (clientId: string) => {
     setIsAuthenticated(true);
     setAuthType('client');
-
-    let foundClient = appState.clients.find(c => c.id === clientId);
-    if (!foundClient && isSupabaseReady) {
-      const { data: row } = await dbGetClientWithWorkoutAssignment(clientId);
-      if (row) {
-        const assignment = row.workout_assignments?.find((a: any) => a.is_active) || row.workout_assignments?.[0];
-        const program = assignment?.program_json;
-        const workoutAssignment = assignment ? {
-          id: assignment.id,
-          clientId: row.id,
-          clientName: row.full_name,
-          startDate: new Date(assignment.start_date || Date.now()),
-          duration: assignment.duration_weeks,
-          currentWeek: assignment.current_week || 1,
-          currentDay: assignment.current_day || 1,
-          program,
-          weeks: program?.weeks ?? [],
-          progressionRules: program?.progressionRules ?? [],
-          isActive: assignment.is_active,
-          lastModifiedBy: assignment.last_modified_by
-        } : undefined;
-        foundClient = {
-          id: row.id,
-          name: row.full_name,
-          email: row.email || '',
-          phone: row.phone || '',
-          goal: row.goal || 'maintenance',
-          numberOfWeeks: row.number_of_weeks || 12,
-          startDate: new Date(row.start_date || new Date()),
-          isActive: row.is_active !== false,
-          favorites: row.favorites || [],
-          weightLog: row.weight_log || [],
-          workoutAssignment
-        };
-        setAppState(prev => ({
-          ...prev,
-          clients: prev.clients.some(c => c.id === foundClient!.id) ? prev.clients : [...prev.clients, foundClient!]
-        }));
-      }
-    }
-    if (foundClient) {
-      setAppState(prev => ({
-        ...prev,
-        currentView: 'client-interface',
-        selectedClient: foundClient
-      }));
-    }
+    await openClientInterface(clientId);
+    setSessionRestored(true);
   };
 
   // Wrap everything with ToastProvider
@@ -1049,11 +1121,18 @@ function App() {
 
         // Protect client views
         if (isClientLink && authType !== 'client') {
-          const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
-          const uuidMatch = clientShareId.match(uuidPattern);
-          const extractedClientId = uuidMatch ? uuidMatch[1] : clientShareId;
-          
+          const extractedClientId = extractClientIdFromShareParam(clientShareId);
           return <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />;
+        }
+
+        if (
+          isAuthenticated &&
+          authType === 'client' &&
+          isClientLink &&
+          !appState.selectedClient &&
+          !sessionRestored
+        ) {
+          return <ModernLoadingScreen message="Restoring your session..." />;
         }
 
         // Main app content
@@ -1105,10 +1184,12 @@ function App() {
         )}
 
         {appState.currentView === 'client-interface' && appState.selectedClient && (
-          <ModernClientInterface
-            client={appState.selectedClient}
-            isDark={appState.isDark}
-          />
+          <ClientLocaleProvider>
+            <ModernClientInterface
+              client={appState.selectedClient}
+              isDark={appState.isDark}
+            />
+          </ClientLocaleProvider>
         )}
 
         {appState.currentView === 'client-view' && clientViewData && (

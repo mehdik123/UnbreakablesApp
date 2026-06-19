@@ -6,11 +6,9 @@ import {
   Play,
   CheckCircle,
   Circle,
-  Target,
   Zap,
   Flame,
   Lock,
-  Calendar,
   Plus,
   Minus,
   Heart,
@@ -19,6 +17,7 @@ import {
 import { Client, WorkoutProgram } from '../types';
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking';
 import { useHorizontalScroll } from '../hooks/useHorizontalScroll';
+import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -55,7 +54,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const [completedExercises, setCompletedExercises] = useState<{ [exerciseId: string]: boolean }>({});
   const [exerciseData, setExerciseData] = useState<{ [exerciseId: string]: { [setIndex: number]: { reps: number; weight: number } } }>({});
   const [dropsetData, setDropsetData] = useState<{ [exerciseId: string]: { [dropsetIndex: number]: { [roundIndex: number]: { reps: number; weight: number } } } }>({});
+  const [editingWeightInput, setEditingWeightInput] = useState<Record<string, string>>({});
   const [workoutProgram, setWorkoutProgram] = useState<WorkoutProgram | null>(null);
+  const { t } = useClientLocale();
   const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const SHARED_KEY = `client_${client.id}_assignment`;
   const [sharedVersion, setSharedVersion] = useState<number>(0);
@@ -391,17 +392,20 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const hasNextWeek = deployedWeeks.some((w) => w.weekNumber === currentWeek + 1);
   const showWaitingForCoach = isCurrentWeekComplete && !hasNextWeek;
 
-  // When client selects a week, persist to DB so sync doesn't overwrite back to previous week
-  const handleWeekSelect = useCallback((newWeek: number) => {
-    if (isSupabaseReady && supabase && assignmentId) {
-      supabase
-        .from('workout_assignments')
-        .update({ current_week: newWeek })
-        .eq('id', assignmentId)
-        .then(() => {});
-    }
-    onWeekChange?.(newWeek);
-  }, [assignmentId, onWeekChange]);
+  // When client selects a week: update UI immediately (parent may lock sync), then persist so polling/realtime match
+  const handleWeekSelect = useCallback(
+    async (newWeek: number) => {
+      onWeekChange?.(newWeek);
+      if (isSupabaseReady && supabase && assignmentId) {
+        const { error } = await supabase
+          .from('workout_assignments')
+          .update({ current_week: newWeek, last_modified_by: 'client' })
+          .eq('id', assignmentId);
+        if (error) console.error('Failed to persist week selection:', error);
+      }
+    },
+    [assignmentId, onWeekChange, isSupabaseReady, supabase]
+  );
 
   // If no workout program is assigned, show a message
   if (!workoutProgram && !client.workoutAssignment?.program) {
@@ -412,10 +416,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             <Dumbbell className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400" />
             </div>
           <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
-            No Workout Plan Assigned
+            {t('workout.noPlanTitle')}
           </h3>
           <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mb-4">
-            Your coach hasn't assigned a workout plan yet. Please check back later or contact your coach.
+            {t('workout.noPlanBody')}
           </p>
           <div className="space-x-2">
             <button 
@@ -425,7 +429,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
               }}
               className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg text-xs sm:text-sm"
             >
-              Clear Cache & Reload
+              {t('workout.clearReload')}
             </button>
           </div>
             </div>
@@ -442,11 +446,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             <Dumbbell className="w-8 h-8 text-yellow-400" />
           </div>
           <h3 className="text-xl font-semibold text-yellow-400 mb-2">
-            ⚠️ Old Data Detected
+            {t('workout.oldDataTitle')}
           </h3>
           <p className="text-yellow-300 mb-4">
-            This client is using old cached data instead of the fresh CSV exercise database. 
-            The coach needs to re-assign the workout plan to use the correct exercise names and video links.
+            {t('workout.oldDataBody')}
           </p>
           <div className="space-x-2">
             <button
@@ -456,7 +459,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
               }}
               className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm"
             >
-              Clear Cache & Reload
+              {t('workout.clearReload')}
             </button>
           </div>
         </div>
@@ -808,6 +811,29 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     }
   };
 
+  // Per-exercise save feedback state ('saving' | 'saved')
+  const [exerciseSaveState, setExerciseSaveState] = useState<{ [exerciseId: string]: 'saving' | 'saved' }>({});
+  const handleSaveExercise = async (exerciseId: string) => {
+    setExerciseSaveState(prev => ({ ...prev, [exerciseId]: 'saving' }));
+    try {
+      await saveClientEdits();
+      setExerciseSaveState(prev => ({ ...prev, [exerciseId]: 'saved' }));
+      setTimeout(() => {
+        setExerciseSaveState(prev => {
+          const next = { ...prev };
+          delete next[exerciseId];
+          return next;
+        });
+      }, 2000);
+    } catch {
+      setExerciseSaveState(prev => {
+        const next = { ...prev };
+        delete next[exerciseId];
+        return next;
+      });
+    }
+  };
+
   // Helper to clear stale cached workout data for this client only
   const clearClientCachedWorkout = () => {
     try {
@@ -834,87 +860,55 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-x-hidden relative">
+    <div className="workout-shell min-h-screen overflow-x-hidden relative">
 
       {/* Banner to clear cached data when old data is detected */}
       {isUsingOldData && (
         <div className="px-4 py-3 bg-amber-600/20 border-b border-amber-600/30 text-amber-200 flex items-center justify-between">
-          <span className="text-sm">Old cached workout data detected. Clear and reload to use latest video links.</span>
+          <span className="text-sm">{t('workout.cacheBanner')}</span>
             <button
             onClick={clearClientCachedWorkout}
             className="px-3 py-1 bg-amber-500/30 hover:bg-amber-500/40 rounded text-xs"
           >
-            Clear cached workout
+            {t('workout.clearCached')}
           </button>
         </div>
       )}
 
-      {/* Mobile Header - Responsive for all devices */}
-      <div className="bg-slate-800 border-b border-slate-700/50">
-        <div className="px-3 sm:px-4 py-3 sm:py-4 max-w-full">
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <button className="p-1.5 sm:p-2 -ml-1 sm:-ml-2">
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h1 className="text-base sm:text-lg font-semibold text-white truncate">{client.name}'s Program</h1>
-            <div className="flex items-center space-x-1 sm:space-x-2">
-              <button className="p-1.5 sm:p-2">
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </button>
-              <button className="p-1.5 sm:p-2">
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                </svg>
-              </button>
-              <button className="p-1.5 sm:p-2">
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
-            </button>
-          </div>
-        </div>
-
-
-          {/* Performance tracking indicator */}
-          {client.workoutAssignment?.lastModifiedBy === 'client' && (
-            <div className="flex items-center justify-center space-x-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-xs text-green-400 font-medium">
-                Performance tracked - Coach can see your progress
-              </span>
-          </div>
-        )}
-        </div>
-      </div>
-
       <div className="px-3 sm:px-4 py-3 sm:py-4 space-y-4 sm:space-y-6 pb-20 max-w-full overflow-x-hidden">
         {/* Week navigation - only deployed weeks */}
         {deployedWeeks.length > 0 && onWeekChange && (
-          <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-2xl border border-gray-700/50 p-4 shadow-xl">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-400 text-sm font-medium">Week</span>
+          <div>
+            <div className="flex items-center gap-2 mb-3 px-1">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--txt-lo)' }}>
+                {t('workout.trainingWeek')}
+              </span>
+              <span className="flex-1 h-px" style={{ background: 'var(--hair)' }} />
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div
+              className="flex gap-1 p-1 overflow-x-auto scrollbar-hide rounded-[15px]"
+              style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+            >
               {deployedWeeks.map((w) => {
                 const isActive = w.weekNumber === currentWeek;
-                const completed = (w as any).isCompleted === true;
+                const done = (w as any).isCompleted === true || w.weekNumber < currentWeek;
+                const label = isActive ? t('workout.wkCurrent') : done ? t('workout.wkDone') : t('workout.wkSoon');
                 return (
                   <button
                     key={w.weekNumber}
                     onClick={() => handleWeekSelect(w.weekNumber)}
-                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                      isActive
-                        ? 'bg-[#dc1e3a] text-white'
-                        : completed
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                        : 'bg-gray-700/50 text-gray-300 border border-gray-600/50 hover:bg-gray-700'
+                    className={`flex-1 min-w-[64px] text-center py-2 rounded-[11px] text-[13px] font-semibold transition-all duration-200 ${
+                      isActive ? 'text-white bg-grad-red shadow-red' : ''
                     }`}
+                    style={isActive ? undefined : { color: 'var(--txt-mid)' }}
                   >
-                    Week {w.weekNumber}{completed ? ' ✓' : ''}
+                    <span
+                      className="block text-[9px] font-semibold uppercase tracking-[0.1em] mb-0.5"
+                      style={{ color: isActive ? 'rgba(255,255,255,.75)' : done ? 'var(--emerald)' : 'var(--txt-lo)' }}
+                    >
+                      {label}
+                    </span>
+                    {t('workout.weekN', { n: w.weekNumber })}
                   </button>
                 );
               })}
@@ -935,104 +929,116 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           </div>
         )}
 
-        {/* Day Navigation - Ultra Modern Design with Theme Colors */}
-        <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-4 sm:p-6 shadow-2xl">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-xl flex items-center justify-center shadow-lg border border-[#dc1e3a]/30">
-                <Calendar className="w-5 h-5 text-[#dc1e3a]" />
-              </div>
-              <div>
-                <h4 className="text-lg sm:text-xl font-bold text-white">Workout Days</h4>
-                <p className="text-gray-400 text-xs sm:text-sm">Select your training day</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-[#dc1e3a] rounded-full animate-pulse"></div>
-              <span className="text-xs text-gray-400">Active</span>
-            </div>
+        {/* Day Navigation - token-styled cards */}
+        <div>
+          <div className="flex items-center gap-2 mb-3 px-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--txt-lo)' }}>
+              {t('workout.selectDay')}
+            </span>
+            <span className="flex-1 h-px" style={{ background: 'var(--hair)' }} />
           </div>
-          
+
           {/* Horizontal Scrolling Days */}
           <div className="relative">
-            <div 
+            <div
               ref={daysScrollRef}
-              className="overflow-x-auto scrollbar-hide horizontal-scroll"
+              data-horizontal-scroll="true"
+              className="overflow-x-auto scrollbar-hide horizontal-scroll touch-pan-x"
+              style={{ WebkitOverflowScrolling: 'touch' }}
             >
-              <div className="flex space-x-3 sm:space-x-4 pb-2 min-w-max">
+              <div className="flex gap-3 pb-2 min-w-max">
                 {currentWorkoutProgram?.days?.map((day, index) => {
                   const status = getDayStatus(index);
                   const isCurrentDay = index === currentDay;
                   const isCompleted = status === 'completed';
-                  const isInProgress = status === 'in-progress';
-                  
+                  const total = day.exercises.length;
+                  const completedCount = day.exercises.filter((ex) => completedExercises[ex.id]).length;
+                  const muscles = Array.from(
+                    new Set(
+                      day.exercises
+                        .map((ex) => (ex.exercise as any)?.muscleGroup)
+                        .filter(Boolean)
+                        .map((m: string) => m.charAt(0).toUpperCase() + m.slice(1))
+                    )
+                  );
+                  const subline = muscles.length ? muscles.slice(0, 3).join(' · ') : t('workout.nExercises', { count: total });
+                  const statusText =
+                    completedCount > 0
+                      ? t('workout.ofComplete', { done: completedCount, total })
+                      : t('workout.nExercises', { count: total });
+
                   return (
                     <button
                       key={day.id}
                       data-scroll-item
                       onClick={() => setCurrentDay(index)}
                       disabled={!isDayUnlocked}
-                      className={`group relative flex flex-col items-center space-y-2 p-3 sm:p-4 rounded-2xl font-medium transition-all duration-300 transform hover:scale-105 min-w-[120px] sm:min-w-[140px] ${
-                        isCurrentDay
-                          ? 'bg-gradient-to-br from-[#dc1e3a]/30 to-red-500/20 text-white shadow-2xl scale-105 border border-[#dc1e3a]/50'
-                          : isDayUnlocked
-                          ? isCompleted
-                            ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/10 text-green-300 border border-green-400/30 hover:from-green-500/30 hover:to-emerald-500/20'
-                            : isInProgress
-                            ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/10 text-blue-300 border border-blue-400/30 hover:from-blue-500/30 hover:to-cyan-500/20'
-                            : 'bg-gradient-to-br from-gray-700/50 to-gray-800/50 text-gray-300 border border-gray-600/50 hover:from-gray-600/50 hover:to-gray-700/50'
-                          : 'bg-gradient-to-br from-gray-700/30 to-gray-800/30 text-gray-500 border border-gray-600/30 cursor-not-allowed'
-                      }`}
+                      className={`group relative flex-shrink-0 w-[152px] text-left p-4 rounded-[18px] transition-all duration-300 active:scale-[0.97] ${
+                        isCurrentDay ? 'shadow-glow-red' : ''
+                      } ${!isDayUnlocked ? 'cursor-not-allowed opacity-60' : ''}`}
+                      style={{
+                        background: isCurrentDay
+                          ? 'radial-gradient(120% 100% at 0% 0%, rgba(255,45,85,.22), transparent 60%), var(--surface-2)'
+                          : 'var(--surface-1)',
+                        border: isCurrentDay ? '1px solid rgba(255,45,85,.4)' : '1px solid var(--hair)',
+                      }}
                     >
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white/10 group-hover:bg-white/20 transition-all duration-300">
-                        {isDayUnlocked ? (
-                          getDayStatusIcon(status)
-                        ) : (
-                          <Lock className="w-4 h-4" />
-                        )}
-                      </div>
-                      <span className="text-xs sm:text-sm font-semibold text-center">{day.name}</span>
-                      
-                      {/* Status indicator */}
-                      {isDayUnlocked && (
-                        <div className={`w-2 h-2 rounded-full ${
-                          isCompleted ? 'bg-green-400' : 
-                          isInProgress ? 'bg-blue-400' : 
-                          'bg-gray-400'
-                        }`}></div>
-                      )}
-                      
-                      {/* Current day indicator */}
                       {isCurrentDay && (
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">
-                          <div className="w-2 h-2 bg-[#dc1e3a] rounded-full"></div>
-                        </div>
+                        <span
+                          className="wk-live-dot absolute top-3.5 right-3.5 w-[9px] h-[9px] rounded-full"
+                          style={{ background: 'var(--red)' }}
+                        />
                       )}
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center mb-3.5 transition-all duration-300"
+                        style={{
+                          background: isCurrentDay ? 'var(--grad-red)' : isCompleted ? 'rgba(52,211,153,.1)' : 'var(--surface-3)',
+                          border: isCurrentDay ? '1px solid transparent' : isCompleted ? '1px solid rgba(52,211,153,.3)' : '1px solid var(--hair)',
+                          color: isCurrentDay ? '#fff' : isCompleted ? 'var(--emerald)' : 'var(--txt-mid)',
+                        }}
+                      >
+                        {isDayUnlocked ? getDayStatusIcon(status) : <Lock className="w-4 h-4" />}
+                      </div>
+                      <div className="font-display font-semibold text-[16px] truncate" style={{ color: 'var(--txt-hi)' }}>
+                        {day.name}
+                      </div>
+                      <div className="text-[11.5px] mt-0.5 truncate" style={{ color: 'var(--txt-mid)' }}>
+                        {subline}
+                      </div>
+                      <div
+                        className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold"
+                        style={{ color: isCurrentDay ? 'var(--red)' : completedCount > 0 ? 'var(--emerald)' : 'var(--txt-lo)' }}
+                      >
+                        {completedCount > 0 && <CheckCircle className="w-3 h-3" />}
+                        {statusText}
+                      </div>
                     </button>
                   );
                 })}
               </div>
             </div>
-            
+
             {/* Scroll buttons */}
             <button
               onClick={() => scrollDaysBy('left')}
-              className="absolute top-1/2 -left-2 transform -translate-y-1/2 w-6 h-6 bg-gray-800/80 hover:bg-gray-700/80 rounded-full flex items-center justify-center opacity-50 hover:opacity-100 transition-all duration-200"
+              className="absolute top-1/2 -left-2 transform -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center opacity-50 hover:opacity-100 transition-all duration-200"
+              style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}
             >
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" style={{ color: 'var(--txt-hi)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
             <button
               onClick={() => scrollDaysBy('right')}
-              className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-6 h-6 bg-gray-800/80 hover:bg-gray-700/80 rounded-full flex items-center justify-center opacity-50 hover:opacity-100 transition-all duration-200"
+              className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center opacity-50 hover:opacity-100 transition-all duration-200"
+              style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}
             >
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" style={{ color: 'var(--txt-hi)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
           </div>
-          
+
           {!isDayUnlocked && (
             <div className="mt-4 sm:mt-6 p-4 bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/30 rounded-2xl backdrop-blur-sm">
               <div className="flex items-center space-x-3">
@@ -1040,8 +1046,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                   <Lock className="w-4 h-4 text-yellow-400" />
                 </div>
                 <div>
-                  <p className="text-yellow-300 text-sm font-medium">Week Locked</p>
-                  <p className="text-yellow-400/80 text-xs">Complete previous weeks to unlock this training week</p>
+                  <p className="text-yellow-300 text-sm font-medium">{t('workout.weekLocked')}</p>
+                  <p className="text-yellow-400/80 text-xs">{t('workout.weekLockedBody')}</p>
                 </div>
               </div>
         </div>
@@ -1051,300 +1057,361 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         {/* Current Day Workout */}
         {isDayUnlocked && currentDayData && (
           <div className="space-y-6 sm:space-y-8">
-            {/* Workout Header - Mobile Optimized */}
-            <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-xl sm:rounded-3xl border border-gray-700/50 p-3 sm:p-6 shadow-2xl">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
-                  <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg sm:rounded-2xl flex items-center justify-center shadow-lg border border-[#dc1e3a]/30 flex-shrink-0">
-                    <Dumbbell className="w-4 h-4 sm:w-6 sm:h-6 text-[#dc1e3a]" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm sm:text-xl font-bold text-white truncate">{currentDayData.name}</h3>
-                    <p className="text-gray-400 text-xs sm:text-sm">Week {currentWeek} • {currentDayData.exercises.length} exercises</p>
-                  </div>
+            {/* Workout Header (today) */}
+            <div
+              className="flex items-center gap-3.5 p-4 rounded-[18px]"
+              style={{ background: 'linear-gradient(135deg, var(--surface-2), var(--surface-1))', border: '1px solid var(--hair)' }}
+            >
+              <div
+                className="w-[46px] h-[46px] rounded-[14px] flex items-center justify-center shrink-0 shadow-red"
+                style={{ background: 'var(--grad-red)', color: '#fff' }}
+              >
+                <Dumbbell className="w-[22px] h-[22px]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-display font-semibold text-[20px] truncate" style={{ color: 'var(--txt-hi)' }}>
+                  {currentDayData.name}
                 </div>
-                <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
-                  <div className="text-right">
-                    <div className="text-lg sm:text-2xl font-bold text-[#dc1e3a]">
-                      {currentDayData.exercises.length}
-                    </div>
-                    <div className="text-gray-400 text-xs">Exercises</div>
-                  </div>
+                <div className="text-[11.5px] mt-1 truncate" style={{ color: 'var(--txt-mid)' }}>
+                  {t('workout.weekExercises', { week: currentWeek, count: currentDayData.exercises.length })}
+                </div>
+              </div>
+              <div className="text-center shrink-0">
+                <div className="font-display font-bold text-[24px] leading-none tnum" style={{ color: 'var(--red)' }}>
+                  {currentDayData.exercises.length}
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.08em] mt-1" style={{ color: 'var(--txt-lo)' }}>
+                  {t('workout.exercises')}
                 </div>
               </div>
             </div>
 
-            {/* Exercises - Mobile Optimized */}
-            <div className="space-y-3 sm:space-y-6">
+            {/* Today's exercises */}
+            <div className="flex items-center gap-2 mb-3 px-1">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--txt-lo)' }}>
+                {t('workout.todaysExercises')}
+              </span>
+              <span className="flex-1 h-px" style={{ background: 'var(--hair)' }} />
+            </div>
+
+            {/* Exercises */}
+            <div className="space-y-4">
               {currentDayData.exercises.map((exercise, exerciseIndex) => (
-                <div key={exercise.id} className="bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl rounded-xl sm:rounded-3xl border border-gray-700/50 p-3 sm:p-6 shadow-2xl hover:shadow-[#dc1e3a]/10 transition-all duration-300 group">
-                  {/* Exercise Header - Mobile Optimized */}
-                  <div className="flex items-start space-x-2 sm:space-x-4 mb-3 sm:mb-6">
-                    <div className="relative flex-shrink-0">
-                      <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-bold text-sm sm:text-lg border border-[#dc1e3a]/30">
-                        <span>{exerciseIndex + 1}</span>
-                      </div>
-                      {completedExercises[exercise.id] && (
-                        <div className="absolute -top-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
-                          <CheckCircle className="w-2 h-2 sm:w-3 sm:h-3 text-white" />
-                        </div>
-                      )}
+                <div
+                  key={exercise.id}
+                  className="overflow-hidden rounded-[24px] transition-all duration-300 group"
+                  style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+                >
+                  {/* Exercise Header */}
+                  <div className="flex items-start gap-3 p-4 pb-3.5">
+                    <div
+                      className="w-[30px] h-[30px] rounded-[10px] flex items-center justify-center font-display font-bold text-[14px] shrink-0"
+                      style={
+                        completedExercises[exercise.id]
+                          ? { background: 'rgba(52,211,153,.12)', border: '1px solid rgba(52,211,153,.3)', color: 'var(--emerald)' }
+                          : { background: 'var(--surface-3)', border: '1px solid var(--hair-strong)', color: 'var(--txt-mid)' }
+                      }
+                    >
+                      {exerciseIndex + 1}
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-1 sm:space-x-2 mb-2 sm:mb-3">
-                        <h5 className="text-sm sm:text-lg font-bold text-white truncate">
+                      <div className="flex items-center gap-2">
+                        <h5 className="font-display font-semibold text-[16px] leading-tight truncate" style={{ color: 'var(--txt-hi)' }}>
                           {exercise.exercise.name}
                         </h5>
                         {exercise.superset && (
-                          <span className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full flex-shrink-0">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 text-white" style={{ background: 'var(--grad-coral)' }}>
                             {exercise.supersetName || exercise.superset}
                           </span>
                         )}
                       </div>
-                      
-                      <div className="flex flex-wrap gap-1 sm:gap-2">
-                        <div className="flex items-center space-x-1 bg-gradient-to-r from-blue-500/10 to-blue-600/5 border border-blue-500/20 px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
-                          <Target className="w-2 h-2 sm:w-3 sm:h-3 text-blue-400" />
-                          <span className="text-xs font-medium text-blue-300">{exercise.exercise.muscleGroup}</span>
-                        </div>
-                        <div className="flex items-center space-x-1 bg-gradient-to-r from-purple-500/10 to-purple-600/5 border border-purple-500/20 px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
-                          <Zap className="w-2 h-2 sm:w-3 sm:h-3 text-purple-400" />
-                          <span className="text-xs font-medium text-purple-300">{exercise.exercise.equipment}</span>
-                        </div>
-                        <div className="flex items-center space-x-1 bg-gradient-to-r from-emerald-500/10 to-emerald-600/5 border border-emerald-500/20 px-2 sm:px-3 py-0.5 sm:py-1 rounded-md sm:rounded-lg">
-                          <Dumbbell className="w-2 h-2 sm:w-3 sm:h-3 text-emerald-400" />
-                          <span className="text-xs font-medium text-emerald-300">{exercise.sets.length} sets</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Video Player - Mobile Optimized */}
-                  <div className="mb-3 sm:mb-4">
-                    <div className="bg-gradient-to-br from-gray-800/60 to-gray-900/40 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-gray-700/50">
-                      <div className="flex items-center space-x-2 sm:space-x-3 mb-2 sm:mb-3">
-                        <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-md sm:rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
-                          <Play className="w-2 h-2 sm:w-3 sm:h-3 text-[#dc1e3a]" />
-                        </div>
-                        <h6 className="text-xs sm:text-sm font-semibold text-white">Exercise Demonstration</h6>
-                      </div>
-                      
-                    <a 
-                      href={exercise.exercise.videoUrl || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                        className="block relative bg-gray-900 rounded-xl overflow-hidden group shadow-2xl"
-                    >
-                      <div className="aspect-[3/2] sm:aspect-video relative">
-                        {getYouTubeThumbnail(exercise.exercise.videoUrl || '') ? (
-                          <img 
-                            src={getYouTubeThumbnail(exercise.exercise.videoUrl || '') || ''} 
-                            alt={`${exercise.exercise.name} demonstration`}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              const nextSibling = e.currentTarget.nextElementSibling as HTMLElement;
-                              if (nextSibling) {
-                                nextSibling.style.display = 'flex';
-                              }
-                            }}
-                          />
-                        ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
-                              <div className="text-center text-gray-400">
-                                <div className="text-6xl mb-4">🎥</div>
-                                <div className="text-lg font-medium">No video available</div>
-                                <div className="text-sm text-gray-500 mt-2">Video demonstration coming soon</div>
-                            </div>
-                          </div>
-                        )}
-                          
-                        <div 
-                            className="w-full h-full bg-gray-800 flex items-center justify-center group-hover:bg-gray-700 transition-all duration-300" 
-                          style={{ display: getYouTubeThumbnail(exercise.exercise.videoUrl || '') ? 'none' : 'flex' }}
+                      <div className="flex flex-wrap gap-1.5 mt-2.5">
+                        <span
+                          className="inline-flex items-center gap-1.5 text-[10.5px] font-semibold px-2.5 py-1 rounded-lg capitalize"
+                          style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
                         >
-                          <div className="text-center">
-                              <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center mb-3 mx-auto group-hover:bg-gray-600 transition-all duration-300">
-                                <Play className="w-5 h-5 text-white ml-1" />
-                            </div>
-                              <p className="text-white text-sm font-medium">Watch Demonstration</p>
-                              <p className="text-gray-400 text-xs mt-1">Click to open on YouTube</p>
-                          </div>
-                        </div>
-                          
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-300 flex items-center justify-center">
-                            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-sm">
-                              <Play className="w-8 h-8 text-white ml-1" />
-                          </div>
-            </div>
-                          
-                          <div className="absolute bottom-4 right-4">
-                            <div className="bg-black/80 text-white text-sm px-3 py-2 rounded-lg backdrop-blur-sm">
-                              <div className="flex items-center space-x-2">
-                                <Play className="w-4 h-4" />
-                                <span>Watch Now</span>
-                              </div>
-                    </div>
-                    </div>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--blue)' }} />
+                          {exercise.exercise.muscleGroup}
+                        </span>
+                        <span
+                          className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2.5 py-1 rounded-lg capitalize"
+                          style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
+                        >
+                          <Zap className="w-2.5 h-2.5" />
+                          {exercise.exercise.equipment}
+                        </span>
+                        <span
+                          className="inline-flex items-center gap-1 text-[10.5px] font-semibold px-2.5 py-1 rounded-lg"
+                          style={{ background: 'rgba(52,211,153,.08)', border: '1px solid rgba(52,211,153,.22)', color: 'var(--emerald)' }}
+                        >
+                          {t('workout.setsCount', { n: exercise.sets.length })}
+                        </span>
                       </div>
-                    </a>
                     </div>
                   </div>
 
-                  {/* Sets & Reps Section - always visible; Save per exercise */}
-                  <div className="space-y-3 sm:space-y-6">
-                      <div className="flex items-center justify-between mb-2 sm:mb-3">
-                        <div className="flex items-center space-x-1 sm:space-x-2">
-                          <div className="w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-md sm:rounded-lg flex items-center justify-center border border-[#dc1e3a]/30">
-                            <Dumbbell className="w-2 h-2 sm:w-3 sm:h-3 text-[#dc1e3a]" />
-                          </div>
-                          <div>
-                            <h6 className="text-xs sm:text-sm font-bold text-white">Sets & Reps</h6>
-                            <p className="text-gray-400 text-xs">
-                              Track your performance
-                            </p>
-                          </div>
+                  {/* Video block */}
+                  <a
+                    href={exercise.exercise.videoUrl || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block relative mx-4 mb-4 rounded-[18px] overflow-hidden group"
+                    style={{
+                      aspectRatio: '16 / 9',
+                      border: '1px solid var(--hair)',
+                      background:
+                        'radial-gradient(120% 120% at 70% 20%, rgba(255,45,85,.22), transparent 55%), linear-gradient(135deg,#23262f,#0e0f14)',
+                    }}
+                  >
+                    {getYouTubeThumbnail(exercise.exercise.videoUrl || '') && (
+                      <img
+                        src={getYouTubeThumbnail(exercise.exercise.videoUrl || '') || ''}
+                        alt={`${exercise.exercise.name} demonstration`}
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    )}
+
+                    <div className="wk-video-grid absolute inset-0" />
+
+                    <div
+                      className="absolute top-3 left-3 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] px-2.5 py-1.5 rounded-lg"
+                      style={{
+                        color: 'rgba(255,255,255,.7)',
+                        background: 'rgba(0,0,0,.35)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(255,255,255,.1)',
+                      }}
+                    >
+                      <Circle className="w-2.5 h-2.5" />
+                      {t('workout.formDemo')}
+                    </div>
+
+                    <div className="wk-play absolute left-1/2 top-1/2 w-14 h-14 rounded-full flex items-center justify-center text-white">
+                      <Play className="w-5 h-5 ml-0.5" fill="currentColor" strokeWidth={0} />
+                    </div>
+
+                    <div
+                      className="absolute bottom-3 right-3 flex items-center gap-1.5 text-[12px] font-semibold text-white px-2.5 py-1.5 rounded-lg"
+                      style={{
+                        background: 'rgba(0,0,0,.35)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(255,255,255,.12)',
+                      }}
+                    >
+                      {t('workout.watchDemo')}
+                    </div>
+                  </a>
+
+                  {/* Sets & Reps Section */}
+                  <div className="space-y-2 sm:space-y-4 px-4 pb-4">
+                      <div className="flex items-center justify-between mb-3 px-0.5">
+                        <div className="flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--txt-hi)' }}>
+                          <Dumbbell className="w-3.5 h-3.5" style={{ color: 'var(--red)' }} />
+                          {t('workout.setsReps')}
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm sm:text-lg font-bold text-[#dc1e3a]">{exercise.sets.length}</div>
-                          <div className="text-gray-400 text-xs">Sets</div>
+                        <div className="text-[11px] font-semibold" style={{ color: 'var(--txt-mid)' }}>
+                          {exercise.sets.length} {t('workout.sets')}
                         </div>
                       </div>
 
-                      {/* Set-based organization - Enhanced with Superset & Dropset Support */}
-                      <div className="space-y-2 sm:space-y-4">
+                      <div className="space-y-2.5">
                         {exercise.sets.map((set, setIndex) => (
-                          <div key={setIndex} className={`rounded-lg sm:rounded-xl p-2 sm:p-3 border transition-all duration-300 bg-gradient-to-br from-gray-800/60 to-gray-900/40 border-gray-700/50 hover:border-[#dc1e3a]/20`}>
-                            <div className="flex items-center justify-between mb-2 sm:mb-3">
-                              {/* Set Number */}
-                              <div className="flex items-center space-x-1 sm:space-x-2">
-                                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md sm:rounded-lg flex items-center justify-center border bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 border-[#dc1e3a]/30">
-                                  <span className="text-xs sm:text-sm font-bold text-[#dc1e3a]">
-                                    {setIndex + 1}
-                                  </span>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <span className="text-xs sm:text-sm font-semibold text-white">
-                                    Set {setIndex + 1}
-                                    {set.isDropset && (
-                                      <span className="ml-2 px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full">
-                                        Dropset
-                                      </span>
-                                    )}
-                                  </span>
-                                </div>
-                              </div>
+                          <div
+                            key={setIndex}
+                            className="flex items-center gap-2.5 rounded-[18px] p-3"
+                            style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+                          >
+                            <div
+                              className="w-[26px] h-[26px] rounded-[8px] flex items-center justify-center font-display font-bold text-[12px] shrink-0"
+                              style={{ background: 'var(--surface-3)', border: '1px solid var(--hair-strong)', color: 'var(--txt-mid)' }}
+                            >
+                              {setIndex + 1}
                             </div>
-                              
-                            {/* Reps & Weight Controls - Mobile Optimized */}
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              {/* Reps Section - Compact Mobile Design */}
-                              <div className="flex-1 bg-gradient-to-r from-blue-500/10 to-blue-600/5 rounded-md p-2 border border-blue-500/20">
-                                <div className="flex items-center justify-between mb-1.5">
-                                  <h6 className="text-[10px] font-semibold text-blue-300 uppercase">Reps</h6>
-                                  <Target className="w-3 h-3 text-blue-400" />
-                                </div>
-                                <div className="flex items-center justify-center gap-1">
-                                  <button
-                                    onClick={() => {
-                                      const currentReps = exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps;
-                                      const newReps = typeof currentReps === 'number' ? Math.max(0, currentReps - 1) : 0;
-                                      updateExerciseData(exercise.id, setIndex, 'reps', newReps);
-                                    }}
-                                    className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </button>
-                                  <div className="text-center px-1 flex-1 min-w-[30px]">
-                                    <div className="text-sm font-bold text-blue-300 leading-tight">
-                                      {set.isDropset && Array.isArray(set.reps) 
-                                        ? set.reps.join('→') 
-                                        : (exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps)
-                                      }
-                                    </div>
-                                    <div className="text-blue-400 text-[9px] leading-tight">
-                                      {set.isDropset ? 'dropset' : 'reps'}
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={() => {
-                                      const currentReps = exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps;
-                                      const newReps = typeof currentReps === 'number' ? currentReps + 1 : 1;
-                                      updateExerciseData(exercise.id, setIndex, 'reps', newReps);
-                                    }}
-                                    className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              </div>
 
-                              {/* Weight Section - Compact Mobile Design */}
-                              <div className="flex-1 bg-gradient-to-r from-purple-500/10 to-purple-600/5 rounded-md p-2 border border-purple-500/20">
-                                <div className="flex items-center justify-between mb-1.5">
-                                  <h6 className="text-[10px] font-semibold text-purple-300 uppercase">Weight</h6>
-                                  <Zap className="w-3 h-3 text-purple-400" />
-                                </div>
-                                <div className="flex items-center justify-center gap-1">
-                                  <button
-                                    onClick={() => {
-                                      const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
-                                      const newWeight = typeof currentWeight === 'number' ? Math.max(0, currentWeight - 2.5) : 0;
-                                      updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
-                                    }}
-                                    className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </button>
-                                  <div className="text-center px-1 flex-1 min-w-[30px]">
-                                    <div className="text-sm font-bold text-purple-300 leading-tight truncate">
-                                      {set.isDropset && Array.isArray(set.weight) 
-                                        ? set.weight.join('→') + 'kg'
-                                        : (exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight) + 'kg'
-                                      }
-                                    </div>
-                                    <div className="text-purple-400 text-[9px] leading-tight">kg</div>
-                                  </div>
-                                  <button
-                                    onClick={() => {
-                                      const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
-                                      const newWeight = typeof currentWeight === 'number' ? currentWeight + 2.5 : 2.5;
-                                      updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
-                                    }}
-                                    className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </button>
-                                </div>
+                            {/* Reps stepper */}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[9px] font-semibold uppercase tracking-[0.12em] mb-1.5 pl-0.5 flex items-center gap-1" style={{ color: 'var(--txt-lo)' }}>
+                                {set.isDropset ? t('workout.dropset') : t('workout.reps')}
                               </div>
-                              
+                              <div className="flex items-center rounded-[11px] overflow-hidden" style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const currentReps = exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps;
+                                    const newReps = typeof currentReps === 'number' ? Math.max(0, currentReps - 1) : 0;
+                                    updateExerciseData(exercise.id, setIndex, 'reps', newReps);
+                                  }}
+                                  className="wk-step w-8 h-[34px] flex items-center justify-center shrink-0"
+                                  style={{ color: 'var(--blue)' }}
+                                  aria-label="Decrease reps"
+                                >
+                                  <Minus className="w-4 h-4" />
+                                </button>
+                                <div
+                                  className={`flex-1 text-center font-display font-bold tnum truncate px-0.5 ${
+                                    set.isDropset && Array.isArray(set.reps) ? 'text-[13px]' : 'text-[17px]'
+                                  }`}
+                                  style={{ color: 'var(--txt-hi)' }}
+                                >
+                                  {set.isDropset && Array.isArray(set.reps)
+                                    ? set.reps.join('→')
+                                    : (exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps)}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const currentReps = exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps;
+                                    const newReps = typeof currentReps === 'number' ? currentReps + 1 : 1;
+                                    updateExerciseData(exercise.id, setIndex, 'reps', newReps);
+                                  }}
+                                  className="wk-step w-8 h-[34px] flex items-center justify-center shrink-0"
+                                  style={{ color: 'var(--red)' }}
+                                  aria-label="Increase reps"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
+
+                            {/* Weight stepper */}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[9px] font-semibold uppercase tracking-[0.12em] mb-1.5 pl-0.5" style={{ color: 'var(--txt-lo)' }}>
+                                {t('workout.weight')}
+                              </div>
+                              <div className="flex items-center rounded-[11px] overflow-hidden" style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
+                                    const newWeight = typeof currentWeight === 'number' ? Math.max(0, currentWeight - 2.5) : 0;
+                                    updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
+                                    setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
+                                  }}
+                                  className="wk-step w-8 h-[34px] flex items-center justify-center shrink-0"
+                                  style={{ color: 'var(--blue)' }}
+                                  aria-label="Decrease weight 2.5 kg"
+                                >
+                                  <Minus className="w-4 h-4" />
+                                </button>
+                                {set.isDropset && Array.isArray(set.weight) ? (
+                                  <div className="flex-1 text-center font-display font-bold text-[13px] tnum truncate px-1" style={{ color: 'var(--txt-hi)' }}>
+                                    {set.weight.join('→')}
+                                    <span className="text-[10px] font-medium ml-0.5" style={{ color: 'var(--txt-lo)' }}>{t('workout.kg')}</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex-1 flex items-baseline justify-center px-1">
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      step={0.5}
+                                      inputMode="decimal"
+                                      placeholder="0"
+                                      className="w-[44px] max-w-full bg-transparent text-center font-display font-bold text-[17px] tnum
+                                        focus:outline-none focus:ring-0
+                                        [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                      style={{ color: 'var(--txt-hi)' }}
+                                      value={
+                                        editingWeightInput[`${exercise.id}-${setIndex}`] ??
+                                        String(
+                                          typeof set.weight === 'number'
+                                            ? exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight
+                                            : exerciseData[exercise.id]?.[setIndex]?.weight ?? 0
+                                        )
+                                      }
+                                      onChange={(e) => {
+                                        setEditingWeightInput(prev => ({
+                                          ...prev,
+                                          [`${exercise.id}-${setIndex}`]: e.target.value,
+                                        }));
+                                      }}
+                                      onBlur={() => {
+                                        const key = `${exercise.id}-${setIndex}`;
+                                        const raw = editingWeightInput[key];
+                                        if (raw === undefined) return;
+                                        const parsed = parseFloat(raw.replace(',', '.'));
+                                        const fallback =
+                                          exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight ?? 0;
+                                        const value = Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
+                                        updateExerciseData(exercise.id, setIndex, 'weight', typeof value === 'number' ? value : 0);
+                                        setEditingWeightInput(prev => {
+                                          const next = { ...prev };
+                                          delete next[key];
+                                          return next;
+                                        });
+                                      }}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                      }}
+                                      aria-label={t('workout.weightAria')}
+                                    />
+                                    <span className="text-[10px] font-medium" style={{ color: 'var(--txt-lo)' }}>{t('workout.kg')}</span>
+                                  </div>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
+                                    const newWeight = typeof currentWeight === 'number' ? currentWeight + 2.5 : 2.5;
+                                    updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
+                                    setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
+                                  }}
+                                  className="wk-step w-8 h-[34px] flex items-center justify-center shrink-0"
+                                  style={{ color: 'var(--red)' }}
+                                  aria-label={t('workout.increaseWeight')}
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
 
                   {/* Save button for this exercise - saves performance to Supabase and updates coach + charts */}
-                  <div className="flex justify-center mt-4 pt-4 border-t border-gray-700/50">
-                    <button
-                      type="button"
-                      onClick={() => saveClientEdits()}
-                      className="px-4 sm:px-6 py-2 sm:py-3 rounded-xl font-semibold flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white border border-green-500/30 shadow-lg text-sm sm:text-base"
-                    >
-                      <Save className="w-4 h-4 sm:w-5 sm:h-5" />
-                      Save
-                    </button>
+                  <div className="pt-3" style={{ borderTop: '1px solid var(--hair)' }}>
+                    {(() => {
+                      const saveState = exerciseSaveState[exercise.id];
+                      const isSaving = saveState === 'saving';
+                      const isSaved = saveState === 'saved';
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => handleSaveExercise(exercise.id)}
+                          disabled={isSaving}
+                          className="w-full py-3 rounded-[15px] font-semibold text-[14px] text-white flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed"
+                          style={
+                            isSaved
+                              ? { background: 'linear-gradient(90deg, var(--emerald-deep), var(--emerald))', boxShadow: '0 12px 28px -10px rgba(52,211,153,.55)' }
+                              : { background: 'var(--grad-red)', boxShadow: '0 12px 28px -10px rgba(255,45,85,.6)', opacity: isSaving ? 0.85 : 1 }
+                          }
+                        >
+                          {isSaving ? (
+                            <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                          ) : isSaved ? (
+                            <CheckCircle className="w-[18px] h-[18px]" />
+                          ) : (
+                            <Save className="w-[18px] h-[18px]" />
+                          )}
+                          {isSaving ? t('workout.saving') : isSaved ? t('workout.saved') : t('workout.save')}
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
 
                   {exercise.notes && (
-                    <div className="mt-6 p-6 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-2xl backdrop-blur-sm">
+                    <div className="mx-4 mb-4 p-4 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-2xl backdrop-blur-sm">
                       <div className="flex items-start space-x-3">
                         <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
                           <Heart className="w-4 h-4 text-blue-400" />
                         </div>
                         <div>
-                          <h6 className="text-sm font-semibold text-blue-300 mb-2">Exercise Notes</h6>
+                          <h6 className="text-sm font-semibold text-blue-300 mb-2">{t('workout.exerciseNotes')}</h6>
                           <p className="text-blue-200 text-sm leading-relaxed">{exercise.notes}</p>
                         </div>
                       </div>
@@ -1360,19 +1427,19 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 
         {/* Locked Day Message */}
         {!isDayUnlocked && (
-          <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 p-8 text-center">
-            <div className="w-16 h-16 bg-slate-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-8 h-8 text-slate-400" />
+          <div className="rounded-xl p-8 text-center" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'var(--surface-3)' }}>
+              <Lock className="w-8 h-8" style={{ color: 'var(--txt-lo)' }} />
             </div>
-            <h3 className="text-lg font-bold text-white mb-3">
-              Week {currentWeek} is Locked
+            <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--txt-hi)' }}>
+              {t('workout.weekNLocked', { week: currentWeek })}
             </h3>
-            <p className="text-slate-400 text-sm mb-4">
-              Complete previous weeks to unlock this week's workouts.
+            <p className="text-sm mb-4" style={{ color: 'var(--txt-mid)' }}>
+              {t('workout.weekLockedFull')}
             </p>
-            <div className="flex items-center justify-center space-x-2 text-slate-500">
+            <div className="flex items-center justify-center space-x-2" style={{ color: 'var(--txt-lo)' }}>
               <Flame className="w-4 h-4" />
-              <span className="text-sm">Keep pushing forward!</span>
+              <span className="text-sm">{t('workout.keepPushing')}</span>
           </div>
         </div>
         )}

@@ -93,7 +93,7 @@ interface UnbreakableSteamClientsManagerProps {
   onAssignWorkoutPlan: (clientId: string, assignment: ClientWorkoutAssignment) => void;
   onShareWithClient: (client: Client) => void;
   onNavigateToClientPlan: (client: Client) => void;
-  onDuplicateClient: (client: Client) => void;
+  onDuplicateClient: (client: Client, options: { name: string; numberOfWeeks: number }) => void | Promise<void>;
   onNavigateToMealDatabase: () => void;
   onNavigateToExerciseDatabase: () => void;
   onNavigateToIngredients: () => void;
@@ -130,6 +130,9 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
   const [credentialsManagerClient, setCredentialsManagerClient] = useState<Client | null>(null);
+  const [duplicateSourceClient, setDuplicateSourceClient] = useState<Client | null>(null);
+  const [duplicateForm, setDuplicateForm] = useState({ name: '', numberOfWeeks: 12 });
+  const [isDuplicating, setIsDuplicating] = useState(false);
 
   // Logout handler
   const handleLogout = () => {
@@ -216,6 +219,29 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                          client.email.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
+
+  const openDuplicateModal = (client: Client) => {
+    setDuplicateSourceClient(client);
+    setDuplicateForm({
+      name: `${client.name} (Copy)`,
+      numberOfWeeks: client.numberOfWeeks || client.workoutAssignment?.duration || 12,
+    });
+  };
+
+  const handleDuplicateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!duplicateSourceClient || !duplicateForm.name.trim()) return;
+    setIsDuplicating(true);
+    try {
+      await onDuplicateClient(duplicateSourceClient, {
+        name: duplicateForm.name.trim(),
+        numberOfWeeks: duplicateForm.numberOfWeeks,
+      });
+      setDuplicateSourceClient(null);
+    } finally {
+      setIsDuplicating(false);
+    }
+  };
 
   const handleAddClient = (e: React.FormEvent) => {
     e.preventDefault();
@@ -566,7 +592,8 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                               <Target className="w-5 h-5" />
                             </button>
                             <button
-                              onClick={() => onDuplicateClient(client)}
+                              onClick={() => openDuplicateModal(client)}
+                              title="Duplicate program"
                               className="p-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
                             >
                               <Copy className="w-5 h-5" />
@@ -649,7 +676,8 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                       <span className="hidden sm:block">Plan</span>
                     </button>
                     <button
-                      onClick={() => onDuplicateClient(client)}
+                      onClick={() => openDuplicateModal(client)}
+                      title="Duplicate program"
                       className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
                     >
                       <Copy className="w-3 h-3" />
@@ -806,6 +834,19 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      openDuplicateModal(currentClient);
+                      setOpenDropdownId(null);
+                      setDropdownPosition(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2"
+                  >
+                    <Copy className="w-4 h-4" />
+                    <span>Duplicate Program</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       console.log('🔑 Opening credentials manager for:', currentClient.name, currentClient.id);
                       setCredentialsManagerClient(currentClient);
                       setOpenDropdownId(null);
@@ -846,6 +887,77 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Duplicate Program Modal */}
+      {duplicateSourceClient && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="relative w-full max-w-lg my-8">
+            <div className="absolute inset-0 rounded-3xl blur-xl bg-gradient-to-r from-red-500/20 to-red-600/20"></div>
+            <div className="relative bg-slate-800/95 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-2xl">
+              <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Duplicate Program</h2>
+                  <p className="text-slate-400 text-sm mt-1">
+                    Copy from {duplicateSourceClient.name} — starts at week 1
+                  </p>
+                </div>
+                <button
+                  onClick={() => setDuplicateSourceClient(null)}
+                  className="p-2 rounded-lg text-slate-400 hover:text-slate-300 hover:bg-slate-700 transition-colors duration-200"
+                  disabled={isDuplicating}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleDuplicateSubmit} className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">New client name</label>
+                  <input
+                    type="text"
+                    value={duplicateForm.name}
+                    onChange={(e) => setDuplicateForm({ ...duplicateForm, name: e.target.value })}
+                    className="w-full px-4 py-3 rounded-lg border border-slate-600 bg-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-300"
+                    placeholder="Client name"
+                    required
+                    disabled={isDuplicating}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">Number of weeks</label>
+                  <input
+                    type="number"
+                    value={duplicateForm.numberOfWeeks}
+                    onChange={(e) =>
+                      setDuplicateForm({
+                        ...duplicateForm,
+                        numberOfWeeks: Math.max(1, Math.min(52, parseInt(e.target.value, 10) || 1)),
+                      })
+                    }
+                    className="w-full px-4 py-3 rounded-lg border border-slate-600 bg-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-300"
+                    min={1}
+                    max={52}
+                    required
+                    disabled={isDuplicating}
+                  />
+                  <p className="text-xs text-slate-500 mt-2">
+                    Workout and nutrition plans are copied. Weights reset to 0, progress starts at week 1 (only week 1 unlocked).
+                  </p>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isDuplicating}
+                  className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                >
+                  {isDuplicating ? 'Creating copy...' : 'Create duplicate'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Client Credentials Manager Modal */}

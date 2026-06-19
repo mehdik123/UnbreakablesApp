@@ -176,14 +176,14 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
   return (
     <div className="space-y-3">
       {/* Compact Week Selector */}
-      <div className="bg-gray-900 border border-gray-700 rounded-xl p-3">
+      <div className="rounded-xl p-3" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Camera className="w-4 h-4 text-[#dc1e3a]" />
-            <span className="text-white text-sm font-medium">Progress Photos</span>
+            <Camera className="w-4 h-4" style={{ color: 'var(--red)' }} />
+            <span className="text-sm font-semibold font-display" style={{ color: 'var(--txt-hi)' }}>Progress Photos</span>
           </div>
           {weekPhotos.length > 0 && (
-            <span className="text-xs text-gray-400">{weekPhotos.length}/3</span>
+            <span className="text-xs" style={{ color: 'var(--txt-mid)' }}>{weekPhotos.length}/3</span>
           )}
         </div>
         
@@ -191,31 +191,29 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
           {/* Ultra Modern Dropdown Trigger */}
           <button
             onClick={() => setIsWeekDropdownOpen(!isWeekDropdownOpen)}
-            className="group w-full relative overflow-hidden bg-gradient-to-r from-gray-800 to-gray-800 hover:from-gray-750 hover:to-gray-800 border border-gray-700 hover:border-[#dc1e3a]/50 rounded-xl px-4 py-2.5 flex items-center justify-between transition-all duration-300"
+            className="group w-full relative overflow-hidden rounded-xl px-4 py-2.5 flex items-center justify-between transition-all duration-300"
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
           >
-            {/* Animated gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-[#dc1e3a]/0 via-[#dc1e3a]/5 to-[#dc1e3a]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            
             <div className="relative flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-[#dc1e3a]/20 flex items-center justify-center">
-                <span className="text-[#dc1e3a] text-xs font-bold">{selectedWeek}</span>
+              <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,45,85,.18)' }}>
+                <span className="text-xs font-bold" style={{ color: 'var(--red)' }}>{selectedWeek}</span>
               </div>
-              <span className="text-white text-sm font-medium">Week {selectedWeek}</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--txt-hi)' }}>Week {selectedWeek}</span>
               {weekPhotos.length === 3 && (
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--emerald)' }}></div>
               )}
             </div>
             
-            <ChevronDown className={`w-4 h-4 text-gray-400 group-hover:text-[#dc1e3a] transition-all duration-300 ${isWeekDropdownOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-4 h-4 transition-all duration-300 ${isWeekDropdownOpen ? 'rotate-180' : ''}`} style={{ color: 'var(--txt-mid)' }} />
           </button>
 
           {/* Ultra Modern Dropdown Menu */}
           {isWeekDropdownOpen && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-gray-800/95 backdrop-blur-xl border border-gray-700/50 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="absolute top-full left-0 right-0 mt-2 backdrop-blur-xl rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200" style={{ background: 'rgba(21,23,31,.97)', border: '1px solid var(--hair)' }}>
               <div className="max-h-64 overflow-y-auto custom-scrollbar">
                 {/* Current Week Badge */}
-                <div className="sticky top-0 bg-gradient-to-b from-gray-800 to-gray-800/0 px-3 py-2 backdrop-blur-sm z-10">
-                  <span className="text-xs text-gray-400 font-medium">Select Week</span>
+                <div className="sticky top-0 px-3 py-2 backdrop-blur-sm z-10" style={{ background: 'var(--surface-2)' }}>
+                  <span className="text-xs font-medium" style={{ color: 'var(--txt-mid)' }}>Select Week</span>
                 </div>
 
                 <div className="px-1 pb-1">
@@ -232,28 +230,28 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                           setSelectedWeek(week);
                           setIsWeekDropdownOpen(false);
                         }}
-                        className={`group w-full px-3 py-2.5 rounded-lg text-left flex items-center justify-between transition-all duration-200 mb-1 ${
-                          isSelected
-                            ? 'bg-gradient-to-r from-[#dc1e3a] to-[#dc1e3a]/80 text-white shadow-lg scale-[1.02]'
-                            : 'text-gray-300 hover:bg-gray-750 hover:scale-[1.01]'
-                        }`}
+                        className="group w-full px-3 py-2.5 rounded-lg text-left flex items-center justify-between transition-all duration-200 mb-1"
+                        style={isSelected
+                          ? { background: 'var(--grad-red)', color: '#fff', boxShadow: '0 8px 20px -8px rgba(255,45,85,.5)' }
+                          : { color: 'var(--txt-mid)' }}
                       >
                         <div className="flex items-center gap-3">
                           {/* Week Badge */}
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-all ${
-                            isSelected
-                              ? 'bg-white/20 text-white'
-                              : 'bg-gray-700 text-gray-400 group-hover:bg-gray-600'
-                          }`}>
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm transition-all"
+                            style={isSelected
+                              ? { background: 'rgba(255,255,255,.2)', color: '#fff' }
+                              : { background: 'var(--surface-3)', color: 'var(--txt-mid)' }}
+                          >
                             {week}
                           </div>
                           
                           <div className="flex flex-col">
-                            <span className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                            <span className="text-sm font-medium" style={{ color: isSelected ? '#fff' : 'var(--txt-hi)' }}>
                               Week {week}
                             </span>
                             {isCurrent && !isSelected && (
-                              <span className="text-xs text-[#dc1e3a]">Current</span>
+                              <span className="text-xs" style={{ color: 'var(--red)' }}>Current</span>
                             )}
                           </div>
                         </div>
@@ -261,17 +259,18 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                         {/* Status Indicators */}
                         <div className="flex items-center gap-2">
                           {weekPhotoCount > 0 && (
-                            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg ${
-                              isComplete
-                                ? 'bg-green-500/20 text-green-400'
-                                : 'bg-yellow-500/20 text-yellow-400'
-                            }`}>
+                            <div
+                              className="flex items-center gap-1.5 px-2 py-1 rounded-lg"
+                              style={isComplete
+                                ? { background: 'rgba(52,211,153,.18)', color: 'var(--emerald)' }
+                                : { background: 'rgba(245,158,11,.18)', color: '#fbbf24' }}
+                            >
                               <span className="text-xs font-bold">{weekPhotoCount}/3</span>
                             </div>
                           )}
                           
                           {isComplete && (
-                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                            <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--emerald)' }}></div>
                           )}
                         </div>
                       </button>
@@ -300,7 +299,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
               />
               
               {photo ? (
-                <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-gray-800 border border-gray-700">
+                <div className="relative aspect-[3/4] rounded-lg overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
                   <img
                     src={photo.imageUrl}
                     alt={`${label} view`}
@@ -322,10 +321,11 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                 <button
                   onClick={() => fileInputRefs[type].current?.click()}
                   disabled={uploading}
-                  className="aspect-[3/4] w-full bg-gray-800 hover:bg-gray-750 border border-gray-700 border-dashed rounded-lg flex flex-col items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="aspect-[3/4] w-full border-dashed rounded-lg flex flex-col items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: 'var(--surface-2)', border: '1px dashed var(--hair-strong)' }}
                 >
-                  <Upload className="w-5 h-5 text-gray-400 mb-1" />
-                  <span className="text-xs text-gray-400">{label}</span>
+                  <Upload className="w-5 h-5 mb-1" style={{ color: 'var(--txt-mid)' }} />
+                  <span className="text-xs" style={{ color: 'var(--txt-mid)' }}>{label}</span>
                 </button>
               )}
             </div>
@@ -335,10 +335,11 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
 
       {/* Compare Photos Section */}
       {photos.length > 0 && (
-        <div className="bg-gray-900 border border-gray-700 rounded-xl p-3">
+        <div className="rounded-xl p-3" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
           <button
             onClick={() => setShowComparison(!showComparison)}
-            className="w-full flex items-center justify-between text-white text-sm font-medium hover:text-[#dc1e3a] transition-colors"
+            className="w-full flex items-center justify-between text-sm font-semibold transition-colors"
+            style={{ color: 'var(--txt-hi)' }}
           >
             <div className="flex items-center gap-2">
               <ArrowLeftRight className="w-4 h-4" />
@@ -354,17 +355,19 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                 <select
                   value={compareWeek1}
                   onChange={(e) => setCompareWeek1(Number(e.target.value))}
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-white text-xs"
+                  className="flex-1 rounded-lg px-2 py-1.5 text-xs"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)' }}
                 >
                   {Array.from({ length: maxWeeks }, (_, i) => i + 1).map(week => (
                     <option key={week} value={week}>Week {week}</option>
                   ))}
                 </select>
-                <span className="text-gray-400 text-xs font-bold">VS</span>
+                <span className="text-xs font-bold" style={{ color: 'var(--txt-mid)' }}>VS</span>
                 <select
                   value={compareWeek2}
                   onChange={(e) => setCompareWeek2(Number(e.target.value))}
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-2 py-1.5 text-white text-xs"
+                  className="flex-1 rounded-lg px-2 py-1.5 text-xs"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)' }}
                 >
                   {Array.from({ length: maxWeeks }, (_, i) => i + 1).map(week => (
                     <option key={week} value={week}>Week {week}</option>
@@ -379,10 +382,10 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
 
                 return (
                   <div key={type} className="space-y-2">
-                    <div className="text-xs text-gray-400 font-medium">{label}</div>
+                    <div className="text-xs font-medium" style={{ color: 'var(--txt-mid)' }}>{label}</div>
                     <div className="grid grid-cols-2 gap-2">
                       {/* Week 1 Photo */}
-                      <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-gray-800 border border-gray-700">
+                      <div className="relative aspect-[3/4] rounded-lg overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
                         {photo1 ? (
                           <>
                             <img src={photo1.imageUrl} alt={`${label} week ${compareWeek1}`} className="w-full h-full object-cover" />
@@ -398,7 +401,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                       </div>
 
                       {/* Week 2 Photo */}
-                      <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-gray-800 border border-gray-700">
+                      <div className="relative aspect-[3/4] rounded-lg overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
                         {photo2 ? (
                           <>
                             <img src={photo2.imageUrl} alt={`${label} week ${compareWeek2}`} className="w-full h-full object-cover" />

@@ -20,6 +20,12 @@ html, body {
   display: none;
 }
 
+/* Let horizontal carousels capture swipe; avoid parent tab/page stealing the gesture */
+.horizontal-scroll {
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Extra small screens (phones in portrait) */
 @media (max-width: 375px) {
   .xs\:inline {

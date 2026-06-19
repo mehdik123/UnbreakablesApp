@@ -91,6 +91,7 @@ export const useHorizontalScroll = (options: UseHorizontalScrollOptions = {}) =>
     let isDragging = false;
 
     const handleTouchStart = (e: TouchEvent) => {
+      e.stopPropagation();
       startX = e.touches[0].clientX;
       startScrollLeft = container.scrollLeft;
       isDragging = true;
@@ -99,14 +100,15 @@ export const useHorizontalScroll = (options: UseHorizontalScrollOptions = {}) =>
 
     const handleTouchMove = (e: TouchEvent) => {
       if (!isDragging) return;
-      
+      e.stopPropagation();
       e.preventDefault();
       const currentX = e.touches[0].clientX;
       const diff = startX - currentX;
       container.scrollLeft = startScrollLeft + diff;
     };
 
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (e: TouchEvent) => {
+      e.stopPropagation();
       if (!isDragging) return;
       
       isDragging = false;

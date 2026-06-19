@@ -155,7 +155,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="min-h-[50vh] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
           <p className="text-slate-300">Loading muscle group charts...</p>
@@ -165,17 +165,17 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+    <div className="py-2">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#dc1e3a]/20 to-red-500/10 rounded-2xl flex items-center justify-center shadow-lg border border-[#dc1e3a]/30">
-              <Target className="w-6 h-6 text-[#dc1e3a]" />
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-red" style={{ background: 'var(--grad-red)' }}>
+              <Target className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">Muscle Group Progress</h1>
-              <p className="text-slate-400">Individual charts for each muscle group</p>
+              <h1 className="text-2xl font-bold font-display" style={{ color: 'var(--txt-hi)' }}>Muscle Group Progress</h1>
+              <p style={{ color: 'var(--txt-mid)' }}>Individual charts for each muscle group</p>
             </div>
           </div>
         </div>
@@ -501,56 +501,55 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                             return (
                               <div
                                 key={exercise.id}
-                                className="p-5 bg-gradient-to-br from-white/5 to-white/10 rounded-2xl border border-white/20 backdrop-blur-sm hover:from-white/10 hover:to-white/15 transition-all duration-300"
+                                className="p-3 sm:p-5 bg-gradient-to-br from-white/5 to-white/10 rounded-xl sm:rounded-2xl border border-white/20 backdrop-blur-sm"
                               >
-                                <div className="flex items-center space-x-4 mb-4">
-                                  <div className="w-10 h-10 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-xl flex items-center justify-center border border-[#dc1e3a]/30">
-                                    <Dumbbell className="w-5 h-5 text-[#dc1e3a]" />
+                                <div className="flex items-center gap-2 sm:space-x-4 mb-2 sm:mb-4">
+                                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg sm:rounded-xl flex items-center justify-center border border-[#dc1e3a]/30 shrink-0">
+                                    <Dumbbell className="w-4 h-4 sm:w-5 sm:h-5 text-[#dc1e3a]" />
                                   </div>
-                                  <div className="flex-1">
-                                    <div className="text-white font-bold text-base mb-1">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-white font-bold text-sm sm:text-base truncate">
                                       {exercise.name}
                                     </div>
-                                    <div className="flex items-center space-x-2 text-white/60 text-sm">
-                                      <span>{exercise.equipment}</span>
+                                    <div className="flex items-center space-x-1.5 text-white/60 text-[10px] sm:text-sm">
+                                      <span className="truncate">{exercise.equipment}</span>
                                       <span>•</span>
                                       <span className="capitalize">{exercise.difficulty}</span>
                                     </div>
                                   </div>
-                                  <div className="text-right">
-                                    <div className="text-[#dc1e3a] font-bold text-lg">
+                                  <div className="text-right shrink-0">
+                                    <div className="text-[#dc1e3a] font-bold text-sm sm:text-lg">
                                       {totalExerciseVolume.toLocaleString()} kg
                                     </div>
-                                    <div className="text-white/60 text-xs">Total Volume</div>
+                                    <div className="text-white/60 text-[9px] sm:text-xs">Total Volume</div>
                                   </div>
                                 </div>
                                 
-                                {/* Sets Details: show every day this exercise appears so the total adds up */}
                                 {occurrences.length > 0 && (
-                                  <div className="space-y-4">
-                                    <div className="flex items-center space-x-2">
-                                      <div className="w-2 h-2 bg-[#dc1e3a] rounded-full"></div>
-                                      <div className="text-white/80 text-sm font-medium">Sets & Reps Breakdown</div>
+                                  <div className="space-y-2 sm:space-y-4">
+                                    <div className="flex items-center space-x-1.5">
+                                      <div className="w-1.5 h-1.5 bg-[#dc1e3a] rounded-full"></div>
+                                      <div className="text-white/80 text-[11px] sm:text-sm font-medium">Sets & Reps Breakdown</div>
                                     </div>
                                     {occurrences.map((occ, occIndex) => (
                                       <div key={occIndex}>
                                         {occurrences.length > 1 && (
-                                          <div className="text-white/70 text-sm font-medium mb-2">{occ.dayName}</div>
+                                          <div className="text-white/70 text-[10px] sm:text-sm font-medium mb-1">{occ.dayName}</div>
                                         )}
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                        <div className="grid grid-cols-3 sm:grid-cols-3 gap-1.5 sm:gap-3">
                                           {occ.sets.map((set, setIndex) => (
                                             <div
                                               key={setIndex}
-                                              className="bg-gradient-to-br from-white/10 to-white/5 rounded-xl p-3 text-center border border-white/20 hover:from-white/15 hover:to-white/10 transition-all duration-300"
+                                              className="bg-gradient-to-br from-white/10 to-white/5 rounded-lg sm:rounded-xl p-1.5 sm:p-3 text-center border border-white/20"
                                             >
-                                              <div className="text-white text-sm font-bold mb-1">Set {setIndex + 1}</div>
-                                              <div className="text-white/80 text-sm font-medium mb-1">
+                                              <div className="text-white text-[10px] sm:text-sm font-bold mb-0.5">Set {setIndex + 1}</div>
+                                              <div className="text-white/80 text-[9px] sm:text-sm font-medium mb-0.5 leading-tight">
                                                 {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)
                                                   ? `${set.reps.join('→')} × ${set.weight.join('→')}kg`
                                                   : `${set.reps} × ${set.weight}kg`
                                                 }
                                               </div>
-                                              <div className="text-[#dc1e3a] text-sm font-bold">
+                                              <div className="text-[#dc1e3a] text-[10px] sm:text-sm font-bold">
                                                 = {getSetVolume(set)}kg
                                               </div>
                                             </div>
@@ -559,36 +558,35 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                                       </div>
                                     ))}
                                     
-                                    {/* Volume Calculation: all sets from all days so total = 378 */}
-                                    <div className="mt-4 p-4 bg-gradient-to-br from-white/5 to-white/10 rounded-xl border border-white/20">
-                                      <div className="flex items-center space-x-2 mb-3">
-                                        <div className="w-2 h-2 bg-[#dc1e3a] rounded-full"></div>
-                                        <div className="text-white/80 text-sm font-medium">Volume Calculation</div>
+                                    <div className="mt-2 sm:mt-4 p-2 sm:p-4 bg-gradient-to-br from-white/5 to-white/10 rounded-lg sm:rounded-xl border border-white/20">
+                                      <div className="flex items-center space-x-1.5 mb-1.5 sm:mb-3">
+                                        <div className="w-1.5 h-1.5 bg-[#dc1e3a] rounded-full"></div>
+                                        <div className="text-white/80 text-[11px] sm:text-sm font-medium">Volume Calculation</div>
                                       </div>
-                                      <div className="space-y-2">
+                                      <div className="space-y-1">
                                         {occurrences.map((occ, occIndex) => (
                                           <div key={occIndex}>
                                             {occurrences.length > 1 && (
                                               <div className="text-white/60 text-xs font-medium mt-2 mb-1">{occ.dayName}</div>
                                             )}
                                             {occ.sets.map((set, setIndex) => (
-                                              <div key={setIndex} className="flex justify-between items-center py-1">
-                                                <span className="text-white/70 text-sm">
+                                              <div key={setIndex} className="flex justify-between items-center py-0.5 sm:py-1">
+                                                <span className="text-white/70 text-[10px] sm:text-sm">
                                                   Set {setIndex + 1}: {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)
                                                     ? `${set.reps.join('→')} reps × ${set.weight.join('→')}kg`
                                                     : `${set.reps} reps × ${set.weight}kg`
                                                   }
                                                 </span>
-                                                <span className="text-white font-bold text-sm">
+                                                <span className="text-white font-bold text-[10px] sm:text-sm">
                                                   = {getSetVolume(set)}kg
                                                 </span>
                                               </div>
                                             ))}
                                           </div>
                                         ))}
-                                        <div className="border-t border-white/20 pt-2 mt-3 flex justify-between items-center">
-                                          <span className="text-white font-bold">Total Exercise Volume</span>
-                                          <span className="text-[#dc1e3a] font-bold text-lg">
+                                        <div className="border-t border-white/20 pt-1.5 sm:pt-2 mt-2 sm:mt-3 flex justify-between items-center">
+                                          <span className="text-white font-bold text-[10px] sm:text-sm">Total Exercise Volume</span>
+                                          <span className="text-[#dc1e3a] font-bold text-sm sm:text-lg">
                                             {totalExerciseVolume.toLocaleString()}kg
                                           </span>
                                         </div>

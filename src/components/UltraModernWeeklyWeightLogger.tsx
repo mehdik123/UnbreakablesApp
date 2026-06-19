@@ -305,7 +305,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
   return (
     <div className="space-y-4 md:space-y-8">
       {/* Header with Tabs and Week Navigation */}
-      <div className="bg-gray-900 backdrop-blur-xl border border-gray-700 rounded-3xl p-4 md:p-6">
+      <div className="backdrop-blur-xl border border-[color:var(--hair)] bg-[var(--surface-1)] rounded-3xl p-4 md:p-6">
         {/* Tabs */}
         <div className="flex items-center justify-between mb-4 md:mb-6">
           <div className="flex items-center space-x-2">
@@ -380,7 +380,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
         /* Ultra-Modern Weight Tracking Interface */
         <div className="space-y-4 md:space-y-8">
           {/* Weekly Overview with Interactive Cards */}
-          <div className="bg-gray-900 backdrop-blur-xl border border-gray-700 rounded-3xl p-4 md:p-8 relative overflow-hidden group">
+          <div className="backdrop-blur-xl border border-[color:var(--hair)] bg-[var(--surface-1)] rounded-3xl p-4 md:p-8 relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-r from-[#dc1e3a]/5 via-transparent to-[#dc1e3a]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4 md:mb-8">

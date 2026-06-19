@@ -1,28 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Utensils, 
+import {
+  Utensils,
   Flame,
   Star,
-  Eye,
-  EyeOff,
   ChefHat,
   BookOpen,
   Heart,
-  Plus,
-  Minus,
-  CheckCircle,
   X,
   Dumbbell,
   Target,
-  Award,
-  Crown,
-  Sparkles,
   Zap,
   TrendingUp,
-  Download
+  Sparkles,
+  Download,
+  ChevronRight,
+  ChevronLeft,
+  Clock
 } from 'lucide-react';
-import { Client, NutritionPlan, Meal, Food } from '../types';
-import { useHorizontalScroll } from '../hooks/useHorizontalScroll';
+import { Client, NutritionPlan, Meal, Ingredient, SelectedMeal } from '../types';
 import { exportEnhancedNutritionPDF } from '../utils/enhancedPdfExport';
 
 interface ClientNutritionViewProps {
@@ -41,233 +36,40 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
   const [showInstructions, setShowInstructions] = useState<{ [mealId: string]: boolean }>({});
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [currentMealIndex, setCurrentMealIndex] = useState<{ [slotId: string]: number }>({});
-  const isTogglingContent = React.useRef(false);
+  const [activeMealModal, setActiveMealModal] = useState<{ slotId: string; mealIndex: number } | null>(null);
+  const [viewAllSlotId, setViewAllSlotId] = useState<string | null>(null);
 
   // Use loaded nutrition plan - no fallback mock data
   const displayNutritionPlan: NutritionPlan | null = nutritionPlan;
 
-  // Create individual scroll refs for each meal slot - use useRef to avoid re-renders
-  const scrollRefsRef = React.useRef<{ [slotId: string]: React.RefObject<HTMLDivElement> }>({});
-
-  // Get or create scroll ref for a slot
-  const getScrollRef = React.useCallback((slotId: string) => {
-    if (!scrollRefsRef.current[slotId]) {
-      scrollRefsRef.current[slotId] = React.createRef<HTMLDivElement>();
-      console.log('🆕 CREATING NEW SCROLL REF:', { slotId });
-    }
-    return scrollRefsRef.current[slotId];
-  }, []);
-
-  // Scroll function for meals
-  const scrollMeal = (slotId: string, direction: 'left' | 'right') => {
+  const navigateMeal = (slotId: string, direction: 'left' | 'right') => {
     const slot = displayNutritionPlan?.mealSlots?.find(s => s.id === slotId);
     if (!slot) return;
 
     const totalItems = slot.selectedMeals.length;
     if (totalItems <= 1) return;
-    
-    // Get current meal index from state
+
     const currentIndex = currentMealIndex[slotId] || 0;
     let newIndex;
-    
+
     if (direction === 'left') {
       newIndex = Math.max(0, currentIndex - 1);
     } else {
       newIndex = Math.min(totalItems - 1, currentIndex + 1);
     }
-    
-    // Don't scroll if we're already at the boundary
-    if (newIndex === currentIndex) {
 
+    if (newIndex === currentIndex) {
       return;
     }
-    
-    console.log(`🔄 Switching to meal ${newIndex + 1} for slot ${slotId}:`, {
-      currentIndex,
-      newIndex,
-      totalItems,
-      mealName: slot.selectedMeals[newIndex]?.meal?.name
-    });
-    
-    // Update meal index
+
     setCurrentMealIndex(prev => ({
       ...prev,
       [slotId]: newIndex
     }));
-    
-
+    if (activeMealModal?.slotId === slotId) {
+      setActiveMealModal({ slotId, mealIndex: newIndex });
+    }
   };
-
-  // Update current meal index on scroll
-  const updateCurrentMealIndex = (slotId: string, scrollRef: React.RefObject<HTMLDivElement>) => {
-    if (!scrollRef.current) return;
-    
-    const container = scrollRef.current;
-    const items = container.querySelectorAll('[data-scroll-item]');
-    const containerWidth = container.clientWidth;
-    const currentScroll = container.scrollLeft;
-    
-    const currentIndex = Math.round(currentScroll / containerWidth);
-    setCurrentMealIndex(prev => ({
-      ...prev,
-      [slotId]: Math.min(currentIndex, items.length - 1)
-    }));
-  };
-
-  // Add touch support for each meal slot
-  useEffect(() => {
-    if (!displayNutritionPlan?.mealSlots) return;
-
-    const addTouchSupport = (slotId: string) => {
-      const scrollRef = getScrollRef(slotId);
-      if (!scrollRef.current) return;
-
-      const container = scrollRef.current;
-      let startX = 0;
-      let startScrollLeft = 0;
-      let isDragging = false;
-      let touchStartedOnInteractive = false;
-
-      const handleTouchStart = (e: TouchEvent) => {
-        // Check if touch started on an interactive element (button, input, etc.)
-        const target = e.target as HTMLElement;
-        const isButton = target.closest('button');
-        const isInput = target.closest('input, textarea, select, a');
-        const isInteractive = isButton || isInput;
-        
-        console.log('🫳 TOUCH START on container:', {
-          slotId,
-          isButton: !!isButton,
-          isInput: !!isInput,
-          isInteractive,
-          targetTag: target.tagName,
-          targetClasses: target.className
-        });
-        
-        if (isInteractive) {
-          touchStartedOnInteractive = true;
-          isDragging = false;
-          console.log('🫳 TOUCH START - Interactive element detected, scroll disabled');
-          return;
-        }
-        
-        touchStartedOnInteractive = false;
-        startX = e.touches[0].clientX;
-        startScrollLeft = container.scrollLeft;
-        isDragging = true;
-      };
-
-      const handleTouchMove = (e: TouchEvent) => {
-        if (!isDragging) return;
-        e.preventDefault();
-        const currentX = e.touches[0].clientX;
-        const diff = startX - currentX;
-        container.scrollLeft = startScrollLeft + diff;
-      };
-
-      const handleTouchEnd = () => {
-        // If touch started on an interactive element, don't process scroll
-        if (touchStartedOnInteractive) {
-          console.log('👆 TOUCH END - Ignoring, started on interactive element');
-          touchStartedOnInteractive = false;
-          isDragging = false;
-          return;
-        }
-        
-        if (!isDragging) return;
-        isDragging = false;
-        
-        // Snap to nearest meal
-        const containerWidth = container.clientWidth;
-        const currentScroll = container.scrollLeft;
-        const items = container.querySelectorAll('[data-scroll-item]');
-        const totalItems = items.length;
-        const currentIndex = Math.round(currentScroll / containerWidth);
-        const clampedIndex = Math.min(Math.max(0, currentIndex), totalItems - 1);
-        const newScroll = clampedIndex * containerWidth;
-        
-        console.log('👆 TOUCH END - SNAPPING:', {
-          slotId,
-          currentScroll,
-          containerWidth,
-          calculatedIndex: currentIndex,
-          clampedIndex,
-          willScrollTo: newScroll
-        });
-        
-        container.scrollTo({
-          left: newScroll,
-          behavior: 'smooth'
-        });
-
-        // Update meal index immediately
-        setCurrentMealIndex(prev => {
-          const newState = {
-            ...prev,
-            [slotId]: clampedIndex
-          };
-          console.log('👆 TOUCH END - INDEX UPDATED:', {
-            slotId,
-            oldIndex: prev[slotId],
-            newIndex: clampedIndex,
-            allIndexes: newState
-          });
-          return newState;
-        });
-      };
-
-      const handleScroll = () => {
-        const containerWidth = container.clientWidth;
-        const currentScroll = container.scrollLeft;
-        const items = container.querySelectorAll('[data-scroll-item]');
-        const totalItems = items.length;
-        const currentIndex = Math.round(currentScroll / containerWidth);
-        const clampedIndex = Math.min(Math.max(0, currentIndex), totalItems - 1);
-        
-        console.log('📜 SCROLL EVENT:', {
-          slotId,
-          currentScroll,
-          containerWidth,
-          calculatedIndex: currentIndex,
-          clampedIndex,
-          totalItems
-        });
-        
-        setCurrentMealIndex(prev => {
-          const newState = {
-            ...prev,
-            [slotId]: clampedIndex
-          };
-          console.log('📜 MEAL INDEX UPDATED FROM SCROLL:', {
-            slotId,
-            oldIndex: prev[slotId],
-            newIndex: clampedIndex,
-            allIndexes: newState
-          });
-          return newState;
-        });
-      };
-
-      container.addEventListener('touchstart', handleTouchStart, { passive: false });
-      container.addEventListener('touchmove', handleTouchMove, { passive: false });
-      container.addEventListener('touchend', handleTouchEnd);
-      container.addEventListener('scroll', handleScroll);
-
-      return () => {
-        container.removeEventListener('touchstart', handleTouchStart);
-        container.removeEventListener('touchmove', handleTouchMove);
-        container.removeEventListener('touchend', handleTouchEnd);
-        container.removeEventListener('scroll', handleScroll);
-      };
-    };
-
-    // Add touch support to all slots
-    const cleanupFunctions = displayNutritionPlan.mealSlots.map(slot => addTouchSupport(slot.id));
-
-    return () => {
-      cleanupFunctions.forEach(cleanup => cleanup && cleanup());
-    };
-  }, [displayNutritionPlan?.mealSlots]);
 
   // Load nutrition plan from prop or localStorage on component mount
   useEffect(() => {
@@ -324,60 +126,6 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
     });
   }, [displayNutritionPlan?.mealSlots]);
 
-  // Prevent scroll position from being reset on re-renders
-  // DISABLED - This was causing the scroll reset bug
-  // The scroll position should be controlled by touch/scroll events only
-  /*
-  useEffect(() => {
-    console.log('🟡 SCROLL RESET EFFECT TRIGGERED:', {
-      isTogglingContent: isTogglingContent.current,
-      hasMealSlots: !!displayNutritionPlan?.mealSlots,
-      currentMealIndexes: currentMealIndex
-    });
-    
-    // Don't reset scroll when toggling ingredients/instructions
-    if (isTogglingContent.current) {
-      console.log('🟡 SCROLL RESET BLOCKED - Currently toggling content');
-      return;
-    }
-    if (!displayNutritionPlan?.mealSlots) {
-      console.log('🟡 SCROLL RESET BLOCKED - No meal slots');
-      return;
-    }
-
-    displayNutritionPlan.mealSlots.forEach(slot => {
-      const scrollRef = getScrollRef(slot.id);
-      if (scrollRef.current && currentMealIndex[slot.id] !== undefined) {
-        const expectedScroll = currentMealIndex[slot.id] * scrollRef.current.clientWidth;
-        const actualScroll = scrollRef.current.scrollLeft;
-        const difference = Math.abs(actualScroll - expectedScroll);
-        const threshold = scrollRef.current.clientWidth / 2;
-        
-        console.log('🟡 SCROLL CHECK:', {
-          slotId: slot.id,
-          currentMealIndex: currentMealIndex[slot.id],
-          expectedScroll,
-          actualScroll,
-          difference,
-          threshold,
-          willReset: difference > threshold
-        });
-        
-        // Only reset if significantly off (more than half a screen width)
-        if (difference > threshold) {
-          console.log('🔴 RESETTING SCROLL POSITION!', {
-            slotId: slot.id,
-            from: actualScroll,
-            to: expectedScroll,
-            reason: 'Difference > threshold'
-          });
-          scrollRef.current.scrollLeft = expectedScroll;
-        }
-      }
-    });
-  }, [currentMealIndex, displayNutritionPlan?.mealSlots, showIngredients, showInstructions]);
-  */
-
   const toggleFavorite = (mealId: string) => {
     setFavoriteMeals(prev => 
       prev.includes(mealId) 
@@ -387,61 +135,21 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
   };
 
   const toggleIngredients = (uniqueKey: string) => {
-    console.log('🔵 TOGGLE INGREDIENTS CLICKED:', {
-      uniqueKey,
-      currentState: showIngredients[uniqueKey],
-      allCurrentMealIndexes: currentMealIndex,
-      isTogglingBefore: isTogglingContent.current
-    });
-    
-    isTogglingContent.current = true;
     setShowIngredients(prev => {
-      const newState = {
+      return {
         ...prev,
         [uniqueKey]: !prev[uniqueKey]
       };
-      console.log('🔵 INGREDIENTS STATE UPDATED:', {
-        uniqueKey,
-        oldValue: prev[uniqueKey],
-        newValue: newState[uniqueKey],
-        allStates: newState
-      });
-      return newState;
     });
-    
-    setTimeout(() => {
-      isTogglingContent.current = false;
-      console.log('🔵 TOGGLE FLAG CLEARED after 300ms');
-    }, 300);
   };
 
   const toggleInstructions = (uniqueKey: string) => {
-    console.log('🟣 TOGGLE INSTRUCTIONS CLICKED:', {
-      uniqueKey,
-      currentState: showInstructions[uniqueKey],
-      allCurrentMealIndexes: currentMealIndex,
-      isTogglingBefore: isTogglingContent.current
-    });
-    
-    isTogglingContent.current = true;
     setShowInstructions(prev => {
-      const newState = {
+      return {
         ...prev,
         [uniqueKey]: !prev[uniqueKey]
       };
-      console.log('🟣 INSTRUCTIONS STATE UPDATED:', {
-        uniqueKey,
-        oldValue: prev[uniqueKey],
-        newValue: newState[uniqueKey],
-        allStates: newState
-      });
-      return newState;
     });
-    
-    setTimeout(() => {
-      isTogglingContent.current = false;
-      console.log('🟣 TOGGLE FLAG CLEARED after 300ms');
-    }, 300);
   };
 
   const getMealIcon = (mealId: string) => {
@@ -466,6 +174,37 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
     }
   };
 
+  const getDisplayIngredients = (selectedMeal: SelectedMeal): Ingredient[] => {
+    if (selectedMeal.customIngredients && selectedMeal.customIngredients.length > 0) {
+      return selectedMeal.customIngredients;
+    }
+    return selectedMeal.meal.ingredients;
+  };
+
+  const getMealName = (selectedMeal: SelectedMeal): string => {
+    return selectedMeal.slotOverride?.nameOverride || selectedMeal.meal.name;
+  };
+
+  const getMealImage = (selectedMeal: SelectedMeal): string => {
+    return selectedMeal.slotOverride?.imageOverride || selectedMeal.meal.image;
+  };
+
+  const getCookingInstructions = (selectedMeal: SelectedMeal): string => {
+    return selectedMeal.slotOverride?.instructionsOverride || selectedMeal.meal.cookingInstructions;
+  };
+
+  const getMealNutrition = (selectedMeal: SelectedMeal) => {
+    const quantity = selectedMeal.quantity;
+    const ingredients = getDisplayIngredients(selectedMeal);
+
+    return {
+      calories: Math.round(ingredients.reduce((total, ingredient) => total + (ingredient.food.kcal * ingredient.quantity * quantity / 100), 0)),
+      protein: Math.round(ingredients.reduce((total, ingredient) => total + (ingredient.food.protein * ingredient.quantity * quantity / 100), 0)),
+      carbs: Math.round(ingredients.reduce((total, ingredient) => total + (ingredient.food.carbs * ingredient.quantity * quantity / 100), 0)),
+      fats: Math.round(ingredients.reduce((total, ingredient) => total + (ingredient.food.fat * ingredient.quantity * quantity / 100), 0))
+    };
+  };
+
   // Calculate daily totals based ONLY on currently selected meals
   const dailyTotals = React.useMemo(() => {
     if (!displayNutritionPlan?.mealSlots) {
@@ -483,16 +222,17 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
           const quantity = selectedMeal.quantity;
           
           // Calculate macros for this specific meal
-          const calories = meal.ingredients.reduce((total, ingredient) => 
+          const ingredients = getDisplayIngredients(selectedMeal);
+          const calories = ingredients.reduce((total, ingredient) => 
             total + (ingredient.food.kcal * ingredient.quantity * quantity / 100), 0
           );
-          const protein = meal.ingredients.reduce((total, ingredient) => 
+          const protein = ingredients.reduce((total, ingredient) => 
             total + (ingredient.food.protein * ingredient.quantity * quantity / 100), 0
           );
-          const carbs = meal.ingredients.reduce((total, ingredient) => 
+          const carbs = ingredients.reduce((total, ingredient) => 
             total + (ingredient.food.carbs * ingredient.quantity * quantity / 100), 0
           );
-          const fats = meal.ingredients.reduce((total, ingredient) => 
+          const fats = ingredients.reduce((total, ingredient) => 
             total + (ingredient.food.fat * ingredient.quantity * quantity / 100), 0
           );
           
@@ -565,482 +305,427 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
     );
   }
 
+  // Theme-aware surface tokens (explicit light values so the page works
+  // even where the global light-theme tokens aren't in scope).
+  const sf1 = isDark ? 'var(--surface-1)' : '#ffffff';
+  const sf2 = isDark ? 'var(--surface-2)' : '#f6f8fb';
+  const sf3 = isDark ? 'var(--surface-3)' : '#eef1f6';
+  const hair = isDark ? 'var(--hair)' : 'rgba(15,23,42,0.10)';
+  const txtHi = isDark ? 'var(--txt-hi)' : '#0f172a';
+  const txtMid = isDark ? 'var(--txt-mid)' : '#475569';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4">
-      <div className="max-w-7xl mx-auto space-y-8">
-        
-        {/* Compact Mobile Header */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/80 via-slate-900/60 to-slate-800/80 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-slate-700/50 p-4 md:p-8 shadow-2xl">
-          {/* Background Pattern */}
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 right-0 w-32 md:w-64 h-32 md:h-64 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-full -translate-y-16 md:-translate-y-32 translate-x-16 md:translate-x-32"></div>
-            <div className="absolute bottom-0 left-0 w-24 md:w-48 h-24 md:h-48 bg-gradient-to-tr from-orange-500/20 to-yellow-500/20 rounded-full translate-y-12 md:translate-y-24 -translate-x-12 md:-translate-x-24"></div>
-            <div className="absolute top-1/2 left-1/2 w-16 md:w-32 h-16 md:h-32 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full -translate-x-8 md:-translate-x-16 -translate-y-8 md:-translate-y-16"></div>
+    <div className={isDark ? 'text-white' : 'text-slate-900'}>
+      <div className="max-w-md mx-auto px-1 pt-1 space-y-3">
+        <div className={`h-2 rounded-full overflow-hidden border shadow-[0_0_20px_rgba(56,189,248,0.18)] ${
+          isDark ? 'bg-slate-800/90 border-slate-700/80' : 'bg-slate-200 border-slate-300'
+        }`}>
+          <div
+            className="h-full bg-gradient-to-r from-cyan-300 via-sky-400 to-indigo-400 rounded-full transition-all shadow-[0_0_24px_rgba(56,189,248,0.75)]"
+            style={{ width: `${Math.min(100, Math.max(8, (Math.round(dailyTotals.calories) / Math.max(1, Math.round(dailyTotals.calories))) * 100))}%` }}
+          />
+        </div>
+
+        <div className={`relative rounded-xl p-3 overflow-hidden ${
+          isDark
+            ? 'shadow-soft'
+            : 'border border-slate-200 bg-gradient-to-br from-white via-indigo-50/60 to-white shadow-[0_12px_35px_rgba(30,64,175,0.12)]'
+        }`}
+          style={isDark ? { background: 'linear-gradient(135deg, rgba(255,45,85,.13), rgba(255,45,85,.03))', border: '1px solid rgba(255,45,85,.18)' } : undefined}
+        >
+          <div className="pointer-events-none absolute -top-20 -right-16 w-40 h-40 rounded-full bg-[#ff2d55]/15 blur-3xl" />
+          <div className={`flex items-center justify-between text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
+            <span>Daily Calories</span>
+            <span>Remaining {Math.max(0, Math.round(dailyTotals.calories) - 825)}</span>
           </div>
+          <div className="mt-2 flex items-end justify-between">
+            <div className="text-4xl font-black">{Math.round(dailyTotals.calories)}</div>
+            <button
+              onClick={handleExportPDF}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-600/20 px-3 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-600/30 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </button>
+          </div>
+          <div className={`mt-3 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Consumed 825 kcal • Goal {Math.round(dailyTotals.calories)} kcal</div>
+        </div>
 
-          <div className="relative text-center">
-            <div className="flex items-center justify-center mb-3 md:mb-6">
-              <div className="relative w-12 h-12 md:w-20 md:h-20 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl md:rounded-3xl flex items-center justify-center shadow-2xl">
-                <Utensils className="w-6 h-6 md:w-10 md:h-10 text-white" />
-                <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl md:rounded-3xl blur-lg opacity-50"></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl p-3 shadow-soft" style={{ background: sf1, border: `1px solid ${hair}` }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>Calories</p>
+                <p className="text-2xl font-bold" style={{ color: txtHi }}>{Math.round(dailyTotals.calories)}</p>
+                <p className="text-xs" style={{ color: txtMid }}>kcal</p>
               </div>
+              <Flame className="w-5 h-5 text-[#ff6248]" />
             </div>
-            <h1 className="text-2xl md:text-6xl font-black text-white mb-2 md:mb-4 bg-gradient-to-r from-white via-green-100 to-emerald-100 bg-clip-text text-transparent">
-              NUTRITION CENTER
-            </h1>
-            <p className="text-slate-300 text-sm md:text-xl font-semibold mb-4 md:mb-6">Fuel your transformation with precision nutrition</p>
-            
-            {/* Compact Quick Stats */}
-            <div className="flex justify-center space-x-4 md:space-x-8 mb-4 md:mb-6">
-              <div className="text-center">
-                <div className="text-lg md:text-2xl font-bold text-green-400">{displayNutritionPlan?.mealSlots?.length || 0}</div>
-                <div className="text-slate-400 text-xs md:text-sm font-medium">Meal Times</div>
+          </div>
+          <div className="rounded-2xl p-3 shadow-soft" style={{ background: sf1, border: `1px solid ${hair}` }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>Protein</p>
+                <p className="text-2xl font-bold" style={{ color: txtHi }}>{Math.round(dailyTotals.protein)}g</p>
+                <p className="text-xs" style={{ color: txtMid }}>of goal</p>
               </div>
-              <div className="text-center">
-                <div className="text-lg md:text-2xl font-bold text-orange-400">{Math.round(dailyTotals.calories)}</div>
-                <div className="text-slate-400 text-xs md:text-sm font-medium">Daily Calories</div>
-              </div>
-              <div className="text-center">
-                <div className="text-lg md:text-2xl font-bold text-blue-400">{displayNutritionPlan?.waterIntake || 0}L</div>
-                <div className="text-slate-400 text-xs md:text-sm font-medium">Water Goal</div>
-              </div>
+              <Dumbbell className="w-5 h-5 text-[#4fa4ff]" />
             </div>
-
-            {/* Export PDF Button */}
-            <div className="flex justify-center">
-              <button
-                onClick={handleExportPDF}
-                className="group relative inline-flex items-center space-x-2 md:space-x-3 px-4 md:px-8 py-2 md:py-4 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white rounded-xl md:rounded-2xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-emerald-500/25 text-sm md:text-lg"
-              >
-                <Download className="w-4 h-4 md:w-5 md:h-5" />
-                <span>Export PDF</span>
-              </button>
+          </div>
+          <div className="rounded-2xl p-3 shadow-soft" style={{ background: sf1, border: `1px solid ${hair}` }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>Carbs</p>
+                <p className="text-2xl font-bold" style={{ color: txtHi }}>{Math.round(dailyTotals.carbs)}g</p>
+                <p className="text-xs" style={{ color: txtMid }}>of goal</p>
+              </div>
+              <TrendingUp className="w-5 h-5 text-[#4de1a6]" />
+            </div>
+          </div>
+          <div className="rounded-2xl p-3 shadow-soft" style={{ background: sf1, border: `1px solid ${hair}` }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>Fats</p>
+                <p className="text-2xl font-bold" style={{ color: txtHi }}>{Math.round(dailyTotals.fats)}g</p>
+                <p className="text-xs" style={{ color: txtMid }}>of goal</p>
+              </div>
+              <Zap className="w-5 h-5 text-[#ffd351]" />
             </div>
           </div>
         </div>
-      
-        {/* Compact Mobile Nutrition Overview Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-6 mb-4 md:mb-8">
-          {/* Calories Card */}
-          <div className="group relative overflow-hidden rounded-2xl border transition-all duration-500 hover:scale-105 hover:shadow-2xl border-slate-700/50 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-800/50 backdrop-blur-xl hover:border-red-500/50">
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-500">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-red-500/20 to-orange-500/20 rounded-full -translate-y-16 translate-x-16"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-orange-500/20 to-red-500/20 rounded-full translate-y-12 -translate-x-12"></div>
-            </div>
 
-            <div className="relative p-3 md:p-6">
-              <div className="flex items-center justify-between mb-2 md:mb-4">
-                <div className="relative w-8 h-8 md:w-12 md:h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg">
-                  <Flame className="w-4 h-4 md:w-6 md:h-6 text-white" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl md:rounded-2xl blur-md opacity-30"></div>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg md:text-2xl font-black text-white">{Math.round(dailyTotals.calories)}</div>
-                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Calories</div>
-                </div>
-              </div>
-              <div className="w-full bg-slate-700/50 rounded-full h-1.5 md:h-2">
-                <div className="bg-gradient-to-r from-red-500 to-orange-500 h-1.5 md:h-2 rounded-full w-3/4 transition-all duration-500"></div>
-              </div>
-            </div>
+        <div className="pt-2" style={{ borderTop: `1px solid ${hair}` }}>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-2xl font-bold font-display">Meal Plan</h2>
           </div>
+          <div className="space-y-5">
+            {(displayNutritionPlan?.mealSlots || []).map((slot) => {
+              const selectedIndex = currentMealIndex[slot.id] || 0;
+              const selectedMeal = slot.selectedMeals[selectedIndex];
+              if (!selectedMeal) return null;
+              const uniqueMealKey = `${slot.id}-${selectedIndex}`;
+              const nutrition = getMealNutrition(selectedMeal);
+              const mealName = getMealName(selectedMeal);
+              const mealImage = getMealImage(selectedMeal);
 
-          {/* Protein Card */}
-          <div className="group relative overflow-hidden rounded-2xl border transition-all duration-500 hover:scale-105 hover:shadow-2xl border-slate-700/50 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-800/50 backdrop-blur-xl hover:border-blue-500/50">
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-500">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full -translate-y-16 translate-x-16"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 rounded-full translate-y-12 -translate-x-12"></div>
-            </div>
-
-            <div className="relative p-3 md:p-6">
-              <div className="flex items-center justify-between mb-2 md:mb-4">
-                <div className="relative w-8 h-8 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg">
-                  <Dumbbell className="w-4 h-4 md:w-6 md:h-6 text-white" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl md:rounded-2xl blur-md opacity-30"></div>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg md:text-2xl font-black text-white">{Math.round(dailyTotals.protein)}g</div>
-                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Protein</div>
-                </div>
-              </div>
-              <div className="w-full bg-slate-700/50 rounded-full h-1.5 md:h-2">
-                <div className="bg-gradient-to-r from-blue-500 to-cyan-500 h-1.5 md:h-2 rounded-full w-4/5 transition-all duration-500"></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Carbs Card */}
-          <div className="group relative overflow-hidden rounded-2xl border transition-all duration-500 hover:scale-105 hover:shadow-2xl border-slate-700/50 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-800/50 backdrop-blur-xl hover:border-green-500/50">
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-500">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-full -translate-y-16 translate-x-16"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-emerald-500/20 to-green-500/20 rounded-full translate-y-12 -translate-x-12"></div>
-            </div>
-
-            <div className="relative p-3 md:p-6">
-              <div className="flex items-center justify-between mb-2 md:mb-4">
-                <div className="relative w-8 h-8 md:w-12 md:h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg">
-                  <Target className="w-4 h-4 md:w-6 md:h-6 text-white" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl md:rounded-2xl blur-md opacity-30"></div>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg md:text-2xl font-black text-white">{Math.round(dailyTotals.carbs)}g</div>
-                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Carbs</div>
-                </div>
-              </div>
-              <div className="w-full bg-slate-700/50 rounded-full h-1.5 md:h-2">
-                <div className="bg-gradient-to-r from-green-500 to-emerald-500 h-1.5 md:h-2 rounded-full w-2/3 transition-all duration-500"></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Fats Card */}
-          <div className="group relative overflow-hidden rounded-2xl border transition-all duration-500 hover:scale-105 hover:shadow-2xl border-slate-700/50 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-800/50 backdrop-blur-xl hover:border-purple-500/50">
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-500">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full -translate-y-16 translate-x-16"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-pink-500/20 to-purple-500/20 rounded-full translate-y-12 -translate-x-12"></div>
-            </div>
-
-            <div className="relative p-3 md:p-6">
-              <div className="flex items-center justify-between mb-2 md:mb-4">
-                <div className="relative w-8 h-8 md:w-12 md:h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl md:rounded-2xl flex items-center justify-center shadow-lg">
-                  <Heart className="w-4 h-4 md:w-6 md:h-6 text-white" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl md:rounded-2xl blur-md opacity-30"></div>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg md:text-2xl font-black text-white">{Math.round(dailyTotals.fats)}g</div>
-                  <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">Fats</div>
-                </div>
-              </div>
-              <div className="w-full bg-slate-700/50 rounded-full h-1.5 md:h-2">
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-1.5 md:h-2 rounded-full w-1/2 transition-all duration-500"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-          
-      {/* Meals by Category */}
-    <div className="space-y-6 sm:space-y-8">
-        {(displayNutritionPlan?.mealSlots || []).map((slot, slotIndex) => (
-          <div key={slot.id} className="space-y-3 sm:space-y-4">
-            {/* Mobile-Optimized Meal Category Header */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-slate-800/80 via-slate-900/60 to-slate-800/80 backdrop-blur-xl rounded-2xl md:rounded-3xl border border-slate-700/50 p-4 md:p-6 shadow-2xl">
-              {/* Background Pattern */}
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute top-0 right-0 w-16 md:w-32 h-16 md:h-32 bg-gradient-to-br from-orange-500/20 to-yellow-500/20 rounded-full -translate-y-8 md:-translate-y-16 translate-x-8 md:translate-x-16"></div>
-                <div className="absolute bottom-0 left-0 w-12 md:w-24 h-12 md:h-24 bg-gradient-to-tr from-yellow-500/20 to-orange-500/20 rounded-full translate-y-6 md:translate-y-12 -translate-x-6 md:-translate-x-12"></div>
-              </div>
-
-              <div className="relative">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-                  <div className="flex items-center space-x-3 md:space-x-4">
-                    <div className={`relative w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br ${getMealColor(slot.id)} rounded-xl md:rounded-2xl flex items-center justify-center shadow-2xl`}>
-                      <span className="text-lg md:text-2xl">{getMealIcon(slot.id)}</span>
-                      <div className={`absolute inset-0 bg-gradient-to-br ${getMealColor(slot.id)} rounded-xl md:rounded-2xl blur-lg opacity-50`}></div>
+              return (
+                <div key={slot.id}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-slate-500">•</span>
+                      <h3 className="font-semibold text-lg">{slot.name}</h3>
+                      <span className="text-slate-400 text-sm">{slot.selectedMeals.length} items</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h2 className="text-xl md:text-3xl font-black text-white mb-1 md:mb-2 bg-gradient-to-r from-white via-orange-100 to-yellow-100 bg-clip-text text-transparent">
-                        {slot.name}
-                      </h2>
-                      <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 md:space-x-6 text-slate-300">
-                        <div className="flex items-center space-x-1 md:space-x-2">
-                          <Target className="w-4 h-4 md:w-5 md:h-5 text-orange-400" />
-                          <span className="font-semibold text-sm md:text-lg">{slot.selectedMeals.length} meal{slot.selectedMeals.length > 1 ? 's' : ''}</span>
+                    <button
+                      onClick={() => setViewAllSlotId(slot.id)}
+                      className="text-sm text-slate-300 hover:text-white inline-flex items-center gap-1"
+                    >
+                      View all <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div
+                    className={`rounded-3xl overflow-hidden ${isDark ? 'shadow-soft' : 'border border-slate-200 bg-gradient-to-br from-white to-slate-50 shadow-[0_10px_25px_rgba(2,6,23,0.08)]'}`}
+                    style={isDark ? { background: 'var(--surface-1)', border: '1px solid var(--hair)' } : undefined}
+                  >
+                    <button
+                      onClick={() => setActiveMealModal({ slotId: slot.id, mealIndex: selectedIndex })}
+                      className="w-full text-left"
+                    >
+                      <div className="relative h-48">
+                        <img src={mealImage} alt={mealName} className="w-full h-full object-cover" />
+                        <div className={`absolute inset-0 ${isDark ? 'bg-gradient-to-t from-[#081327] via-[#0b1730]/35 to-transparent' : 'bg-gradient-to-t from-[#0b1324]/70 via-[#0b1324]/20 to-transparent'}`} />
+                        <div className="absolute top-3 left-3 flex items-center gap-2">
+                          <span className="px-2 py-1 rounded-full text-[11px] border border-white/30 bg-white/20 backdrop-blur-sm">High Protein</span>
+                          <span className="px-2 py-1 rounded-full text-[11px] border border-white/30 bg-white/20 backdrop-blur-sm">Quick</span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(selectedMeal.meal.id);
+                          }}
+                          className={`absolute right-3 top-3 w-8 h-8 rounded-full border flex items-center justify-center ${
+                            favoriteMeals.includes(selectedMeal.meal.id)
+                              ? 'bg-yellow-400/30 border-yellow-300 text-yellow-200'
+                              : 'bg-slate-900/50 border-white/30 text-white'
+                          }`}
+                        >
+                          <Star className={`w-4 h-4 ${favoriteMeals.includes(selectedMeal.meal.id) ? 'fill-current' : ''}`} />
+                        </button>
+                        <div className="absolute left-4 bottom-4 right-4">
+                          <p className="text-3xl">{getMealIcon(slot.id)}</p>
+                          <h4 className="text-3xl font-extrabold leading-tight">{mealName}</h4>
+                          <div className="mt-1 flex items-center gap-1 text-white/80 text-sm">
+                            <Clock className="w-4 h-4" />
+                            <span>5 min</span>
+                          </div>
                         </div>
                       </div>
+                    </button>
+
+                    <div className="grid grid-cols-4 gap-2 px-4 py-3" style={{ borderTop: `1px solid ${hair}`, background: sf2 }}>
+                      <div className="text-center">
+                        <div className="text-lg font-bold">{nutrition.calories}</div>
+                        <div className="text-xs text-slate-400">Cal</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold">{nutrition.protein}</div>
+                        <div className="text-xs text-slate-400">Pro</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold">{nutrition.carbs}</div>
+                        <div className="text-xs text-slate-400">Carb</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-lg font-bold">{nutrition.fats}</div>
+                        <div className="text-xs text-slate-400">Fat</div>
+                      </div>
                     </div>
+                    <div className="grid grid-cols-4 gap-2 px-4 pb-2 -mt-1">
+                      <div className="h-0.5 rounded-full bg-gradient-to-r from-rose-400/90 to-orange-400/90" />
+                      <div className="h-0.5 rounded-full bg-gradient-to-r from-sky-400/90 to-blue-500/90" />
+                      <div className="h-0.5 rounded-full bg-gradient-to-r from-emerald-400/90 to-teal-400/90" />
+                      <div className="h-0.5 rounded-full bg-gradient-to-r from-amber-300/90 to-yellow-400/90" />
+                    </div>
+
+                    <div className="flex items-center gap-2 px-4 pb-4">
+                      <button
+                        onClick={() => toggleIngredients(uniqueMealKey)}
+                        className="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                        style={showIngredients[uniqueMealKey]
+                          ? { background: 'rgba(255,45,85,.15)', border: '1px solid rgba(255,45,85,.4)', color: 'var(--red)' }
+                          : { background: sf3, border: `1px solid ${hair}`, color: txtMid }}
+                      >
+                        Ingredients
+                      </button>
+                      <button
+                        onClick={() => toggleInstructions(uniqueMealKey)}
+                        className="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                        style={showInstructions[uniqueMealKey]
+                          ? { background: 'rgba(91,140,255,.15)', border: '1px solid rgba(91,140,255,.4)', color: 'var(--blue)' }
+                          : { background: sf3, border: `1px solid ${hair}`, color: txtMid }}
+                      >
+                        Instructions
+                      </button>
+                    </div>
+
+                    {showIngredients[uniqueMealKey] && (
+                      <div className="px-4 pb-3">
+                        <div className="space-y-2">
+                          {getDisplayIngredients(selectedMeal).map((ingredient, idx) => (
+                            <div key={idx} className="flex items-center justify-between rounded-xl px-3 py-2 text-sm" style={{ background: sf2, border: `1px solid ${hair}` }}>
+                              <span style={{ color: txtHi }}>{ingredient.food.name}</span>
+                              <span className="font-display tnum" style={{ color: txtMid }}>{ingredient.quantity}g</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {showInstructions[uniqueMealKey] && (
+                      <div className="px-4 pb-4">
+                        <div className="rounded-xl p-3 text-sm whitespace-pre-line" style={{ background: sf2, border: `1px solid ${hair}`, color: txtMid }}>
+                          {getCookingInstructions(selectedMeal)}
+                        </div>
+                      </div>
+                    )}
+
+                    {slot.selectedMeals.length > 1 && (
+                      <div className="flex items-center justify-between px-4 pb-4 gap-2">
+                        <button
+                          onClick={() => navigateMeal(slot.id, 'left')}
+                          className="flex items-center justify-center w-9 h-9 rounded-full disabled:opacity-30"
+                          style={{ background: sf2, border: `1px solid ${hair}`, color: txtHi }}
+                          disabled={selectedIndex === 0}
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <div className="text-xs font-display tnum" style={{ color: txtMid }}>
+                          {selectedIndex + 1} / {slot.selectedMeals.length}
+                        </div>
+                        <button
+                          onClick={() => navigateMeal(slot.id, 'right')}
+                          className="flex items-center justify-center w-9 h-9 rounded-full disabled:opacity-30"
+                          style={{ background: sf2, border: `1px solid ${hair}`, color: txtHi }}
+                          disabled={selectedIndex === slot.selectedMeals.length - 1}
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {viewAllSlotId && displayNutritionPlan && (
+          <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm p-3 flex items-end sm:items-center sm:justify-center">
+            <div className="w-full max-w-md rounded-3xl max-h-[80vh] overflow-y-auto" style={{ background: sf1, border: `1px solid ${hair}` }}>
+              <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${hair}`, background: sf1 }}>
+                <h3 className="font-bold text-lg font-display" style={{ color: txtHi }}>
+                  {displayNutritionPlan.mealSlots.find(s => s.id === viewAllSlotId)?.name} options
+                </h3>
+                <button onClick={() => setViewAllSlotId(null)} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: sf2, border: `1px solid ${hair}`, color: txtHi }}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-4 space-y-3">
+                {(displayNutritionPlan.mealSlots.find(s => s.id === viewAllSlotId)?.selectedMeals || []).map((selectedMeal, index) => {
+                  const nutrition = getMealNutrition(selectedMeal);
+                  const mealName = getMealName(selectedMeal);
+                  return (
+                    <button
+                      key={`${viewAllSlotId}-${index}`}
+                      onClick={() => {
+                        setCurrentMealIndex(prev => ({ ...prev, [viewAllSlotId]: index }));
+                        setActiveMealModal({ slotId: viewAllSlotId, mealIndex: index });
+                        setViewAllSlotId(null);
+                      }}
+                      className="w-full rounded-2xl overflow-hidden text-left"
+                      style={{ background: sf2, border: `1px solid ${hair}` }}
+                    >
+                      <div className="h-28">
+                        <img src={getMealImage(selectedMeal)} alt={mealName} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="p-3">
+                        <div className="font-semibold text-base font-display" style={{ color: txtHi }}>{mealName}</div>
+                        <div className="mt-1 text-xs" style={{ color: txtMid }}>
+                          {nutrition.calories} cal • {nutrition.protein}g protein • {nutrition.carbs}g carbs • {nutrition.fats}g fats
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          
-            {/* Meal Options - Single Meal Display */}
-            <div className="relative">
-              <div 
-                ref={getScrollRef(slot.id)}
-                className="overflow-x-auto scrollbar-hide horizontal-scroll"
-                style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch' }}
-              >
-                <div className="flex space-x-0 pb-2" style={{ touchAction: 'pan-y' }}>
-                  {slot.selectedMeals.map((selectedMeal, mealIndex) => {
-                const meal = selectedMeal.meal;
-                const quantity = selectedMeal.quantity;
-                const currentIndex = currentMealIndex[slot.id] || 0;
-                const isVisible = mealIndex === currentIndex;
-                
-                // Calculate macronutrients based on quantity
-                const calories = Math.round(meal.ingredients.reduce((total, ingredient) => 
-                  total + (ingredient.food.kcal * ingredient.quantity * quantity / 100), 0
-                ));
-                const protein = Math.round(meal.ingredients.reduce((total, ingredient) => 
-                  total + (ingredient.food.protein * ingredient.quantity * quantity / 100), 0
-                ));
-                const carbs = Math.round(meal.ingredients.reduce((total, ingredient) => 
-                  total + (ingredient.food.carbs * ingredient.quantity * quantity / 100), 0
-                ));
-                const fats = Math.round(meal.ingredients.reduce((total, ingredient) => 
-                  total + (ingredient.food.fat * ingredient.quantity * quantity / 100), 0
-                ));
-                
-                console.log(`🍽️ Rendering meal ${mealIndex + 1} for slot ${slot.id}:`, {
-                  mealName: meal.name,
-                  mealId: meal.id,
-                  currentMealIndex: currentIndex,
-                  shouldBeVisible: isVisible
-                });
+          </div>
+        )}
 
-                // Only render the visible meal
-                if (!isVisible) {
-                  return null;
-                }
+        {activeMealModal && displayNutritionPlan && (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm">
+            <div className="h-full max-w-md mx-auto overflow-y-auto" style={{ background: sf1, borderLeft: `1px solid ${hair}`, borderRight: `1px solid ${hair}` }}>
+              {(() => {
+                const slot = displayNutritionPlan.mealSlots.find(s => s.id === activeMealModal.slotId);
+                if (!slot) return null;
+                const selectedMeal = slot.selectedMeals[activeMealModal.mealIndex];
+                if (!selectedMeal) return null;
+                const nutrition = getMealNutrition(selectedMeal);
+                const mealName = getMealName(selectedMeal);
+                const uniqueMealKey = `${slot.id}-${activeMealModal.mealIndex}`;
+                const ingredients = getDisplayIngredients(selectedMeal);
 
-                // Create unique key for this meal instance
-                const uniqueMealKey = `${slot.id}-${mealIndex}`;
-                
-                console.log('🍽️ RENDERING MEAL:', {
-                  slotId: slot.id,
-                  mealIndex,
-                  uniqueMealKey,
-                  isVisible,
-                  mealName: meal.name,
-                  showingIngredients: showIngredients[uniqueMealKey],
-                  showingInstructions: showInstructions[uniqueMealKey]
-                });
-                
                 return (
-                  <div 
-                    key={uniqueMealKey} 
-                    data-scroll-item
-                    className="relative w-full min-w-full flex-shrink-0"
-                    style={{ 
-                      touchAction: 'pan-y', 
-                      WebkitTouchCallout: 'none',
-                      userSelect: 'none',
-                      WebkitUserSelect: 'none',
-                      WebkitTapHighlightColor: 'transparent'
-                    }}
-                  >
-                    {/* Enhanced Modern Meal Card */}
-                    <div className="relative overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-800/50 backdrop-blur-xl">
-                      {/* Background Pattern */}
-                      <div className="absolute inset-0 opacity-5">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/20 to-transparent rounded-full -translate-y-16 translate-x-16"></div>
-                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-white/10 to-transparent rounded-full translate-y-12 -translate-x-12"></div>
-                      </div>
+                  <div>
+                    <div className="sticky top-0 z-10 backdrop-blur px-4 py-3 flex items-center justify-between" style={{ background: isDark ? 'rgba(16,18,24,.95)' : 'rgba(255,255,255,.95)', borderBottom: `1px solid ${hair}` }}>
+                      <h3 className="text-2xl font-bold font-display" style={{ color: txtHi }}>{mealName}</h3>
+                      <button
+                        onClick={() => setActiveMealModal(null)}
+                        className="w-10 h-10 rounded-xl flex items-center justify-center"
+                        style={{ background: sf2, border: `1px solid ${hair}`, color: txtHi }}
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
 
-                      {/* Mobile-Optimized Meal Image with Enhanced Overlay */}
-                      <div className="relative h-48 md:h-56 overflow-hidden">
-                        <img
-                          src={meal.image}
-                          alt={meal.name}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent" />
-                        
-                        {/* Mobile-Optimized Favorite button */}
-                        <div className="absolute top-3 md:top-4 left-3 md:left-4">
+                    <div className="relative h-56">
+                      <img src={getMealImage(selectedMeal)} alt={mealName} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t to-transparent" style={{ backgroundImage: `linear-gradient(to top, ${sf1}, transparent)` }} />
+                      {slot.selectedMeals.length > 1 && (
+                        <>
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              toggleFavorite(meal.id);
-                            }}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onTouchMove={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => e.stopPropagation()}
-                            className={`w-8 h-8 md:w-10 md:h-10 rounded-xl md:rounded-2xl backdrop-blur-sm transition-colors duration-300 shadow-lg active:scale-95 ${
-                              favoriteMeals.includes(meal.id)
-                                ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-yellow-500/50'
-                                : 'bg-slate-800/80 text-slate-300'
-                            }`}
+                            onClick={() => navigateMeal(slot.id, 'left')}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center"
+                            style={{ background: isDark ? 'rgba(8,9,13,.55)' : 'rgba(255,255,255,.8)', border: `1px solid ${hair}`, color: txtHi }}
+                            disabled={activeMealModal.mealIndex === 0}
                           >
-                            <Star className={`w-4 h-4 md:w-5 md:h-5 mx-auto ${favoriteMeals.includes(meal.id) ? 'fill-current' : ''}`} />
+                            <ChevronLeft className="w-4 h-4" />
                           </button>
-                        </div>
+                          <button
+                            onClick={() => navigateMeal(slot.id, 'right')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center"
+                            style={{ background: isDark ? 'rgba(8,9,13,.55)' : 'rgba(255,255,255,.8)', border: `1px solid ${hair}`, color: txtHi }}
+                            disabled={activeMealModal.mealIndex >= slot.selectedMeals.length - 1}
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                    </div>
 
-                        {/* Mobile-Optimized Meal name overlay */}
-                        <div className="absolute bottom-3 md:bottom-4 left-3 md:left-4 right-3 md:right-4">
-                          <h3 className="text-lg md:text-2xl font-black text-white mb-2 md:mb-3 leading-tight">
-                            {meal.name}
-                          </h3>
-                          <div className="flex items-center space-x-3 md:space-x-6 text-white/90">
-                            <div className="flex items-center space-x-1 md:space-x-2">
-                              <Flame className="w-4 h-4 md:w-5 md:h-5 text-orange-400" />
-                              <span className="font-bold text-sm md:text-lg">{calories} cal</span>
-                            </div>
-                            <div className="flex items-center space-x-1 md:space-x-2">
-                              <Dumbbell className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
-                              <span className="font-bold text-sm md:text-lg">{protein}g protein</span>
-                            </div>
-                          </div>
+                    <div className="px-4 py-4">
+                      <div className="grid grid-cols-4 gap-2 mb-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">{nutrition.calories}</div>
+                          <div className="text-xs text-slate-400">Calories</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">{nutrition.protein}</div>
+                          <div className="text-xs text-slate-400">Protein</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">{nutrition.carbs}</div>
+                          <div className="text-xs text-slate-400">Carbs</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold">{nutrition.fats}</div>
+                          <div className="text-xs text-slate-400">Fats</div>
                         </div>
                       </div>
 
-                      {/* Mobile-Optimized Card Content */}
-                      <div className="relative p-4 md:p-6">
-                        {/* Ultra Compact Macronutrients Grid */}
-                        <div className="grid grid-cols-4 gap-1.5 mb-3">
-                          <div className="text-center p-2 bg-gradient-to-br from-orange-500/10 to-red-500/10 rounded-lg border border-orange-500/20">
-                            <Flame className="w-3 h-3 text-orange-400 mx-auto mb-0.5" />
-                            <div className="text-xs font-bold text-white">{calories}</div>
-                            <div className="text-[9px] text-orange-400 font-medium">Cal</div>
-                          </div>
-                          <div className="text-center p-2 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-lg border border-blue-500/20">
-                            <Target className="w-3 h-3 text-blue-400 mx-auto mb-0.5" />
-                            <div className="text-xs font-bold text-white">{protein}g</div>
-                            <div className="text-[9px] text-blue-400 font-medium">Pro</div>
-                          </div>
-                          <div className="text-center p-2 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-lg border border-green-500/20">
-                            <TrendingUp className="w-3 h-3 text-green-400 mx-auto mb-0.5" />
-                            <div className="text-xs font-bold text-white">{carbs}g</div>
-                            <div className="text-[9px] text-green-400 font-medium">Carb</div>
-                          </div>
-                          <div className="text-center p-2 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-lg border border-purple-500/20">
-                            <Zap className="w-3 h-3 text-purple-400 mx-auto mb-0.5" />
-                            <div className="text-xs font-bold text-white">{fats}g</div>
-                            <div className="text-[9px] text-purple-400 font-medium">Fat</div>
-                          </div>
-                        </div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <button
+                          onClick={() => toggleIngredients(uniqueMealKey)}
+                          className="flex-1 rounded-lg px-3 py-2 text-sm font-medium inline-flex items-center justify-center gap-2 transition-colors"
+                          style={showIngredients[uniqueMealKey]
+                            ? { background: 'rgba(255,45,85,.15)', border: '1px solid rgba(255,45,85,.4)', color: 'var(--red)' }
+                            : { background: sf2, border: `1px solid ${hair}`, color: txtMid }}
+                        >
+                          <ChefHat className="w-4 h-4" />
+                          Ingredients
+                        </button>
+                        <button
+                          onClick={() => toggleInstructions(uniqueMealKey)}
+                          className="flex-1 rounded-lg px-3 py-2 text-sm font-medium inline-flex items-center justify-center gap-2 transition-colors"
+                          style={showInstructions[uniqueMealKey]
+                            ? { background: 'rgba(91,140,255,.15)', border: '1px solid rgba(91,140,255,.4)', color: 'var(--blue)' }
+                            : { background: sf2, border: `1px solid ${hair}`, color: txtMid }}
+                        >
+                          <BookOpen className="w-4 h-4" />
+                          Instructions
+                        </button>
+                      </div>
 
-
-                        {/* Ultra Modern Horizontal Action Buttons */}
-                        <div className="flex items-center gap-2 mb-3">
-                          <button
-                            onClick={(e) => {
-                              console.log('🔵 INGREDIENTS BUTTON CLICKED:', {
-                                uniqueMealKey,
-                                mealIndex,
-                                slotId: slot.id,
-                                currentScrollLeft: getScrollRef(slot.id).current?.scrollLeft,
-                                currentMealIndexForSlot: currentMealIndex[slot.id]
-                              });
-                              e.stopPropagation();
-                              e.preventDefault();
-                              toggleIngredients(uniqueMealKey);
-                            }}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onTouchMove={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => {
-                              e.stopPropagation();
-                              console.log('🔵 BUTTON TOUCH END - Stopped propagation');
-                            }}
-                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors duration-300 text-xs flex-1 active:scale-95 ${
-                              showIngredients[uniqueMealKey]
-                                ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/20'
-                                : 'bg-slate-700/50 text-slate-300 border border-slate-600/50'
-                            }`}
-                          >
-                            <ChefHat className="w-3 h-3" />
-                            <span className="font-bold hidden sm:inline">Ingredients</span>
-                            <span className="font-bold sm:hidden">Ingr.</span>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              console.log('🟣 INSTRUCTIONS BUTTON CLICKED:', {
-                                uniqueMealKey,
-                                mealIndex,
-                                slotId: slot.id,
-                                currentScrollLeft: getScrollRef(slot.id).current?.scrollLeft,
-                                currentMealIndexForSlot: currentMealIndex[slot.id]
-                              });
-                              e.stopPropagation();
-                              e.preventDefault();
-                              toggleInstructions(uniqueMealKey);
-                            }}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            onTouchMove={(e) => e.stopPropagation()}
-                            onTouchEnd={(e) => {
-                              e.stopPropagation();
-                              console.log('🟣 BUTTON TOUCH END - Stopped propagation');
-                            }}
-                            className={`group relative flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg font-bold transition-colors duration-300 text-xs flex-1 active:scale-95 ${
-                              showInstructions[uniqueMealKey]
-                                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/20'
-                                : 'bg-slate-700/50 text-slate-300 border border-slate-600/50'
-                            }`}
-                          >
-                            <BookOpen className="w-3 h-3" />
-                            <span className="font-bold hidden sm:inline">Instructions</span>
-                            <span className="font-bold sm:hidden">Instr.</span>
-                          </button>
-                        </div>
-                      
-                        {/* Ultra Compact Ingredients Panel - Optimized */}
-                        {showIngredients[uniqueMealKey] && (
-                          <div className="border-t border-slate-700/30 pt-2 mt-2 space-y-1">
-                            {meal.ingredients.map((ingredient, idx) => (
-                              <div key={idx} className="bg-gradient-to-r from-slate-800/30 via-slate-700/20 to-slate-800/30 rounded-lg p-1.5 border border-slate-600/20">
-                                <div className="flex items-center gap-1.5">
-                                  <div className="w-4 h-4 rounded bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-green-300 text-[8px] font-bold">{idx + 1}</span>
-                                  </div>
-                                  <span className="text-white font-medium text-[11px] flex-1 min-w-0 truncate">{ingredient.food.name}</span>
-                                  <div className="flex items-center gap-0.5 text-slate-400 text-[9px] flex-shrink-0 bg-slate-800/50 px-1.5 py-0.5 rounded">
-                                    <span className="font-bold">{ingredient.quantity}g</span>
-                                    <span className="text-[8px]">•</span>
-                                    <span className="font-bold">{Math.round(ingredient.food.kcal * ingredient.quantity / 100)}cal</span>
-                                  </div>
-                                </div>
+                      {showIngredients[uniqueMealKey] && (
+                        <div className="mb-4">
+                          <h4 className="font-semibold mb-2 font-display" style={{ color: txtHi }}>Ingredients</h4>
+                          <div className="space-y-2">
+                            {ingredients.map((ingredient, idx) => (
+                              <div key={idx} className="rounded-xl p-3 flex items-center justify-between" style={{ background: sf2, border: `1px solid ${hair}` }}>
+                                <span style={{ color: txtHi }}>{ingredient.food.name}</span>
+                                <span className="font-display tnum" style={{ color: txtMid }}>{ingredient.quantity}g</span>
                               </div>
                             ))}
                           </div>
-                        )}
+                        </div>
+                      )}
 
-                        {/* Ultra Compact Instructions Panel - Optimized */}
-                        {showInstructions[uniqueMealKey] && (
-                          <div className="border-t border-slate-700/30 pt-2 mt-2">
-                            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg p-2 border border-purple-500/20">
-                              <p className="text-slate-200 leading-tight text-[11px]">
-                                {meal.cookingInstructions}
-                              </p>
-                            </div>
+                      {showInstructions[uniqueMealKey] && (
+                        <div className="pb-6">
+                          <h4 className="font-semibold mb-2 font-display" style={{ color: txtHi }}>Cooking Instructions</h4>
+                          <div className="rounded-xl p-3 whitespace-pre-line" style={{ background: sf2, border: `1px solid ${hair}`, color: txtMid }}>
+                            {getCookingInstructions(selectedMeal)}
                           </div>
-                        )}
-
-                        {/* Mobile-Optimized Notes */}
-                        {meal.notes && (
-                          <div className="mt-3 md:mt-4 bg-slate-700/50 rounded-xl md:rounded-2xl p-3 md:p-4 border border-slate-600/50">
-                            <p className="text-xs md:text-sm text-slate-300 italic font-medium">{meal.notes}</p>
-                          </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
-              })}
-                </div>
-              </div>
-              
-              {/* Scroll buttons for meals */}
-              {slot.selectedMeals.length > 1 && (
-                <>
-                  <button
-                    onClick={() => scrollMeal(slot.id, 'left')}
-                    className="absolute top-1/2 -left-2 transform -translate-y-1/2 w-6 h-6 bg-gray-800/80 hover:bg-gray-700/80 rounded-full flex items-center justify-center opacity-50 hover:opacity-100 transition-all duration-200 z-10"
-                  >
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => scrollMeal(slot.id, 'right')}
-                    className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-6 h-6 bg-gray-800/80 hover:bg-gray-700/80 rounded-full flex items-center justify-center opacity-50 hover:opacity-100 transition-all duration-200 z-10"
-                  >
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </>
-              )}
+              })()}
             </div>
           </div>
-        ))}
-      </div>
-
-
+        )}
       </div>
     </div>
   );

@@ -30,6 +30,9 @@ import {
   addWeekToAssignment,
   markWeekAsDeployed,
 } from '../utils/weekCreation';
+import { applyAutoProgression, applyDeload } from '../utils/autoProgression';
+
+type WeekGenMode = 'progress' | 'deload' | 'copy';
 
 interface UltraModernWorkoutEditorProps {
   client: Client;
@@ -144,6 +147,20 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   const [showFinisherModal, setShowFinisherModal] = useState<number | null>(null);
   const [showCreateWeekModal, setShowCreateWeekModal] = useState(false);
   const [draftNewWeek, setDraftNewWeek] = useState<WorkoutWeek | null>(null);
+  const [weekGenMode, setWeekGenMode] = useState<WeekGenMode>('progress');
+  const [progressionSourceWeek, setProgressionSourceWeek] = useState<WorkoutWeek | null>(null);
+
+  // Build a next-week draft from the previous week's actuals using the chosen mode.
+  const buildDraftWeek = (
+    prevWeek: WorkoutWeek,
+    nextNum: number,
+    mode: WeekGenMode
+  ): WorkoutWeek => {
+    const base = createNextWeekFromActuals(prevWeek, nextNum);
+    if (mode === 'deload') return applyDeload(base);
+    if (mode === 'copy') return base;
+    return applyAutoProgression(base);
+  };
 
 
   // FIX: Real-time sync via Supabase if available, else storage key
@@ -504,7 +521,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 
       }
 
-      // STEP 4: Update the current week in the database
+      // STEP 4: Persist weeks data but keep client's active week unchanged
       if (client.workoutAssignment?.id) {
         // CRITICAL FIX: Save ALL week data including the updated weeks array
         const programJsonToSave = {
@@ -514,7 +531,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 
         const { error } = await dbUpdateWorkoutAssignment(client.workoutAssignment.id, {
           program_json: programJsonToSave,  // Save complete program with all weeks
-          current_week: newWeek,
           last_modified_by: 'coach'
         });
 
@@ -535,7 +551,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         // Update the client's workout assignment with all week data
         const finalAssignment: ClientWorkoutAssignment = {
           ...client.workoutAssignment,
-          currentWeek: newWeek,
+          currentWeek: client.workoutAssignment.currentWeek,
           weeks: finalWeeks,
           program: client.workoutAssignment.program,
           lastModifiedBy: 'coach',
@@ -1157,21 +1173,10 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={async () => {
-                    if (!client.workoutAssignment || client.workoutAssignment.currentWeek <= 1) return;
-                    
-                    const newWeek = client.workoutAssignment.currentWeek - 1;
-                    
-                    const updatedAssignment: ClientWorkoutAssignment = {
-                      ...client.workoutAssignment,
-                      currentWeek: newWeek,
-                      lastModifiedBy: 'coach' as const,
-                      lastModifiedAt: new Date()
-                    };
-                    
-                    // Update local state and database in one operation
-                    await onSaveAssignment(updatedAssignment);
+                    if (currentWeek <= 1) return;
+                    await handleWeekChange(currentWeek - 1);
                   }}
-                  disabled={!client.workoutAssignment || client.workoutAssignment.currentWeek <= 1}
+                  disabled={!client.workoutAssignment || currentWeek <= 1}
                   className="flex items-center justify-center space-x-3 px-6 py-4 bg-slate-600 hover:bg-slate-500 disabled:bg-slate-700 disabled:opacity-50 text-white rounded-xl font-medium transition-all duration-200"
                 >
                   <ChevronLeft className="w-5 h-5" />
@@ -1195,8 +1200,9 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     const prevWeek = savedWeeks[savedWeeks.length - 1];
                     if (!prevWeek?.days?.length) return;
                     const nextNum = getNextWeekNumber({ ...client.workoutAssignment, weeks: savedWeeks });
-                    const draft = createNextWeekFromActuals(prevWeek, nextNum);
-                    setDraftNewWeek(draft);
+                    setProgressionSourceWeek(prevWeek);
+                    setWeekGenMode('progress');
+                    setDraftNewWeek(buildDraftWeek(prevWeek, nextNum, 'progress'));
                     setShowCreateWeekModal(true);
                   }}
                   disabled={!client.workoutAssignment || !canCreateNextWeek(client.workoutAssignment)}
@@ -1213,7 +1219,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                 <div className="flex items-center justify-center space-x-4">
                   <label className="text-slate-300 font-medium">Week:</label>
                   <select
-                    value={client.workoutAssignment.currentWeek}
+                    value={currentWeek}
                     onChange={(e) => handleWeekChange(parseInt(e.target.value))}
                     className="px-4 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -2684,16 +2690,50 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
             return (
               <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                 <div className="bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col">
-                  <div className="flex items-center justify-between p-6 border-b border-slate-700">
-                    <h2 className="text-xl font-bold text-white">
-                      Create Week {draftNewWeek.weekNumber} from Week {draftNewWeek.weekNumber - 1} actuals
-                    </h2>
-                    <button
-                      onClick={() => { setShowCreateWeekModal(false); setDraftNewWeek(null); }}
-                      className="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
+                  <div className="p-6 border-b border-slate-700 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-bold text-white">
+                        Create Week {draftNewWeek.weekNumber} from Week {draftNewWeek.weekNumber - 1} actuals
+                      </h2>
+                      <button
+                        onClick={() => { setShowCreateWeekModal(false); setDraftNewWeek(null); setProgressionSourceWeek(null); }}
+                        className="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Generation mode: auto-progress / deload / copy */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {([
+                        { id: 'progress', label: 'Auto-progress', hint: 'Apply progression rules' },
+                        { id: 'deload', label: 'Deload week', hint: 'Halve load / strip added weight' },
+                        { id: 'copy', label: 'Copy actuals', hint: 'No changes' },
+                      ] as { id: WeekGenMode; label: string; hint: string }[]).map((opt) => (
+                        <button
+                          key={opt.id}
+                          onClick={() => {
+                            setWeekGenMode(opt.id);
+                            if (progressionSourceWeek) {
+                              setDraftNewWeek(buildDraftWeek(progressionSourceWeek, draftNewWeek.weekNumber, opt.id));
+                            }
+                          }}
+                          title={opt.hint}
+                          className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                            weekGenMode === opt.id
+                              ? 'bg-blue-600 text-white shadow-lg'
+                              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                      <span className="text-xs text-slate-400 ml-1">
+                        {weekGenMode === 'progress' && 'Targets computed from performance. Review & edit before deploying.'}
+                        {weekGenMode === 'deload' && 'Recovery week. Reps kept; load reduced.'}
+                        {weekGenMode === 'copy' && 'Exact copy of last week.'}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex-1 overflow-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div>
@@ -2761,7 +2801,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                   </div>
                   <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-700">
                     <button
-                      onClick={() => { setShowCreateWeekModal(false); setDraftNewWeek(null); }}
+                      onClick={() => { setShowCreateWeekModal(false); setDraftNewWeek(null); setProgressionSourceWeek(null); }}
                       className="px-4 py-2 rounded-xl bg-slate-600 hover:bg-slate-500 text-white"
                     >
                       Cancel
@@ -2794,6 +2834,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         onSaveAssignment(updated);
                         setShowCreateWeekModal(false);
                         setDraftNewWeek(null);
+                        setProgressionSourceWeek(null);
                       }}
                       className="px-6 py-2 rounded-xl bg-green-600 hover:bg-green-500 text-white font-medium"
                     >

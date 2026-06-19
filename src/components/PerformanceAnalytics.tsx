@@ -280,9 +280,9 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-[50vh] flex items-center justify-center p-4">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{ borderColor: 'var(--red)', borderTopColor: 'transparent' }}></div>
           <p className="text-white text-lg font-medium">Analyzing Performance Data...</p>
         </div>
       </div>
@@ -290,17 +290,17 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 sm:p-6 lg:p-8">
+    <div className="py-2">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-red" style={{ background: 'var(--grad-red)' }}>
               <BarChart3 className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl sm:text-4xl font-black text-white">Performance Analytics</h1>
-              <p className="text-slate-400 text-sm sm:text-base">Weekly muscle group progress analysis for {clientName}</p>
+              <h1 className="text-2xl sm:text-3xl font-black font-display" style={{ color: 'var(--txt-hi)' }}>Performance Analytics</h1>
+              <p className="text-sm sm:text-base" style={{ color: 'var(--txt-mid)' }}>Weekly muscle group progress analysis for {clientName}</p>
             </div>
           </div>
         </div>
@@ -311,7 +311,8 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
             <div
               key={muscle.name}
               onClick={() => setSelectedMuscle(selectedMuscle === muscle.name ? null : muscle.name)}
-              className="group relative bg-slate-800/50 backdrop-blur-xl rounded-3xl border border-slate-700/50 overflow-hidden hover:border-purple-500/50 transition-all duration-500 cursor-pointer hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/20"
+              className="group relative backdrop-blur-xl rounded-3xl overflow-hidden transition-all duration-500 cursor-pointer hover:scale-[1.02] shadow-soft"
+              style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
             >
               {/* Background Pattern */}
               <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-500">
@@ -319,7 +320,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
               </div>
               
               {/* Animated Gradient Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/0 via-transparent to-pink-500/0 group-hover:from-purple-500/10 group-hover:to-pink-500/10 transition-all duration-700"></div>
+              <div className="absolute inset-0 bg-gradient-to-tr from-[#ff2d55]/0 via-transparent to-[#ff6a55]/0 group-hover:from-[#ff2d55]/10 group-hover:to-[#ff6a55]/10 transition-all duration-700"></div>
 
               <div className="relative p-6">
                 {/* Header */}
@@ -372,10 +373,10 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                 {selectedMuscle === muscle.name && (
                   <div className="mt-4 pt-4 border-t border-slate-700/50 animate-fadeIn space-y-4">
                     {/* Week-to-Week Analysis */}
-                    <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-4">
+                    <div className="rounded-xl p-4" style={{ background: 'linear-gradient(135deg, rgba(255,45,85,.1), rgba(255,106,85,.06))', border: '1px solid rgba(255,45,85,.2)' }}>
                       <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="w-4 h-4 text-purple-400" />
-                        <h4 className="text-sm font-bold text-purple-300">This Week vs Last Week</h4>
+                        <TrendingUp className="w-4 h-4" style={{ color: 'var(--red)' }} />
+                        <h4 className="text-sm font-bold" style={{ color: 'var(--coral)' }}>This Week vs Last Week</h4>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-slate-300 text-sm">
@@ -432,10 +433,10 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                     </div>
 
                     {/* Consistency Score */}
-                    <div className="bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 border border-violet-500/20 rounded-xl p-4">
+                    <div className="rounded-xl p-4" style={{ background: 'linear-gradient(135deg, rgba(255,106,85,.1), rgba(255,45,85,.05))', border: '1px solid rgba(255,106,85,.2)' }}>
                       <div className="flex items-center gap-2 mb-2">
-                        <Activity className="w-4 h-4 text-violet-400" />
-                        <h4 className="text-sm font-bold text-violet-300">Consistency Score</h4>
+                        <Activity className="w-4 h-4" style={{ color: 'var(--coral)' }} />
+                        <h4 className="text-sm font-bold" style={{ color: 'var(--coral)' }}>Consistency Score</h4>
                       </div>
                       <div className="flex items-center gap-3">
                         {/* Circular Progress */}
@@ -489,9 +490,10 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                         {muscle.weeklyHistory.map((volume, idx) => (
                           <div
                             key={idx}
-                            className="flex-1 bg-gradient-to-t from-purple-500 to-pink-500 rounded-t opacity-60 hover:opacity-100 transition-opacity"
+                            className="flex-1 rounded-t opacity-70 hover:opacity-100 transition-opacity"
                             style={{
-                              height: `${muscle.weeklyHistory.length ? (volume / Math.max(1, ...muscle.weeklyHistory)) * 100 : 0}%`
+                              height: `${muscle.weeklyHistory.length ? (volume / Math.max(1, ...muscle.weeklyHistory)) * 100 : 0}%`,
+                              background: 'linear-gradient(to top, var(--red), var(--coral))'
                             }}
                             title={`Week ${idx + 1}: ${volume.toLocaleString()} kg`}
                           />
@@ -510,12 +512,12 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
         </div>
 
         {/* Overall Summary */}
-        <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
+        <div className="backdrop-blur-xl rounded-2xl p-6 shadow-soft" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-red" style={{ background: 'var(--grad-red)' }}>
               <Target className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-white">Overall Summary</h2>
+            <h2 className="text-2xl font-bold font-display" style={{ color: 'var(--txt-hi)' }}>Overall Summary</h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
