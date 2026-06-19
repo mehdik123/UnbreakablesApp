@@ -1048,20 +1048,20 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   // Only show loading when templates are being loaded
   if (loadingTemplates) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="min-h-[50vh] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
-          <p className="text-slate-300">Loading workout templates...</p>
+          <p className="text-[color:var(--txt-lo)]">Loading workout templates...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div>
       
       {/* Header - Mobile Optimized */}
-      <div className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-50">
+      <div className="backdrop-blur-xl sticky top-0 z-40 rounded-t-xl" style={{ background: 'var(--surface-1)', borderBottom: '1px solid var(--hair)' }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
             <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">

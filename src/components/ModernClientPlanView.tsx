@@ -163,39 +163,38 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
-            <div className="w-12 h-12 border-2 border-slate-200 dark:border-slate-700 border-t-indigo-500 rounded-full animate-spin"></div>
-            <div className="absolute inset-0 w-12 h-12 border-2 border-transparent border-t-indigo-300 rounded-full animate-spin" style={{animationDirection: 'reverse', animationDuration: '1.5s'}}></div>
+            <div className="w-12 h-12 border-2 border-[color:var(--hair)] border-t-[color:var(--red)] rounded-full animate-spin"></div>
           </div>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mt-4">Loading plan...</h2>
+          <h2 className="text-xl font-semibold font-display text-[color:var(--txt-hi)] mt-4">Loading plan...</h2>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800">
+      <div className="sticky top-0 z-50 backdrop-blur-xl" style={{ background: 'rgba(16,18,24,.92)', borderBottom: '1px solid var(--hair)' }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-0 sm:h-16 space-y-3 sm:space-y-0">
             <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
               <button
                 onClick={onBack}
-                className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200"
+                className="p-2 rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
               >
                 <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               
               <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shadow-lg" style={{ background: 'var(--grad-red)' }}>
                   <User className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-slate-100 truncate">
+                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold font-display text-[color:var(--txt-hi)] truncate">
                     {client.name}'s Plan
                   </h1>
                   <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3">
@@ -203,7 +202,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
                       {getGoalIcon(client.goal)}
                       <span className="capitalize">{client.goal}</span>
                     </div>
-                    <div className="flex items-center space-x-1 sm:space-x-2 text-slate-600 dark:text-slate-400 text-xs sm:text-sm">
+                    <div className="flex items-center space-x-1 sm:space-x-2 text-[color:var(--txt-lo)] text-xs sm:text-sm">
                       <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                       <span>{client.numberOfWeeks} weeks</span>
                     </div>
@@ -222,18 +221,18 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
               </button>
               <button
                 onClick={() => setShowStats(!showStats)}
-                className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200"
+                className="p-2 rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
               >
                 <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <button 
                 onClick={handleShareClient}
-                className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200"
+                className="p-2 rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
                 title="Share client link"
               >
                 <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
-              <button className="p-2 rounded-lg text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-200">
+              <button className="p-2 rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200">
                 <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
@@ -245,9 +244,9 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
 
         {/* Modern Horizontal Coach Navbar */}
-        <div className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 shadow-2xl mb-6">
-          <div className="max-w-7xl mx-auto px-3 sm:px-6">
-            <div className="flex items-center justify-around py-2 sm:py-3">
+        <div className="sticky top-16 z-40 backdrop-blur-xl rounded-2xl mb-6" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
+          <div className="max-w-7xl mx-auto px-1 sm:px-6">
+            <div className="flex items-center justify-between sm:justify-around py-2 sm:py-3 overflow-x-auto no-scrollbar">
               {[
                 { 
                   id: 'nutrition', 
@@ -304,10 +303,10 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
                     setActiveTab(tab.id as any);
                     setShowProgressTracker(false);
                   }}
-                  className={`group relative flex flex-col items-center justify-center transition-all duration-300 px-2 sm:px-4 py-2 rounded-xl ${
+                  className={`group relative shrink-0 min-w-[54px] flex flex-col items-center justify-center transition-all duration-300 px-2 sm:px-4 py-2 rounded-xl ${
                     activeTab === tab.id
                       ? `${tab.activeBg} scale-105`
-                      : 'hover:bg-slate-800/50'
+                      : 'hover:bg-[var(--surface-2)]'
                   }`}
                 >
                   {/* Icon */}
@@ -358,7 +357,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
             isDark={isDark}
           />
         ) : activeTab === 'workout' ? (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8">
+          <div className="bg-[var(--surface-1)] rounded-xl shadow-soft border border-[color:var(--hair)] p-4 sm:p-6 lg:p-8">
             <UltraModernWorkoutEditor
               client={client}
               onSaveAssignment={(assignment) => onSaveWorkoutPlan(client.id, assignment)}
@@ -367,7 +366,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
             />
           </div>
         ) : activeTab === 'progress' ? (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8">
+          <div className="bg-[var(--surface-1)] rounded-xl shadow-soft border border-[color:var(--hair)] p-4 sm:p-6 lg:p-8">
             <IndependentMuscleGroupCharts client={client} isDark={isDark} />
           </div>
         ) : activeTab === 'performance' ? (
@@ -378,7 +377,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
             workoutAssignment={client.workoutAssignment}
           />
         ) : activeTab === 'weight' ? (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8">
+          <div className="bg-[var(--surface-1)] rounded-xl shadow-soft border border-[color:var(--hair)] p-4 sm:p-6 lg:p-8">
             <UltraModernWeeklyWeightLogger
               client={client}
               currentWeek={client.workoutAssignment?.currentWeek || 1}
@@ -387,13 +386,13 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
             />
           </div>
         ) : activeTab === 'photos' ? (
-          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8">
+          <div className="bg-[var(--surface-1)] rounded-xl shadow-soft border border-[color:var(--hair)] p-4 sm:p-6 lg:p-8">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 flex items-center">
-                <Camera className="w-6 h-6 mr-3 text-indigo-500" />
+              <h2 className="text-2xl font-bold font-display text-[color:var(--txt-hi)] mb-2 flex items-center">
+                <Camera className="w-6 h-6 mr-3 text-[color:var(--red)]" />
                 Client Progress Photos
               </h2>
-              <p className="text-slate-600 dark:text-slate-400">
+              <p className="text-[color:var(--txt-lo)]">
                 View {client.name}'s weekly progress photos
               </p>
             </div>
@@ -407,16 +406,16 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
 
         {/* Share Modal */}
         {showShareModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 max-w-md w-full mx-4">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="rounded-2xl p-6 max-w-md w-full" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
+              <h3 className="text-lg font-semibold font-display text-[color:var(--txt-hi)] mb-4">
                 Share Client Link
               </h3>
-              <p className="text-slate-600 dark:text-slate-400 mb-4">
+              <p className="text-[color:var(--txt-lo)] mb-4">
                 Share this link with {client.name} to give them access to their personalized plan:
               </p>
-              <div className="bg-slate-100 dark:bg-slate-700 rounded-lg p-3 mb-4">
-                <code className="text-sm text-slate-800 dark:text-slate-200 break-all">
+              <div className="rounded-lg p-3 mb-4" style={{ background: 'var(--surface-2)' }}>
+                <code className="text-sm text-[color:var(--txt-mid)] break-all">
                   {shareUrl}
                 </code>
               </div>
@@ -426,13 +425,15 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
                     navigator.clipboard.writeText(shareUrl);
                     setShowShareModal(false);
                   }}
-                  className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors duration-200"
+                  className="flex-1 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                  style={{ background: 'var(--grad-red)' }}
                 >
                   Copy Link
                 </button>
                 <button
                   onClick={() => setShowShareModal(false)}
-                  className="flex-1 bg-slate-200 dark:bg-slate-600 text-slate-800 dark:text-slate-200 px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition-colors duration-200"
+                  className="flex-1 text-[color:var(--txt-mid)] px-4 py-2 rounded-lg transition-colors duration-200"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                 >
                   Close
                 </button>

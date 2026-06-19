@@ -326,7 +326,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
 
       <FloatingParticles />
       {/* Header */}
-      <div className="sticky top-0 z-50 bg-gray-800 backdrop-blur-xl border-b border-gray-700">
+      <div className="sticky top-0 z-50 backdrop-blur-xl" style={{ background: 'rgba(16,18,24,.92)', borderBottom: '1px solid var(--hair)' }}>
         <div className="w-full px-4 lg:px-6">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
@@ -395,7 +395,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
             <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center">
               <Star className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
             </div>
-            <h1 className="text-2xl sm:text-4xl font-bold text-white">Welcome back, Mehdi!</h1>
+            <h1 className="text-2xl sm:text-4xl font-bold font-display text-white">Welcome back, Mehdi!</h1>
             <div className="text-2xl sm:text-3xl">👋</div>
           </div>
           <p className="text-slate-400 text-sm sm:text-xl">Here's what's happening with your coaching business today.</p>
@@ -404,7 +404,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
         {/* Stats Cards - Enhanced Design */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {/* Mobile: Show only 2 cards, Desktop: Show all 4 */}
-          <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-xl p-4 border border-slate-700/50 hover:border-blue-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20">
+          <div className="group bg-[var(--surface-1)] backdrop-blur-sm rounded-xl p-4 border border-[color:var(--hair)] hover:border-blue-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20">
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-2">
@@ -427,7 +427,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
             </div>
           </div>
 
-          <div className="group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-xl p-4 border border-slate-700/50 hover:border-purple-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20">
+          <div className="group bg-[var(--surface-1)] backdrop-blur-sm rounded-xl p-4 border border-[color:var(--hair)] hover:border-purple-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20">
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-2">
@@ -449,7 +449,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
           </div>
 
           {/* Hidden on mobile, visible on desktop */}
-          <div className="hidden lg:block group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-xl p-4 border border-slate-700/50 hover:border-orange-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/20">
+          <div className="hidden lg:block group bg-[var(--surface-1)] backdrop-blur-sm rounded-xl p-4 border border-[color:var(--hair)] hover:border-orange-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/20">
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-2">
@@ -470,7 +470,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
             </div>
           </div>
 
-          <div className="hidden lg:block group bg-gradient-to-br from-slate-800/80 to-slate-900/80 backdrop-blur-sm rounded-xl p-4 border border-slate-700/50 hover:border-yellow-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/20">
+          <div className="hidden lg:block group bg-[var(--surface-1)] backdrop-blur-sm rounded-xl p-4 border border-[color:var(--hair)] hover:border-yellow-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/20">
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-2 mb-2">
@@ -496,7 +496,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6">
             <div className="mb-3 sm:mb-0">
-              <h2 className="text-2xl sm:text-3xl font-bold text-white">Clients</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold font-display text-white">Clients</h2>
               <p className="text-slate-400 text-sm sm:text-lg">Manage your clients and their plans from a single dashboard</p>
             </div>
             <div className="flex items-center space-x-3">
@@ -519,29 +519,29 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
 
           {/* Clients Table/Grid */}
           {viewMode === 'list' ? (
-            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-visible">
+            <div className="bg-[var(--surface-1)] backdrop-blur-sm rounded-2xl border border-[color:var(--hair)] overflow-visible">
               <div className="overflow-x-auto rounded-2xl">
-                <table className="w-full">
-                  <thead className="bg-slate-800/70">
+                <table className="w-full min-w-[760px]">
+                  <thead style={{ background: 'var(--surface-2)' }}>
                     <tr>
-                      <th className="px-8 py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">
+                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">
                         <input type="checkbox" className="rounded border-slate-600 bg-slate-700 text-red-500 focus:ring-red-500" />
                       </th>
-                      <th className="px-8 py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Client</th>
-                      <th className="px-8 py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Goal</th>
-                      <th className="px-8 py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Weight</th>
-                      <th className="px-8 py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                      <th className="px-8 py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Plans</th>
-                      <th className="px-8 py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Actions</th>
+                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Client</th>
+                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Goal</th>
+                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Weight</th>
+                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Status</th>
+                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Plans</th>
+                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-700/50">
                     {filteredClients.map((client) => (
                       <tr key={client.id} className="hover:bg-slate-800/30 transition-colors duration-200 relative">
-                        <td className="px-8 py-6 whitespace-nowrap">
+                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
                           <input type="radio" className="rounded border-slate-600 bg-slate-700 text-red-500 focus:ring-red-500" />
                         </td>
-                        <td className="px-8 py-6 whitespace-nowrap">
+                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center">
                               <User className="w-6 h-6 text-slate-400" />
@@ -552,22 +552,22 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                             </div>
                           </div>
                         </td>
-                        <td className="px-8 py-6 whitespace-nowrap">
+                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
                           <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium border ${getGoalColor(client.goal)}`}>
                             {getGoalIcon(client.goal)}
                             <span className="capitalize">{client.goal}</span>
                           </div>
                         </td>
-                        <td className="px-8 py-6 whitespace-nowrap">
+                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
                           <div className="text-lg text-white">75.2 kg</div>
                           <div className="text-sm text-emerald-400">(-3.5)</div>
                         </td>
-                        <td className="px-8 py-6 whitespace-nowrap">
+                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
                           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-500/20 text-red-400 border border-red-500/30">
                             Active
                           </span>
                         </td>
-                        <td className="px-8 py-6 whitespace-nowrap">
+                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
                           <div className="flex items-center space-x-3">
                             <span className={`text-sm ${client.nutritionPlan ? 'text-emerald-400' : 'text-slate-500'}`}>
                               {client.nutritionPlan ? '✓' : '○'} Nutrition
@@ -577,7 +577,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                             </span>
                           </div>
                         </td>
-                        <td className="px-8 py-6 whitespace-nowrap relative">
+                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap relative">
                           <div className="flex items-center space-x-2">
                             <button
                               onClick={() => onNavigateToClientPlan(client)}
@@ -624,7 +624,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               {filteredClients.map((client) => (
                 <div
                   key={client.id}
-                  className="group bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700/50 p-4 hover:bg-slate-800/70 transition-all duration-300 relative"
+                  className="group bg-[var(--surface-1)] backdrop-blur-sm rounded-xl border border-[color:var(--hair)] p-4 hover:border-[color:var(--hair-strong)] transition-all duration-300 relative"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center space-x-3">
@@ -726,7 +726,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="relative w-full max-w-lg my-8">
             <div className="absolute inset-0 rounded-3xl blur-xl bg-gradient-to-r from-red-500/20 to-red-600/20"></div>
-            <div className="relative bg-slate-800/95 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-2xl">
+            <div className="relative backdrop-blur-xl rounded-3xl shadow-2xl" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
               <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
                 <h2 className="text-2xl font-bold text-white">Add New Client</h2>
                 <button
@@ -894,7 +894,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="relative w-full max-w-lg my-8">
             <div className="absolute inset-0 rounded-3xl blur-xl bg-gradient-to-r from-red-500/20 to-red-600/20"></div>
-            <div className="relative bg-slate-800/95 backdrop-blur-xl rounded-3xl border border-slate-700/50 shadow-2xl">
+            <div className="relative backdrop-blur-xl rounded-3xl shadow-2xl" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
               <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
                 <div>
                   <h2 className="text-2xl font-bold text-white">Duplicate Program</h2>

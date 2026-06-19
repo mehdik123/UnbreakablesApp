@@ -59,7 +59,7 @@ const IngredientsManager: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+    <div className="min-h-screen p-4 sm:p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
@@ -107,7 +107,7 @@ const IngredientsManager: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               placeholder="Name"
               className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/40"
             />
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <input type="number" value={form.kcal} onChange={e=>setForm({...form, kcal: Number(e.target.value)})} placeholder="KCal" className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400" />
               <input type="number" value={form.protein} onChange={e=>onMacroChange('protein', Number(e.target.value))} placeholder="Protein" className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400" />
               <input type="number" value={form.fat} onChange={e=>onMacroChange('fat', Number(e.target.value))} placeholder="Fat" className="px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400" />

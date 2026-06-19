@@ -1522,9 +1522,9 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   };
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen">
       {/* Header - Mobile Optimized */}
-      <div className="sticky top-0 z-50 bg-gray-800 backdrop-blur-xl border-b border-gray-700">
+      <div className="sticky top-0 z-50 backdrop-blur-xl" style={{ background: 'rgba(16,18,24,.92)', borderBottom: '1px solid var(--hair)' }}>
         <div className="w-full px-3 sm:px-4 lg:px-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-0 sm:h-16 space-y-3 sm:space-y-0">
             <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
@@ -1541,7 +1541,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-lg sm:text-2xl font-bold text-white truncate">
+                  <h1 className="text-lg sm:text-2xl font-bold font-display text-white truncate">
                     Nutrition Plan Builder
                   </h1>
                   <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3">

@@ -51,7 +51,7 @@ export const MealSelector: React.FC<MealSelectorProps> = ({ meals, onMealSelect 
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-3 w-[500px] rounded-3xl shadow-2xl z-50 overflow-hidden bg-slate-800 border border-slate-700">
+        <div className="absolute top-full right-0 mt-3 w-[calc(100vw-2rem)] max-w-[500px] rounded-3xl shadow-2xl z-50 overflow-hidden bg-slate-800 border border-slate-700">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
             <h3 className="text-2xl font-bold text-white">Select Meals</h3>

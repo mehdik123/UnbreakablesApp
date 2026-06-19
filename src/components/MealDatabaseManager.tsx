@@ -336,10 +336,10 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen">
       {/* Header */}
-      <div className="bg-slate-800/50 backdrop-blur-xl border-b border-slate-700/50 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+      <div className="backdrop-blur-xl sticky top-0 z-50" style={{ background: 'rgba(16,18,24,.92)', borderBottom: '1px solid var(--hair)' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <button
@@ -606,7 +606,7 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
               {/* Nutrition Info */}
               <div className="mb-6">
                 <h3 className="text-lg font-bold text-white mb-4">Nutrition Information</h3>
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   {Object.entries(calculateMealNutrition(viewingMeal.meal_items)).map(([key, value]) => (
                     <div key={key} className="text-center p-4 bg-slate-700/50 rounded-xl">
                       <p className="text-2xl font-bold text-red-400">{Math.round(value)}</p>
@@ -843,7 +843,7 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
               {formData.selectedIngredients.length > 0 && (
                 <div className="p-4 bg-slate-700/30 rounded-xl">
                   <h4 className="text-lg font-bold text-white mb-3">Nutrition Calculator</h4>
-                  <div className="grid grid-cols-4 gap-4 mb-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                     {(() => {
                       const nutrition = formData.selectedIngredients.reduce((total, item) => ({
                         calories: total.calories + (item.ingredient.kcal * item.quantity / 100),

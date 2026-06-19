@@ -1137,7 +1137,7 @@ function App() {
 
         // Main app content
         return (
-      <div className="min-h-screen bg-gray-900">
+      <div className="min-h-screen workout-shell">
         <div className="relative z-10">
           <Suspense fallback={<ModernLoadingScreen message="Loading component..." />}>
         {appState.currentView === 'clients' && (
