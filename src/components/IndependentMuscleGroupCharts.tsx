@@ -155,7 +155,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="min-h-[50vh] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
           <p className="text-slate-300">Loading muscle group charts...</p>
@@ -165,17 +165,17 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+    <div className="py-2">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#dc1e3a]/20 to-red-500/10 rounded-2xl flex items-center justify-center shadow-lg border border-[#dc1e3a]/30">
-              <Target className="w-6 h-6 text-[#dc1e3a]" />
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-red" style={{ background: 'var(--grad-red)' }}>
+              <Target className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">Muscle Group Progress</h1>
-              <p className="text-slate-400">Individual charts for each muscle group</p>
+              <h1 className="text-2xl font-bold font-display" style={{ color: 'var(--txt-hi)' }}>Muscle Group Progress</h1>
+              <p style={{ color: 'var(--txt-mid)' }}>Individual charts for each muscle group</p>
             </div>
           </div>
         </div>

@@ -1,8 +1,173 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============================================================
+   Workout page design tokens (single source of truth)
+   Defined globally; visual styling currently scoped to the
+   workout page via the .workout-shell wrapper.
+   ============================================================ */
+:root {
+  /* surfaces (layered depth) */
+  --bg: #08090d;
+  --surface-1: #101218;
+  --surface-2: #15171f;
+  --surface-3: #1b1e28;
+  --glass: rgba(255, 255, 255, 0.045);
+  --hair: rgba(255, 255, 255, 0.07);
+  --hair-strong: rgba(255, 255, 255, 0.11);
+
+  /* text */
+  --txt-hi: #f4f5fa;
+  --txt-mid: #9ea3b2;
+  --txt-lo: #646a7a;
+
+  /* brand + supporting */
+  --red: #ff2d55;
+  --red-deep: #e11d48;
+  --coral: #ff6a55;
+  --emerald: #34d399;
+  --emerald-deep: #10b981;
+  --blue: #5b8cff;
+
+  --grad-red: linear-gradient(135deg, #ff476a 0%, #e11d48 55%, #c2123f 100%);
+  --grad-coral: linear-gradient(135deg, #ff8a5c, #ff2d55);
+
+  /* radii */
+  --r-lg: 24px;
+  --r-md: 18px;
+  --r-sm: 13px;
+
+  /* motion */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================================
+   Light theme token overrides.
+   Applied by adding `.theme-light` on the client shell wrapper.
+   Every component that styles itself with the design tokens
+   (var(--surface-*), var(--txt-*), var(--hair), ...) adapts
+   automatically — including the workout page.
+   ============================================================ */
+.theme-light {
+  --bg: #eef1f6;
+  --surface-1: #ffffff;
+  --surface-2: #f6f8fb;
+  --surface-3: #eef1f6;
+  --glass: rgba(15, 23, 42, 0.035);
+  --hair: rgba(15, 23, 42, 0.09);
+  --hair-strong: rgba(15, 23, 42, 0.16);
+
+  --txt-hi: #0f172a;
+  --txt-mid: #475569;
+  --txt-lo: #94a3b8;
+}
+
+/* Workout shell background in light mode (replaces the dark radial canvas) */
+.theme-light.workout-shell,
+.theme-light .workout-shell {
+  background:
+    radial-gradient(900px 500px at 15% -5%, rgba(255, 45, 85, 0.06), transparent 60%),
+    radial-gradient(900px 600px at 95% 10%, rgba(91, 140, 255, 0.05), transparent 55%),
+    radial-gradient(700px 600px at 50% 110%, rgba(52, 211, 153, 0.04), transparent 60%),
+    #eef1f6;
+  color: var(--txt-hi);
+}
+
+/* Progress-bar track is light-on-light otherwise */
+.theme-light .wk-pbar {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+/* Soft shadow needs to be lighter on white surfaces */
+.theme-light .shadow-soft {
+  box-shadow: 0 16px 40px -22px rgba(15, 23, 42, 0.25);
+}
+
+/* Workout program progress bar (with animated sheen) */
+.wk-pbar {
+  position: relative;
+  height: 7px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.wk-pbar > i {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  display: block;
+  background: var(--grad-coral);
+  border-radius: 99px;
+  box-shadow: 0 0 16px rgba(255, 45, 85, 0.6);
+  transition: width 0.6s var(--ease);
+}
+.wk-pbar > i::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  animation: wk-sheen 2.6s var(--ease) infinite;
+}
+@keyframes wk-sheen {
+  0% { transform: translateX(-100%); }
+  60%, 100% { transform: translateX(260%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wk-pbar > i::after { animation: none; }
+}
+
+/* Active training-day "live" dot */
+.wk-live-dot {
+  box-shadow: 0 0 0 0 rgba(255, 45, 85, 0.6);
+  animation: wk-pulse 2s infinite;
+}
+@keyframes wk-pulse {
+  70% { box-shadow: 0 0 0 8px rgba(255, 45, 85, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 45, 85, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wk-live-dot { animation: none; }
+}
+
+/* Exercise video block */
+.wk-video-grid {
+  opacity: 0.5;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+.wk-play {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  transform: translate(-50%, -50%);
+  transition: transform 0.25s var(--spring), background 0.2s;
+}
+.group:hover .wk-play {
+  transform: translate(-50%, -50%) scale(1.08);
+  background: rgba(255, 45, 85, 0.85);
+}
+@media (prefers-reduced-motion: reduce) {
+  .wk-play { transition: background 0.2s; }
+  .group:hover .wk-play { transform: translate(-50%, -50%); }
+}
+
+/* Set-row steppers */
+.wk-step {
+  transition: transform 0.15s var(--spring), background 0.15s, color 0.15s;
+  user-select: none;
+}
+.wk-step:hover { background: rgba(255, 255, 255, 0.06); }
+.wk-step:active { transform: scale(0.82); }
+@media (prefers-reduced-motion: reduce) {
+  .wk-step:active { transform: none; }
+}
 
 @layer base {
   * {
@@ -32,6 +197,36 @@
 }
 
 @layer utilities {
+  /* ---- Workout page design system helpers ---- */
+  .workout-shell {
+    background:
+      radial-gradient(900px 500px at 15% -5%, rgba(255, 45, 85, 0.10), transparent 60%),
+      radial-gradient(900px 600px at 95% 10%, rgba(91, 140, 255, 0.06), transparent 55%),
+      radial-gradient(700px 600px at 50% 110%, rgba(52, 211, 153, 0.05), transparent 60%),
+      #05060a;
+    color: var(--txt-hi);
+    letter-spacing: -0.01em;
+  }
+
+  .font-display {
+    font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  }
+
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .text-hi { color: var(--txt-hi); }
+  .text-mid { color: var(--txt-mid); }
+  .text-lo { color: var(--txt-lo); }
+
+  .bg-grad-red { background: var(--grad-red); }
+  .bg-grad-coral { background: var(--grad-coral); }
+
+  .shadow-soft { box-shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.6); }
+  .shadow-red { box-shadow: 0 12px 28px -10px rgba(255, 45, 85, 0.55); }
+  .shadow-glow-red { box-shadow: 0 16px 40px -18px rgba(255, 45, 85, 0.5); }
+
   .nutrition-bg {
     background-image: radial-gradient(circle at 25% 10%, rgba(220,38,38,0.08) 0, transparent 45%),
                       radial-gradient(circle at 80% 30%, rgba(16,185,129,0.08) 0, transparent 45%),

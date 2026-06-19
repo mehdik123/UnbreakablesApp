@@ -305,6 +305,15 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
     );
   }
 
+  // Theme-aware surface tokens (explicit light values so the page works
+  // even where the global light-theme tokens aren't in scope).
+  const sf1 = isDark ? 'var(--surface-1)' : '#ffffff';
+  const sf2 = isDark ? 'var(--surface-2)' : '#f6f8fb';
+  const sf3 = isDark ? 'var(--surface-3)' : '#eef1f6';
+  const hair = isDark ? 'var(--hair)' : 'rgba(15,23,42,0.10)';
+  const txtHi = isDark ? 'var(--txt-hi)' : '#0f172a';
+  const txtMid = isDark ? 'var(--txt-mid)' : '#475569';
+
   return (
     <div className={isDark ? 'text-white' : 'text-slate-900'}>
       <div className="max-w-md mx-auto px-1 pt-1 space-y-3">
@@ -319,11 +328,12 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
         <div className={`relative rounded-xl p-3 overflow-hidden ${
           isDark
-            ? 'border border-purple-400/25 bg-gradient-to-br from-[#1d1b46]/95 via-[#161d43]/95 to-[#101f3e]/90 shadow-[0_18px_50px_rgba(73,53,160,0.45)]'
+            ? 'shadow-soft'
             : 'border border-slate-200 bg-gradient-to-br from-white via-indigo-50/60 to-white shadow-[0_12px_35px_rgba(30,64,175,0.12)]'
-        }`}>
-          <div className="pointer-events-none absolute -top-20 -right-16 w-40 h-40 rounded-full bg-fuchsia-500/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-16 -left-12 w-36 h-36 rounded-full bg-cyan-500/20 blur-3xl" />
+        }`}
+          style={isDark ? { background: 'linear-gradient(135deg, rgba(255,45,85,.13), rgba(255,45,85,.03))', border: '1px solid rgba(255,45,85,.18)' } : undefined}
+        >
+          <div className="pointer-events-none absolute -top-20 -right-16 w-40 h-40 rounded-full bg-[#ff2d55]/15 blur-3xl" />
           <div className={`flex items-center justify-between text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
             <span>Daily Calories</span>
             <span>Remaining {Math.max(0, Math.round(dailyTotals.calories) - 825)}</span>
@@ -342,51 +352,51 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-2xl border border-slate-600/80 bg-gradient-to-br from-slate-800/85 to-slate-900/75 p-3 shadow-[0_8px_25px_rgba(14,165,233,0.16)]">
+          <div className="rounded-2xl p-3 shadow-soft" style={{ background: sf1, border: `1px solid ${hair}` }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-widest text-slate-400">Calories</p>
-                <p className="text-2xl font-bold">{Math.round(dailyTotals.calories)}</p>
-                <p className="text-xs text-slate-400">kcal</p>
+                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>Calories</p>
+                <p className="text-2xl font-bold" style={{ color: txtHi }}>{Math.round(dailyTotals.calories)}</p>
+                <p className="text-xs" style={{ color: txtMid }}>kcal</p>
               </div>
               <Flame className="w-5 h-5 text-[#ff6248]" />
             </div>
           </div>
-          <div className="rounded-2xl border border-slate-600/80 bg-gradient-to-br from-slate-800/85 to-slate-900/75 p-3 shadow-[0_8px_25px_rgba(59,130,246,0.16)]">
+          <div className="rounded-2xl p-3 shadow-soft" style={{ background: sf1, border: `1px solid ${hair}` }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-widest text-slate-400">Protein</p>
-                <p className="text-2xl font-bold">{Math.round(dailyTotals.protein)}g</p>
-                <p className="text-xs text-slate-400">of goal</p>
+                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>Protein</p>
+                <p className="text-2xl font-bold" style={{ color: txtHi }}>{Math.round(dailyTotals.protein)}g</p>
+                <p className="text-xs" style={{ color: txtMid }}>of goal</p>
               </div>
               <Dumbbell className="w-5 h-5 text-[#4fa4ff]" />
             </div>
           </div>
-          <div className="rounded-2xl border border-slate-600/80 bg-gradient-to-br from-slate-800/85 to-slate-900/75 p-3 shadow-[0_8px_25px_rgba(16,185,129,0.16)]">
+          <div className="rounded-2xl p-3 shadow-soft" style={{ background: sf1, border: `1px solid ${hair}` }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-widest text-slate-400">Carbs</p>
-                <p className="text-2xl font-bold">{Math.round(dailyTotals.carbs)}g</p>
-                <p className="text-xs text-slate-400">of goal</p>
+                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>Carbs</p>
+                <p className="text-2xl font-bold" style={{ color: txtHi }}>{Math.round(dailyTotals.carbs)}g</p>
+                <p className="text-xs" style={{ color: txtMid }}>of goal</p>
               </div>
               <TrendingUp className="w-5 h-5 text-[#4de1a6]" />
             </div>
           </div>
-          <div className="rounded-2xl border border-slate-600/80 bg-gradient-to-br from-slate-800/85 to-slate-900/75 p-3 shadow-[0_8px_25px_rgba(245,158,11,0.16)]">
+          <div className="rounded-2xl p-3 shadow-soft" style={{ background: sf1, border: `1px solid ${hair}` }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-widest text-slate-400">Fats</p>
-                <p className="text-2xl font-bold">{Math.round(dailyTotals.fats)}g</p>
-                <p className="text-xs text-slate-400">of goal</p>
+                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>Fats</p>
+                <p className="text-2xl font-bold" style={{ color: txtHi }}>{Math.round(dailyTotals.fats)}g</p>
+                <p className="text-xs" style={{ color: txtMid }}>of goal</p>
               </div>
               <Zap className="w-5 h-5 text-[#ffd351]" />
             </div>
           </div>
         </div>
 
-        <div className="pt-2 border-t border-slate-800">
+        <div className="pt-2" style={{ borderTop: `1px solid ${hair}` }}>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-2xl font-bold">Meal Plan</h2>
+            <h2 className="text-2xl font-bold font-display">Meal Plan</h2>
           </div>
           <div className="space-y-5">
             {(displayNutritionPlan?.mealSlots || []).map((slot) => {
@@ -414,11 +424,10 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                     </button>
                   </div>
 
-                  <div className={`rounded-3xl overflow-hidden ${
-                    isDark
-                      ? 'border border-slate-600/80 bg-gradient-to-br from-slate-900/90 to-slate-900/70 shadow-[0_15px_45px_rgba(2,6,23,0.65)]'
-                      : 'border border-slate-200 bg-gradient-to-br from-white to-slate-50 shadow-[0_10px_25px_rgba(2,6,23,0.08)]'
-                  }`}>
+                  <div
+                    className={`rounded-3xl overflow-hidden ${isDark ? 'shadow-soft' : 'border border-slate-200 bg-gradient-to-br from-white to-slate-50 shadow-[0_10px_25px_rgba(2,6,23,0.08)]'}`}
+                    style={isDark ? { background: 'var(--surface-1)', border: '1px solid var(--hair)' } : undefined}
+                  >
                     <button
                       onClick={() => setActiveMealModal({ slotId: slot.id, mealIndex: selectedIndex })}
                       className="w-full text-left"
@@ -454,7 +463,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                       </div>
                     </button>
 
-                    <div className="grid grid-cols-4 gap-2 px-4 py-3 border-t border-slate-700/70 bg-slate-800/70">
+                    <div className="grid grid-cols-4 gap-2 px-4 py-3" style={{ borderTop: `1px solid ${hair}`, background: sf2 }}>
                       <div className="text-center">
                         <div className="text-lg font-bold">{nutrition.calories}</div>
                         <div className="text-xs text-slate-400">Cal</div>
@@ -482,13 +491,19 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                     <div className="flex items-center gap-2 px-4 pb-4">
                       <button
                         onClick={() => toggleIngredients(uniqueMealKey)}
-                        className={`flex-1 rounded-lg border px-3 py-2 text-sm ${showIngredients[uniqueMealKey] ? 'bg-orange-500/20 border-orange-400 text-orange-200' : 'bg-slate-700/40 border-slate-600 text-slate-200'}`}
+                        className="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                        style={showIngredients[uniqueMealKey]
+                          ? { background: 'rgba(255,45,85,.15)', border: '1px solid rgba(255,45,85,.4)', color: 'var(--red)' }
+                          : { background: sf3, border: `1px solid ${hair}`, color: txtMid }}
                       >
                         Ingredients
                       </button>
                       <button
                         onClick={() => toggleInstructions(uniqueMealKey)}
-                        className={`flex-1 rounded-lg border px-3 py-2 text-sm ${showInstructions[uniqueMealKey] ? 'bg-purple-500/20 border-purple-400 text-purple-200' : 'bg-slate-700/40 border-slate-600 text-slate-200'}`}
+                        className="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                        style={showInstructions[uniqueMealKey]
+                          ? { background: 'rgba(91,140,255,.15)', border: '1px solid rgba(91,140,255,.4)', color: 'var(--blue)' }
+                          : { background: sf3, border: `1px solid ${hair}`, color: txtMid }}
                       >
                         Instructions
                       </button>
@@ -498,9 +513,9 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                       <div className="px-4 pb-3">
                         <div className="space-y-2">
                           {getDisplayIngredients(selectedMeal).map((ingredient, idx) => (
-                            <div key={idx} className="flex items-center justify-between bg-slate-800 rounded-xl px-3 py-2 text-sm">
-                              <span>{ingredient.food.name}</span>
-                              <span className="text-slate-400">{ingredient.quantity}g</span>
+                            <div key={idx} className="flex items-center justify-between rounded-xl px-3 py-2 text-sm" style={{ background: sf2, border: `1px solid ${hair}` }}>
+                              <span style={{ color: txtHi }}>{ingredient.food.name}</span>
+                              <span className="font-display tnum" style={{ color: txtMid }}>{ingredient.quantity}g</span>
                             </div>
                           ))}
                         </div>
@@ -509,7 +524,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
                     {showInstructions[uniqueMealKey] && (
                       <div className="px-4 pb-4">
-                        <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-3 text-sm text-slate-200 whitespace-pre-line">
+                        <div className="rounded-xl p-3 text-sm whitespace-pre-line" style={{ background: sf2, border: `1px solid ${hair}`, color: txtMid }}>
                           {getCookingInstructions(selectedMeal)}
                         </div>
                       </div>
@@ -519,17 +534,19 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                       <div className="flex items-center justify-between px-4 pb-4 gap-2">
                         <button
                           onClick={() => navigateMeal(slot.id, 'left')}
-                          className="flex items-center justify-center w-9 h-9 rounded-full border border-slate-600 bg-slate-800/80 disabled:opacity-30"
+                          className="flex items-center justify-center w-9 h-9 rounded-full disabled:opacity-30"
+                          style={{ background: sf2, border: `1px solid ${hair}`, color: txtHi }}
                           disabled={selectedIndex === 0}
                         >
                           <ChevronLeft className="w-4 h-4" />
                         </button>
-                        <div className="text-xs text-slate-400">
+                        <div className="text-xs font-display tnum" style={{ color: txtMid }}>
                           {selectedIndex + 1} / {slot.selectedMeals.length}
                         </div>
                         <button
                           onClick={() => navigateMeal(slot.id, 'right')}
-                          className="flex items-center justify-center w-9 h-9 rounded-full border border-slate-600 bg-slate-800/80 disabled:opacity-30"
+                          className="flex items-center justify-center w-9 h-9 rounded-full disabled:opacity-30"
+                          style={{ background: sf2, border: `1px solid ${hair}`, color: txtHi }}
                           disabled={selectedIndex === slot.selectedMeals.length - 1}
                         >
                           <ChevronRight className="w-4 h-4" />
@@ -545,12 +562,12 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
         {viewAllSlotId && displayNutritionPlan && (
           <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm p-3 flex items-end sm:items-center sm:justify-center">
-            <div className="w-full max-w-md rounded-3xl border border-slate-700 bg-[#0a1731] max-h-[80vh] overflow-y-auto">
-              <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-[#0a1731]">
-                <h3 className="font-bold text-lg">
+            <div className="w-full max-w-md rounded-3xl max-h-[80vh] overflow-y-auto" style={{ background: sf1, border: `1px solid ${hair}` }}>
+              <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${hair}`, background: sf1 }}>
+                <h3 className="font-bold text-lg font-display" style={{ color: txtHi }}>
                   {displayNutritionPlan.mealSlots.find(s => s.id === viewAllSlotId)?.name} options
                 </h3>
-                <button onClick={() => setViewAllSlotId(null)} className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center">
+                <button onClick={() => setViewAllSlotId(null)} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: sf2, border: `1px solid ${hair}`, color: txtHi }}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -566,14 +583,15 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         setActiveMealModal({ slotId: viewAllSlotId, mealIndex: index });
                         setViewAllSlotId(null);
                       }}
-                      className="w-full rounded-2xl border border-slate-700 overflow-hidden text-left bg-slate-800/70"
+                      className="w-full rounded-2xl overflow-hidden text-left"
+                      style={{ background: sf2, border: `1px solid ${hair}` }}
                     >
                       <div className="h-28">
                         <img src={getMealImage(selectedMeal)} alt={mealName} className="w-full h-full object-cover" />
                       </div>
                       <div className="p-3">
-                        <div className="font-semibold text-base">{mealName}</div>
-                        <div className="mt-1 text-xs text-slate-300">
+                        <div className="font-semibold text-base font-display" style={{ color: txtHi }}>{mealName}</div>
+                        <div className="mt-1 text-xs" style={{ color: txtMid }}>
                           {nutrition.calories} cal • {nutrition.protein}g protein • {nutrition.carbs}g carbs • {nutrition.fats}g fats
                         </div>
                       </div>
@@ -587,7 +605,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
         {activeMealModal && displayNutritionPlan && (
           <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm">
-            <div className="h-full max-w-md mx-auto bg-[#07142b] border-x border-slate-700 overflow-y-auto">
+            <div className="h-full max-w-md mx-auto overflow-y-auto" style={{ background: sf1, borderLeft: `1px solid ${hair}`, borderRight: `1px solid ${hair}` }}>
               {(() => {
                 const slot = displayNutritionPlan.mealSlots.find(s => s.id === activeMealModal.slotId);
                 if (!slot) return null;
@@ -600,11 +618,12 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
                 return (
                   <div>
-                    <div className="sticky top-0 z-10 bg-[#07142b]/95 backdrop-blur border-b border-slate-700 px-4 py-3 flex items-center justify-between">
-                      <h3 className="text-2xl font-bold">{mealName}</h3>
+                    <div className="sticky top-0 z-10 backdrop-blur px-4 py-3 flex items-center justify-between" style={{ background: isDark ? 'rgba(16,18,24,.95)' : 'rgba(255,255,255,.95)', borderBottom: `1px solid ${hair}` }}>
+                      <h3 className="text-2xl font-bold font-display" style={{ color: txtHi }}>{mealName}</h3>
                       <button
                         onClick={() => setActiveMealModal(null)}
-                        className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center"
+                        className="w-10 h-10 rounded-xl flex items-center justify-center"
+                        style={{ background: sf2, border: `1px solid ${hair}`, color: txtHi }}
                       >
                         <X className="w-5 h-5" />
                       </button>
@@ -612,19 +631,21 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
                     <div className="relative h-56">
                       <img src={getMealImage(selectedMeal)} alt={mealName} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#07142b] to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t to-transparent" style={{ backgroundImage: `linear-gradient(to top, ${sf1}, transparent)` }} />
                       {slot.selectedMeals.length > 1 && (
                         <>
                           <button
                             onClick={() => navigateMeal(slot.id, 'left')}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-900/60 border border-slate-500/60 flex items-center justify-center"
+                            className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center"
+                            style={{ background: isDark ? 'rgba(8,9,13,.55)' : 'rgba(255,255,255,.8)', border: `1px solid ${hair}`, color: txtHi }}
                             disabled={activeMealModal.mealIndex === 0}
                           >
                             <ChevronLeft className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => navigateMeal(slot.id, 'right')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-slate-900/60 border border-slate-500/60 flex items-center justify-center"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full flex items-center justify-center"
+                            style={{ background: isDark ? 'rgba(8,9,13,.55)' : 'rgba(255,255,255,.8)', border: `1px solid ${hair}`, color: txtHi }}
                             disabled={activeMealModal.mealIndex >= slot.selectedMeals.length - 1}
                           >
                             <ChevronRight className="w-4 h-4" />
@@ -656,14 +677,20 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                       <div className="flex items-center gap-2 mb-3">
                         <button
                           onClick={() => toggleIngredients(uniqueMealKey)}
-                          className={`flex-1 rounded-lg border px-3 py-2 text-sm inline-flex items-center justify-center gap-2 ${showIngredients[uniqueMealKey] ? 'bg-emerald-500/20 border-emerald-400 text-emerald-200' : 'bg-slate-800 border-slate-600 text-slate-200'}`}
+                          className="flex-1 rounded-lg px-3 py-2 text-sm font-medium inline-flex items-center justify-center gap-2 transition-colors"
+                          style={showIngredients[uniqueMealKey]
+                            ? { background: 'rgba(255,45,85,.15)', border: '1px solid rgba(255,45,85,.4)', color: 'var(--red)' }
+                            : { background: sf2, border: `1px solid ${hair}`, color: txtMid }}
                         >
                           <ChefHat className="w-4 h-4" />
                           Ingredients
                         </button>
                         <button
                           onClick={() => toggleInstructions(uniqueMealKey)}
-                          className={`flex-1 rounded-lg border px-3 py-2 text-sm inline-flex items-center justify-center gap-2 ${showInstructions[uniqueMealKey] ? 'bg-blue-500/20 border-blue-400 text-blue-200' : 'bg-slate-800 border-slate-600 text-slate-200'}`}
+                          className="flex-1 rounded-lg px-3 py-2 text-sm font-medium inline-flex items-center justify-center gap-2 transition-colors"
+                          style={showInstructions[uniqueMealKey]
+                            ? { background: 'rgba(91,140,255,.15)', border: '1px solid rgba(91,140,255,.4)', color: 'var(--blue)' }
+                            : { background: sf2, border: `1px solid ${hair}`, color: txtMid }}
                         >
                           <BookOpen className="w-4 h-4" />
                           Instructions
@@ -672,12 +699,12 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
                       {showIngredients[uniqueMealKey] && (
                         <div className="mb-4">
-                          <h4 className="font-semibold mb-2">Ingredients</h4>
+                          <h4 className="font-semibold mb-2 font-display" style={{ color: txtHi }}>Ingredients</h4>
                           <div className="space-y-2">
                             {ingredients.map((ingredient, idx) => (
-                              <div key={idx} className="bg-slate-800 rounded-xl p-3 flex items-center justify-between">
-                                <span>{ingredient.food.name}</span>
-                                <span className="text-slate-400">{ingredient.quantity}g</span>
+                              <div key={idx} className="rounded-xl p-3 flex items-center justify-between" style={{ background: sf2, border: `1px solid ${hair}` }}>
+                                <span style={{ color: txtHi }}>{ingredient.food.name}</span>
+                                <span className="font-display tnum" style={{ color: txtMid }}>{ingredient.quantity}g</span>
                               </div>
                             ))}
                           </div>
@@ -686,8 +713,8 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
                       {showInstructions[uniqueMealKey] && (
                         <div className="pb-6">
-                          <h4 className="font-semibold mb-2">Cooking Instructions</h4>
-                          <div className="rounded-xl border border-slate-700 bg-slate-800/80 p-3 text-slate-200 whitespace-pre-line">
+                          <h4 className="font-semibold mb-2 font-display" style={{ color: txtHi }}>Cooking Instructions</h4>
+                          <div className="rounded-xl p-3 whitespace-pre-line" style={{ background: sf2, border: `1px solid ${hair}`, color: txtMid }}>
                             {getCookingInstructions(selectedMeal)}
                           </div>
                         </div>

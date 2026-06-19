@@ -47,19 +47,19 @@ export const ClientSupplementsView: React.FC<ClientSupplementsViewProps> = ({ cl
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600/20 via-pink-600/20 to-orange-600/20 backdrop-blur-xl rounded-2xl border border-purple-500/30 p-6">
-        <div className="flex items-center space-x-4 mb-4">
-          <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/25">
+      <div className="rounded-2xl p-6" style={{ background: 'linear-gradient(135deg, rgba(255,45,85,.13), rgba(255,45,85,.03))', border: '1px solid rgba(255,45,85,.18)' }}>
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-14 h-14 rounded-xl flex items-center justify-center shadow-red" style={{ background: 'var(--grad-red)' }}>
             <Pill className="w-7 h-7 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white">Your Supplements</h2>
-            <p className="text-purple-200/70 text-sm">Optimized supplement schedule</p>
+            <h2 className="text-2xl font-bold font-display" style={{ color: 'var(--txt-hi)' }}>Your Supplements</h2>
+            <p className="text-sm" style={{ color: 'var(--txt-mid)' }}>Optimized supplement schedule</p>
           </div>
         </div>
-        <div className="flex items-center space-x-2 px-4 py-2 bg-purple-500/20 backdrop-blur-sm rounded-xl border border-purple-500/30">
-          <Sparkles className="w-4 h-4 text-purple-300" />
-          <span className="text-sm text-purple-200 font-medium">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl" style={{ background: 'var(--glass)', border: '1px solid var(--hair)' }}>
+          <Sparkles className="w-4 h-4" style={{ color: 'var(--red)' }} />
+          <span className="text-sm font-medium" style={{ color: 'var(--txt-mid)' }}>
             {supplements.length} supplements prescribed by your coach
           </span>
         </div>

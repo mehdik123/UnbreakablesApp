@@ -409,6 +409,13 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const completedWeeks = Math.max(0, currentWeek - 1); // Weeks before current week are considered completed
   const progressPercentage = Math.round((currentWeek / (client.numberOfWeeks || 12)) * 100);
 
+  // Workout header ring geometry (r=19 → circumference ≈ 119.38)
+  const HEADER_RING_C = 2 * Math.PI * 19;
+  const programTitle =
+    (assignmentForWeeks?.program as any)?.name ||
+    (client.workoutAssignment?.program as any)?.name ||
+    t('modern.yourProgram');
+
   const desktopNavTabs = useMemo(
     () =>
       [
@@ -495,66 +502,174 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
   return (
     <div
-      className={`client-mobile-shell min-h-screen ${
-        useDarkTheme
-          ? 'bg-slate-950'
-          : 'bg-slate-50'
-      }`}
+      className={`client-mobile-shell min-h-screen ${useDarkTheme ? 'workout-shell' : 'theme-light bg-slate-50'}`}
       dir={isRtl ? 'rtl' : 'ltr'}
     >
       {/* Compact header */}
-      <div className={`client-compact-header relative z-10 sticky top-0 backdrop-blur-xl border-b ${
-        useDarkTheme
-          ? 'bg-slate-900/95 border-slate-800'
-          : 'bg-white/95 border-slate-200'
-      }`}>
-        <div className="max-w-7xl mx-auto px-3 md:px-6 py-2.5 md:py-4">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2.5 min-w-0 flex-1">
-              <div className="w-9 h-9 md:w-12 md:h-12 shrink-0 bg-gradient-to-br from-violet-600 to-fuchsia-600 rounded-lg flex items-center justify-center">
-                <Crown className="w-4 h-4 md:w-6 md:h-6 text-white" />
+      {activeTab === 'workout' ? (
+        /* ---- Premium workout header (token-styled, always dark to match the workout page) ---- */
+        <div
+          className="client-compact-header workout-shell relative z-10 sticky top-0 backdrop-blur-xl"
+          style={{ borderBottom: '1px solid var(--hair)' }}
+        >
+          <div className="max-w-7xl mx-auto px-3 md:px-6 py-2.5 md:py-3.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="w-[50px] h-[50px] shrink-0 rounded-md p-[2px] bg-grad-coral shadow-red">
+                  <div
+                    className="w-full h-full rounded-[14px] flex items-center justify-center font-display font-bold text-lg"
+                    style={{ background: 'var(--surface-2)', color: 'var(--txt-hi)' }}
+                  >
+                    {(client.name.trim().charAt(0) || 'U').toUpperCase()}
+                  </div>
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[12px] font-medium" style={{ color: 'var(--txt-mid)' }}>
+                    {t('modern.welcomeBackShort')}
+                  </div>
+                  <div
+                    className="font-display font-semibold text-[19px] leading-tight truncate"
+                    style={{ color: 'var(--txt-hi)' }}
+                  >
+                    {client.name.split(' ')[0]}
+                  </div>
+                </div>
               </div>
-              <div className="min-w-0">
-                <h1 className={`client-compact-title font-semibold truncate ${useDarkTheme ? 'text-white' : 'text-slate-900'}`}>
-                  {client.name.split(' ')[0]}
-                </h1>
-                <p className={`client-compact-subtitle truncate ${useDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>
-                  {t('modern.weekOf', { current: currentWeek, total: client.numberOfWeeks || 12 })} · {progressPercentage}%
-                </p>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setLocale(locale === 'en' ? 'ar' : 'en')}
+                  className="w-[38px] h-[38px] rounded-xl flex items-center justify-center text-[11px] font-bold transition-transform duration-150 active:scale-90"
+                  style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
+                >
+                  {locale === 'en' ? 'AR' : 'EN'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUseDarkTheme((prev) => !prev)}
+                  className="w-[38px] h-[38px] rounded-xl flex items-center justify-center transition-transform duration-150 active:scale-90"
+                  style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
+                  aria-label="Toggle theme"
+                >
+                  {useDarkTheme ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                </button>
+                <div className="relative w-[46px] h-[46px] shrink-0">
+                  <svg width="46" height="46" className="block -rotate-90">
+                    <circle cx="23" cy="23" r="19" stroke="var(--hair-strong)" strokeWidth="4" fill="none" />
+                    <circle
+                      cx="23"
+                      cy="23"
+                      r="19"
+                      stroke="url(#headerRingGrad)"
+                      strokeWidth="4"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeDasharray={HEADER_RING_C}
+                      strokeDashoffset={HEADER_RING_C * (1 - Math.min(100, progressPercentage) / 100)}
+                      style={{ transition: 'stroke-dashoffset 1s var(--ease)' }}
+                    />
+                    <defs>
+                      <linearGradient id="headerRingGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0" stopColor="#ff8a5c" />
+                        <stop offset="1" stopColor="#e11d48" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div
+                    className="absolute inset-0 flex items-center justify-center font-display font-bold text-[12px] tnum"
+                    style={{ color: 'var(--txt-hi)' }}
+                  >
+                    {progressPercentage}%
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => setLocale(locale === 'en' ? 'ar' : 'en')}
-                className={`px-2 py-1 rounded-md text-[10px] font-semibold ${
-                  useDarkTheme ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
-                }`}
-              >
-                {locale === 'en' ? 'AR' : 'EN'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setUseDarkTheme((prev) => !prev)}
-                className={`p-1.5 rounded-md ${
-                  useDarkTheme ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
-                }`}
-                aria-label="Toggle theme"
-              >
-                {useDarkTheme ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-2 h-1 rounded-full overflow-hidden bg-slate-800/80">
+            {/* Program card */}
             <div
-              className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-500"
-              style={{ width: `${progressPercentage}%` }}
-            />
+              className="mt-3 rounded-md px-4 py-3"
+              style={{
+                background: 'linear-gradient(135deg, rgba(255,45,85,.13), rgba(255,45,85,.03))',
+                border: '1px solid rgba(255,45,85,.18)',
+              }}
+            >
+              <div className="text-[13px] font-semibold truncate" style={{ color: 'var(--txt-hi)' }}>
+                {programTitle}
+              </div>
+              <div className="text-[11.5px] mt-0.5 truncate" style={{ color: 'var(--txt-mid)' }}>
+                {t('modern.weekOf', { current: currentWeek, total: client.numberOfWeeks || 12 })} · {t('modern.onTrack')}
+              </div>
+              <div className="wk-pbar mt-2.5">
+                <i style={{ width: `${Math.max(4, Math.min(100, progressPercentage))}%` }} />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div
+          className={`client-compact-header relative z-10 sticky top-0 backdrop-blur-xl ${
+            useDarkTheme ? '' : 'bg-white/95 border-b border-slate-200'
+          }`}
+          style={useDarkTheme ? { background: 'rgba(16,18,24,.92)', borderBottom: '1px solid var(--hair)' } : undefined}
+        >
+          <div className="max-w-7xl mx-auto px-3 md:px-6 py-2.5 md:py-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <div className={`w-9 h-9 md:w-12 md:h-12 shrink-0 rounded-md flex items-center justify-center ${useDarkTheme ? 'bg-grad-coral shadow-red' : 'bg-gradient-to-br from-violet-600 to-fuchsia-600'}`}>
+                  <Crown className="w-4 h-4 md:w-6 md:h-6 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h1
+                    className="client-compact-title font-display font-semibold truncate"
+                    style={{ color: useDarkTheme ? 'var(--txt-hi)' : '#0f172a' }}
+                  >
+                    {client.name.split(' ')[0]}
+                  </h1>
+                  <p
+                    className="client-compact-subtitle truncate"
+                    style={{ color: useDarkTheme ? 'var(--txt-mid)' : '#64748b' }}
+                  >
+                    {t('modern.weekOf', { current: currentWeek, total: client.numberOfWeeks || 12 })} · {progressPercentage}%
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setLocale(locale === 'en' ? 'ar' : 'en')}
+                  className="w-[34px] h-[34px] rounded-xl flex items-center justify-center text-[10px] font-bold transition-transform duration-150 active:scale-90"
+                  style={
+                    useDarkTheme
+                      ? { background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }
+                      : { background: '#f1f5f9', color: '#475569' }
+                  }
+                >
+                  {locale === 'en' ? 'AR' : 'EN'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUseDarkTheme((prev) => !prev)}
+                  className="w-[34px] h-[34px] rounded-xl flex items-center justify-center transition-transform duration-150 active:scale-90"
+                  style={
+                    useDarkTheme
+                      ? { background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }
+                      : { background: '#f1f5f9', color: '#475569' }
+                  }
+                  aria-label="Toggle theme"
+                >
+                  {useDarkTheme ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="wk-pbar mt-2.5">
+              <i style={{ width: `${Math.max(4, Math.min(100, progressPercentage))}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Desktop-only extended header */}
       <div className={`client-hide-mobile relative z-10 backdrop-blur-xl border-b ${
@@ -889,13 +1004,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             />
           ) : activeTab === 'photos' ? (
             <div className="space-y-3">
-              <div className={`client-compact-card rounded-xl border p-3 ${
-                useDarkTheme ? 'bg-slate-900/80 border-slate-800' : 'bg-white border-slate-200'
-              }`}>
-                <h2 className={`client-compact-title font-semibold mb-2 flex items-center gap-2 ${
-                  useDarkTheme ? 'text-white' : 'text-slate-900'
-                }`}>
-                  <Camera className="w-4 h-4 text-indigo-400 shrink-0" />
+              <div
+                className={`client-compact-card rounded-xl border p-3 ${useDarkTheme ? '' : 'bg-white border-slate-200'}`}
+                style={useDarkTheme ? { background: 'var(--surface-1)', borderColor: 'var(--hair)' } : undefined}
+              >
+                <h2
+                  className="client-compact-title font-display font-semibold mb-2 flex items-center gap-2"
+                  style={{ color: useDarkTheme ? 'var(--txt-hi)' : '#0f172a' }}
+                >
+                  <Camera className="w-4 h-4 shrink-0" style={{ color: 'var(--red)' }} />
                   {t('photos.uploadWeek', { week: currentWeek })}
                 </h2>
                 <WeeklyPhotoUpload
@@ -912,37 +1029,44 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       </div>
 
       {/* Bottom Navigation - Fixed on all screens */}
-      <div className={`client-bottom-nav fixed bottom-0 left-0 right-0 z-[70] backdrop-blur-2xl border-t safe-area-bottom ${
-        useDarkTheme ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-slate-200'
-      }`}>
+      <div
+        className={`client-bottom-nav fixed bottom-0 left-0 right-0 z-[70] backdrop-blur-2xl border-t safe-area-bottom ${
+          useDarkTheme ? '' : 'bg-white/95 border-slate-200'
+        }`}
+        style={useDarkTheme ? { background: 'rgba(16,18,24,.92)', borderTop: '1px solid var(--hair)' } : undefined}
+      >
         <div className="max-w-7xl mx-auto flex items-center justify-around gap-0.5 overflow-x-auto scrollbar-hide px-1 py-2 relative">
-          {mobileNavTabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`relative flex-shrink-0 flex flex-col items-center justify-center min-w-[64px] py-2 px-3 rounded-xl transition-all duration-300 ${
-                activeTab === tab.id
-                  ? `${tab.activeBg} scale-110`
-                  : 'active:scale-95'
-              }`}
-            >
-              <tab.icon className={`w-6 h-6 mb-1 transition-all duration-300 ${
-                activeTab === tab.id 
-                  ? `${tab.color} drop-shadow-lg`
-                  : 'text-slate-400'
-              }`} />
-              <span className={`text-[9px] font-bold transition-all duration-300 ${
-                activeTab === tab.id 
-                  ? tab.color
-                  : 'text-slate-500'
-              }`}>
-                {t(tab.labelKey)}
-              </span>
-              {activeTab === tab.id && (
-                <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 rounded-b-full ${tab.activeBg} opacity-50`} />
-              )}
-            </button>
-          ))}
+          {mobileNavTabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            const inactiveColor = useDarkTheme ? 'var(--txt-lo)' : '#94a3b8';
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={`relative flex-shrink-0 flex flex-col items-center justify-center min-w-[64px] py-2 px-3 rounded-xl transition-all duration-300 ${
+                  isActive ? 'scale-105' : 'active:scale-95'
+                }`}
+                style={isActive ? { background: 'rgba(255,45,85,.12)' } : undefined}
+              >
+                <tab.icon
+                  className="w-6 h-6 mb-1 transition-all duration-300"
+                  style={{ color: isActive ? 'var(--red)' : inactiveColor }}
+                />
+                <span
+                  className="text-[9px] font-bold transition-all duration-300"
+                  style={{ color: isActive ? 'var(--red)' : inactiveColor }}
+                >
+                  {t(tab.labelKey)}
+                </span>
+                {isActive && (
+                  <div
+                    className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 rounded-b-full"
+                    style={{ background: 'var(--grad-red)' }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
