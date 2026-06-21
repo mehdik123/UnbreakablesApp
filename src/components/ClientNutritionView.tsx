@@ -163,14 +163,15 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
     }
   };
 
-  const getMealColor = (mealId: string) => {
+  // Vivid inline gradients (rendered via style so they never look washed out)
+  const getMealGradient = (mealId: string): string => {
     switch (mealId) {
-      case 'breakfast': return 'from-yellow-400 to-orange-500';
-      case 'snack1': return 'from-green-400 to-emerald-500';
-      case 'lunch': return 'from-blue-400 to-indigo-500';
-      case 'snack2': return 'from-purple-400 to-pink-500';
-      case 'dinner': return 'from-slate-400 to-gray-500';
-      default: return 'from-gray-400 to-slate-500';
+      case 'breakfast': return 'linear-gradient(135deg,#fbbf24,#f97316)';
+      case 'snack1': return 'linear-gradient(135deg,#4ade80,#10b981)';
+      case 'lunch': return 'linear-gradient(135deg,#60a5fa,#6366f1)';
+      case 'snack2': return 'linear-gradient(135deg,#c084fc,#ec4899)';
+      case 'dinner': return 'linear-gradient(135deg,#a855f7,#7c3aed)';
+      default: return 'linear-gradient(135deg,#fb7185,#e11d48)';
     }
   };
 
@@ -402,7 +403,10 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                 <div key={slot.id}>
                   <div className="flex items-center justify-between mb-2.5">
                     <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${getMealColor(slot.id)} shadow-[0_6px_16px_-6px_rgba(0,0,0,.5)]`}>
+                      <div
+                        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-[0_6px_16px_-6px_rgba(0,0,0,.5)]"
+                        style={{ background: getMealGradient(slot.id) }}
+                      >
                         <span className="text-base leading-none">{getMealIcon(slot.id)}</span>
                       </div>
                       <div className="min-w-0">
@@ -488,20 +492,20 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                     <div className="flex items-center gap-2 px-4 pb-4">
                       <button
                         onClick={() => toggleIngredients(uniqueMealKey)}
-                        className="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
+                        className="flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
                         style={showIngredients[uniqueMealKey]
-                          ? { background: 'rgba(255,45,85,.15)', border: '1px solid rgba(255,45,85,.4)', color: 'var(--red)' }
-                          : { background: sf3, border: `1px solid ${hair}`, color: txtMid }}
+                          ? { background: 'rgba(255,45,85,.2)', border: '1px solid rgba(255,45,85,.55)', color: 'var(--red)' }
+                          : { background: 'rgba(255,45,85,.09)', border: '1px solid rgba(255,45,85,.28)', color: 'var(--red)' }}
                       >
                         <BookOpen className="w-4 h-4" />
                         View ingredients
                       </button>
                       <button
                         onClick={() => toggleInstructions(uniqueMealKey)}
-                        className="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
+                        className="flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
                         style={showInstructions[uniqueMealKey]
-                          ? { background: 'rgba(91,140,255,.15)', border: '1px solid rgba(91,140,255,.4)', color: 'var(--blue)' }
-                          : { background: sf3, border: `1px solid ${hair}`, color: txtMid }}
+                          ? { background: 'rgba(91,140,255,.2)', border: '1px solid rgba(91,140,255,.55)', color: 'var(--blue)' }
+                          : { background: 'rgba(91,140,255,.09)', border: '1px solid rgba(91,140,255,.28)', color: 'var(--blue)' }}
                       >
                         <ChefHat className="w-4 h-4" />
                         How to cook it
@@ -697,8 +701,8 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                           onClick={() => toggleIngredients(uniqueMealKey)}
                           className="flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2 transition-colors"
                           style={showIngredients[uniqueMealKey]
-                            ? { background: 'rgba(255,45,85,.15)', border: '1px solid rgba(255,45,85,.4)', color: 'var(--red)' }
-                            : { background: sf2, border: `1px solid ${hair}`, color: txtMid }}
+                            ? { background: 'rgba(255,45,85,.2)', border: '1px solid rgba(255,45,85,.55)', color: 'var(--red)' }
+                            : { background: 'rgba(255,45,85,.09)', border: '1px solid rgba(255,45,85,.28)', color: 'var(--red)' }}
                         >
                           <BookOpen className="w-4 h-4" />
                           View ingredients
@@ -707,8 +711,8 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                           onClick={() => toggleInstructions(uniqueMealKey)}
                           className="flex-1 rounded-xl px-3 py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2 transition-colors"
                           style={showInstructions[uniqueMealKey]
-                            ? { background: 'rgba(91,140,255,.15)', border: '1px solid rgba(91,140,255,.4)', color: 'var(--blue)' }
-                            : { background: sf2, border: `1px solid ${hair}`, color: txtMid }}
+                            ? { background: 'rgba(91,140,255,.2)', border: '1px solid rgba(91,140,255,.55)', color: 'var(--blue)' }
+                            : { background: 'rgba(91,140,255,.09)', border: '1px solid rgba(91,140,255,.28)', color: 'var(--blue)' }}
                         >
                           <ChefHat className="w-4 h-4" />
                           How to cook it
