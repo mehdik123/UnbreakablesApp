@@ -19,6 +19,7 @@ import { Client, ClientWorkoutAssignment, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { enrichProgramAndWeeksWithExercises } from '../utils/enrichAssignment';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
+import { getClientWeightLogs, getClientPRHistory } from '../lib/progressTracking';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 import { 
@@ -80,6 +81,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [weeklyPhotos, setWeeklyPhotos] = useState<any[]>([]);
+  // Real progress stats for the dashboard (weight + strength change). Null = not enough data yet.
+  const [dashStats, setDashStats] = useState<{ weightDelta: number | null; strengthPct: number | null; strengthLift: string | null }>({
+    weightDelta: null,
+    strengthPct: null,
+    strengthLift: null,
+  });
   const [databaseClientId, setDatabaseClientId] = useState<string | null>(null);
   const [isLoadingTab, setIsLoadingTab] = useState(false);
   
@@ -189,6 +196,73 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
     loadNutritionPlan();
   }, [client.id, client.nutritionPlan]);
+
+  // Load real progress stats (weight delta + strength change on the client's most-logged compound lift)
+  useEffect(() => {
+    if (!databaseClientId || !isSupabaseReady || !supabase) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [weightLogs, prs] = await Promise.all([
+          getClientWeightLogs(databaseClientId),
+          getClientPRHistory(databaseClientId),
+        ]);
+        if (cancelled) return;
+
+        // Weight change since the first logged entry
+        let weightDelta: number | null = null;
+        if (weightLogs.length >= 2) {
+          const asc = [...weightLogs].sort((a, b) => a.date.getTime() - b.date.getTime());
+          weightDelta = Math.round((asc[asc.length - 1].weight - asc[0].weight) * 10) / 10;
+        }
+
+        // Strength change: pick the lift with the most weeks logged, compare earliest vs latest estimated 1RM
+        let strengthPct: number | null = null;
+        let strengthLift: string | null = null;
+        if (prs.length) {
+          const byEx = new Map<string, typeof prs>();
+          prs.forEach((pr) => {
+            const arr = byEx.get(pr.exerciseName) || [];
+            arr.push(pr);
+            byEx.set(pr.exerciseName, arr);
+          });
+          let bestEx: string | null = null;
+          let bestWeeks = 0;
+          let bestMax = 0;
+          byEx.forEach((arr, name) => {
+            const weeks = new Set(arr.map((p) => p.weekNumber)).size;
+            const maxW = Math.max(...arr.map((p) => p.bestSetWeight));
+            if (weeks > bestWeeks || (weeks === bestWeeks && maxW > bestMax)) {
+              bestWeeks = weeks;
+              bestMax = maxW;
+              bestEx = name;
+            }
+          });
+          if (bestEx) {
+            const arr = (byEx.get(bestEx) || []).slice().sort((a, b) => a.weekNumber - b.weekNumber);
+            const e1rm = (w: number, r: number) => w * (1 + r / 30); // Epley
+            const first = arr[0];
+            const last = arr[arr.length - 1];
+            if (arr.length >= 2 && first.bestSetWeight > 0) {
+              const f = e1rm(first.bestSetWeight, first.bestSetReps);
+              const l = e1rm(last.bestSetWeight, last.bestSetReps);
+              strengthPct = Math.round(((l - f) / f) * 100);
+            } else {
+              strengthPct = 0;
+            }
+            strengthLift = String(bestEx).replace(/_/g, ' ');
+          }
+        }
+
+        setDashStats({ weightDelta, strengthPct, strengthLift });
+      } catch {
+        /* leave stats empty on failure */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [databaseClientId, currentWeek]);
 
   // When parent passes an updated active week (e.g. coach changed it), apply unless client just picked a week
   useEffect(() => {
@@ -429,11 +503,62 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
   const totalWeeks = client.numberOfWeeks || 12;
 
+  // Derive this-week session progress and today's session from the assignment (no extra fetch needed)
+  const { sessionsDone, sessionsTotal, todayName, todayExerciseCount } = useMemo(() => {
+    const weeks = (effectiveWorkoutAssignment as any)?.weeks || [];
+    const weekData = weeks.find((w: any) => w.weekNumber === currentWeek);
+    const days: any[] = Array.isArray(weekData?.days) ? weekData.days : [];
+    const trainingDays = days.filter((d) => (d.exercises?.length || 0) > 0);
+    const isDayDone = (d: any) => d.exercises.every((ex: any) => (ex.sets || []).length > 0 && ex.sets.every((s: any) => s.completed === true));
+    const done = trainingDays.filter(isDayDone).length;
+    const today = trainingDays.find((d) => !isDayDone(d)) || trainingDays[0];
+    return {
+      sessionsDone: done,
+      sessionsTotal: trainingDays.length,
+      todayName: today?.name as string | undefined,
+      todayExerciseCount: today?.exercises?.length || 0,
+    };
+  }, [effectiveWorkoutAssignment, currentWeek]);
+
+  // Quick-stat chips for the dashboard (all real data; show "—" until there's enough)
+  const dashChips = [
+    {
+      Icon: Dumbbell,
+      tint: 'var(--red)',
+      bg: 'rgba(255,45,85,.14)',
+      value: String(sessionsDone),
+      unit: `/${sessionsTotal || 0}`,
+      label: t('home.statWeek'),
+    },
+    {
+      Icon: Scale,
+      tint: 'var(--blue)',
+      bg: 'rgba(91,140,255,.14)',
+      value: dashStats.weightDelta == null ? '—' : `${dashStats.weightDelta > 0 ? '+' : ''}${dashStats.weightDelta}`,
+      unit: dashStats.weightDelta == null ? '' : 'kg',
+      label: t('home.statWeight'),
+    },
+    {
+      Icon: TrendingUp,
+      tint: 'var(--emerald)',
+      bg: 'rgba(52,211,153,.14)',
+      value: dashStats.strengthPct == null ? '—' : `${dashStats.strengthPct > 0 ? '+' : ''}${dashStats.strengthPct}`,
+      unit: dashStats.strengthPct == null ? '' : '%',
+      label: t('home.statStrength'),
+    },
+  ];
+
+  const progressCardStatus = dashStats.strengthPct != null
+    ? t('home.strengthStat', { pct: `${dashStats.strengthPct > 0 ? '+' : ''}${dashStats.strengthPct}` })
+    : dashStats.weightDelta != null
+    ? `${dashStats.weightDelta > 0 ? '+' : ''}${dashStats.weightDelta} kg`
+    : '';
+
   const homeCards = [
     { route: 'workout' as Route, title: t('nav.workouts'), desc: t('home.workoutDesc'), Icon: Dumbbell, grad: 'from-red-500 to-orange-500', status: t('modern.weekOf', { current: currentWeek, total: totalWeeks }) },
     { route: 'nutrition' as Route, title: t('nav.nutrition'), desc: t('home.nutritionDesc'), Icon: Utensils, grad: 'from-green-500 to-emerald-500', status: nutritionPlan ? t('home.mealsPerDay', { count: nutritionPlan.mealsPerDay }) : t('home.viewPlan') },
     { route: 'supplements' as Route, title: t('nav.supplements'), desc: t('home.supplementsDesc'), Icon: Pill, grad: 'from-purple-500 to-pink-500', status: '' },
-    { route: 'progressHub' as Route, title: t('nav.progress'), desc: t('home.progressDesc'), Icon: TrendingUp, grad: 'from-blue-500 to-indigo-500', status: '' },
+    { route: 'progressHub' as Route, title: t('nav.progress'), desc: t('home.progressDesc'), Icon: TrendingUp, grad: 'from-blue-500 to-indigo-500', status: progressCardStatus },
   ];
 
   const hubCards = [
@@ -561,6 +686,33 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
           <p className="text-[13px] mb-4" style={{ color: 'var(--txt-mid)' }}>{t('home.subtitle')}</p>
 
+          {/* Quick stats (real data) */}
+          <div className="grid grid-cols-3 gap-2.5 mb-4">
+            {dashChips.map((chip, i) => (
+              <div
+                key={i}
+                className="rounded-2xl p-3"
+                style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+              >
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center mb-2"
+                  style={{ background: chip.bg, color: chip.tint }}
+                >
+                  <chip.Icon className="w-4 h-4" />
+                </div>
+                <div className="font-display font-bold text-[18px] leading-none" style={{ color: 'var(--txt-hi)' }}>
+                  {chip.value}
+                  {chip.unit ? (
+                    <span className="text-[11px] font-semibold ml-0.5" style={{ color: 'var(--txt-mid)' }}>{chip.unit}</span>
+                  ) : null}
+                </div>
+                <div className="text-[9.5px] uppercase tracking-wider font-semibold mt-1.5" style={{ color: 'var(--txt-lo)' }}>
+                  {chip.label}
+                </div>
+              </div>
+            ))}
+          </div>
+
           {/* Today quick-access */}
           <button
             onClick={() => navigate('workout')}
@@ -575,8 +727,11 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--red)' }}>{t('home.today')}</div>
-              <div className="font-display font-semibold text-[16px] truncate" style={{ color: 'var(--txt-hi)' }}>{t('home.continueProgram')}</div>
+              <div className="font-display font-semibold text-[16px] truncate" style={{ color: 'var(--txt-hi)' }}>
+                {todayName || t('home.continueProgram')}
+              </div>
               <div className="text-[12px] truncate" style={{ color: 'var(--txt-mid)' }}>
+                {todayExerciseCount > 0 ? `${t('workout.nExercises', { count: todayExerciseCount })} · ` : ''}
                 {t('modern.weekOf', { current: currentWeek, total: totalWeeks })}
               </div>
             </div>

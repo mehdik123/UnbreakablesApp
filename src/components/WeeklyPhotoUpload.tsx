@@ -299,33 +299,36 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
               />
               
               {photo ? (
-                <div className="relative aspect-[3/4] rounded-lg overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                <div className="relative aspect-[3/4] rounded-2xl overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
                   <img
                     src={photo.imageUrl}
                     alt={`${label} view`}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" style={{ background: 'rgba(8,9,13,.55)' }}>
                     <button
                       onClick={() => removePhoto(photo.id)}
-                      className="bg-red-600 hover:bg-red-700 text-white rounded-lg p-2 transition-colors"
+                      className="text-white rounded-xl p-2 transition-transform active:scale-90"
+                      style={{ background: 'var(--grad-red)', boxShadow: '0 8px 20px -8px rgba(255,45,85,.6)' }}
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-                    <span className="text-white text-xs font-medium">{label}</span>
+                  <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/85 to-transparent">
+                    <span className="text-white text-[10px] font-bold uppercase tracking-wider">{label}</span>
                   </div>
                 </div>
               ) : (
                 <button
                   onClick={() => fileInputRefs[type].current?.click()}
                   disabled={uploading}
-                  className="aspect-[3/4] w-full border-dashed rounded-lg flex flex-col items-center justify-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="aspect-[3/4] w-full rounded-2xl flex flex-col items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ background: 'var(--surface-2)', border: '1px dashed var(--hair-strong)' }}
                 >
-                  <Upload className="w-5 h-5 mb-1" style={{ color: 'var(--txt-mid)' }} />
-                  <span className="text-xs" style={{ color: 'var(--txt-mid)' }}>{label}</span>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,45,85,.12)' }}>
+                    <Upload className="w-4 h-4" style={{ color: 'var(--red)' }} />
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--txt-mid)' }}>{label}</span>
                 </button>
               )}
             </div>
@@ -382,36 +385,36 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
 
                 return (
                   <div key={type} className="space-y-2">
-                    <div className="text-xs font-medium" style={{ color: 'var(--txt-mid)' }}>{label}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--txt-mid)' }}>{label}</div>
                     <div className="grid grid-cols-2 gap-2">
                       {/* Week 1 Photo */}
-                      <div className="relative aspect-[3/4] rounded-lg overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                      <div className="relative aspect-[3/4] rounded-2xl overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
                         {photo1 ? (
                           <>
                             <img src={photo1.imageUrl} alt={`${label} week ${compareWeek1}`} className="w-full h-full object-cover" />
-                            <div className="absolute top-2 left-2 bg-black/70 px-2 py-1 rounded text-white text-xs">
+                            <div className="absolute top-2 left-2 px-2 py-1 rounded-lg text-white text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm" style={{ background: 'rgba(8,9,13,.6)' }}>
                               Week {compareWeek1}
                             </div>
                           </>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-gray-500 text-xs">No photo</span>
+                            <span className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>No photo</span>
                           </div>
                         )}
                       </div>
 
                       {/* Week 2 Photo */}
-                      <div className="relative aspect-[3/4] rounded-lg overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                      <div className="relative aspect-[3/4] rounded-2xl overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
                         {photo2 ? (
                           <>
                             <img src={photo2.imageUrl} alt={`${label} week ${compareWeek2}`} className="w-full h-full object-cover" />
-                            <div className="absolute top-2 left-2 bg-black/70 px-2 py-1 rounded text-white text-xs">
+                            <div className="absolute top-2 left-2 px-2 py-1 rounded-lg text-white text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm" style={{ background: 'rgba(8,9,13,.6)' }}>
                               Week {compareWeek2}
                             </div>
                           </>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-gray-500 text-xs">No photo</span>
+                            <span className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>No photo</span>
                           </div>
                         )}
                       </div>
