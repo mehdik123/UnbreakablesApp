@@ -2,7 +2,6 @@ import React, { useState, useEffect, memo, useCallback } from 'react';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { 
   Dumbbell, 
-  Clock,
   Play,
   CheckCircle,
   Circle,
@@ -17,7 +16,6 @@ import {
 } from 'lucide-react';
 import { Client, WorkoutProgram } from '../types';
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking';
-import { useHorizontalScroll } from '../hooks/useHorizontalScroll';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface ClientWorkoutViewProps {
@@ -73,14 +71,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       // Trigger re-render of progress chart
     }
   });
-
-  // Horizontal scroll for workout days
-  const { scrollRef: daysScrollRef, scrollBy: scrollDaysBy } = useHorizontalScroll({
-    scrollStep: 200,
-    snapToItems: true,
-    enableSwipe: true
-  });
-
 
   // Function to enrich program with video URLs from Supabase exercises table
   const enrichProgramWithVideoUrls = async (program: any) => {
@@ -528,6 +518,65 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     setLocalAssignment(updatedAssignment);
   };
 
+  // Mark every exercise in a day complete/incomplete in one persisted write (avoids racing per-exercise writes)
+  const setDayCompleted = async (dayIndex: number, completed: boolean) => {
+    const day = currentWorkoutProgram?.days?.[dayIndex];
+    if (!day) return;
+    const dayExerciseIds = new Set(day.exercises.map((ex) => ex.id));
+
+    setCompletedExercises((prev) => {
+      const next = { ...prev };
+      dayExerciseIds.forEach((id) => {
+        next[id] = completed;
+      });
+      return next;
+    });
+
+    const assignment = localAssignment || client.workoutAssignment;
+    if (!assignment?.weeks) return;
+    const now = new Date().toISOString();
+    const updatedWeeks = assignment.weeks.map((w: any) => {
+      if (w.weekNumber !== currentWeek) return w;
+      return {
+        ...w,
+        days: (w.days || []).map((d: any) => ({
+          ...d,
+          exercises: (d.exercises || []).map((ex: any) =>
+            dayExerciseIds.has(ex.id)
+              ? {
+                  ...ex,
+                  sets: (ex.sets || []).map((s: any) => ({
+                    ...s,
+                    completed,
+                    completedAt: completed ? now : undefined,
+                  })),
+                }
+              : ex
+          ),
+        })),
+      };
+    });
+    const updatedAssignment = {
+      ...assignment,
+      weeks: updatedWeeks,
+      lastModifiedBy: 'client' as const,
+      lastModifiedAt: new Date(),
+    };
+    if (isSupabaseReady && supabase && assignmentId) {
+      await supabase
+        .from('workout_assignments')
+        .update({
+          program_json: updatedAssignment as any,
+          last_modified_by: 'client',
+          version: (sharedVersion || 0) + 1,
+        })
+        .eq('id', assignmentId);
+    }
+    localStorage.setItem(SHARED_KEY, JSON.stringify({ workoutAssignment: updatedAssignment, version: (sharedVersion || 0) + 1, lastModified: new Date().toISOString() }));
+    setSharedVersion((v) => v + 1);
+    setLocalAssignment(updatedAssignment);
+  };
+
   const completeExercise = (exerciseId: string) => {
     const isCurrentlyCompleted = completedExercises[exerciseId];
     const newCompletedState = !isCurrentlyCompleted;
@@ -816,14 +865,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     return 'in-progress';
   };
 
-  const getDayStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed': return <CheckCircle className="w-4 h-4" />;
-      case 'in-progress': return <Clock className="w-4 h-4" />;
-      default: return <Circle className="w-4 h-4" />;
-    }
-  };
-
   // Per-exercise save feedback state ('saving' | 'saved')
   const [exerciseSaveState, setExerciseSaveState] = useState<{ [exerciseId: string]: 'saving' | 'saved' }>({});
   const handleSaveExercise = async (exerciseId: string) => {
@@ -1000,21 +1041,23 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             <span className="flex-1 h-px" style={{ background: 'var(--hair)' }} />
           </div>
 
-          {/* Horizontal Scrolling Days */}
-          <div className="relative">
-            <div
-              ref={daysScrollRef}
-              data-horizontal-scroll="true"
-              className="overflow-x-auto scrollbar-hide horizontal-scroll touch-pan-x"
-              style={{ WebkitOverflowScrolling: 'touch' }}
-            >
-              <div className="flex gap-3 pb-2 min-w-max">
-                {currentWorkoutProgram?.days?.map((day, index) => {
+          {/* Vertical day list - whole week visible at a glance */}
+          {(() => {
+            const days = currentWorkoutProgram?.days || [];
+            const firstIncompleteDayIndex = days.findIndex(
+              (d, i) => d.exercises.length > 0 && getDayStatus(i) !== 'completed'
+            );
+            return (
+              <div className="space-y-2.5">
+                {days.map((day, index) => {
                   const status = getDayStatus(index);
                   const isCurrentDay = index === currentDay;
                   const isCompleted = status === 'completed';
                   const total = day.exercises.length;
+                  const isRest = total === 0;
                   const completedCount = day.exercises.filter((ex) => completedExercises[ex.id]).length;
+                  const pct = total ? Math.round((completedCount / total) * 100) : 0;
+                  const isNextDay = index === firstIncompleteDayIndex;
                   const muscles = Array.from(
                     new Set(
                       day.exercises
@@ -1023,83 +1066,101 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                         .map((m: string) => m.charAt(0).toUpperCase() + m.slice(1))
                     )
                   );
-                  const subline = muscles.length ? muscles.slice(0, 3).join(' · ') : t('workout.nExercises', { count: total });
+                  const focus = isRest
+                    ? t('workout.restDay')
+                    : muscles.length
+                    ? muscles.slice(0, 4).join(' · ')
+                    : t('workout.nExercises', { count: total });
                   const statusText =
-                    completedCount > 0
-                      ? t('workout.ofComplete', { done: completedCount, total })
-                      : t('workout.nExercises', { count: total });
+                    completedCount > 0 ? t('workout.ofComplete', { done: completedCount, total }) : t('workout.nExercises', { count: total });
 
                   return (
                     <button
                       key={day.id}
-                      data-scroll-item
                       onClick={() => setCurrentDay(index)}
                       disabled={!isDayUnlocked}
-                      className={`group relative flex-shrink-0 w-[152px] text-left p-4 rounded-[18px] transition-all duration-300 active:scale-[0.97] ${
-                        isCurrentDay ? 'shadow-glow-red' : ''
-                      } ${!isDayUnlocked ? 'cursor-not-allowed opacity-60' : ''}`}
+                      className={`w-full text-left p-3.5 rounded-[18px] transition-all duration-200 active:scale-[0.99] ${
+                        !isDayUnlocked ? 'cursor-not-allowed opacity-60' : ''
+                      }`}
                       style={{
                         background: isCurrentDay
-                          ? 'radial-gradient(120% 100% at 0% 0%, rgba(255,45,85,.22), transparent 60%), var(--surface-2)'
+                          ? 'radial-gradient(120% 100% at 0% 0%, rgba(255,45,85,.18), transparent 60%), var(--surface-2)'
                           : 'var(--surface-1)',
                         border: isCurrentDay ? '1px solid rgba(255,45,85,.4)' : '1px solid var(--hair)',
                       }}
                     >
-                      {isCurrentDay && (
-                        <span
-                          className="wk-live-dot absolute top-3.5 right-3.5 w-[9px] h-[9px] rounded-full"
-                          style={{ background: 'var(--red)' }}
-                        />
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 font-display font-bold text-[15px]"
+                          style={{
+                            background: isCompleted
+                              ? 'rgba(52,211,153,.12)'
+                              : isCurrentDay
+                              ? 'var(--grad-red)'
+                              : 'var(--surface-3)',
+                            border: isCompleted
+                              ? '1px solid rgba(52,211,153,.3)'
+                              : isCurrentDay
+                              ? '1px solid transparent'
+                              : '1px solid var(--hair)',
+                            color: isCompleted ? 'var(--emerald)' : isCurrentDay ? '#fff' : 'var(--txt-mid)',
+                          }}
+                        >
+                          {!isDayUnlocked ? (
+                            <Lock className="w-4 h-4" />
+                          ) : isCompleted ? (
+                            <CheckCircle className="w-5 h-5" />
+                          ) : (
+                            index + 1
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--txt-lo)' }}>
+                            {day.name}
+                          </div>
+                          <div className="font-display font-semibold text-[15px] truncate" style={{ color: 'var(--txt-hi)' }}>
+                            {focus}
+                          </div>
+                        </div>
+
+                        {isCompleted ? (
+                          <span
+                            className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                            style={{ background: 'rgba(52,211,153,.12)', color: 'var(--emerald)', border: '1px solid rgba(52,211,153,.28)' }}
+                          >
+                            <CheckCircle className="w-3 h-3" /> {t('workout.wkDone')}
+                          </span>
+                        ) : isNextDay && !isRest ? (
+                          <span
+                            className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full text-white"
+                            style={{ background: 'var(--grad-red)' }}
+                          >
+                            <Play className="w-3 h-3" fill="currentColor" strokeWidth={0} /> {t('workout.continueDay')}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      {!isRest && (
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between mb-1 text-[11px] font-semibold">
+                            <span style={{ color: completedCount > 0 ? 'var(--emerald)' : 'var(--txt-lo)' }}>{statusText}</span>
+                            <span className="font-display tnum" style={{ color: 'var(--txt-lo)' }}>{pct}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--hair)' }}>
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{ width: `${pct}%`, background: isCompleted ? 'var(--emerald)' : 'var(--grad-red)' }}
+                            />
+                          </div>
+                        </div>
                       )}
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center mb-3.5 transition-all duration-300"
-                        style={{
-                          background: isCurrentDay ? 'var(--grad-red)' : isCompleted ? 'rgba(52,211,153,.1)' : 'var(--surface-3)',
-                          border: isCurrentDay ? '1px solid transparent' : isCompleted ? '1px solid rgba(52,211,153,.3)' : '1px solid var(--hair)',
-                          color: isCurrentDay ? '#fff' : isCompleted ? 'var(--emerald)' : 'var(--txt-mid)',
-                        }}
-                      >
-                        {isDayUnlocked ? getDayStatusIcon(status) : <Lock className="w-4 h-4" />}
-                      </div>
-                      <div className="font-display font-semibold text-[16px] truncate" style={{ color: 'var(--txt-hi)' }}>
-                        {day.name}
-                      </div>
-                      <div className="text-[11.5px] mt-0.5 truncate" style={{ color: 'var(--txt-mid)' }}>
-                        {subline}
-                      </div>
-                      <div
-                        className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold"
-                        style={{ color: isCurrentDay ? 'var(--red)' : completedCount > 0 ? 'var(--emerald)' : 'var(--txt-lo)' }}
-                      >
-                        {completedCount > 0 && <CheckCircle className="w-3 h-3" />}
-                        {statusText}
-                      </div>
                     </button>
                   );
                 })}
               </div>
-            </div>
-
-            {/* Scroll buttons */}
-            <button
-              onClick={() => scrollDaysBy('left')}
-              className="absolute top-1/2 -left-2 transform -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center opacity-50 hover:opacity-100 transition-all duration-200"
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}
-            >
-              <svg className="w-4 h-4" style={{ color: 'var(--txt-hi)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <button
-              onClick={() => scrollDaysBy('right')}
-              className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center opacity-50 hover:opacity-100 transition-all duration-200"
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}
-            >
-              <svg className="w-4 h-4" style={{ color: 'var(--txt-hi)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
+            );
+          })()}
 
           {!isDayUnlocked && (
             <div className="mt-4 sm:mt-6 p-4 bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/30 rounded-2xl backdrop-blur-sm">
@@ -1482,6 +1543,26 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                 </div>
               ))}
             </div>
+
+            {/* Mark whole day complete */}
+            {currentDayData.exercises.length > 0 && (() => {
+              const dayDone = currentDayData.exercises.every((ex) => completedExercises[ex.id]);
+              return (
+                <button
+                  type="button"
+                  onClick={() => setDayCompleted(currentDay, !dayDone)}
+                  className="w-full mt-4 py-3.5 rounded-[16px] font-semibold text-[14px] flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                  style={
+                    dayDone
+                      ? { background: 'rgba(52,211,153,.12)', border: '1px solid rgba(52,211,153,.35)', color: 'var(--emerald)' }
+                      : { background: 'var(--grad-red)', color: '#fff', boxShadow: '0 12px 28px -10px rgba(255,45,85,.6)' }
+                  }
+                >
+                  <CheckCircle className="w-[18px] h-[18px]" />
+                  {dayDone ? t('workout.dayCompleted') : t('workout.markDayComplete')}
+                </button>
+              );
+            })()}
         </div>
       )}
 
