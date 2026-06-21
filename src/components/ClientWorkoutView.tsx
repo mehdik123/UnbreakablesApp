@@ -12,7 +12,8 @@ import {
   Plus,
   Minus,
   Heart,
-  Save
+  Save,
+  ChevronDown
 } from 'lucide-react';
 import { Client, WorkoutProgram } from '../types';
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking';
@@ -51,6 +52,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   onAssignmentUpdated
 }) => {
   const [currentDay, setCurrentDay] = useState(0);
+  const [weekStripOpen, setWeekStripOpen] = useState(false);
+  const [openExerciseDetails, setOpenExerciseDetails] = useState<{ [exerciseId: string]: boolean }>({});
   const [completedExercises, setCompletedExercises] = useState<{ [exerciseId: string]: boolean }>({});
   const [exerciseData, setExerciseData] = useState<{ [exerciseId: string]: { [setIndex: number]: { reps: number; weight: number } } }>({});
   const [dropsetData, setDropsetData] = useState<{ [exerciseId: string]: { [dropsetIndex: number]: { [roundIndex: number]: { reps: number; weight: number } } } }>({});
@@ -887,58 +890,78 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       )}
 
       <div className="px-3 sm:px-4 py-3 sm:py-4 space-y-4 sm:space-y-6 pb-20 max-w-full overflow-x-hidden">
-        {/* Week navigation - only deployed weeks */}
+        {/* Week navigation - collapsed into a pill by default to reduce clutter */}
         {deployedWeeks.length > 0 && onWeekChange && (
           <div>
-            <div className="flex items-center gap-2 mb-3 px-1">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--txt-lo)' }}>
-                {t('workout.trainingWeek')}
-              </span>
-              <span className="flex-1 h-px" style={{ background: 'var(--hair)' }} />
-            </div>
-            <div
-              className="flex gap-1 p-1 overflow-x-auto scrollbar-hide rounded-[15px]"
+            <button
+              type="button"
+              onClick={() => setWeekStripOpen((o) => !o)}
+              className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-[14px] active:scale-[0.99] transition-transform"
               style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+              aria-expanded={weekStripOpen}
             >
-              {deployedWeeks.map((w) => {
-                const isActive = w.weekNumber === currentWeek;
-                const done = (w as any).isCompleted === true || w.weekNumber < currentWeek;
-                const label = isActive ? t('workout.wkCurrent') : done ? t('workout.wkDone') : t('workout.wkSoon');
-                return (
-                  <button
-                    key={w.weekNumber}
-                    onClick={() => handleWeekSelect(w.weekNumber)}
-                    className={`flex-1 min-w-[64px] text-center py-2 rounded-[11px] text-[13px] font-semibold transition-all duration-200 ${
-                      isActive ? 'text-white bg-grad-red shadow-red' : ''
-                    }`}
-                    style={isActive ? undefined : { color: 'var(--txt-mid)' }}
+              <span className="flex items-baseline gap-2 min-w-0">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--txt-lo)' }}>
+                  {t('workout.trainingWeek')}
+                </span>
+                <span className="font-display font-semibold text-[14px]" style={{ color: 'var(--txt-hi)' }}>
+                  {t('workout.weekOfTotal', { current: currentWeek, total: totalProgramWeeks })}
+                </span>
+              </span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform duration-200 ${weekStripOpen ? 'rotate-180' : ''}`}
+                style={{ color: 'var(--txt-lo)' }}
+              />
+            </button>
+
+            {weekStripOpen && (
+              <div
+                className="flex gap-1 p-1 mt-2 overflow-x-auto scrollbar-hide rounded-[15px]"
+                style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+              >
+                {deployedWeeks.map((w) => {
+                  const isActive = w.weekNumber === currentWeek;
+                  const done = (w as any).isCompleted === true || w.weekNumber < currentWeek;
+                  const label = isActive ? t('workout.wkCurrent') : done ? t('workout.wkDone') : t('workout.wkSoon');
+                  return (
+                    <button
+                      key={w.weekNumber}
+                      onClick={() => {
+                        handleWeekSelect(w.weekNumber);
+                        setWeekStripOpen(false);
+                      }}
+                      className={`flex-1 min-w-[64px] text-center py-2 rounded-[11px] text-[13px] font-semibold transition-all duration-200 ${
+                        isActive ? 'text-white bg-grad-red shadow-red' : ''
+                      }`}
+                      style={isActive ? undefined : { color: 'var(--txt-mid)' }}
+                    >
+                      <span
+                        className="block text-[9px] font-semibold uppercase tracking-[0.1em] mb-0.5"
+                        style={{ color: isActive ? 'rgba(255,255,255,.75)' : done ? 'var(--emerald)' : 'var(--txt-lo)' }}
+                      >
+                        {label}
+                      </span>
+                      {t('workout.weekN', { n: w.weekNumber })}
+                    </button>
+                  );
+                })}
+                {moreWeeksComing && (
+                  <div
+                    className="flex-1 min-w-[64px] text-center py-2 rounded-[11px] text-[13px] font-semibold select-none"
+                    style={{ color: 'var(--txt-lo)', border: '1px dashed var(--hair-strong)' }}
+                    aria-disabled="true"
                   >
                     <span
                       className="block text-[9px] font-semibold uppercase tracking-[0.1em] mb-0.5"
-                      style={{ color: isActive ? 'rgba(255,255,255,.75)' : done ? 'var(--emerald)' : 'var(--txt-lo)' }}
+                      style={{ color: 'var(--txt-lo)' }}
                     >
-                      {label}
+                      {t('workout.wkSoon')}
                     </span>
-                    {t('workout.weekN', { n: w.weekNumber })}
-                  </button>
-                );
-              })}
-              {moreWeeksComing && (
-                <div
-                  className="flex-1 min-w-[64px] text-center py-2 rounded-[11px] text-[13px] font-semibold select-none"
-                  style={{ color: 'var(--txt-lo)', border: '1px dashed var(--hair-strong)' }}
-                  aria-disabled="true"
-                >
-                  <span
-                    className="block text-[9px] font-semibold uppercase tracking-[0.1em] mb-0.5"
-                    style={{ color: 'var(--txt-lo)' }}
-                  >
-                    {t('workout.wkSoon')}
-                  </span>
-                  {t('workout.weekN', { n: nextWeekNumber })}
-                </div>
-              )}
-            </div>
+                    {t('workout.weekN', { n: nextWeekNumber })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1192,12 +1215,35 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                     </div>
                   </div>
 
-                  {/* Video block */}
+                  {/* Form demo — collapsed by default to keep cards short; tap to reveal the video */}
+                  <div className="px-4 mb-4">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOpenExerciseDetails((prev) => ({ ...prev, [exercise.id]: !prev[exercise.id] }))
+                      }
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[14px] active:scale-[0.99] transition-transform"
+                      style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+                      aria-expanded={!!openExerciseDetails[exercise.id]}
+                    >
+                      <span className="flex items-center gap-2 text-[13px] font-semibold" style={{ color: 'var(--txt-hi)' }}>
+                        <span className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--grad-red)' }}>
+                          <Play className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" strokeWidth={0} />
+                        </span>
+                        {t('workout.formDemo')}
+                      </span>
+                      <ChevronDown
+                        className={`w-4 h-4 transition-transform duration-200 ${openExerciseDetails[exercise.id] ? 'rotate-180' : ''}`}
+                        style={{ color: 'var(--txt-lo)' }}
+                      />
+                    </button>
+
+                  {openExerciseDetails[exercise.id] && (
                   <a
                     href={exercise.exercise.videoUrl || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block relative mx-4 mb-4 rounded-[18px] overflow-hidden group"
+                    className="block relative mt-2 rounded-[18px] overflow-hidden group"
                     style={{
                       aspectRatio: '16 / 9',
                       border: '1px solid var(--hair)',
@@ -1246,6 +1292,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                       {t('workout.watchDemo')}
                     </div>
                   </a>
+                  )}
+                  </div>
 
                   {/* Sets & Reps Section */}
                   <div className="space-y-2 sm:space-y-4 px-4 pb-4">
