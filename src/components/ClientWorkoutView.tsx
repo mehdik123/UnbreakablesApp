@@ -53,7 +53,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 }) => {
   const [currentDay, setCurrentDay] = useState(0);
   const [weekStripOpen, setWeekStripOpen] = useState(false);
-  const [openExerciseDetails, setOpenExerciseDetails] = useState<{ [exerciseId: string]: boolean }>({});
   const [completedExercises, setCompletedExercises] = useState<{ [exerciseId: string]: boolean }>({});
   const [exerciseData, setExerciseData] = useState<{ [exerciseId: string]: { [setIndex: number]: { reps: number; weight: number } } }>({});
   const [dropsetData, setDropsetData] = useState<{ [exerciseId: string]: { [dropsetIndex: number]: { [roundIndex: number]: { reps: number; weight: number } } } }>({});
@@ -1215,35 +1214,12 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                     </div>
                   </div>
 
-                  {/* Form demo — collapsed by default to keep cards short; tap to reveal the video */}
-                  <div className="px-4 mb-4">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setOpenExerciseDetails((prev) => ({ ...prev, [exercise.id]: !prev[exercise.id] }))
-                      }
-                      className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-[14px] active:scale-[0.99] transition-transform"
-                      style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
-                      aria-expanded={!!openExerciseDetails[exercise.id]}
-                    >
-                      <span className="flex items-center gap-2 text-[13px] font-semibold" style={{ color: 'var(--txt-hi)' }}>
-                        <span className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'var(--grad-red)' }}>
-                          <Play className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" strokeWidth={0} />
-                        </span>
-                        {t('workout.formDemo')}
-                      </span>
-                      <ChevronDown
-                        className={`w-4 h-4 transition-transform duration-200 ${openExerciseDetails[exercise.id] ? 'rotate-180' : ''}`}
-                        style={{ color: 'var(--txt-lo)' }}
-                      />
-                    </button>
-
-                  {openExerciseDetails[exercise.id] && (
+                  {/* Form demo video — always visible */}
                   <a
                     href={exercise.exercise.videoUrl || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block relative mt-2 rounded-[18px] overflow-hidden group"
+                    className="block relative mx-4 mb-4 rounded-[18px] overflow-hidden group"
                     style={{
                       aspectRatio: '16 / 9',
                       border: '1px solid var(--hair)',
@@ -1292,8 +1268,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                       {t('workout.watchDemo')}
                     </div>
                   </a>
-                  )}
-                  </div>
 
                   {/* Sets & Reps Section */}
                   <div className="space-y-2 sm:space-y-4 px-4 pb-4">

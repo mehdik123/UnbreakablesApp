@@ -15,7 +15,6 @@ import {
   Download,
   ChevronRight,
   ChevronLeft,
-  ChevronDown,
   Clock
 } from 'lucide-react';
 import { Client, NutritionPlan, Meal, Ingredient, SelectedMeal } from '../types';
@@ -39,21 +38,9 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
   const [currentMealIndex, setCurrentMealIndex] = useState<{ [slotId: string]: number }>({});
   const [activeMealModal, setActiveMealModal] = useState<{ slotId: string; mealIndex: number } | null>(null);
   const [viewAllSlotId, setViewAllSlotId] = useState<string | null>(null);
-  // Meal slots collapse by default (first one open) to keep the page short
-  const [openSlots, setOpenSlots] = useState<{ [slotId: string]: boolean }>({});
-  const toggleSlot = (slotId: string) =>
-    setOpenSlots((prev) => ({ ...prev, [slotId]: !(prev[slotId] ?? false) }));
 
   // Use loaded nutrition plan - no fallback mock data
   const displayNutritionPlan: NutritionPlan | null = nutritionPlan;
-
-  // Default to the first meal slot expanded, the rest collapsed
-  useEffect(() => {
-    const slots = displayNutritionPlan?.mealSlots;
-    if (slots && slots.length > 0) {
-      setOpenSlots((prev) => (Object.keys(prev).length === 0 ? { [slots[0].id]: true } : prev));
-    }
-  }, [displayNutritionPlan]);
 
   const navigateMeal = (slotId: string, direction: 'left' | 'right') => {
     const slot = displayNutritionPlan?.mealSlots?.find(s => s.id === slotId);
@@ -409,41 +396,27 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
               const mealName = getMealName(selectedMeal);
               const mealImage = getMealImage(selectedMeal);
 
-              const isSlotOpen = !!openSlots[slot.id];
-
               return (
-                <div
-                  key={slot.id}
-                  className={`rounded-3xl overflow-hidden ${isDark ? 'shadow-soft' : 'border border-slate-200 bg-gradient-to-br from-white to-slate-50 shadow-[0_10px_25px_rgba(2,6,23,0.08)]'}`}
-                  style={isDark ? { background: 'var(--surface-1)', border: '1px solid var(--hair)' } : undefined}
-                >
-                  {/* Collapsible slot header */}
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => toggleSlot(slot.id)}
-                    className="flex items-center gap-3 p-3.5 cursor-pointer select-none"
-                  >
-                    <span className="text-2xl shrink-0">{getMealIcon(slot.id)}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: txtMid }}>
-                        {slot.name}
-                      </div>
-                      <div className="font-semibold truncate" style={{ color: txtHi }}>{mealName}</div>
-                      {!isSlotOpen && (
-                        <div className="text-[11px] mt-0.5 font-display tnum" style={{ color: txtMid }}>
-                          {nutrition.calories} cal · {nutrition.protein}P · {nutrition.carbs}C · {nutrition.fats}F
-                        </div>
-                      )}
+                <div key={slot.id}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{getMealIcon(slot.id)}</span>
+                      <h3 className="font-display font-semibold text-lg" style={{ color: txtHi }}>{slot.name}</h3>
+                      <span className="text-sm" style={{ color: txtMid }}>{slot.selectedMeals.length} items</span>
                     </div>
-                    <ChevronDown
-                      className={`w-5 h-5 shrink-0 transition-transform duration-200 ${isSlotOpen ? 'rotate-180' : ''}`}
+                    <button
+                      onClick={() => setViewAllSlotId(slot.id)}
+                      className="text-sm inline-flex items-center gap-1"
                       style={{ color: txtMid }}
-                    />
+                    >
+                      View all <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
 
-                  {isSlotOpen && (
-                  <>
+                  <div
+                    className={`rounded-3xl overflow-hidden ${isDark ? 'shadow-soft' : 'border border-slate-200 bg-gradient-to-br from-white to-slate-50 shadow-[0_10px_25px_rgba(2,6,23,0.08)]'}`}
+                    style={isDark ? { background: 'var(--surface-1)', border: '1px solid var(--hair)' } : undefined}
+                  >
                     <button
                       onClick={() => setActiveMealModal({ slotId: slot.id, mealIndex: selectedIndex })}
                       className="w-full text-left"
@@ -574,18 +547,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         </button>
                       </div>
                     )}
-
-                    {slot.selectedMeals.length > 1 && (
-                      <button
-                        onClick={() => setViewAllSlotId(slot.id)}
-                        className="w-full flex items-center justify-center gap-1 px-4 pb-4 text-sm font-medium"
-                        style={{ color: txtMid }}
-                      >
-                        View all options <ChevronRight className="w-4 h-4" />
-                      </button>
-                    )}
-                  </>
-                  )}
+                  </div>
                 </div>
               );
             })}
