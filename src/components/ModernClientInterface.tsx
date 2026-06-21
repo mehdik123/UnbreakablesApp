@@ -11,8 +11,10 @@ import {
   Sun,
   Moon,
   ChevronRight,
-  Activity
+  Activity,
+  HelpCircle
 } from 'lucide-react';
+import { ClientWelcomeTour } from './ClientWelcomeTour';
 import { Client, ClientWorkoutAssignment, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { enrichProgramAndWeeksWithExercises } from '../utils/enrichAssignment';
@@ -82,6 +84,25 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const [isLoadingTab, setIsLoadingTab] = useState(false);
   
   const { locale, setLocale, t, isRtl } = useClientLocale();
+
+  // First-run welcome tour (shown once per client, re-openable via the "?" button)
+  const welcomeKey = `ub_welcome_seen_${client.id}`;
+  const [showWelcome, setShowWelcome] = useState(false);
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(welcomeKey)) setShowWelcome(true);
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [welcomeKey]);
+  const closeWelcome = useCallback(() => {
+    setShowWelcome(false);
+    try {
+      localStorage.setItem(welcomeKey, '1');
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [welcomeKey]);
 
   useEffect(() => {
     localStorage.setItem('client_interface_theme', useDarkTheme ? 'dark' : 'light');
@@ -496,6 +517,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       className={`client-mobile-shell min-h-screen ${useDarkTheme ? 'workout-shell' : 'theme-light bg-slate-50'}`}
       dir={isRtl ? 'rtl' : 'ltr'}
     >
+      {showWelcome && (
+        <ClientWelcomeTour name={client.name.split(' ')[0] || 'there'} isRtl={isRtl} t={t} onClose={closeWelcome} />
+      )}
+
       {/* ============ HOME DASHBOARD (hub) ============ */}
       {route === 'home' && (
         <div className="relative z-10 max-w-3xl mx-auto px-4 pb-16">
@@ -519,6 +544,16 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowWelcome(true)}
+                className="w-[38px] h-[38px] rounded-xl flex items-center justify-center transition-transform duration-150 active:scale-90"
+                style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
+                aria-label={t('home.help')}
+                title={t('home.help')}
+              >
+                <HelpCircle className="w-4 h-4" />
+              </button>
               {HeaderToggles}
               {ProgressRing}
             </div>

@@ -119,17 +119,23 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
 
   if (photos.length === 0) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 sm:p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center py-20">
-            <div className="w-32 h-32 mx-auto mb-8 bg-slate-800 rounded-full flex items-center justify-center">
-              <Calendar className="w-16 h-16 text-slate-400" />
-            </div>
-            <h3 className="text-2xl font-bold text-white mb-4">No Photos Yet</h3>
-            <p className="text-slate-400 text-lg">
-              {isCoachView ? 'Client hasn\'t uploaded any progress photos yet.' : 'Start tracking your progress by uploading weekly photos!'}
-            </p>
+      <div className="px-3 sm:px-4 py-10">
+        <div
+          className="rounded-[20px] p-8 text-center max-w-sm mx-auto"
+          style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+        >
+          <div
+            className="w-20 h-20 mx-auto mb-5 rounded-2xl flex items-center justify-center"
+            style={{ background: 'rgba(91,140,255,.12)' }}
+          >
+            <Calendar className="w-10 h-10" style={{ color: 'var(--blue)' }} />
           </div>
+          <h3 className="font-display text-xl font-semibold mb-2" style={{ color: 'var(--txt-hi)' }}>No photos yet</h3>
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--txt-mid)' }}>
+            {isCoachView
+              ? "Your client hasn't uploaded any progress photos yet."
+              : 'Snap your first progress photo to start tracking your transformation week by week.'}
+          </p>
         </div>
       </div>
     );

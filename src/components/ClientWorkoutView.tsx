@@ -392,6 +392,12 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const hasNextWeek = deployedWeeks.some((w) => w.weekNumber === currentWeek + 1);
   const showWaitingForCoach = isCurrentWeekComplete && !hasNextWeek;
 
+  // Program is built week-by-week by the coach: figure out whether more weeks are still to come
+  const totalProgramWeeks = client.numberOfWeeks || 12;
+  const maxDeployedWeek = deployedWeeks.length ? Math.max(...deployedWeeks.map((w) => w.weekNumber)) : currentWeek;
+  const nextWeekNumber = maxDeployedWeek + 1;
+  const moreWeeksComing = nextWeekNumber <= totalProgramWeeks;
+
   // When client selects a week: update UI immediately (parent may lock sync), then persist so polling/realtime match
   const handleWeekSelect = useCallback(
     async (newWeek: number) => {
@@ -410,30 +416,35 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   // If no workout program is assigned, show a message
   if (!workoutProgram && !client.workoutAssignment?.program) {
   return (
-      <div className="space-y-4 sm:space-y-6">
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:p-8 text-center">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-            <Dumbbell className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400" />
-            </div>
-          <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">
+      <div className="px-3 sm:px-4 py-10">
+        <div
+          className="rounded-[20px] p-8 text-center max-w-sm mx-auto"
+          style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+        >
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+            style={{ background: 'rgba(255,45,85,.12)' }}
+          >
+            <Dumbbell className="w-8 h-8" style={{ color: 'var(--red)' }} />
+          </div>
+          <h3 className="font-display text-xl font-semibold mb-2" style={{ color: 'var(--txt-hi)' }}>
             {t('workout.noPlanTitle')}
           </h3>
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mb-4">
+          <p className="text-sm mb-5 leading-relaxed" style={{ color: 'var(--txt-mid)' }}>
             {t('workout.noPlanBody')}
           </p>
-          <div className="space-x-2">
-            <button 
-              onClick={() => {
-                localStorage.clear();
-                window.location.reload();
-              }}
-              className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg text-xs sm:text-sm"
-            >
-              {t('workout.clearReload')}
-            </button>
-          </div>
-            </div>
-          </div>
+          <button
+            onClick={() => {
+              localStorage.clear();
+              window.location.reload();
+            }}
+            className="px-4 py-2.5 rounded-[12px] text-white text-sm font-semibold active:scale-[0.97] transition-transform"
+            style={{ background: 'var(--grad-red)' }}
+          >
+            {t('workout.clearReload')}
+          </button>
+        </div>
+      </div>
     );
   }
 
@@ -912,19 +923,48 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                   </button>
                 );
               })}
+              {moreWeeksComing && (
+                <div
+                  className="flex-1 min-w-[64px] text-center py-2 rounded-[11px] text-[13px] font-semibold select-none"
+                  style={{ color: 'var(--txt-lo)', border: '1px dashed var(--hair-strong)' }}
+                  aria-disabled="true"
+                >
+                  <span
+                    className="block text-[9px] font-semibold uppercase tracking-[0.1em] mb-0.5"
+                    style={{ color: 'var(--txt-lo)' }}
+                  >
+                    {t('workout.wkSoon')}
+                  </span>
+                  {t('workout.weekN', { n: nextWeekNumber })}
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Waiting for coach to deploy next week */}
-        {showWaitingForCoach && (
-          <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-              <Zap className="w-5 h-5 text-amber-400" />
+        {/* Next week — your coach builds the program week by week, so we reassure the client more is coming */}
+        {moreWeeksComing && (
+          <div
+            className="rounded-2xl p-4 flex items-center gap-3"
+            style={{ background: 'var(--surface-1)', border: '1px dashed var(--hair-strong)' }}
+          >
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: 'rgba(255,138,92,.14)' }}
+            >
+              {showWaitingForCoach ? (
+                <Zap className="w-5 h-5" style={{ color: '#ff8a5c' }} />
+              ) : (
+                <Lock className="w-5 h-5" style={{ color: 'var(--txt-lo)' }} />
+              )}
             </div>
-            <div>
-              <p className="font-semibold text-amber-200">Great work!</p>
-              <p className="text-sm text-amber-200/90">Your coach is preparing your next week. Check back soon.</p>
+            <div className="min-w-0">
+              <p className="font-display font-semibold text-[14px]" style={{ color: 'var(--txt-hi)' }}>
+                {showWaitingForCoach ? t('workout.preparingTitle') : t('workout.nextWeekComing', { n: nextWeekNumber })}
+              </p>
+              <p className="text-[12.5px] mt-0.5 leading-snug" style={{ color: 'var(--txt-mid)' }}>
+                {showWaitingForCoach ? t('workout.preparingDesc') : t('workout.nextWeekDesc', { current: currentWeek })}
+              </p>
             </div>
           </div>
         )}

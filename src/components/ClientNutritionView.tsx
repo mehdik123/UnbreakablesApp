@@ -263,43 +263,31 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
   // If no nutrition plan is available, show empty state
   if (!displayNutritionPlan) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-        <div className="max-w-md w-full">
-          <div className="relative">
-            {/* Animated background */}
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 via-pink-600/20 to-blue-600/20 rounded-3xl blur-xl animate-pulse" />
-            
-            {/* Main card */}
-            <div className="relative bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-3xl p-8 text-center">
-              {/* Icon with animation */}
-              <div className="relative mb-6">
-                <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto animate-bounce">
-                  <Utensils className="w-10 h-10 text-white" />
-                </div>
-                <div className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center animate-ping">
-                  <Sparkles className="w-3 h-3 text-yellow-600" />
-                </div>
-              </div>
-
-              <h3 className="text-2xl font-bold text-white mb-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                No Nutrition Plan Yet
-              </h3>
-              <p className="text-slate-300 mb-6 leading-relaxed font-medium">
-                Your coach is crafting your personalized nutrition plan. Once it's ready, you'll see it here with beautiful meal cards and detailed instructions.
-              </p>
-
-              <button
-                onClick={() => window.location.reload()}
-                className="group relative px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/25"
-              >
-                <span className="relative z-10 flex items-center space-x-2">
-                  <Zap className="w-4 h-4" />
-                  <span>Check for Updates</span>
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl blur opacity-0 group-hover:opacity-75 transition-opacity duration-300" />
-              </button>
-            </div>
+      <div className="px-3 sm:px-4 py-10">
+        <div
+          className="rounded-[20px] p-8 text-center max-w-sm mx-auto"
+          style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+        >
+          <div
+            className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-5"
+            style={{ background: 'rgba(52,211,153,.12)' }}
+          >
+            <Utensils className="w-10 h-10" style={{ color: 'var(--emerald)' }} />
           </div>
+          <h3 className="font-display text-xl font-semibold mb-2" style={{ color: 'var(--txt-hi)' }}>
+            No nutrition plan yet
+          </h3>
+          <p className="text-sm mb-6 leading-relaxed" style={{ color: 'var(--txt-mid)' }}>
+            Your coach is crafting your personalized nutrition plan. Once it's ready, your meals and daily targets will show up here.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-5 py-2.5 rounded-[12px] text-white text-sm font-semibold flex items-center justify-center gap-2 mx-auto active:scale-[0.97] transition-transform"
+            style={{ background: 'var(--grad-red)' }}
+          >
+            <Zap className="w-4 h-4" />
+            Check for updates
+          </button>
         </div>
       </div>
     );
@@ -491,21 +479,23 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                     <div className="flex items-center gap-2 px-4 pb-4">
                       <button
                         onClick={() => toggleIngredients(uniqueMealKey)}
-                        className="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                        className="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
                         style={showIngredients[uniqueMealKey]
                           ? { background: 'rgba(255,45,85,.15)', border: '1px solid rgba(255,45,85,.4)', color: 'var(--red)' }
                           : { background: sf3, border: `1px solid ${hair}`, color: txtMid }}
                       >
-                        Ingredients
+                        <BookOpen className="w-4 h-4" />
+                        View ingredients
                       </button>
                       <button
                         onClick={() => toggleInstructions(uniqueMealKey)}
-                        className="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                        className="flex-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
                         style={showInstructions[uniqueMealKey]
                           ? { background: 'rgba(91,140,255,.15)', border: '1px solid rgba(91,140,255,.4)', color: 'var(--blue)' }
                           : { background: sf3, border: `1px solid ${hair}`, color: txtMid }}
                       >
-                        Instructions
+                        <ChefHat className="w-4 h-4" />
+                        How to cook it
                       </button>
                     </div>
 
@@ -540,8 +530,11 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         >
                           <ChevronLeft className="w-4 h-4" />
                         </button>
-                        <div className="text-xs font-display tnum" style={{ color: txtMid }}>
-                          {selectedIndex + 1} / {slot.selectedMeals.length}
+                        <div className="text-center leading-tight">
+                          <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: txtMid }}>Swap meal</div>
+                          <div className="text-xs font-display tnum" style={{ color: txtMid }}>
+                            {selectedIndex + 1} / {slot.selectedMeals.length}
+                          </div>
                         </div>
                         <button
                           onClick={() => navigateMeal(slot.id, 'right')}
