@@ -330,22 +330,8 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
         <div className="w-full px-4 lg:px-6">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shadow-lg p-1">
-                {/* UNBREAKABLES TEAM Logo - Shield with V shape */}
-                <div className="relative w-10 h-10">
-                  {/* Black shield outer shape - inverted V */}
-                  <div className="absolute inset-0 bg-black" style={{
-                    clipPath: 'polygon(0% 0%, 100% 0%, 85% 100%, 15% 100%)',
-                    borderRadius: '4px 4px 0 0'
-                  }}></div>
-                  {/* Red V shape inside */}
-                  <div className="absolute inset-2 bg-red-500" style={{
-                    clipPath: 'polygon(20% 0%, 80% 0%, 60% 100%, 40% 100%)',
-                    borderRadius: '2px'
-                  }}></div>
-                </div>
-              </div>
+            <div className="flex items-center space-x-3">
+              <img src="/brand-logo-light.png" alt="Unbreakables Team" className="w-12 h-12 object-contain shrink-0" />
               <div>
                 <h1 className="text-2xl font-bold text-white">
                   <span className="text-white">UNBREAKABLES</span>

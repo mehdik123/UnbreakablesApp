@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Dumbbell, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { Lock, User, Eye, EyeOff } from 'lucide-react';
 import { authService } from '../lib/authService';
 
 interface CoachLoginProps {
@@ -45,9 +45,7 @@ export const CoachLogin: React.FC<CoachLoginProps> = ({ onLoginSuccess }) => {
       <div className="relative w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl mb-4 shadow-2xl">
-            <Dumbbell className="w-10 h-10 text-white" />
-          </div>
+          <img src="/brand-logo-light.png" alt="Unbreakables" className="w-28 h-28 object-contain mx-auto mb-4 drop-shadow-2xl" />
           <h1 className="text-4xl font-bold text-white mb-2">
             UnbreakableSteam
           </h1>

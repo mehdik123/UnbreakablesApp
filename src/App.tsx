@@ -1138,6 +1138,15 @@ function App() {
         // Main app content
         return (
       <div className="min-h-screen workout-shell">
+        {/* Subtle brand watermark blended behind all content */}
+        <div className="fixed inset-0 z-0 pointer-events-none flex items-center justify-center overflow-hidden" aria-hidden="true">
+          <img
+            src="/brand-logo-light.png"
+            alt=""
+            className="w-[55%] max-w-[620px] object-contain"
+            style={{ opacity: 0.05, filter: 'blur(1px)' }}
+          />
+        </div>
         <div className="relative z-10">
           <Suspense fallback={<ModernLoadingScreen message="Loading component..." />}>
         {appState.currentView === 'clients' && (

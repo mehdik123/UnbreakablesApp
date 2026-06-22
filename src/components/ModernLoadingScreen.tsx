@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Zap, Activity, Target } from 'lucide-react';
+import { Zap, Activity, Target } from 'lucide-react';
 
 interface ModernLoadingScreenProps {
   message?: string;
@@ -27,9 +27,7 @@ export const ModernLoadingScreen: React.FC<ModernLoadingScreenProps> = ({
 
         {/* App Logo */}
         <div className="flex items-center justify-center space-x-3 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center shadow-2xl">
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
+          <img src="/brand-logo-light.png" alt="Unbreakables" className="w-12 h-12 object-contain drop-shadow-2xl" />
           <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
             UnbreakableSteam
           </h1>

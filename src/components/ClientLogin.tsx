@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Lock, Eye, EyeOff, UserCircle } from 'lucide-react';
+import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import { authService } from '../lib/authService';
 
 interface ClientLoginProps {
@@ -46,9 +46,7 @@ export const ClientLogin: React.FC<ClientLoginProps> = ({ clientId, onLoginSucce
       <div className="relative w-full max-w-md">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-2xl mb-4 shadow-2xl">
-            <UserCircle className="w-10 h-10 text-white" />
-          </div>
+          <img src="/brand-logo-light.png" alt="Unbreakables" className="w-28 h-28 object-contain mx-auto mb-4 drop-shadow-2xl" />
           <h1 className="text-4xl font-bold text-white mb-2">
             Welcome Back
           </h1>

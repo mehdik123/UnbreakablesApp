@@ -642,6 +642,16 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       className={`client-mobile-shell min-h-screen ${useDarkTheme ? 'workout-shell' : 'theme-light bg-slate-50'}`}
       dir={isRtl ? 'rtl' : 'ltr'}
     >
+      {/* Subtle brand watermark blended behind all content */}
+      <div className="fixed inset-0 z-0 pointer-events-none flex items-center justify-center overflow-hidden" aria-hidden="true">
+        <img
+          src={useDarkTheme ? '/brand-logo-light.png' : '/brand-logo.png'}
+          alt=""
+          className="w-[82%] max-w-[560px] object-contain"
+          style={{ opacity: useDarkTheme ? 0.05 : 0.04, filter: 'blur(1px)' }}
+        />
+      </div>
+
       {showWelcome && (
         <ClientWelcomeTour name={client.name.split(' ')[0] || 'there'} isRtl={isRtl} t={t} onClose={closeWelcome} />
       )}
