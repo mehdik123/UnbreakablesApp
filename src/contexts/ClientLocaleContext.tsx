@@ -31,7 +31,7 @@ export function ClientLocaleProvider({ children }: { children: React.ReactNode }
   const [locale, setLocaleState] = useState<ClientLocale>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === 'ar' || stored === 'en') return stored;
+      if (stored === 'ar' || stored === 'en' || stored === 'fr') return stored;
     } catch {
       /* ignore */
     }
@@ -66,7 +66,7 @@ export function ClientLocaleProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
-    document.documentElement.setAttribute('lang', locale === 'ar' ? 'ar' : 'en');
+    document.documentElement.setAttribute('lang', locale);
     return () => {
       document.documentElement.setAttribute('dir', 'ltr');
       document.documentElement.setAttribute('lang', 'en');

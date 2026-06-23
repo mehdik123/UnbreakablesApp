@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { computeVolumeFromAssignment } from '../utils/volumeCalculator';
+import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface MuscleGroupData {
   name: string;
@@ -41,6 +42,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
   clientName,
   workoutAssignment
 }) => {
+  const { t } = useClientLocale();
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [imageErrors, setImageErrors] = useState<{ [key: string]: boolean }>({});
@@ -127,7 +129,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                 <Activity className={`w-16 h-16 ${trendTextColor} animate-pulse`} />
               </div>
               <p className={`text-sm font-bold ${trendTextColor}`}>{muscleGroup}</p>
-              <p className="text-xs text-slate-500 mt-1">Image coming soon</p>
+              <p className="text-xs text-slate-500 mt-1">{t('an.imageSoon')}</p>
             </div>
           )}
         </div>
@@ -283,7 +285,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
       <div className="min-h-[50vh] flex items-center justify-center p-4">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{ borderColor: 'var(--red)', borderTopColor: 'transparent' }}></div>
-          <p className="text-white text-lg font-medium">Analyzing Performance Data...</p>
+          <p className="text-white text-lg font-medium">{t('an.analyzing')}</p>
         </div>
       </div>
     );
@@ -299,8 +301,8 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
               <BarChart3 className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-black font-display" style={{ color: 'var(--txt-hi)' }}>Performance Analytics</h1>
-              <p className="text-sm sm:text-base" style={{ color: 'var(--txt-mid)' }}>Weekly muscle group progress analysis for {clientName}</p>
+              <h1 className="text-2xl sm:text-3xl font-black font-display" style={{ color: 'var(--txt-hi)' }}>{t('an.title')}</h1>
+              <p className="text-sm sm:text-base" style={{ color: 'var(--txt-mid)' }}>{t('an.subtitle', { name: clientName })}</p>
             </div>
           </div>
         </div>
@@ -331,7 +333,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                     </div>
                     <div>
                       <h3 className="text-xl font-bold text-white">{muscle.name}</h3>
-                      <p className="text-slate-400 text-sm capitalize">{muscle.trend}</p>
+                      <p className="text-slate-400 text-sm capitalize">{t('an.trend' + muscle.trend.charAt(0).toUpperCase() + muscle.trend.slice(1))}</p>
                     </div>
                   </div>
                   <ChevronRight className={`w-5 h-5 text-slate-400 transition-transform ${selectedMuscle === muscle.name ? 'rotate-90' : ''}`} />
@@ -348,15 +350,15 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                 {/* Stats */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400 text-sm">Current Week</span>
+                    <span className="text-slate-400 text-sm">{t('an.currentWeek')}</span>
                     <span className="text-white font-bold">{muscle.currentWeekVolume.toLocaleString()} kg</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400 text-sm">Previous Week</span>
+                    <span className="text-slate-400 text-sm">{t('an.previousWeek')}</span>
                     <span className="text-slate-300 font-medium">{muscle.previousWeekVolume.toLocaleString()} kg</span>
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
-                    <span className="text-slate-400 text-sm">Change</span>
+                    <span className="text-slate-400 text-sm">{t('an.change')}</span>
                     <div className={`flex items-center gap-1 font-bold ${
                       muscle.changePercentage > 0 ? 'text-green-400' : 
                       muscle.changePercentage < 0 ? 'text-red-400' : 'text-blue-400'
@@ -376,7 +378,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                     <div className="rounded-xl p-4" style={{ background: 'linear-gradient(135deg, rgba(255,45,85,.1), rgba(255,106,85,.06))', border: '1px solid rgba(255,45,85,.2)' }}>
                       <div className="flex items-center gap-2 mb-2">
                         <TrendingUp className="w-4 h-4" style={{ color: 'var(--red)' }} />
-                        <h4 className="text-sm font-bold" style={{ color: 'var(--coral)' }}>This Week vs Last Week</h4>
+                        <h4 className="text-sm font-bold" style={{ color: 'var(--coral)' }}>{t('an.thisVsLast')}</h4>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-slate-300 text-sm">
@@ -395,7 +397,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                     <div className="bg-gradient-to-br from-emerald-500/10 to-green-500/10 border border-emerald-500/20 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Target className="w-4 h-4 text-emerald-400" />
-                        <h4 className="text-sm font-bold text-emerald-300">Total Progress (vs Week 1)</h4>
+                        <h4 className="text-sm font-bold text-emerald-300">{t('an.totalProgress')}</h4>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-slate-300 text-sm">
@@ -414,11 +416,11 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                     <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-500/20 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <BarChart3 className="w-4 h-4 text-blue-400" />
-                        <h4 className="text-sm font-bold text-blue-300">vs Your Average</h4>
+                        <h4 className="text-sm font-bold text-blue-300">{t('an.vsAverage')}</h4>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-slate-300 text-sm">
-                          Avg: {muscle.averageVolume.toLocaleString()} kg
+                          {t('an.avg', { n: muscle.averageVolume.toLocaleString() })}
                         </span>
                         <div className={`flex items-center gap-1 font-bold text-lg ${
                           muscle.vsAveragePercentage > 0 ? 'text-green-400' : 
@@ -428,7 +430,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                         </div>
                       </div>
                       <p className="text-xs text-slate-400 mt-1">
-                        {muscle.vsAveragePercentage > 0 ? 'Above' : muscle.vsAveragePercentage < 0 ? 'Below' : 'At'} your typical performance
+                        {muscle.vsAveragePercentage > 0 ? t('an.abovePerf') : muscle.vsAveragePercentage < 0 ? t('an.belowPerf') : t('an.atPerf')}
                       </p>
                     </div>
 
@@ -436,7 +438,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                     <div className="rounded-xl p-4" style={{ background: 'linear-gradient(135deg, rgba(255,106,85,.1), rgba(255,45,85,.05))', border: '1px solid rgba(255,106,85,.2)' }}>
                       <div className="flex items-center gap-2 mb-2">
                         <Activity className="w-4 h-4" style={{ color: 'var(--coral)' }} />
-                        <h4 className="text-sm font-bold" style={{ color: 'var(--coral)' }}>Consistency Score</h4>
+                        <h4 className="text-sm font-bold" style={{ color: 'var(--coral)' }}>{t('an.consistencyScore')}</h4>
                       </div>
                       <div className="flex items-center gap-3">
                         {/* Circular Progress */}
@@ -474,10 +476,10 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                         <div className="flex-1">
                           <p className="text-slate-200 text-sm leading-relaxed">
                             {muscle.consistencyScore >= 80 
-                              ? '🎯 Very consistent training!' 
+                              ? t('an.consistencyHigh') 
                               : muscle.consistencyScore >= 60 
-                              ? '👍 Fairly consistent, room for improvement' 
-                              : '⚠️ Training volume varies significantly'}
+                              ? t('an.consistencyMid') 
+                              : t('an.consistencyLow')}
                           </p>
                         </div>
                       </div>
@@ -485,7 +487,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
 
                     {/* Mini Chart */}
                     <div className="mt-3">
-                      <h5 className="text-xs font-semibold text-slate-400 mb-2">Weekly Volume History</h5>
+                      <h5 className="text-xs font-semibold text-slate-400 mb-2">{t('an.volumeHistory')}</h5>
                       <div className="flex items-end gap-1 h-16">
                         {muscle.weeklyHistory.map((volume, idx) => (
                           <div
@@ -495,13 +497,13 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                               height: `${muscle.weeklyHistory.length ? (volume / Math.max(1, ...muscle.weeklyHistory)) * 100 : 0}%`,
                               background: 'linear-gradient(to top, var(--red), var(--coral))'
                             }}
-                            title={`Week ${idx + 1}: ${volume.toLocaleString()} kg`}
+                            title={`${t('an.week', { n: idx + 1 })}: ${volume.toLocaleString()} kg`}
                           />
                         ))}
                       </div>
                       <div className="flex justify-between mt-1">
-                        <span className="text-[10px] text-slate-500">Week 1</span>
-                        <span className="text-[10px] text-slate-500">Week {muscle.weeklyHistory.length}</span>
+                        <span className="text-[10px] text-slate-500">{t('an.week', { n: 1 })}</span>
+                        <span className="text-[10px] text-slate-500">{t('an.week', { n: muscle.weeklyHistory.length })}</span>
                       </div>
                     </div>
                   </div>
@@ -517,41 +519,41 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
             <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-red" style={{ background: 'var(--grad-red)' }}>
               <Target className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-2xl font-bold font-display" style={{ color: 'var(--txt-hi)' }}>Overall Summary</h2>
+            <h2 className="text-2xl font-bold font-display" style={{ color: 'var(--txt-hi)' }}>{t('an.overallSummary')}</h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingUp className="w-5 h-5 text-green-400" />
-                <span className="text-green-400 font-bold text-sm">Improving</span>
+                <span className="text-green-400 font-bold text-sm">{t('an.improving')}</span>
               </div>
               <p className="text-3xl font-black text-white">
                 {muscleGroups.filter(m => m.trend === 'increasing').length}
               </p>
-              <p className="text-slate-400 text-sm">Muscle groups</p>
+              <p className="text-slate-400 text-sm">{t('an.muscleGroupsLabel')}</p>
             </div>
 
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Minus className="w-5 h-5 text-blue-400" />
-                <span className="text-blue-400 font-bold text-sm">Stable</span>
+                <span className="text-blue-400 font-bold text-sm">{t('an.stable')}</span>
               </div>
               <p className="text-3xl font-black text-white">
                 {muscleGroups.filter(m => m.trend === 'stable').length}
               </p>
-              <p className="text-slate-400 text-sm">Muscle groups</p>
+              <p className="text-slate-400 text-sm">{t('an.muscleGroupsLabel')}</p>
             </div>
 
             <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingDown className="w-5 h-5 text-red-400" />
-                <span className="text-red-400 font-bold text-sm">Declining</span>
+                <span className="text-red-400 font-bold text-sm">{t('an.declining')}</span>
               </div>
               <p className="text-3xl font-black text-white">
                 {muscleGroups.filter(m => m.trend === 'decreasing').length}
               </p>
-              <p className="text-slate-400 text-sm">Muscle groups</p>
+              <p className="text-slate-400 text-sm">{t('an.muscleGroupsLabel')}</p>
             </div>
           </div>
         </div>

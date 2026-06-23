@@ -2708,7 +2708,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                       {([
                         { id: 'progress', label: 'Auto-progress', hint: 'Apply progression rules' },
                         { id: 'deload', label: 'Deload week', hint: 'Halve load / strip added weight' },
-                        { id: 'copy', label: 'Copy actuals', hint: 'No changes' },
+                        { id: 'copy', label: `Keep same as Week ${draftNewWeek.weekNumber - 1}`, hint: `Same exercises, reps and weights as Week ${draftNewWeek.weekNumber - 1}` },
                       ] as { id: WeekGenMode; label: string; hint: string }[]).map((opt) => (
                         <button
                           key={opt.id}
@@ -2731,7 +2731,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                       <span className="text-xs text-slate-400 ml-1">
                         {weekGenMode === 'progress' && 'Targets computed from performance. Review & edit before deploying.'}
                         {weekGenMode === 'deload' && 'Recovery week. Reps kept; load reduced.'}
-                        {weekGenMode === 'copy' && 'Exact copy of last week.'}
+                        {weekGenMode === 'copy' && `Week ${draftNewWeek.weekNumber} starts with the exact same exercises, reps and weights as Week ${draftNewWeek.weekNumber - 1}.`}
                       </span>
                     </div>
                   </div>

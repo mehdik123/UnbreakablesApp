@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, Upload, X, ChevronDown, ArrowLeftRight } from 'lucide-react';
 import { dbSaveWeeklyPhoto, dbDeleteWeeklyPhoto, dbGetClientPhotos, uploadWeeklyPhoto, WeeklyPhoto } from '../lib/db';
+import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface WeeklyPhotoUploadProps {
   clientId: string;
@@ -17,6 +18,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
   onPhotosUpdate,
   existingPhotos = []
 }) => {
+  const { t } = useClientLocale();
   const [photos, setPhotos] = useState<WeeklyPhoto[]>(existingPhotos);
   const [uploading, setUploading] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState<number>(currentWeek);
@@ -73,9 +75,9 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
   }, []);
 
   const photoTypes: Array<{ type: 'front' | 'side' | 'back'; label: string }> = [
-    { type: 'front', label: 'Front' },
-    { type: 'side', label: 'Side' },
-    { type: 'back', label: 'Back' }
+    { type: 'front', label: t('photo.front') },
+    { type: 'side', label: t('photo.side') },
+    { type: 'back', label: t('photo.back') }
   ];
 
   const handleFileSelect = useCallback(async (files: FileList | null, photoType: 'front' | 'side' | 'back') => {
@@ -87,13 +89,13 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
       const file = files[0];
       
       if (!file.type.startsWith('image/')) {
-        alert('Please select a valid image file');
+        alert(t('photo.invalidImage'));
         setUploading(false);
         return;
       }
 
       if (file.size > 10 * 1024 * 1024) {
-        alert('Image size must be less than 10MB');
+        alert(t('photo.tooLarge'));
         setUploading(false);
         return;
       }
@@ -124,7 +126,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
       }
 
       if (error || !savedPhoto) {
-        alert('Failed to save photo. Please try again.');
+        alert(t('photo.saveFailed'));
         setUploading(false);
         return;
       }
@@ -145,7 +147,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
       setUploading(false);
     } catch (error) {
       console.error('Error processing file:', error);
-      alert('Failed to process file. Please try again.');
+      alert(t('photo.processFailed'));
       setUploading(false);
     }
   }, [clientId, selectedWeek, photos, onPhotosUpdate]);
@@ -155,7 +157,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
       const { error } = await dbDeleteWeeklyPhoto(photoId);
       
       if (error) {
-        alert('Failed to delete photo. Please try again.');
+        alert(t('photo.deleteFailed'));
         return;
       }
 
@@ -163,7 +165,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
       setPhotos(updatedPhotos);
       onPhotosUpdate(updatedPhotos);
     } catch (error) {
-      alert('Failed to delete photo. Please try again.');
+      alert(t('photo.deleteFailed'));
     }
   }, [photos, onPhotosUpdate]);
 
@@ -180,7 +182,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Camera className="w-4 h-4" style={{ color: 'var(--red)' }} />
-            <span className="text-sm font-semibold font-display" style={{ color: 'var(--txt-hi)' }}>Progress Photos</span>
+            <span className="text-sm font-semibold font-display" style={{ color: 'var(--txt-hi)' }}>{t('photo.progressPhotos')}</span>
           </div>
           {weekPhotos.length > 0 && (
             <span className="text-xs" style={{ color: 'var(--txt-mid)' }}>{weekPhotos.length}/3</span>
@@ -198,7 +200,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
               <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,45,85,.18)' }}>
                 <span className="text-xs font-bold" style={{ color: 'var(--red)' }}>{selectedWeek}</span>
               </div>
-              <span className="text-sm font-medium" style={{ color: 'var(--txt-hi)' }}>Week {selectedWeek}</span>
+              <span className="text-sm font-medium" style={{ color: 'var(--txt-hi)' }}>{t('photo.week', { n: selectedWeek })}</span>
               {weekPhotos.length === 3 && (
                 <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--emerald)' }}></div>
               )}
@@ -213,7 +215,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
               <div className="max-h-64 overflow-y-auto custom-scrollbar">
                 {/* Current Week Badge */}
                 <div className="sticky top-0 px-3 py-2 backdrop-blur-sm z-10" style={{ background: 'var(--surface-2)' }}>
-                  <span className="text-xs font-medium" style={{ color: 'var(--txt-mid)' }}>Select Week</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--txt-mid)' }}>{t('photo.selectWeek')}</span>
                 </div>
 
                 <div className="px-1 pb-1">
@@ -248,10 +250,10 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                           
                           <div className="flex flex-col">
                             <span className="text-sm font-medium" style={{ color: isSelected ? '#fff' : 'var(--txt-hi)' }}>
-                              Week {week}
+                              {t('photo.week', { n: week })}
                             </span>
                             {isCurrent && !isSelected && (
-                              <span className="text-xs" style={{ color: 'var(--red)' }}>Current</span>
+                              <span className="text-xs" style={{ color: 'var(--red)' }}>{t('photo.current')}</span>
                             )}
                           </div>
                         </div>
@@ -346,7 +348,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
           >
             <div className="flex items-center gap-2">
               <ArrowLeftRight className="w-4 h-4" />
-              <span>Compare Progress</span>
+              <span>{t('photo.compareProgress')}</span>
             </div>
             <ChevronDown className={`w-4 h-4 transition-transform ${showComparison ? 'rotate-180' : ''}`} />
           </button>
@@ -362,10 +364,10 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                   style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)' }}
                 >
                   {Array.from({ length: maxWeeks }, (_, i) => i + 1).map(week => (
-                    <option key={week} value={week}>Week {week}</option>
+                    <option key={week} value={week}>{t('photo.week', { n: week })}</option>
                   ))}
                 </select>
-                <span className="text-xs font-bold" style={{ color: 'var(--txt-mid)' }}>VS</span>
+                <span className="text-xs font-bold" style={{ color: 'var(--txt-mid)' }}>{t('photo.vs')}</span>
                 <select
                   value={compareWeek2}
                   onChange={(e) => setCompareWeek2(Number(e.target.value))}
@@ -373,7 +375,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                   style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)' }}
                 >
                   {Array.from({ length: maxWeeks }, (_, i) => i + 1).map(week => (
-                    <option key={week} value={week}>Week {week}</option>
+                    <option key={week} value={week}>{t('photo.week', { n: week })}</option>
                   ))}
                 </select>
               </div>
@@ -393,12 +395,12 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                           <>
                             <img src={photo1.imageUrl} alt={`${label} week ${compareWeek1}`} className="w-full h-full object-cover" />
                             <div className="absolute top-2 left-2 px-2 py-1 rounded-lg text-white text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm" style={{ background: 'rgba(8,9,13,.6)' }}>
-                              Week {compareWeek1}
+                              {t('photo.week', { n: compareWeek1 })}
                             </div>
                           </>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>No photo</span>
+                            <span className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>{t('photo.noPhoto')}</span>
                           </div>
                         )}
                       </div>
@@ -409,12 +411,12 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                           <>
                             <img src={photo2.imageUrl} alt={`${label} week ${compareWeek2}`} className="w-full h-full object-cover" />
                             <div className="absolute top-2 left-2 px-2 py-1 rounded-lg text-white text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm" style={{ background: 'rgba(8,9,13,.6)' }}>
-                              Week {compareWeek2}
+                              {t('photo.week', { n: compareWeek2 })}
                             </div>
                           </>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>No photo</span>
+                            <span className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>{t('photo.noPhoto')}</span>
                           </div>
                         )}
                       </div>

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Client, NutritionPlan, Meal, Ingredient, SelectedMeal } from '../types';
 import { exportEnhancedNutritionPDF } from '../utils/enhancedPdfExport';
+import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface ClientNutritionViewProps {
   client: Client;
@@ -31,6 +32,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
   isDark,
   nutritionPlan: propNutritionPlan
 }) => {
+  const { t } = useClientLocale();
   const [favoriteMeals, setFavoriteMeals] = useState<string[]>([]);
   const [showIngredients, setShowIngredients] = useState<{ [mealId: string]: boolean }>({});
   const [showInstructions, setShowInstructions] = useState<{ [mealId: string]: boolean }>({});
@@ -276,10 +278,10 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
             <Utensils className="w-10 h-10" style={{ color: 'var(--emerald)' }} />
           </div>
           <h3 className="font-display text-xl font-semibold mb-2" style={{ color: 'var(--txt-hi)' }}>
-            No nutrition plan yet
+            {t('nut.noPlanTitle')}
           </h3>
           <p className="text-sm mb-6 leading-relaxed" style={{ color: 'var(--txt-mid)' }}>
-            Your coach is crafting your personalized nutrition plan. Once it's ready, your meals and daily targets will show up here.
+            {t('nut.noPlanBody')}
           </p>
           <button
             onClick={() => window.location.reload()}
@@ -287,7 +289,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
             style={{ background: 'var(--grad-red)' }}
           >
             <Zap className="w-4 h-4" />
-            Check for updates
+            {t('nut.checkUpdates')}
           </button>
         </div>
       </div>
@@ -326,8 +328,8 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
         >
           <div className="pointer-events-none absolute -top-20 -right-16 w-40 h-40 rounded-full bg-[#ff2d55]/15 blur-3xl" />
           <div className={`flex items-center justify-between text-sm ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>
-            <span>Daily Calories</span>
-            <span>Remaining {Math.max(0, Math.round(dailyTotals.calories) - 825)}</span>
+            <span>{t('nut.dailyCalories')}</span>
+            <span>{t('nut.remaining', { n: Math.max(0, Math.round(dailyTotals.calories) - 825) })}</span>
           </div>
           <div className="mt-2 flex items-end justify-between">
             <div className="text-4xl font-black">{Math.round(dailyTotals.calories)}</div>
@@ -336,19 +338,19 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-600/20 px-3 py-2 text-sm font-semibold text-emerald-300 hover:bg-emerald-600/30 transition-colors"
             >
               <Download className="w-4 h-4" />
-              Export
+              {t('nut.export')}
             </button>
           </div>
-          <div className={`mt-3 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Consumed 825 kcal • Goal {Math.round(dailyTotals.calories)} kcal</div>
+          <div className={`mt-3 text-xs ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('nut.consumedGoal', { consumed: 825, goal: Math.round(dailyTotals.calories) })}</div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl p-3 shadow-soft" style={{ background: sf1, border: `1px solid ${hair}` }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>Calories</p>
+                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>{t('nut.calories')}</p>
                 <p className="text-2xl font-bold" style={{ color: txtHi }}>{Math.round(dailyTotals.calories)}</p>
-                <p className="text-xs" style={{ color: txtMid }}>kcal</p>
+                <p className="text-xs" style={{ color: txtMid }}>{t('nut.kcal')}</p>
               </div>
               <Flame className="w-5 h-5 text-[#ff6248]" />
             </div>
@@ -356,9 +358,9 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
           <div className="rounded-2xl p-3 shadow-soft" style={{ background: sf1, border: `1px solid ${hair}` }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>Protein</p>
+                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>{t('nut.protein')}</p>
                 <p className="text-2xl font-bold" style={{ color: txtHi }}>{Math.round(dailyTotals.protein)}g</p>
-                <p className="text-xs" style={{ color: txtMid }}>of goal</p>
+                <p className="text-xs" style={{ color: txtMid }}>{t('nut.ofGoal')}</p>
               </div>
               <Dumbbell className="w-5 h-5 text-[#4fa4ff]" />
             </div>
@@ -366,9 +368,9 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
           <div className="rounded-2xl p-3 shadow-soft" style={{ background: sf1, border: `1px solid ${hair}` }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>Carbs</p>
+                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>{t('nut.carbs')}</p>
                 <p className="text-2xl font-bold" style={{ color: txtHi }}>{Math.round(dailyTotals.carbs)}g</p>
-                <p className="text-xs" style={{ color: txtMid }}>of goal</p>
+                <p className="text-xs" style={{ color: txtMid }}>{t('nut.ofGoal')}</p>
               </div>
               <TrendingUp className="w-5 h-5 text-[#4de1a6]" />
             </div>
@@ -376,9 +378,9 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
           <div className="rounded-2xl p-3 shadow-soft" style={{ background: sf1, border: `1px solid ${hair}` }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>Fats</p>
+                <p className="text-[11px] uppercase tracking-widest" style={{ color: txtMid }}>{t('nut.fats')}</p>
                 <p className="text-2xl font-bold" style={{ color: txtHi }}>{Math.round(dailyTotals.fats)}g</p>
-                <p className="text-xs" style={{ color: txtMid }}>of goal</p>
+                <p className="text-xs" style={{ color: txtMid }}>{t('nut.ofGoal')}</p>
               </div>
               <Zap className="w-5 h-5 text-[#ffd351]" />
             </div>
@@ -387,7 +389,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
         <div className="pt-2" style={{ borderTop: `1px solid ${hair}` }}>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-2xl font-bold font-display">Meal Plan</h2>
+            <h2 className="text-2xl font-bold font-display">{t('nut.mealPlan')}</h2>
           </div>
           <div className="space-y-5">
             {(displayNutritionPlan?.mealSlots || []).map((slot) => {
@@ -412,7 +414,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                       <div className="min-w-0">
                         <h3 className="font-display font-bold text-[15px] leading-tight truncate" style={{ color: txtHi }}>{slot.name}</h3>
                         <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>
-                          {slot.selectedMeals.length} {slot.selectedMeals.length === 1 ? 'option' : 'options'}
+                          {slot.selectedMeals.length} {slot.selectedMeals.length === 1 ? t('nut.option') : t('nut.options')}
                         </span>
                       </div>
                     </div>
@@ -421,7 +423,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                       className="text-xs font-semibold inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg shrink-0 active:scale-95 transition-transform"
                       style={{ background: sf2, border: `1px solid ${hair}`, color: txtMid }}
                     >
-                      View all <ChevronRight className="w-3.5 h-3.5" />
+                      {t('nut.viewAll')} <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
@@ -437,8 +439,8 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         <img src={mealImage} alt={mealName} className="w-full h-full object-cover" />
                         <div className={`absolute inset-0 ${isDark ? 'bg-gradient-to-t from-[#081327] via-[#0b1730]/35 to-transparent' : 'bg-gradient-to-t from-[#0b1324]/70 via-[#0b1324]/20 to-transparent'}`} />
                         <div className="absolute top-3 left-3 flex items-center gap-2">
-                          <span className="px-2 py-1 rounded-full text-[11px] border border-white/30 bg-white/20 backdrop-blur-sm">High Protein</span>
-                          <span className="px-2 py-1 rounded-full text-[11px] border border-white/30 bg-white/20 backdrop-blur-sm">Quick</span>
+                          <span className="px-2 py-1 rounded-full text-[11px] border border-white/30 bg-white/20 backdrop-blur-sm">{t('nut.highProtein')}</span>
+                          <span className="px-2 py-1 rounded-full text-[11px] border border-white/30 bg-white/20 backdrop-blur-sm">{t('nut.quick')}</span>
                         </div>
                         <button
                           onClick={(e) => {
@@ -458,7 +460,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                           <h4 className="text-3xl font-extrabold leading-tight">{mealName}</h4>
                           <div className="mt-1 flex items-center gap-1 text-white/80 text-sm">
                             <Clock className="w-4 h-4" />
-                            <span>5 min</span>
+                            <span>{t('nut.minutes', { n: 5 })}</span>
                           </div>
                         </div>
                       </div>
@@ -467,19 +469,19 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                     <div className="grid grid-cols-4 gap-2 px-4 py-3" style={{ borderTop: `1px solid ${hair}`, background: sf2 }}>
                       <div className="text-center">
                         <div className="text-lg font-bold font-display" style={{ color: '#ff6248' }}>{nutrition.calories}</div>
-                        <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>Cal</div>
+                        <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>{t('nut.cal')}</div>
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-bold font-display" style={{ color: '#4fa4ff' }}>{nutrition.protein}</div>
-                        <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>Pro</div>
+                        <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>{t('nut.pro')}</div>
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-bold font-display" style={{ color: '#4de1a6' }}>{nutrition.carbs}</div>
-                        <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>Carb</div>
+                        <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>{t('nut.carb')}</div>
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-bold font-display" style={{ color: '#ffd351' }}>{nutrition.fats}</div>
-                        <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>Fat</div>
+                        <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>{t('nut.fat')}</div>
                       </div>
                     </div>
                     <div className="grid grid-cols-4 gap-2 px-4 pb-2 -mt-1">
@@ -498,7 +500,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                           : { background: 'rgba(255,45,85,.09)', border: '1px solid rgba(255,45,85,.28)', color: 'var(--red)' }}
                       >
                         <BookOpen className="w-4 h-4" />
-                        View ingredients
+                        {t('nut.viewIngredients')}
                       </button>
                       <button
                         onClick={() => toggleInstructions(uniqueMealKey)}
@@ -508,7 +510,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                           : { background: 'rgba(91,140,255,.09)', border: '1px solid rgba(91,140,255,.28)', color: 'var(--blue)' }}
                       >
                         <ChefHat className="w-4 h-4" />
-                        How to cook it
+                        {t('nut.howToCook')}
                       </button>
                     </div>
 
@@ -516,7 +518,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                       <div className="px-4 pb-3">
                         <div className="flex items-center gap-2 mb-2">
                           <BookOpen className="w-3.5 h-3.5" style={{ color: 'var(--red)' }} />
-                          <span className="text-[11px] uppercase tracking-wider font-bold" style={{ color: txtMid }}>Ingredients</span>
+                          <span className="text-[11px] uppercase tracking-wider font-bold" style={{ color: txtMid }}>{t('nut.ingredients')}</span>
                           <span className="text-[10px] font-display tnum px-1.5 py-0.5 rounded-md" style={{ background: sf3, color: txtMid }}>
                             {getDisplayIngredients(selectedMeal).length}
                           </span>
@@ -540,7 +542,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                       <div className="px-4 pb-4">
                         <div className="flex items-center gap-2 mb-2">
                           <ChefHat className="w-3.5 h-3.5" style={{ color: 'var(--blue)' }} />
-                          <span className="text-[11px] uppercase tracking-wider font-bold" style={{ color: txtMid }}>How to cook it</span>
+                          <span className="text-[11px] uppercase tracking-wider font-bold" style={{ color: txtMid }}>{t('nut.howToCook')}</span>
                           <div className="flex-1 h-px" style={{ background: hair }} />
                         </div>
                         <div className="rounded-xl p-3.5 text-sm leading-relaxed whitespace-pre-line" style={{ background: sf2, border: `1px solid ${hair}`, color: txtMid }}>
@@ -560,7 +562,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                           <ChevronLeft className="w-4 h-4" />
                         </button>
                         <div className="text-center leading-tight">
-                          <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: txtMid }}>Swap meal</div>
+                          <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: txtMid }}>{t('nut.swapMeal')}</div>
                           <div className="text-xs font-display tnum" style={{ color: txtMid }}>
                             {selectedIndex + 1} / {slot.selectedMeals.length}
                           </div>
@@ -587,7 +589,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
             <div className="w-full max-w-md rounded-3xl max-h-[80vh] overflow-y-auto" style={{ background: sf1, border: `1px solid ${hair}` }}>
               <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${hair}`, background: sf1 }}>
                 <h3 className="font-bold text-lg font-display" style={{ color: txtHi }}>
-                  {displayNutritionPlan.mealSlots.find(s => s.id === viewAllSlotId)?.name} options
+                  {t('nut.slotOptions', { name: displayNutritionPlan.mealSlots.find(s => s.id === viewAllSlotId)?.name || '' })}
                 </h3>
                 <button onClick={() => setViewAllSlotId(null)} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: sf2, border: `1px solid ${hair}`, color: txtHi }}>
                   <X className="w-5 h-5" />
@@ -614,7 +616,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                       <div className="p-3">
                         <div className="font-semibold text-base font-display" style={{ color: txtHi }}>{mealName}</div>
                         <div className="mt-1 text-xs" style={{ color: txtMid }}>
-                          {nutrition.calories} cal • {nutrition.protein}g protein • {nutrition.carbs}g carbs • {nutrition.fats}g fats
+                          {t('nut.mealSummary', { cal: nutrition.calories, protein: nutrition.protein, carbs: nutrition.carbs, fats: nutrition.fats })}
                         </div>
                       </div>
                     </button>
@@ -680,19 +682,19 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                       <div className="grid grid-cols-4 gap-2 mb-4">
                         <div className="rounded-2xl py-3 text-center" style={{ background: sf2, border: `1px solid ${hair}` }}>
                           <div className="text-2xl font-bold font-display" style={{ color: '#ff6248' }}>{nutrition.calories}</div>
-                          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>Calories</div>
+                          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>{t('nut.calories')}</div>
                         </div>
                         <div className="rounded-2xl py-3 text-center" style={{ background: sf2, border: `1px solid ${hair}` }}>
                           <div className="text-2xl font-bold font-display" style={{ color: '#4fa4ff' }}>{nutrition.protein}</div>
-                          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>Protein</div>
+                          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>{t('nut.protein')}</div>
                         </div>
                         <div className="rounded-2xl py-3 text-center" style={{ background: sf2, border: `1px solid ${hair}` }}>
                           <div className="text-2xl font-bold font-display" style={{ color: '#4de1a6' }}>{nutrition.carbs}</div>
-                          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>Carbs</div>
+                          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>{t('nut.carbs')}</div>
                         </div>
                         <div className="rounded-2xl py-3 text-center" style={{ background: sf2, border: `1px solid ${hair}` }}>
                           <div className="text-2xl font-bold font-display" style={{ color: '#ffd351' }}>{nutrition.fats}</div>
-                          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>Fats</div>
+                          <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: txtMid }}>{t('nut.fats')}</div>
                         </div>
                       </div>
 
@@ -705,7 +707,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                             : { background: 'rgba(255,45,85,.09)', border: '1px solid rgba(255,45,85,.28)', color: 'var(--red)' }}
                         >
                           <BookOpen className="w-4 h-4" />
-                          View ingredients
+                          {t('nut.viewIngredients')}
                         </button>
                         <button
                           onClick={() => toggleInstructions(uniqueMealKey)}
@@ -715,7 +717,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                             : { background: 'rgba(91,140,255,.09)', border: '1px solid rgba(91,140,255,.28)', color: 'var(--blue)' }}
                         >
                           <ChefHat className="w-4 h-4" />
-                          How to cook it
+                          {t('nut.howToCook')}
                         </button>
                       </div>
 
@@ -723,7 +725,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         <div className="mb-4">
                           <div className="flex items-center gap-2 mb-2">
                             <BookOpen className="w-4 h-4" style={{ color: 'var(--red)' }} />
-                            <span className="text-[11px] uppercase tracking-wider font-bold" style={{ color: txtMid }}>Ingredients</span>
+                            <span className="text-[11px] uppercase tracking-wider font-bold" style={{ color: txtMid }}>{t('nut.ingredients')}</span>
                             <span className="text-[10px] font-display tnum px-1.5 py-0.5 rounded-md" style={{ background: sf3, color: txtMid }}>{ingredients.length}</span>
                             <div className="flex-1 h-px" style={{ background: hair }} />
                           </div>
@@ -745,7 +747,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                         <div className="pb-6">
                           <div className="flex items-center gap-2 mb-2">
                             <ChefHat className="w-4 h-4" style={{ color: 'var(--blue)' }} />
-                            <span className="text-[11px] uppercase tracking-wider font-bold" style={{ color: txtMid }}>How to cook it</span>
+                            <span className="text-[11px] uppercase tracking-wider font-bold" style={{ color: txtMid }}>{t('nut.howToCook')}</span>
                             <div className="flex-1 h-px" style={{ background: hair }} />
                           </div>
                           <div className="rounded-xl p-3.5 leading-relaxed whitespace-pre-line text-sm" style={{ background: sf2, border: `1px solid ${hair}`, color: txtMid }}>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus, Target, Calendar, BarChart3 } from 'lucide-react';
+import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface StatsCardProps {
   title: string;
@@ -65,30 +66,31 @@ export const WeightStatsGrid: React.FC<WeightStatsGridProps> = ({
   totalEntries,
   averageWeight,
 }) => {
+  const { t } = useClientLocale();
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-6">
       <StatsCard
-        title="Current Weight"
+        title={t('wt.currentWeight')}
         value={currentWeight}
         icon={<Target className="w-5 h-5 sm:w-7 sm:h-7 text-[#dc1e3a] drop-shadow-lg" />}
         unit="kg"
       />
       <StatsCard
-        title="Weekly Change"
+        title={t('wt.weeklyChange')}
         value={Math.abs(weeklyChange)}
         change={weeklyChange}
         icon={<TrendingUp className="w-5 h-5 sm:w-7 sm:h-7 text-[#dc1e3a] drop-shadow-lg" />}
         unit="kg"
       />
       <StatsCard
-        title="Monthly Change"
+        title={t('wt.monthlyChange')}
         value={Math.abs(monthlyChange)}
         change={monthlyChange}
         icon={<Calendar className="w-5 h-5 sm:w-7 sm:h-7 text-[#dc1e3a] drop-shadow-lg" />}
         unit="kg"
       />
       <StatsCard
-        title="Average Weight"
+        title={t('wt.averageWeight')}
         value={averageWeight}
         icon={<BarChart3 className="w-5 h-5 sm:w-7 sm:h-7 text-[#dc1e3a] drop-shadow-lg" />}
         unit="kg"

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Pill, Droplets, Clock, Info, Sparkles } from 'lucide-react';
-import { ClientSupplement, ClientHydration, groupSupplementsByTiming, timingLabels, categoryLabels } from '../types/supplements';
+import { ClientSupplement, ClientHydration, groupSupplementsByTiming, categoryLabels } from '../types/supplements';
 import { getClientSupplements, getClientHydration } from '../services/supplementsService';
+import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface ClientSupplementsViewProps {
   clientId: string;
 }
 
 export const ClientSupplementsView: React.FC<ClientSupplementsViewProps> = ({ clientId }) => {
+  const { t } = useClientLocale();
   const [supplements, setSupplements] = useState<ClientSupplement[]>([]);
   const [hydration, setHydration] = useState<ClientHydration | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,14 +55,14 @@ export const ClientSupplementsView: React.FC<ClientSupplementsViewProps> = ({ cl
             <Pill className="w-7 h-7 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold font-display" style={{ color: 'var(--txt-hi)' }}>Your Supplements</h2>
-            <p className="text-sm" style={{ color: 'var(--txt-mid)' }}>Optimized supplement schedule</p>
+            <h2 className="text-2xl font-bold font-display" style={{ color: 'var(--txt-hi)' }}>{t('supp.title')}</h2>
+            <p className="text-sm" style={{ color: 'var(--txt-mid)' }}>{t('supp.subtitle')}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl" style={{ background: 'var(--glass)', border: '1px solid var(--hair)' }}>
           <Sparkles className="w-4 h-4" style={{ color: 'var(--red)' }} />
           <span className="text-sm font-medium" style={{ color: 'var(--txt-mid)' }}>
-            {supplements.length} supplements prescribed by your coach
+            {t('supp.prescribed', { count: supplements.length })}
           </span>
         </div>
       </div>
@@ -74,28 +76,28 @@ export const ClientSupplementsView: React.FC<ClientSupplementsViewProps> = ({ cl
                 <Droplets className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Daily Water Goal</h3>
-                <p className="text-blue-200/70 text-sm">Stay hydrated throughout the day</p>
+                <h3 className="text-lg font-bold text-white">{t('supp.waterGoal')}</h3>
+                <p className="text-blue-200/70 text-sm">{t('supp.waterSubtitle')}</p>
               </div>
             </div>
             <div className="text-right">
               <div className="text-4xl font-black text-blue-400">{(hydration.target_water_ml / 1000).toFixed(1)}L</div>
-              <div className="text-sm text-blue-300">{hydration.target_water_ml} ml/day</div>
+              <div className="text-sm text-blue-300">{t('supp.mlPerDay', { ml: hydration.target_water_ml })}</div>
             </div>
           </div>
           
           {/* Water intake tips */}
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="px-3 py-2 bg-blue-500/10 rounded-lg">
-              <div className="text-xs text-blue-300 font-medium">Morning</div>
+              <div className="text-xs text-blue-300 font-medium">{t('supp.morning')}</div>
               <div className="text-sm text-white font-bold">{((hydration.target_water_ml * 0.3) / 1000).toFixed(1)}L</div>
             </div>
             <div className="px-3 py-2 bg-blue-500/10 rounded-lg">
-              <div className="text-xs text-blue-300 font-medium">During Day</div>
+              <div className="text-xs text-blue-300 font-medium">{t('supp.duringDay')}</div>
               <div className="text-sm text-white font-bold">{((hydration.target_water_ml * 0.5) / 1000).toFixed(1)}L</div>
             </div>
             <div className="px-3 py-2 bg-blue-500/10 rounded-lg">
-              <div className="text-xs text-blue-300 font-medium">Evening</div>
+              <div className="text-xs text-blue-300 font-medium">{t('supp.evening')}</div>
               <div className="text-sm text-white font-bold">{((hydration.target_water_ml * 0.2) / 1000).toFixed(1)}L</div>
             </div>
           </div>
@@ -106,8 +108,8 @@ export const ClientSupplementsView: React.FC<ClientSupplementsViewProps> = ({ cl
       {supplements.length === 0 ? (
         <div className="text-center py-12 bg-slate-800/30 rounded-2xl border border-slate-700/50">
           <Pill className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-white mb-2">No Supplements Assigned</h3>
-          <p className="text-slate-400">Your coach hasn't assigned any supplements yet</p>
+          <h3 className="text-xl font-bold text-white mb-2">{t('supp.noneTitle')}</h3>
+          <p className="text-slate-400">{t('supp.noneBody')}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -127,8 +129,8 @@ export const ClientSupplementsView: React.FC<ClientSupplementsViewProps> = ({ cl
                       <Clock className="w-5 h-5 text-white" />
                     </div>
                     <div className="text-left">
-                      <h3 className="text-lg font-bold text-white">{timingLabels[timing as keyof typeof timingLabels]}</h3>
-                      <p className="text-sm text-slate-400">{suppsForTiming.length} supplement{suppsForTiming.length > 1 ? 's' : ''}</p>
+                      <h3 className="text-lg font-bold text-white">{t(`supp.timing.${timing}`)}</h3>
+                      <p className="text-sm text-slate-400">{suppsForTiming.length > 1 ? t('supp.many', { count: suppsForTiming.length }) : t('supp.one', { count: suppsForTiming.length })}</p>
                     </div>
                   </div>
                   <div className={`text-purple-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
@@ -170,7 +172,7 @@ export const ClientSupplementsView: React.FC<ClientSupplementsViewProps> = ({ cl
                               <div className="flex items-center space-x-2 text-sm">
                                 <Info className="w-4 h-4 text-blue-400 flex-shrink-0" />
                                 <span className="text-blue-300 font-medium">
-                                  {clientSupplement.custom_dosage || supplement.dosage_info || 'As directed'}
+                                  {clientSupplement.custom_dosage || supplement.dosage_info || t('supp.asDirected')}
                                 </span>
                               </div>
                               
@@ -197,24 +199,24 @@ export const ClientSupplementsView: React.FC<ClientSupplementsViewProps> = ({ cl
       <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 backdrop-blur-sm rounded-2xl border border-indigo-500/30 p-6">
         <h3 className="text-lg font-bold text-white mb-3 flex items-center">
           <Sparkles className="w-5 h-5 mr-2 text-indigo-400" />
-          Supplement Tips
+          {t('supp.tipsTitle')}
         </h3>
         <ul className="space-y-2 text-sm text-slate-300">
           <li className="flex items-start">
             <span className="mr-2">💊</span>
-            <span>Always take supplements with water unless specified otherwise</span>
+            <span>{t('supp.tip1')}</span>
           </li>
           <li className="flex items-start">
             <span className="mr-2">🍽️</span>
-            <span>Fat-soluble vitamins (A, D, E, K) work best with meals containing fats</span>
+            <span>{t('supp.tip2')}</span>
           </li>
           <li className="flex items-start">
             <span className="mr-2">⏰</span>
-            <span>Consistency is key - try to take supplements at the same time each day</span>
+            <span>{t('supp.tip3')}</span>
           </li>
           <li className="flex items-start">
             <span className="mr-2">📝</span>
-            <span>Track how you feel and report any concerns to your coach</span>
+            <span>{t('supp.tip4')}</span>
           </li>
         </ul>
       </div>

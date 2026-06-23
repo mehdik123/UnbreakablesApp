@@ -16,6 +16,7 @@ import {
   BodyMeasurement 
 } from '../lib/progressTracking';
 import { useToast } from '../contexts/ToastContext';
+import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface BodyMeasurementsTabProps {
   client: Client;
@@ -37,6 +38,7 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
   maxWeeks
 }) => {
   const toast = useToast();
+  const { t } = useClientLocale();
   const [isLoading, setIsLoading] = useState(false);
   const [allMeasurements, setAllMeasurements] = useState<BodyMeasurement[]>([]);
   const [currentMeasurement, setCurrentMeasurement] = useState<MeasurementInput>({
@@ -82,7 +84,7 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
       }
     } catch (error) {
       console.error('Failed to load measurements:', error);
-      toast.error('Failed to load measurements');
+      toast.error(t('meas.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -105,11 +107,11 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
       if (currentMeasurement.notes) params.notes = currentMeasurement.notes;
 
       await saveBodyMeasurement(params);
-      toast.success('Measurements saved successfully!');
+      toast.success(t('meas.saveSuccess'));
       await loadMeasurements();
     } catch (error) {
       console.error('Failed to save measurements:', error);
-      toast.error('Failed to save measurements');
+      toast.error(t('meas.saveFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -132,27 +134,27 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
     const absPercent = Math.abs(percentageChange);
     
     if (field === 'bodyFatPercentage') {
-      if (change < -2) return '🔥 Excellent fat loss progress!';
-      if (change < -0.5) return '✅ Great progress, keep it up!';
-      if (change > 2) return '⚠️ Consider reviewing diet';
-      if (Math.abs(change) < 0.5) return '➡️ Maintaining steadily';
-      return '📊 Slight increase noted';
+      if (change < -2) return t('meas.insightFatExcellent');
+      if (change < -0.5) return t('meas.insightFatGreat');
+      if (change > 2) return t('meas.insightFatReview');
+      if (Math.abs(change) < 0.5) return t('meas.insightFatMaintain');
+      return t('meas.insightFatSlight');
     }
     
     if (field === 'waist') {
-      if (change < -2) return '🎉 Amazing waist reduction!';
-      if (change < -0.5) return '💪 Good progress on core!';
-      if (change > 2) return '📈 Waist increasing';
-      return '➡️ Stable measurement';
+      if (change < -2) return t('meas.insightWaistAmazing');
+      if (change < -0.5) return t('meas.insightWaistGood');
+      if (change > 2) return t('meas.insightWaistIncreasing');
+      return t('meas.insightStable');
     }
     
     if (field === 'neck' || field === 'hips') {
-      if (absPercent < 1) return '➡️ Consistent measurement';
-      if (absPercent < 3) return '📊 Minor changes detected';
-      return change > 0 ? '📈 Measurement increased' : '📉 Measurement decreased';
+      if (absPercent < 1) return t('meas.insightConsistent');
+      if (absPercent < 3) return t('meas.insightMinor');
+      return change > 0 ? t('meas.insightIncreased') : t('meas.insightDecreased');
     }
     
-    return '📊 Progress tracking';
+    return t('meas.insightTracking');
   };
 
   const renderMeasurementComparison = () => {
@@ -160,10 +162,10 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
     const week2Data = allMeasurements.find(m => m.weekNumber === compareWeek2);
 
     const measurementFields = [
-      { label: 'Body Fat %', key: 'bodyFatPercentage', unit: '%', icon: User },
-      { label: 'Neck', key: 'neck', unit: 'cm' },
-      { label: 'Waist', key: 'waist', unit: 'cm' },
-      { label: 'Hips', key: 'hips', unit: 'cm' }
+      { label: t('meas.bodyFat'), key: 'bodyFatPercentage', unit: '%', icon: User },
+      { label: t('meas.neckShort'), key: 'neck', unit: 'cm' },
+      { label: t('meas.waistShort'), key: 'waist', unit: 'cm' },
+      { label: t('meas.hipsShort'), key: 'hips', unit: 'cm' }
     ];
 
     // Get available weeks for dropdowns
@@ -175,8 +177,8 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
       return (
         <div className="text-center py-12">
           <Activity className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400 text-lg">No measurement data yet</p>
-          <p className="text-gray-500 text-sm">Save measurements to start comparing weeks</p>
+          <p className="text-gray-400 text-lg">{t('meas.noDataYet')}</p>
+          <p className="text-gray-500 text-sm">{t('meas.saveToCompare')}</p>
         </div>
       );
     }
@@ -187,30 +189,30 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
         <div className="flex items-center justify-center gap-4 flex-wrap">
           {/* Week 1 Selector */}
           <div className="flex items-center gap-2">
-            <label className="text-white/60 text-sm font-medium">Week</label>
+            <label className="text-white/60 text-sm font-medium">{t('meas.week')}</label>
             <select
               value={compareWeek1}
               onChange={(e) => setCompareWeek1(Number(e.target.value))}
               className="bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm font-medium focus:outline-none focus:border-[#dc1e3a] transition-colors cursor-pointer"
             >
               {Array.from({ length: maxWeeks }, (_, i) => i + 1).map(week => (
-                <option key={week} value={week}>Week {week}</option>
+                <option key={week} value={week}>{t('photo.week', { n: week })}</option>
               ))}
             </select>
           </div>
 
-          <div className="text-[#dc1e3a] font-bold text-lg">VS</div>
+          <div className="text-[#dc1e3a] font-bold text-lg">{t('photo.vs')}</div>
 
           {/* Week 2 Selector */}
           <div className="flex items-center gap-2">
-            <label className="text-white/60 text-sm font-medium">Week</label>
+            <label className="text-white/60 text-sm font-medium">{t('meas.week')}</label>
             <select
               value={compareWeek2}
               onChange={(e) => setCompareWeek2(Number(e.target.value))}
               className="bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white text-sm font-medium focus:outline-none focus:border-[#dc1e3a] transition-colors cursor-pointer"
             >
               {Array.from({ length: maxWeeks }, (_, i) => i + 1).map(week => (
-                <option key={week} value={week}>Week {week}</option>
+                <option key={week} value={week}>{t('photo.week', { n: week })}</option>
               ))}
             </select>
           </div>
@@ -257,7 +259,7 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   {/* Week 1 */}
                   <div className="text-center">
-                    <div className="text-white/60 text-xs mb-1">Week {compareWeek1}</div>
+                    <div className="text-white/60 text-xs mb-1">{t('photo.week', { n: compareWeek1 })}</div>
                     <div className="text-white text-lg font-bold">
                       {value1 !== undefined ? `${value1.toFixed(1)}${field.unit}` : '--'}
                     </div>
@@ -265,7 +267,7 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
 
                   {/* Difference */}
                   <div className="text-center">
-                    <div className="text-white/60 text-xs mb-1">Change</div>
+                    <div className="text-white/60 text-xs mb-1">{t('meas.change')}</div>
                     <div className={`text-lg font-bold ${
                       isPositive ? 'text-green-400' : isNegative ? 'text-red-400' : 'text-gray-400'
                     }`}>
@@ -275,7 +277,7 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
 
                   {/* Week 2 */}
                   <div className="text-center">
-                    <div className="text-white/60 text-xs mb-1">Week {compareWeek2}</div>
+                    <div className="text-white/60 text-xs mb-1">{t('photo.week', { n: compareWeek2 })}</div>
                     <div className="text-white text-lg font-bold">
                       {value2 !== undefined ? `${value2.toFixed(1)}${field.unit}` : '--'}
                     </div>
@@ -292,7 +294,7 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
                 {/* No Data Message */}
                 {!hasData && (
                   <div className="text-center py-2">
-                    <p className="text-gray-500 text-sm">No data for one or both weeks</p>
+                    <p className="text-gray-500 text-sm">{t('meas.noDataBoth')}</p>
                   </div>
                 )}
               </div>
@@ -309,8 +311,8 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
       <div className="bg-gray-900 backdrop-blur-xl border border-gray-700 rounded-2xl p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-lg md:text-xl font-bold text-white">Week {currentWeek} Measurements</h3>
-            <p className="text-white/60 text-xs md:text-sm">Enter measurements in cm</p>
+            <h3 className="text-lg md:text-xl font-bold text-white">{t('meas.weekMeasurements', { week: currentWeek })}</h3>
+            <p className="text-white/60 text-xs md:text-sm">{t('meas.enterCm')}</p>
           </div>
           <button
             onClick={handleSave}
@@ -322,14 +324,14 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
             ) : (
               <Save className="w-4 h-4" />
             )}
-            <span className="hidden md:inline">Save</span>
+            <span className="hidden md:inline">{t('meas.save')}</span>
           </button>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {/* Body Fat % */}
           <div>
-            <label className="block text-white/80 text-xs font-medium mb-1.5">Body Fat %</label>
+            <label className="block text-white/80 text-xs font-medium mb-1.5">{t('meas.bodyFat')}</label>
             <input
               type="number"
               step="0.1"
@@ -342,7 +344,7 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
 
           {/* Neck */}
           <div>
-            <label className="block text-white/80 text-xs font-medium mb-1.5">Neck (cm)</label>
+            <label className="block text-white/80 text-xs font-medium mb-1.5">{t('meas.neck')}</label>
             <input
               type="number"
               step="0.1"
@@ -355,7 +357,7 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
 
           {/* Waist */}
           <div>
-            <label className="block text-white/80 text-xs font-medium mb-1.5">Waist (cm)</label>
+            <label className="block text-white/80 text-xs font-medium mb-1.5">{t('meas.waist')}</label>
             <input
               type="number"
               step="0.1"
@@ -368,7 +370,7 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
 
           {/* Hips */}
           <div>
-            <label className="block text-white/80 text-xs font-medium mb-1.5">Hips (cm)</label>
+            <label className="block text-white/80 text-xs font-medium mb-1.5">{t('meas.hips')}</label>
             <input
               type="number"
               step="0.1"
@@ -382,11 +384,11 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
 
         {/* Notes - Compact */}
         <div className="mt-4">
-          <label className="block text-white/80 text-xs font-medium mb-1.5">Notes (optional)</label>
+          <label className="block text-white/80 text-xs font-medium mb-1.5">{t('meas.notesOptional')}</label>
           <textarea
             value={currentMeasurement.notes || ''}
             onChange={(e) => handleInputChange('notes', e.target.value)}
-            placeholder="Add any notes about your measurements..."
+            placeholder={t('meas.notesPlaceholder')}
             rows={2}
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-[#dc1e3a] transition-colors resize-none"
           />
@@ -396,8 +398,8 @@ export const BodyMeasurementsTab: React.FC<BodyMeasurementsTabProps> = ({
       {/* Week-to-Week Comparison Tool */}
       <div className="bg-gray-900 backdrop-blur-xl border border-gray-700 rounded-2xl p-4 md:p-6">
         <div className="mb-6">
-          <h3 className="text-lg md:text-xl font-bold text-white">📊 Week Comparison Tool</h3>
-          <p className="text-white/60 text-xs md:text-sm">Compare any two weeks to track your progress</p>
+          <h3 className="text-lg md:text-xl font-bold text-white">{t('meas.comparisonTool')}</h3>
+          <p className="text-white/60 text-xs md:text-sm">{t('meas.compareDesc')}</p>
         </div>
         {renderMeasurementComparison()}
       </div>

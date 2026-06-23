@@ -1,5 +1,6 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Area, AreaChart, ReferenceLine } from 'recharts';
+import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 export interface WeightChartEntry {
   label: string;
@@ -29,6 +30,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const UltraModernWeightChart: React.FC<UltraModernWeightChartProps> = ({ entries }) => {
+  const { t } = useClientLocale();
   const chartData = entries.map((entry) => ({
     label: entry.label,
     weight: entry.weight
@@ -46,8 +48,8 @@ export const UltraModernWeightChart: React.FC<UltraModernWeightChartProps> = ({ 
           <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-full flex items-center justify-center">
             <div className="w-10 h-10 border-4 border-[#dc1e3a]/40 border-t-[#dc1e3a] rounded-full animate-spin"></div>
           </div>
-          <div className="text-white/80 text-xl font-semibold mb-2">No data available</div>
-          <div className="text-white/50 text-base">Start logging your weight to see beautiful progress charts</div>
+          <div className="text-white/80 text-xl font-semibold mb-2">{t('wt.noData')}</div>
+          <div className="text-white/50 text-base">{t('wt.startLogging')}</div>
         </div>
       </div>
     );
@@ -59,16 +61,16 @@ export const UltraModernWeightChart: React.FC<UltraModernWeightChartProps> = ({ 
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-white text-2xl font-bold mb-1">Weight Progress</h3>
-            <p className="text-white/60 text-sm">Track your fitness journey</p>
+            <h3 className="text-white text-2xl font-bold mb-1">{t('wt.weightProgress')}</h3>
+            <p className="text-white/60 text-sm">{t('wt.trackJourney')}</p>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2 bg-white/10 rounded-full px-4 py-2">
               <div className="w-3 h-3 bg-[#dc1e3a] rounded-full animate-pulse"></div>
-              <span className="text-white/80 text-sm font-medium">{entries.length} entries</span>
+              <span className="text-white/80 text-sm font-medium">{t('wt.entries', { n: entries.length })}</span>
             </div>
             <div className="flex items-center space-x-2 bg-[#dc1e3a]/20 rounded-full px-4 py-2">
-              <span className="text-[#dc1e3a] text-sm font-bold">Avg: {averageWeight.toFixed(1)}kg</span>
+              <span className="text-[#dc1e3a] text-sm font-bold">{t('wt.avg', { n: averageWeight.toFixed(1) })}</span>
             </div>
           </div>
         </div>

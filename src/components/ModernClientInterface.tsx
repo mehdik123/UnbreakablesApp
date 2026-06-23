@@ -12,7 +12,9 @@ import {
   Moon,
   ChevronRight,
   Activity,
-  HelpCircle
+  HelpCircle,
+  Languages,
+  Check
 } from 'lucide-react';
 import { ClientWelcomeTour } from './ClientWelcomeTour';
 import { Client, ClientWorkoutAssignment, NutritionPlan } from '../types';
@@ -91,6 +93,22 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const [isLoadingTab, setIsLoadingTab] = useState(false);
   
   const { locale, setLocale, t, isRtl } = useClientLocale();
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const langMenuRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!langMenuOpen) return;
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
+        setLangMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+    };
+  }, [langMenuOpen]);
 
   // First-run welcome tour (shown once per client, re-openable via the "?" button)
   const welcomeKey = `ub_welcome_seen_${client.id}`;
@@ -583,16 +601,70 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const ringStroke = 'var(--hair-strong)';
 
   // Small reusable header toggles (language + theme)
+  const LANGS: { code: 'en' | 'fr' | 'ar'; short: string; labelKey: string }[] = [
+    { code: 'en', short: 'EN', labelKey: 'modern.langEnglish' },
+    { code: 'fr', short: 'FR', labelKey: 'modern.langFrench' },
+    { code: 'ar', short: 'AR', labelKey: 'modern.langArabic' },
+  ];
+  const currentLang = LANGS.find((l) => l.code === locale) ?? LANGS[0];
   const HeaderToggles = (
     <div className="flex items-center gap-2 shrink-0">
-      <button
-        type="button"
-        onClick={() => setLocale(locale === 'en' ? 'ar' : 'en')}
-        className="w-[38px] h-[38px] rounded-xl flex items-center justify-center text-[11px] font-bold transition-transform duration-150 active:scale-90"
-        style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
-      >
-        {locale === 'en' ? 'AR' : 'EN'}
-      </button>
+      <div className="relative" ref={langMenuRef}>
+        <button
+          type="button"
+          onClick={() => setLangMenuOpen((v) => !v)}
+          className="h-[38px] px-2.5 rounded-xl flex items-center gap-1.5 text-[11px] font-bold transition-transform duration-150 active:scale-90"
+          style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
+          aria-label={t('modern.language')}
+          aria-haspopup="listbox"
+          aria-expanded={langMenuOpen}
+        >
+          <Languages className="w-4 h-4" />
+          {currentLang.short}
+        </button>
+        {langMenuOpen && (
+          <div
+            role="listbox"
+            className="absolute top-[44px] z-50 min-w-[150px] rounded-xl overflow-hidden shadow-xl"
+            style={{
+              [isRtl ? 'left' : 'right']: 0,
+              background: 'var(--surface-1)',
+              border: '1px solid var(--hair)',
+            } as React.CSSProperties}
+          >
+            <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide" style={{ color: 'var(--txt-mid)' }}>
+              {t('modern.language')}
+            </div>
+            {LANGS.map((l) => {
+              const active = l.code === locale;
+              return (
+                <button
+                  key={l.code}
+                  type="button"
+                  role="option"
+                  aria-selected={active}
+                  onClick={() => {
+                    setLocale(l.code);
+                    setLangMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm transition-colors"
+                  style={{
+                    color: active ? 'var(--txt-hi)' : 'var(--txt-mid)',
+                    background: active ? 'var(--glass)' : 'transparent',
+                    fontWeight: active ? 700 : 500,
+                  }}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="text-[11px] font-bold w-6 text-start" style={{ color: 'var(--red)' }}>{l.short}</span>
+                    {t(l.labelKey)}
+                  </span>
+                  {active && <Check className="w-4 h-4" style={{ color: 'var(--red)' }} />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
       <button
         type="button"
         onClick={() => setUseDarkTheme((prev) => !prev)}

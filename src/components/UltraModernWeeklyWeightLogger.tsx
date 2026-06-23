@@ -11,6 +11,7 @@ import { UltraModernWeightChart } from './UltraModernWeightChart';
 import { WeightStatsGrid } from './WeightStatsCards';
 import { WeeklyWeightOverview } from './WeeklyWeightOverview';
 import { BodyMeasurementsTab } from './BodyMeasurementsTab';
+import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface UltraModernWeeklyWeightLoggerProps {
   client: Client;
@@ -36,6 +37,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
   maxWeeks,
   isDark
 }) => {
+  const { t } = useClientLocale();
   const [activeTab, setActiveTab] = useState<'weight' | 'measurements'>('weight');
   const [selectedWeek, setSelectedWeek] = useState(initialWeek);
   const [weeklyData, setWeeklyData] = useState<Record<number, Record<string, WeightEntry>>>({});
@@ -101,7 +103,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
 
       setWeeklyData(organizedData);
     } catch (error) {
-      setSaveError('Failed to load weight data. Please try again.');
+      setSaveError(t('wt.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -193,7 +195,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
       // Don't reload data immediately - the local state update should be sufficient
       // await loadWeightData();
     } catch (error) {
-      setSaveError('Failed to save weight. Please try again.');
+      setSaveError(t('wt.saveFailed'));
       setEditingCell(null);
       setTempValue('');
     } finally {
@@ -229,7 +231,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
       });
       
     } catch (error) {
-      setSaveError('Failed to delete weight. Please try again.');
+      setSaveError(t('wt.deleteWeightFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -318,7 +320,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
               }`}
             >
               <Scale className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="text-xs md:text-base">Weight</span>
+              <span className="text-xs md:text-base">{t('wt.weight')}</span>
             </button>
             <button
               onClick={() => setActiveTab('measurements')}
@@ -329,7 +331,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
               }`}
             >
               <Ruler className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="text-xs md:text-base">Measurements</span>
+              <span className="text-xs md:text-base">{t('wt.measurements')}</span>
             </button>
           </div>
           
@@ -385,9 +387,9 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-4 md:mb-8">
               <div>
-                <h3 className="text-lg md:text-2xl font-bold text-white mb-1">This Week</h3>
+                <h3 className="text-lg md:text-2xl font-bold text-white mb-1">{t('wt.thisWeek')}</h3>
                 <p className="text-white/60 text-xs md:text-sm">
-                  {editingCell ? `Week ${editingCell.week} · ${editingCell.day}` : 'Click a slot to log weight'}
+                  {editingCell ? t('wt.editingCell', { week: editingCell.week, day: editingCell.day }) : t('wt.clickToLog')}
                 </p>
               </div>
               <div className="flex items-center space-x-2">
@@ -399,7 +401,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
             </div>
 
             <div className="grid grid-cols-7 gap-2 md:gap-3">
-              {DAYS_OF_WEEK.map((day) => {
+              {DAYS_OF_WEEK.map((day, dayIndex) => {
                 const dayData = getCurrentWeekData()[day.key];
                 const weight = dayData?.weight;
                 const hasWeight = weight !== undefined;
@@ -435,7 +437,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
                         <div className={`text-xs font-semibold mb-1 md:mb-2 ${
                           hasWeight ? 'text-white' : 'text-white/60'
                         }`}>
-                          {day.label}
+                          {t('wt.day', { n: dayIndex + 1 })}
                         </div>
                         <div className={`text-xs md:text-sm font-medium ${
                           hasWeight ? 'text-[#dc1e3a]' : 'text-white/40'
@@ -452,7 +454,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
                           handleWeightDelete(selectedWeek, day.key);
                         }}
                         className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold transition-colors"
-                        title="Delete weight"
+                        title={t('wt.deleteWeight')}
                       >
                         ×
                       </button>

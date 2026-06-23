@@ -1,1 +1,1 @@
-export type ClientLocale = 'en' | 'ar';
+export type ClientLocale = 'en' | 'ar' | 'fr';
