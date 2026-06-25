@@ -736,9 +736,9 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               <div className="w-[52px] h-[52px] shrink-0 rounded-2xl p-[2px] bg-grad-coral shadow-red">
                 <div
                   className="w-full h-full rounded-[14px] flex items-center justify-center overflow-hidden"
-                  style={{ background: 'var(--grad-red)' }}
+                  style={{ background: '#ffffff' }}
                 >
-                  <img src="/brand-logo-light.png" alt="" className="w-[70%] h-[70%] object-contain" />
+                  <img src="/brand-logo.png" alt="" className="w-[74%] h-[74%] object-contain" />
                 </div>
               </div>
               <div className="min-w-0">
@@ -904,9 +904,9 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 <div className="w-[50px] h-[50px] shrink-0 rounded-md p-[2px] bg-grad-coral shadow-red">
                   <div
                     className="w-full h-full rounded-[14px] flex items-center justify-center overflow-hidden"
-                    style={{ background: 'var(--grad-red)' }}
+                    style={{ background: '#ffffff' }}
                   >
-                    <img src="/brand-logo-light.png" alt="" className="w-[70%] h-[70%] object-contain" />
+                    <img src="/brand-logo.png" alt="" className="w-[74%] h-[74%] object-contain" />
                   </div>
                 </div>
                 <div className="min-w-0">
