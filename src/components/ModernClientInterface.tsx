@@ -735,10 +735,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-[52px] h-[52px] shrink-0 rounded-2xl p-[2px] bg-grad-coral shadow-red">
                 <div
-                  className="w-full h-full rounded-[14px] flex items-center justify-center font-display font-bold text-lg"
-                  style={{ background: 'var(--surface-2)', color: 'var(--txt-hi)' }}
+                  className="w-full h-full rounded-[14px] flex items-center justify-center overflow-hidden"
+                  style={{ background: 'var(--grad-red)' }}
                 >
-                  {(client.name.trim().charAt(0) || 'U').toUpperCase()}
+                  <img src="/brand-logo-light.png" alt="" className="w-[70%] h-[70%] object-contain" />
                 </div>
               </div>
               <div className="min-w-0">
@@ -903,10 +903,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 </button>
                 <div className="w-[50px] h-[50px] shrink-0 rounded-md p-[2px] bg-grad-coral shadow-red">
                   <div
-                    className="w-full h-full rounded-[14px] flex items-center justify-center font-display font-bold text-lg"
-                    style={{ background: 'var(--surface-2)', color: 'var(--txt-hi)' }}
+                    className="w-full h-full rounded-[14px] flex items-center justify-center overflow-hidden"
+                    style={{ background: 'var(--grad-red)' }}
                   >
-                    {(client.name.trim().charAt(0) || 'U').toUpperCase()}
+                    <img src="/brand-logo-light.png" alt="" className="w-[70%] h-[70%] object-contain" />
                   </div>
                 </div>
                 <div className="min-w-0">

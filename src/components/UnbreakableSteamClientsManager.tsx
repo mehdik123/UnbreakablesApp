@@ -27,11 +27,23 @@ import {
   Archive,
   Key,
   LogOut,
-  Database
+  Database,
+  Zap,
+  CheckSquare,
+  Square,
+  Loader2,
+  Layers,
+  AlertTriangle,
+  ArrowRight
 } from 'lucide-react';
 import { Client, ClientWorkoutAssignment } from '../types';
 import { ClientCredentialsManager } from './ClientCredentialsManager';
 import { authService } from '../lib/authService';
+import {
+  planBulkProgression,
+  BulkPlanEntry,
+  ProgressionMode,
+} from '../utils/bulkProgression';
 
 // Animated Counter Component
 const AnimatedCounter: React.FC<{ value: number; duration?: number }> = ({ value, duration = 2000 }) => {
@@ -108,6 +120,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   onShareWithClient,
   onNavigateToClientPlan,
   onDuplicateClient,
+  onAssignWorkoutPlan,
   onNavigateToMealDatabase,
   onNavigateToExerciseDatabase,
   onNavigateToIngredients,
@@ -133,6 +146,15 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   const [duplicateSourceClient, setDuplicateSourceClient] = useState<Client | null>(null);
   const [duplicateForm, setDuplicateForm] = useState({ name: '', numberOfWeeks: 12 });
   const [isDuplicating, setIsDuplicating] = useState(false);
+
+  // ---- Bulk progressive overload ----
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [bulkMode, setBulkMode] = useState<ProgressionMode>('progress');
+  const [bulkApplying, setBulkApplying] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
+  const [bulkDone, setBulkDone] = useState<{ applied: number; skipped: number; failed: number } | null>(null);
 
   // Logout handler
   const handleLogout = () => {
@@ -264,6 +286,108 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
       startDate: new Date(),
       isActive: true
     });
+  };
+
+  // ---- Bulk selection helpers ----
+  const toggleSelectionMode = () => {
+    setSelectionMode((prev) => {
+      if (prev) setSelectedIds(new Set());
+      return !prev;
+    });
+  };
+
+  const toggleClientSelected = (clientId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(clientId)) next.delete(clientId);
+      else next.add(clientId);
+      return next;
+    });
+  };
+
+  const allFilteredSelected =
+    filteredClients.length > 0 && filteredClients.every((c) => selectedIds.has(c.id));
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      if (allFilteredSelected) {
+        const next = new Set(prev);
+        filteredClients.forEach((c) => next.delete(c.id));
+        return next;
+      }
+      const next = new Set(prev);
+      filteredClients.forEach((c) => next.add(c.id));
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const selectedClients = clients.filter((c) => selectedIds.has(c.id));
+
+  const openBulkModal = () => {
+    if (selectedClients.length === 0) return;
+    setBulkMode('progress');
+    setBulkDone(null);
+    setBulkProgress({ done: 0, total: 0 });
+    setBulkModalOpen(true);
+  };
+
+  const closeBulkModal = () => {
+    if (bulkApplying) return;
+    setBulkModalOpen(false);
+    setBulkDone(null);
+  };
+
+  const bulkPlan: BulkPlanEntry[] = React.useMemo(
+    () => (bulkModalOpen ? planBulkProgression(selectedClients, bulkMode) : []),
+    [bulkModalOpen, selectedClients, bulkMode]
+  );
+
+  const readyPlan = bulkPlan.filter((p) => p.status === 'ready');
+  const skippedPlan = bulkPlan.filter((p) => p.status === 'skipped');
+
+  const handleApplyBulk = async () => {
+    if (readyPlan.length === 0 || bulkApplying) return;
+    setBulkApplying(true);
+    setBulkProgress({ done: 0, total: readyPlan.length });
+    let applied = 0;
+    let failed = 0;
+    for (const entry of readyPlan) {
+      try {
+        if (entry.updatedAssignment) {
+          await onAssignWorkoutPlan(entry.clientId, entry.updatedAssignment);
+          applied += 1;
+        }
+      } catch (err) {
+        console.error('Bulk progression failed for', entry.clientName, err);
+        failed += 1;
+      }
+      setBulkProgress((p) => ({ ...p, done: p.done + 1 }));
+    }
+    setBulkApplying(false);
+    setBulkDone({ applied, skipped: skippedPlan.length, failed });
+    // Clear selection so the coach sees a clean slate after applying.
+    clearSelection();
+    setSelectionMode(false);
+  };
+
+  const modeMeta: Record<ProgressionMode, { label: string; hint: string; icon: React.ReactNode }> = {
+    progress: {
+      label: 'Progressive overload',
+      hint: 'Auto-increase reps/weight from each client’s last week',
+      icon: <TrendingUp className="w-5 h-5" />,
+    },
+    copy: {
+      label: 'Keep the same',
+      hint: 'Repeat last week (same exercises, reps & weights)',
+      icon: <Copy className="w-5 h-5" />,
+    },
+    deload: {
+      label: 'Deload week',
+      hint: 'Reduce load for recovery (keep reps)',
+      icon: <Activity className="w-5 h-5" />,
+    },
   };
 
   if (isLoading) {
@@ -485,7 +609,19 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               <h2 className="text-2xl sm:text-3xl font-bold font-display text-white">Clients</h2>
               <p className="text-slate-400 text-sm sm:text-lg">Manage your clients and their plans from a single dashboard</p>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <button
+                onClick={toggleSelectionMode}
+                className={`flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 rounded-xl font-semibold transition-all duration-200 border ${
+                  selectionMode
+                    ? 'bg-red-500/15 text-red-300 border-red-500/40'
+                    : 'text-slate-300 border-[color:var(--hair)] hover:bg-slate-800'
+                }`}
+                title="Select multiple clients"
+              >
+                <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm sm:text-base">{selectionMode ? 'Done' : 'Select'}</span>
+              </button>
               <button
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
                 className="p-2 sm:p-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors duration-200"
@@ -503,6 +639,26 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
             </div>
           </div>
 
+          {/* Selection toolbar */}
+          {selectionMode && (
+            <div className="flex items-center justify-between gap-3 mb-4 p-3 rounded-xl bg-[var(--surface-1)] border border-[color:var(--hair)]">
+              <button
+                onClick={toggleSelectAll}
+                className="flex items-center space-x-2 text-sm font-medium text-slate-200 hover:text-white"
+              >
+                {allFilteredSelected ? (
+                  <CheckSquare className="w-5 h-5 text-red-400" />
+                ) : (
+                  <Square className="w-5 h-5 text-slate-400" />
+                )}
+                <span>{allFilteredSelected ? 'Deselect all' : 'Select all'}</span>
+              </button>
+              <span className="text-sm text-slate-400">
+                {selectedIds.size} selected
+              </span>
+            </div>
+          )}
+
           {/* Clients Table/Grid */}
           {viewMode === 'list' ? (
             <div className="bg-[var(--surface-1)] backdrop-blur-sm rounded-2xl border border-[color:var(--hair)] overflow-visible">
@@ -511,7 +667,12 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                   <thead style={{ background: 'var(--surface-2)' }}>
                     <tr>
                       <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">
-                        <input type="checkbox" className="rounded border-slate-600 bg-slate-700 text-red-500 focus:ring-red-500" />
+                        <input
+                          type="checkbox"
+                          checked={allFilteredSelected}
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-red-500 focus:ring-red-500 cursor-pointer"
+                        />
                       </th>
                       <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Client</th>
                       <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Goal</th>
@@ -523,9 +684,14 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                   </thead>
                   <tbody className="divide-y divide-slate-700/50">
                     {filteredClients.map((client) => (
-                      <tr key={client.id} className="hover:bg-slate-800/30 transition-colors duration-200 relative">
+                      <tr key={client.id} className={`hover:bg-slate-800/30 transition-colors duration-200 relative ${selectedIds.has(client.id) ? 'bg-red-500/5' : ''}`}>
                         <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
-                          <input type="radio" className="rounded border-slate-600 bg-slate-700 text-red-500 focus:ring-red-500" />
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(client.id)}
+                            onChange={() => toggleClientSelected(client.id)}
+                            className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-red-500 focus:ring-red-500 cursor-pointer"
+                          />
                         </td>
                         <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
                           <div className="flex items-center">
@@ -610,8 +776,24 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               {filteredClients.map((client) => (
                 <div
                   key={client.id}
-                  className="group bg-[var(--surface-1)] backdrop-blur-sm rounded-xl border border-[color:var(--hair)] p-4 hover:border-[color:var(--hair-strong)] transition-all duration-300 relative"
+                  onClick={selectionMode ? () => toggleClientSelected(client.id) : undefined}
+                  className={`group bg-[var(--surface-1)] backdrop-blur-sm rounded-xl border p-4 transition-all duration-300 relative ${
+                    selectionMode ? 'cursor-pointer' : ''
+                  } ${
+                    selectedIds.has(client.id)
+                      ? 'border-red-500/60 ring-2 ring-red-500/40'
+                      : 'border-[color:var(--hair)] hover:border-[color:var(--hair-strong)]'
+                  }`}
                 >
+                  {selectionMode && (
+                    <div className="absolute top-3 right-3 z-10">
+                      {selectedIds.has(client.id) ? (
+                        <CheckSquare className="w-6 h-6 text-red-400" />
+                      ) : (
+                        <Square className="w-6 h-6 text-slate-500" />
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center">
@@ -646,7 +828,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     </div>
                   </div>
 
-                  <div className="flex space-x-2">
+                  <div className={`flex space-x-2 ${selectionMode ? 'pointer-events-none opacity-40' : ''}`}>
                     <button
                       onClick={() => onNavigateToClientPlan(client)}
                       className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 rounded-lg text-slate-300 bg-slate-700 hover:bg-slate-600 font-medium text-xs transition-colors duration-200"
@@ -941,6 +1123,193 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                   {isDuplicating ? 'Creating copy...' : 'Create duplicate'}
                 </button>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating bulk action bar */}
+      {selectedIds.size > 0 && !bulkModalOpen && (
+        <div className="fixed inset-x-0 bottom-0 z-[9000] p-3 sm:p-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)' }}>
+          <div className="mx-auto w-full max-w-2xl flex items-center gap-3 rounded-2xl px-4 py-3 shadow-2xl backdrop-blur-xl" style={{ background: 'rgba(16,18,24,.96)', border: '1px solid var(--hair)' }}>
+            <div className="flex items-center gap-2 text-white">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shrink-0">
+                <Zap className="w-5 h-5" />
+              </div>
+              <div className="leading-tight">
+                <div className="text-sm font-semibold">{selectedIds.size} selected</div>
+                <button onClick={clearSelection} className="text-xs text-slate-400 hover:text-slate-200">Clear</button>
+              </div>
+            </div>
+            <button
+              onClick={openBulkModal}
+              className="ml-auto flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold text-sm hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-red-500/30"
+            >
+              <TrendingUp className="w-4 h-4" />
+              <span>Apply overload</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Progressive Overload Modal */}
+      {bulkModalOpen && (
+        <div className="fixed inset-0 z-[9500] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4">
+          <div
+            className="relative w-full sm:max-w-2xl max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden"
+            style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 p-5 sm:p-6 border-b border-[color:var(--hair)]">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shrink-0">
+                  <Zap className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold font-display text-white">Bulk progression</h2>
+                  <p className="text-slate-400 text-xs sm:text-sm">Create the next week for {selectedClients.length} client{selectedClients.length === 1 ? '' : 's'}</p>
+                </div>
+              </div>
+              <button
+                onClick={closeBulkModal}
+                disabled={bulkApplying}
+                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors disabled:opacity-40"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
+              {bulkDone ? (
+                <div className="text-center py-6">
+                  <div className="w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-9 h-9 text-emerald-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Done!</h3>
+                  <p className="text-slate-300">
+                    {bulkDone.applied} new week{bulkDone.applied === 1 ? '' : 's'} deployed
+                    {bulkDone.skipped > 0 && <> · {bulkDone.skipped} skipped</>}
+                    {bulkDone.failed > 0 && <> · <span className="text-red-400">{bulkDone.failed} failed</span></>}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Mode selector */}
+                  <div>
+                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Action</h3>
+                    <div className="grid grid-cols-1 gap-2">
+                      {(['progress', 'copy', 'deload'] as ProgressionMode[]).map((mode) => {
+                        const meta = modeMeta[mode];
+                        const active = bulkMode === mode;
+                        return (
+                          <button
+                            key={mode}
+                            onClick={() => setBulkMode(mode)}
+                            disabled={bulkApplying}
+                            className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all disabled:opacity-50 ${
+                              active
+                                ? 'border-red-500/60 bg-red-500/10'
+                                : 'border-[color:var(--hair)] hover:border-[color:var(--hair-strong)]'
+                            }`}
+                          >
+                            <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${active ? 'bg-red-500/20 text-red-300' : 'bg-slate-700/60 text-slate-300'}`}>
+                              {meta.icon}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-white">{meta.label}</div>
+                              <div className="text-xs text-slate-400">{meta.hint}</div>
+                            </div>
+                            {active && <CheckCircle className="w-5 h-5 text-red-400 ml-auto shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Preview */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Preview</h3>
+                      <span className="text-xs text-slate-400">
+                        {readyPlan.length} ready{skippedPlan.length > 0 && <> · {skippedPlan.length} skipped</>}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {bulkPlan.map((entry) => (
+                        <div
+                          key={entry.clientId}
+                          className="flex items-center gap-3 p-3 rounded-xl bg-[var(--surface-2)] border border-[color:var(--hair)]"
+                        >
+                          <div className="w-9 h-9 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
+                            <User className="w-5 h-5 text-slate-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-white truncate">{entry.clientName}</div>
+                            {entry.status === 'ready' ? (
+                              <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                                <span>Week {entry.fromWeekNumber}</span>
+                                <ArrowRight className="w-3 h-3 text-emerald-400" />
+                                <span className="text-emerald-300 font-medium">Week {entry.nextWeekNumber}</span>
+                                <span className="text-slate-500">of {entry.totalWeeks}</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 text-xs text-amber-400/90">
+                                <AlertTriangle className="w-3 h-3" />
+                                <span>{entry.reason}</span>
+                              </div>
+                            )}
+                          </div>
+                          {entry.status === 'ready' ? (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0">Ready</span>
+                          ) : (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded-full bg-slate-600/30 text-slate-400 border border-slate-500/30 shrink-0">Skip</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-5 sm:p-6 border-t border-[color:var(--hair)]" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1.25rem)' }}>
+              {bulkDone ? (
+                <button
+                  onClick={() => { setBulkModalOpen(false); setBulkDone(null); }}
+                  className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg"
+                >
+                  Close
+                </button>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={closeBulkModal}
+                    disabled={bulkApplying}
+                    className="px-4 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-medium transition-colors disabled:opacity-40"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleApplyBulk}
+                    disabled={bulkApplying || readyPlan.length === 0}
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:from-red-600 hover:to-red-700 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {bulkApplying ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Deploying {bulkProgress.done}/{bulkProgress.total}…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-5 h-5" />
+                        <span>Deploy to {readyPlan.length} client{readyPlan.length === 1 ? '' : 's'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
