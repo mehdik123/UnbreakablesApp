@@ -13,7 +13,8 @@ import {
   Minus,
   Heart,
   Save,
-  ChevronDown
+  ChevronDown,
+  ArrowRight
 } from 'lucide-react';
 import { Client, WorkoutProgram } from '../types';
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking';
@@ -1158,11 +1159,33 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 
             {/* Exercises */}
             <div className="space-y-4">
-              {currentDayData.exercises.map((exercise, exerciseIndex) => (
+              {currentDayData.exercises.map((exercise, exerciseIndex) => {
+                const ssGroup = exercise.superset
+                  ? currentDayData.exercises.filter((e: any) => e.superset === exercise.superset)
+                  : [];
+                const isSuperset = ssGroup.length >= 2;
+                const ssPos = isSuperset ? ssGroup.findIndex((e: any) => e.id === exercise.id) : -1;
+                const ssPartner = isSuperset ? ssGroup.find((e: any) => e.id !== exercise.id) : undefined;
+                const isFirstOfGroup = isSuperset && ssGroup[0]?.id === exercise.id;
+                const ssRest = (exercise as any).restPeriod ?? (ssPartner as any)?.restPeriod ?? 90;
+                const ssRounds = isSuperset
+                  ? Math.max(exercise.sets?.length || 0, ssPartner?.sets?.length || 0)
+                  : 0;
+                return (
                 <div
                   key={exercise.id}
                   className="overflow-hidden rounded-[24px] transition-all duration-300 group"
-                  style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+                  style={{
+                    background: 'var(--surface-1)',
+                    border: '1px solid var(--hair)',
+                    ...(isSuperset
+                      ? {
+                          borderLeft: '3px solid var(--blue)',
+                          borderTopLeftRadius: ssPos === 0 ? '24px' : '12px',
+                          borderTopRightRadius: ssPos === 0 ? '24px' : '12px',
+                        }
+                      : {}),
+                  }}
                 >
                   {/* Exercise Header */}
                   <div className="flex items-start gap-3 p-4 pb-3.5">
@@ -1183,8 +1206,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                           {exercise.exercise.name}
                         </h5>
                         {exercise.superset && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 text-white" style={{ background: 'var(--grad-coral)' }}>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 text-white inline-flex items-center gap-1" style={{ background: 'linear-gradient(135deg,#3b82f6,#06b6d4)' }}>
+                            <Zap className="w-2.5 h-2.5" />
                             {exercise.supersetName || exercise.superset}
+                            {isSuperset && <span className="opacity-80">· {ssPos + 1}/{ssGroup.length}</span>}
                           </span>
                         )}
                       </div>
@@ -1213,6 +1238,45 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                       </div>
                     </div>
                   </div>
+
+                  {/* Superset execution guide (shown once, on the first exercise of the pair) */}
+                  {isFirstOfGroup && ssPartner && (
+                    <div
+                      className="mx-4 mb-4 rounded-[18px] p-3.5"
+                      style={{ background: 'rgba(59,130,246,.08)', border: '1px solid rgba(59,130,246,.28)' }}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white inline-flex items-center gap-1" style={{ background: 'linear-gradient(135deg,#3b82f6,#06b6d4)' }}>
+                          <Zap className="w-2.5 h-2.5" />
+                          {exercise.supersetName || t('workout.superset')}
+                        </span>
+                        <span className="text-[12px] font-semibold" style={{ color: 'var(--txt-hi)' }}>
+                          {t('workout.supersetHow')}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11.5px]" style={{ color: 'var(--txt-mid)' }}>
+                        {Array.from({ length: Math.max(1, ssRounds) }).map((_, r) => (
+                          <React.Fragment key={r}>
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg font-medium"
+                              style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)' }}
+                            >
+                              <span className="font-bold" style={{ color: 'var(--blue)' }}>R{r + 1}</span>
+                              {exercise.exercise.name}
+                              <ArrowRight className="w-3 h-3 opacity-60" />
+                              {ssPartner.exercise.name}
+                            </span>
+                            {r < Math.max(1, ssRounds) - 1 && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-1 rounded-lg" style={{ color: 'var(--txt-lo)' }}>
+                                <Clock className="w-3 h-3" />
+                                {t('workout.restSeconds', { n: ssRest })}
+                              </span>
+                            )}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Form demo video — always visible */}
                   <a
@@ -1480,7 +1544,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             </div>
           )}
                 </div>
-              ))}
+                );
+              })}
             </div>
         </div>
       )}

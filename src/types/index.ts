@@ -67,6 +67,53 @@ export interface NutritionSummary {
   totalCarbs: number;
 }
 
+// Cardio Types (simple template-based — no weeks, no client logging)
+export type CardioModality = 'incline_walk' | 'outdoor_walk' | 'jog' | 'bike' | 'sprints' | 'custom';
+export type CardioWhen = 'after_workout' | 'off_day' | 'morning' | 'evening';
+
+export interface CardioItem {
+  id: string;
+  modality: CardioModality;
+  name: string;
+  durationMin: number;
+  speedKmh?: number;
+  inclinePct?: number;
+  distanceKm?: number;
+  timesPerWeek: number;
+  when: CardioWhen;
+  whenNote?: string;
+  /** Simple sprints only */
+  workSec?: number;
+  restSec?: number;
+  rounds?: number;
+}
+
+export interface CardioPlan {
+  items: CardioItem[];
+}
+
+export interface CardioTemplateData {
+  modality: CardioModality;
+  name: string;
+  durationMin: number;
+  speedKmh?: number;
+  inclinePct?: number;
+  distanceKm?: number;
+  timesPerWeek: number;
+  when: CardioWhen;
+  whenNote?: string;
+  workSec?: number;
+  restSec?: number;
+  rounds?: number;
+}
+
+export interface SavedCardioTemplate {
+  id: string;
+  name: string;
+  template: CardioTemplateData;
+  isCustom: boolean;
+}
+
 // Client Management Types
 export interface Client {
   id: string;
@@ -81,6 +128,7 @@ export interface Client {
   weightLog: WeightEntry[];
   nutritionPlan?: NutritionPlan;
   workoutAssignment?: ClientWorkoutAssignment;
+  cardioPlan?: CardioPlan;
   shareUrl?: string;
 }
 

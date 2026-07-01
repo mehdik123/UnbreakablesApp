@@ -14,12 +14,15 @@ import {
   Activity,
   HelpCircle,
   Languages,
-  Check
+  Check,
+  HeartPulse
 } from 'lucide-react';
 import { ClientWelcomeTour } from './ClientWelcomeTour';
 import { Client, ClientWorkoutAssignment, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
+import { dbResolveClientIdByName, dbGetCardioPlan } from '../lib/db';
 import { enrichProgramAndWeeksWithExercises } from '../utils/enrichAssignment';
+import { normalizeCardioPlan } from '../data/cardioPresets';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
 import { getClientWeightLogs, getClientPRHistory } from '../lib/progressTracking';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -42,6 +45,7 @@ const IndependentMuscleGroupCharts = lazy(() => import('./IndependentMuscleGroup
 const WeeklyPhotoUpload = lazy(() => import('./WeeklyPhotoUpload').then(module => ({ default: module.default })));
 const PerformanceAnalytics = lazy(() => import('./PerformanceAnalytics').then(module => ({ default: module.PerformanceAnalytics })));
 const ClientSupplementsView = lazy(() => import('./ClientSupplementsView').then(module => ({ default: module.ClientSupplementsView })));
+const ClientCardioView = lazy(() => import('./ClientCardioView').then(module => ({ default: module.ClientCardioView })));
 
 interface ModernClientInterfaceProps {
   client: Client;
@@ -59,10 +63,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   client,
   isDark
 }) => {
-  type Route = 'home' | 'progressHub' | 'nutrition' | 'supplements' | 'workout' | 'progress' | 'weight' | 'photos' | 'performance';
+  type Route = 'home' | 'progressHub' | 'nutrition' | 'supplements' | 'workout' | 'cardio' | 'progress' | 'weight' | 'photos' | 'performance';
   const [route, setRoute] = useState<Route>('home');
   const activeTab = route;
-  const SECTION_ROUTES: Route[] = ['nutrition', 'supplements', 'workout', 'progress', 'weight', 'photos', 'performance'];
+  const SECTION_ROUTES: Route[] = ['nutrition', 'supplements', 'workout', 'cardio', 'progress', 'weight', 'photos', 'performance'];
   const [useDarkTheme, setUseDarkTheme] = useState<boolean>(() => {
     const saved = localStorage.getItem('client_interface_theme');
     // Default to dark mode when no preference exists
@@ -82,6 +86,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const [effectiveWorkoutAssignment, setEffectiveWorkoutAssignment] = useState(client.workoutAssignment ?? undefined);
   
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
+  const [cardioSummary, setCardioSummary] = useState('');
   const [weeklyPhotos, setWeeklyPhotos] = useState<any[]>([]);
   // Real progress stats for the dashboard (weight + strength change). Null = not enough data yet.
   const [dashStats, setDashStats] = useState<{ weightDelta: number | null; strengthPct: number | null; strengthLift: string | null }>({
@@ -281,6 +286,36 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       cancelled = true;
     };
   }, [databaseClientId, currentWeek]);
+
+  // Cardio summary for the dashboard card
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        let raw = client.cardioPlan || null;
+        const clientId = await dbResolveClientIdByName(client.name);
+        if (clientId) {
+          const { data } = await dbGetCardioPlan(clientId);
+          if (data) raw = data;
+        }
+        if (cancelled) return;
+        const plan = normalizeCardioPlan(raw);
+        const items = plan.items;
+        if (items.length === 0) {
+          setCardioSummary('');
+        } else if (items.length === 1) {
+          setCardioSummary(`${items[0].name} · ${items[0].timesPerWeek}×/wk`);
+        } else {
+          setCardioSummary(t('cardio.itemCount', { count: items.length }));
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [client.name, client.cardioPlan, route, t]);
 
   // When parent passes an updated active week (e.g. coach changed it), apply unless client just picked a week
   useEffect(() => {
@@ -574,6 +609,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
   const homeCards = [
     { route: 'workout' as Route, title: t('nav.workouts'), desc: t('home.workoutDesc'), Icon: Dumbbell, grad: 'from-red-500 to-orange-500', status: t('modern.weekOf', { current: currentWeek, total: totalWeeks }) },
+    { route: 'cardio' as Route, title: t('nav.cardio'), desc: t('home.cardioDesc'), Icon: HeartPulse, grad: 'from-red-500 to-rose-500', status: cardioSummary },
     { route: 'nutrition' as Route, title: t('nav.nutrition'), desc: t('home.nutritionDesc'), Icon: Utensils, grad: 'from-green-500 to-emerald-500', status: nutritionPlan ? t('home.mealsPerDay', { count: nutritionPlan.mealsPerDay }) : t('home.viewPlan') },
     { route: 'supplements' as Route, title: t('nav.supplements'), desc: t('home.supplementsDesc'), Icon: Pill, grad: 'from-purple-500 to-pink-500', status: '' },
     { route: 'progressHub' as Route, title: t('nav.progress'), desc: t('home.progressDesc'), Icon: TrendingUp, grad: 'from-blue-500 to-indigo-500', status: progressCardStatus },
@@ -588,6 +624,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
   const sectionTitles: Record<string, string> = {
     workout: t('nav.workouts'),
+    cardio: t('nav.cardio'),
     nutrition: t('nav.nutrition'),
     supplements: t('nav.supplements'),
     progress: t('home.chartsTitle'),
@@ -1054,6 +1091,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 }
               }}
             />
+          ) : activeTab === 'cardio' ? (
+            <ErrorBoundary>
+              <ClientCardioView client={client} isDark={isDark} />
+            </ErrorBoundary>
           ) : activeTab === 'progress' ? (
             <IndependentMuscleGroupCharts client={clientForCharts} isDark={isDark} />
           ) : activeTab === 'performance' ? (

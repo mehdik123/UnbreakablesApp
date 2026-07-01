@@ -224,6 +224,31 @@ export async function dbCreateProgram(name: string, description?: string): Promi
   return { data, error };
 }
 
+/**
+ * Save a coach-created custom template, storing the full program structure
+ * (days/exercises/sets incl. supersets, dropsets, rest) as JSON so it can be
+ * reused exactly as designed and assigned to any client.
+ */
+export async function dbSaveCustomWorkoutTemplate(payload: {
+  name: string;
+  description?: string;
+  program_json: any;
+}): Promise<DBResult<any>> {
+  if (!isSupabaseReady || !supabase) return { data: null };
+  const { data, error } = await supabase
+    .from('workout_programs')
+    .insert({
+      name: payload.name,
+      description: payload.description || '',
+      is_template: true,
+      is_custom: true,
+      program_json: payload.program_json,
+    })
+    .select('*')
+    .single();
+  return { data, error };
+}
+
 export async function dbAddDay(programId: string, name: string, order: number): Promise<DBResult<any>> {
   if (!isSupabaseReady || !supabase) return { data: null };
   const { data, error } = await supabase.from('workout_days').insert({ program_id: programId, name, day_order: order }).select('*').single();
@@ -633,6 +658,71 @@ export async function dbDeleteWeeklyPhoto(photoId: string): Promise<DBResult<boo
     .delete()
     .eq('id', photoId);
   
+  return { data: !error, error };
+}
+
+// ---------- Cardio plans ----------
+// Resolve the clients table UUID from the client's full name (mirrors other views).
+export async function dbResolveClientIdByName(name: string): Promise<string | null> {
+  if (!isSupabaseReady || !supabase) return null;
+  const { data } = await supabase
+    .from('clients')
+    .select('id')
+    .eq('full_name', name)
+    .maybeSingle();
+  return data?.id || null;
+}
+
+export async function dbGetCardioPlan(clientId: string): Promise<DBResult<any>> {
+  if (!isSupabaseReady || !supabase) return { data: null };
+  const { data, error } = await supabase
+    .from('cardio_plans')
+    .select('plan_json')
+    .eq('client_id', clientId)
+    .maybeSingle();
+  return { data: data?.plan_json ?? null, error };
+}
+
+export async function dbUpsertCardioPlan(clientId: string, plan: any): Promise<DBResult<boolean>> {
+  if (!isSupabaseReady || !supabase) return { data: false };
+  const { error } = await supabase
+    .from('cardio_plans')
+    .upsert(
+      { client_id: clientId, plan_json: plan, updated_at: new Date().toISOString() },
+      { onConflict: 'client_id' }
+    );
+  return { data: !error, error };
+}
+
+export async function dbListCardioTemplates(): Promise<DBResult<any[]>> {
+  if (!isSupabaseReady || !supabase) return { data: [] };
+  const { data, error } = await supabase
+    .from('cardio_templates')
+    .select('*')
+    .order('created_at', { ascending: false });
+  return { data: data || [], error };
+}
+
+export async function dbSaveCardioTemplate(payload: {
+  name: string;
+  template_json: any;
+}): Promise<DBResult<any>> {
+  if (!isSupabaseReady || !supabase) return { data: null };
+  const { data, error } = await supabase
+    .from('cardio_templates')
+    .insert({
+      name: payload.name,
+      template_json: payload.template_json,
+      is_custom: true,
+    })
+    .select('*')
+    .single();
+  return { data, error };
+}
+
+export async function dbDeleteCardioTemplate(id: string): Promise<DBResult<boolean>> {
+  if (!isSupabaseReady || !supabase) return { data: false };
+  const { error } = await supabase.from('cardio_templates').delete().eq('id', id);
   return { data: !error, error };
 }
 

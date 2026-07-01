@@ -21,7 +21,7 @@ import { Client, ClientWorkoutAssignment, WorkoutProgram, WorkoutExercise, Exerc
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { exercises } from '../data/exercises';
 import { getAbsFinisherExercises, getCardioFinisherExercises } from '../data/finisherTemplates';
-import { dbListWorkoutPrograms, dbUpdateWorkoutAssignment } from '../lib/db';
+import { dbListWorkoutPrograms, dbUpdateWorkoutAssignment, dbSaveCustomWorkoutTemplate } from '../lib/db';
 import {
   createInitialWeek,
   createNextWeekFromActuals,
@@ -61,7 +61,20 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       const { data } = await dbListWorkoutPrograms();
       if (data) {
         // Convert database programs to WorkoutProgram format
-        const programs: WorkoutProgram[] = data.map((program: any) => ({
+        const programs: WorkoutProgram[] = data.map((program: any) => {
+          // Prefer the stored full JSON (custom templates) so supersets,
+          // dropsets and rest periods load back exactly as designed.
+          if (program.program_json && Array.isArray(program.program_json.days)) {
+            return {
+              ...program.program_json,
+              id: program.id,
+              name: program.name || program.program_json.name || 'Custom Program',
+              description: program.description || program.program_json.description || '',
+              createdAt: new Date(program.created_at || Date.now()),
+              updatedAt: new Date(program.updated_at || Date.now()),
+            } as WorkoutProgram;
+          }
+          return {
           id: program.id,
           name: program.name,
           description: program.description || '',
@@ -99,7 +112,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
           })),
           createdAt: new Date(program.created_at || Date.now()),
           updatedAt: new Date(program.updated_at || Date.now())
-        }));
+          } as WorkoutProgram;
+        });
         setWorkoutPrograms(programs);
       }
     } catch (error) {
@@ -149,6 +163,14 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   const [draftNewWeek, setDraftNewWeek] = useState<WorkoutWeek | null>(null);
   const [weekGenMode, setWeekGenMode] = useState<WeekGenMode>('progress');
   const [progressionSourceWeek, setProgressionSourceWeek] = useState<WorkoutWeek | null>(null);
+
+  // Superset pairing (pick exactly 2 exercises) + save-as-template
+  const [supersetPickMode, setSupersetPickMode] = useState(false);
+  const [supersetPicks, setSupersetPicks] = useState<string[]>([]);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [saveTemplateName, setSaveTemplateName] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [saveTemplateMsg, setSaveTemplateMsg] = useState<string | null>(null);
 
   // Build a next-week draft from the previous week's actuals using the chosen mode.
   const buildDraftWeek = (
@@ -695,6 +717,244 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       };
       
       setSelectedProgram(updatedProgram);
+    }
+  };
+
+  // ---- Superset pairing (pick exactly 2 exercises) ----
+  const startSupersetPick = () => {
+    setSupersetPickMode(true);
+    setSupersetPicks([]);
+  };
+
+  const cancelSupersetPick = () => {
+    setSupersetPickMode(false);
+    setSupersetPicks([]);
+  };
+
+  // Group exactly two exercises into a superset: shared id/name, default round
+  // rest, and reorder so the partner sits right after the first one.
+  const createSupersetFromPicks = (firstId: string, secondId: string) => {
+    if (!selectedProgram) return;
+    const dayExercises = selectedProgram.days[currentDay]?.exercises || [];
+    const existingGroups = new Set(
+      dayExercises.filter((ex) => ex.superset).map((ex) => ex.superset as string)
+    );
+    const supersetId = `superset-${Date.now()}`;
+    const letter = String.fromCharCode(65 + existingGroups.size); // A, B, C...
+    const supersetName = `Superset ${letter}`;
+    const firstEx = dayExercises.find((ex) => ex.id === firstId);
+    const roundRest = (firstEx?.restPeriod && firstEx.restPeriod > 0) ? firstEx.restPeriod : 90;
+
+    const updatedProgram = {
+      ...selectedProgram,
+      days: selectedProgram.days.map((day, dayIndex) => {
+        if (dayIndex !== currentDay) return day;
+        // Tag the two picked exercises
+        const tagged = day.exercises.map((ex) =>
+          ex.id === firstId || ex.id === secondId
+            ? { ...ex, superset: supersetId, supersetName, restPeriod: roundRest }
+            : ex
+        );
+        // Reorder: place the second exercise immediately after the first
+        const second = tagged.find((ex) => ex.id === secondId)!;
+        const withoutSecond = tagged.filter((ex) => ex.id !== secondId);
+        const firstIdx = withoutSecond.findIndex((ex) => ex.id === firstId);
+        const reordered = [
+          ...withoutSecond.slice(0, firstIdx + 1),
+          second,
+          ...withoutSecond.slice(firstIdx + 1),
+        ].map((ex, i) => ({ ...ex, order: i }));
+        return { ...day, exercises: reordered };
+      }),
+    };
+    setSelectedProgram(updatedProgram);
+    setHasModifications(true);
+    setSupersetPickMode(false);
+    setSupersetPicks([]);
+  };
+
+  const toggleSupersetPick = (exerciseId: string) => {
+    setSupersetPicks((prev) => {
+      if (prev.includes(exerciseId)) return prev.filter((id) => id !== exerciseId);
+      const next = [...prev, exerciseId];
+      if (next.length === 2) {
+        // Defer grouping to avoid setState-in-setState; run on next tick.
+        setTimeout(() => createSupersetFromPicks(next[0], next[1]), 0);
+      }
+      return next;
+    });
+  };
+
+  // Remove an exercise from its superset; if the partner is left alone, clear it too.
+  const removeFromSuperset = (exerciseId: string) => {
+    if (!selectedProgram) return;
+    const dayExercises = selectedProgram.days[currentDay]?.exercises || [];
+    const target = dayExercises.find((ex) => ex.id === exerciseId);
+    const groupId = target?.superset;
+    if (!groupId) return;
+    const groupMembers = dayExercises.filter((ex) => ex.superset === groupId).map((ex) => ex.id);
+    const idsToClear = new Set<string>([exerciseId]);
+    // A superset needs 2; removing one orphans the other → clear the whole group.
+    groupMembers.forEach((id) => idsToClear.add(id));
+
+    const updatedProgram = {
+      ...selectedProgram,
+      days: selectedProgram.days.map((day, dayIndex) =>
+        dayIndex === currentDay
+          ? {
+              ...day,
+              exercises: day.exercises.map((ex) =>
+                idsToClear.has(ex.id)
+                  ? { ...ex, superset: undefined, supersetName: undefined }
+                  : ex
+              ),
+            }
+          : day
+      ),
+    };
+    setSelectedProgram(updatedProgram);
+    setHasModifications(true);
+  };
+
+  // Update the rest-between-rounds (seconds) for every exercise in a superset.
+  const updateSupersetRest = (groupId: string, seconds: number) => {
+    if (!selectedProgram) return;
+    const safe = Math.max(0, Math.min(600, seconds || 0));
+    const updatedProgram = {
+      ...selectedProgram,
+      days: selectedProgram.days.map((day, dayIndex) =>
+        dayIndex === currentDay
+          ? {
+              ...day,
+              exercises: day.exercises.map((ex) =>
+                ex.superset === groupId
+                  ? { ...ex, restPeriod: safe, rest: `${safe}s` }
+                  : ex
+              ),
+            }
+          : day
+      ),
+    };
+    setSelectedProgram(updatedProgram);
+    setHasModifications(true);
+  };
+
+  // ---- Dropset drops add/remove ----
+  const handleAddDropsetDrop = (exerciseId: string, setId: string) => {
+    if (!selectedProgram) return;
+    const updatedProgram = {
+      ...selectedProgram,
+      days: selectedProgram.days.map((day, dayIndex) =>
+        dayIndex === currentDay
+          ? {
+              ...day,
+              exercises: day.exercises.map((exercise) =>
+                exercise.id === exerciseId
+                  ? {
+                      ...exercise,
+                      sets: exercise.sets.map((set) => {
+                        if (set.id !== setId || !set.isDropset) return set;
+                        const reps = Array.isArray(set.reps) ? set.reps : [10];
+                        const weight = Array.isArray(set.weight) ? set.weight : [0];
+                        const lastReps = reps[reps.length - 1] ?? 10;
+                        const lastWeight = weight[weight.length - 1] ?? 0;
+                        return {
+                          ...set,
+                          reps: [...reps, lastReps],
+                          weight: [...weight, Math.max(0, Math.round((lastWeight * 0.9) * 2) / 2)],
+                        };
+                      }),
+                    }
+                  : exercise
+              ),
+            }
+          : day
+      ),
+    };
+    setSelectedProgram(updatedProgram);
+    setHasModifications(true);
+  };
+
+  const handleRemoveDropsetDrop = (exerciseId: string, setId: string) => {
+    if (!selectedProgram) return;
+    const updatedProgram = {
+      ...selectedProgram,
+      days: selectedProgram.days.map((day, dayIndex) =>
+        dayIndex === currentDay
+          ? {
+              ...day,
+              exercises: day.exercises.map((exercise) =>
+                exercise.id === exerciseId
+                  ? {
+                      ...exercise,
+                      sets: exercise.sets.map((set) => {
+                        if (set.id !== setId || !set.isDropset) return set;
+                        const reps = Array.isArray(set.reps) ? set.reps : [10];
+                        const weight = Array.isArray(set.weight) ? set.weight : [0];
+                        if (reps.length <= 2) return set; // keep at least 2 drops
+                        return {
+                          ...set,
+                          reps: reps.slice(0, -1),
+                          weight: weight.slice(0, -1),
+                        };
+                      }),
+                    }
+                  : exercise
+              ),
+            }
+          : day
+      ),
+    };
+    setSelectedProgram(updatedProgram);
+    setHasModifications(true);
+  };
+
+  // ---- Save the current program as a new reusable template (persisted) ----
+  const openSaveTemplate = () => {
+    setSaveTemplateName(selectedProgram?.name ? `${selectedProgram.name} (Custom)` : 'My Custom Program');
+    setSaveTemplateMsg(null);
+    setShowSaveTemplate(true);
+  };
+
+  const handleSaveAsTemplate = async () => {
+    if (!selectedProgram || !saveTemplateName.trim()) return;
+    setSavingTemplate(true);
+    setSaveTemplateMsg(null);
+    try {
+      // Build a clean template program from the current day structures.
+      const cleanDays = (selectedProgram.days || []).map((day) => ({
+        id: day.id,
+        name: day.name,
+        exercises: (day.exercises || []).map((ex) => ({
+          ...ex,
+          sets: (ex.sets || []).map((set) => ({
+            ...set,
+            completed: false,
+            completedAt: undefined,
+          })),
+        })),
+      }));
+      const programJson = {
+        name: saveTemplateName.trim(),
+        description: selectedProgram.description || '',
+        days: cleanDays,
+      };
+      const { error } = await dbSaveCustomWorkoutTemplate({
+        name: saveTemplateName.trim(),
+        description: selectedProgram.description || '',
+        program_json: programJson,
+      });
+      if (error) {
+        setSaveTemplateMsg(`Could not save: ${error.message}`);
+        return;
+      }
+      await loadWorkoutTemplates();
+      setSaveTemplateMsg('Saved! This template is now available for all clients.');
+      setTimeout(() => setShowSaveTemplate(false), 1200);
+    } catch (e: any) {
+      setSaveTemplateMsg(`Could not save: ${e?.message || 'unknown error'}`);
+    } finally {
+      setSavingTemplate(false);
     }
   };
 
@@ -1890,6 +2150,49 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                 <div className="mt-4 text-sm text-slate-400">
                   Day {currentDay + 1} of {selectedProgram?.days?.length || 0} • {currentDayData?.exercises?.length || 0} exercises
                 </div>
+
+                {/* Superset / Template toolbar */}
+                <div className="mt-4 pt-4 border-t border-slate-700/50 flex flex-wrap items-center gap-2">
+                  {!supersetPickMode ? (
+                    <button
+                      onClick={startSupersetPick}
+                      disabled={(currentDayData?.exercises?.length || 0) < 2}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      title={(currentDayData?.exercises?.length || 0) < 2 ? 'Add at least 2 exercises first' : 'Pair two exercises as a superset'}
+                    >
+                      <Zap className="w-4 h-4" />
+                      <span>Create Superset</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={cancelSupersetPick}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-600 hover:bg-slate-500 text-white text-sm font-semibold transition-all"
+                    >
+                      <X className="w-4 h-4" />
+                      <span>Cancel pairing</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={openSaveTemplate}
+                    disabled={!selectedProgram}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white text-sm font-semibold transition-all disabled:opacity-40"
+                    title="Save this workout as a reusable template"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Save as Template</span>
+                  </button>
+                </div>
+
+                {supersetPickMode && (
+                  <div className="mt-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-200 text-sm flex items-center gap-2">
+                    <Zap className="w-4 h-4 shrink-0" />
+                    <span>
+                      Tap <strong>2 exercises</strong> below to pair them as a superset
+                      {supersetPicks.length === 1 ? ' — 1 selected, pick 1 more' : '.'}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -2076,8 +2379,33 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
             {/* Exercises */}
             <div className="space-y-4">
               {currentDayData?.exercises && currentDayData.exercises.length > 0 ? (
-                currentDayData.exercises.map((exercise) => (
-                <div key={exercise.id} className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
+                currentDayData.exercises.map((exercise) => {
+                const pickIndex = supersetPicks.indexOf(exercise.id);
+                const isPicked = pickIndex >= 0;
+                return (
+                <div
+                  key={exercise.id}
+                  onClick={supersetPickMode ? () => toggleSupersetPick(exercise.id) : undefined}
+                  className={`bg-slate-800/50 backdrop-blur-xl rounded-2xl border p-6 transition-all ${
+                    supersetPickMode ? 'cursor-pointer' : ''
+                  } ${
+                    isPicked
+                      ? 'border-blue-500 ring-2 ring-blue-500/50'
+                      : exercise.superset
+                        ? 'border-cyan-500/40'
+                        : 'border-slate-700/50'
+                  }`}
+                >
+                  {supersetPickMode && (
+                    <div className="mb-3 flex items-center gap-2">
+                      <span className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold border ${
+                        isPicked ? 'bg-blue-600 text-white border-blue-400' : 'bg-slate-700 text-slate-300 border-slate-600'
+                      }`}>
+                        {isPicked ? pickIndex + 1 : ''}
+                      </span>
+                      <span className="text-sm text-slate-300">{isPicked ? 'Selected' : 'Tap to select'}</span>
+                    </div>
+                  )}
                   <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
                     <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
                       <div className="w-10 h-10 sm:w-12 sm:h-12 bg-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -2085,7 +2413,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                       </div>
                       <div className="flex-1 min-w-0">
                         <button
-                          onClick={() => setShowExerciseSearch(exercise.id)}
+                          onClick={(e) => { if (supersetPickMode) { e.stopPropagation(); return; } setShowExerciseSearch(exercise.id); }}
                           className="text-left w-full"
                         >
                           <div className="flex items-center gap-2 flex-wrap">
@@ -2103,29 +2431,38 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     
                     <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
                       {/* Superset Controls */}
+                      {!supersetPickMode && (
                       <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleToggleSuperset(exercise.id)}
-                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg transition-all duration-200 flex items-center justify-center flex-shrink-0 ${
-                            exercise.superset 
-                              ? 'bg-blue-600/30 hover:bg-blue-600/50 text-blue-300' 
-                              : 'bg-slate-600/30 hover:bg-slate-600/50 text-slate-400'
-                          }`}
-                          title={exercise.superset ? 'Remove from superset' : 'Add to superset'}
-                        >
-                          <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        </button>
-                        {exercise.superset && (
-                          <input
-                            type="text"
-                            value={exercise.supersetName || exercise.superset}
-                            onChange={(e) => handleUpdateSupersetName(exercise.id, e.target.value)}
-                            className="w-16 sm:w-20 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-700/50 border border-slate-600/50 rounded text-white text-[10px] sm:text-xs"
-                            placeholder="Superset A"
-                            onClick={(e) => e.stopPropagation()}
-                          />
+                        {exercise.superset ? (
+                          <>
+                            <input
+                              type="text"
+                              value={exercise.supersetName || exercise.superset}
+                              onChange={(e) => handleUpdateSupersetName(exercise.id, e.target.value)}
+                              className="w-16 sm:w-24 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-slate-700/50 border border-cyan-500/40 rounded text-white text-[10px] sm:text-xs"
+                              placeholder="Superset A"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <button
+                              onClick={(e) => { e.stopPropagation(); removeFromSuperset(exercise.id); }}
+                              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-red-600/20 hover:bg-red-600/40 text-red-300 transition-all duration-200 flex items-center justify-center flex-shrink-0"
+                              title="Ungroup superset"
+                            >
+                              <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); startSupersetPick(); toggleSupersetPick(exercise.id); }}
+                            disabled={(currentDayData?.exercises?.length || 0) < 2}
+                            className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-600/30 hover:bg-blue-600/40 text-slate-400 hover:text-blue-300 transition-all duration-200 flex items-center justify-center flex-shrink-0 disabled:opacity-40"
+                            title="Pair with another exercise (superset)"
+                          >
+                            <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                          </button>
                         )}
                       </div>
+                      )}
                       
                       
                       {/* Quick Bulk Actions */}
@@ -2238,6 +2575,26 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     </div>
                   </div>
 
+                  {/* Superset round-rest control */}
+                  {exercise.superset && (
+                    <div className="mb-3 flex items-center gap-2 p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/25">
+                      <span className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-[10px] font-bold px-2 py-1 rounded-full">
+                        {exercise.supersetName || exercise.superset}
+                      </span>
+                      <span className="text-xs text-cyan-200/80">Rest between rounds</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={600}
+                        value={exercise.restPeriod ?? 90}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => updateSupersetRest(exercise.superset as string, parseInt(e.target.value, 10) || 0)}
+                        className="w-16 px-2 py-1 bg-slate-700/50 border border-cyan-500/30 rounded text-white text-xs"
+                      />
+                      <span className="text-xs text-cyan-200/80">sec</span>
+                    </div>
+                  )}
+
                   {/* Sets */}
                   <div className="space-y-3">
                     {exercise.sets.map((set, setIndex) => (
@@ -2253,8 +2610,23 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         {set.isDropset && Array.isArray(set.reps) ? (
                           <div className="flex-1 bg-gradient-to-r from-blue-500/10 to-blue-600/5 rounded-md p-2 border border-blue-500/20">
                             <div className="flex items-center justify-between mb-1.5">
-                              <h6 className="text-[10px] font-semibold text-blue-300 uppercase">Dropset Reps</h6>
-                              <Target className="w-3 h-3 text-blue-400" />
+                              <h6 className="text-[10px] font-semibold text-blue-300 uppercase">Dropset · {Array.isArray(set.reps) ? set.reps.length : 0} drops</h6>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleRemoveDropsetDrop(exercise.id, set.id); }}
+                                  className="w-5 h-5 rounded bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:text-white flex items-center justify-center"
+                                  title="Remove a drop"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleAddDropsetDrop(exercise.id, set.id); }}
+                                  className="w-5 h-5 rounded bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:text-white flex items-center justify-center"
+                                  title="Add a drop"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
                             </div>
                             <div className="text-center mb-2">
                               <span className="text-white font-bold text-lg">
@@ -2420,7 +2792,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     </div>
                   )}
                 </div>
-                ))
+                );
+                })
               ) : (
                 <div className="text-center py-12">
                   <Dumbbell className="w-16 h-16 text-slate-400 mx-auto mb-4" />
@@ -2846,6 +3219,68 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
             );
           })()}
           </>
+        )}
+
+        {/* Save as Template Modal */}
+        {showSaveTemplate && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-md overflow-hidden">
+              <div className="p-6 border-b border-slate-700 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center">
+                    <Save className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Save as Template</h3>
+                    <p className="text-slate-400 text-xs">Reuse this workout for other clients</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { if (!savingTemplate) setShowSaveTemplate(false); }}
+                  disabled={savingTemplate}
+                  className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 disabled:opacity-40"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Template name</label>
+                  <input
+                    type="text"
+                    value={saveTemplateName}
+                    onChange={(e) => setSaveTemplateName(e.target.value)}
+                    placeholder="e.g., PPL — Intermediate (Superset)"
+                    className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <p className="text-xs text-slate-500">
+                  Saves all days, exercises, sets, supersets, dropsets and rest periods. It will appear in the program list for any client.
+                </p>
+                {saveTemplateMsg && (
+                  <div className={`text-sm rounded-lg p-3 ${saveTemplateMsg.startsWith('Saved') ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30' : 'bg-red-500/10 text-red-300 border border-red-500/30'}`}>
+                    {saveTemplateMsg}
+                  </div>
+                )}
+              </div>
+              <div className="p-6 pt-0 flex items-center gap-3">
+                <button
+                  onClick={() => { if (!savingTemplate) setShowSaveTemplate(false); }}
+                  disabled={savingTemplate}
+                  className="px-4 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-medium disabled:opacity-40"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveAsTemplate}
+                  disabled={savingTemplate || !saveTemplateName.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-semibold disabled:opacity-50"
+                >
+                  {savingTemplate ? 'Saving…' : 'Save Template'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
       </div>

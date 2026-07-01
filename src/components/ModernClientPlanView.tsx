@@ -35,7 +35,8 @@ import {
   Copy,
   MoreVertical,
   Camera,
-  Pill
+  Pill,
+  HeartPulse
 } from 'lucide-react';
 import { Client, Food, Meal, NutritionPlan, WorkoutPlan, Workout, Exercise } from '../types';
 import { UltraModernNutritionEditor } from './UltraModernNutritionEditor';
@@ -45,6 +46,7 @@ import { UltraModernWeeklyWeightLogger } from './UltraModernWeeklyWeightLogger';
 import WeeklyPhotoGallery from './WeeklyPhotoGallery';
 import { PerformanceAnalytics } from './PerformanceAnalytics';
 import { SupplementsManager } from './SupplementsManager';
+import { CardioEditor } from './CardioEditor';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { dbGetClientPhotos } from '../lib/db';
 
@@ -69,7 +71,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
   onAssignWorkout,
   isDark
 }) => {
-  const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'progress' | 'weight' | 'photos' | 'performance'>('nutrition');
+  const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'cardio' | 'progress' | 'weight' | 'photos' | 'performance'>('nutrition');
   const [isLoading, setIsLoading] = useState(true);
   const [showStats, setShowStats] = useState(true);
   const [showProgressTracker, setShowProgressTracker] = useState(false);
@@ -265,6 +267,14 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
                   activeBg: 'bg-red-500/20'
                 },
                 { 
+                  id: 'cardio', 
+                  label: 'Cardio', 
+                  icon: HeartPulse, 
+                  gradient: 'from-red-500 to-rose-500',
+                  activeColor: 'text-rose-400',
+                  activeBg: 'bg-rose-500/20'
+                },
+                { 
                   id: 'progress', 
                   label: 'Progress', 
                   icon: Award, 
@@ -364,6 +374,10 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
               onBack={() => {}}
               isDark={isDark}
             />
+          </div>
+        ) : activeTab === 'cardio' ? (
+          <div className="bg-[var(--surface-1)] rounded-xl shadow-soft border border-[color:var(--hair)] p-4 sm:p-6 lg:p-8">
+            <CardioEditor client={client} isDark={isDark} />
           </div>
         ) : activeTab === 'progress' ? (
           <div className="bg-[var(--surface-1)] rounded-xl shadow-soft border border-[color:var(--hair)] p-4 sm:p-6 lg:p-8">
