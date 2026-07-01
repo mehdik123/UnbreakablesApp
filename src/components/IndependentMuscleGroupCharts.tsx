@@ -18,16 +18,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     const volume = payload[0]?.value || 0;
     
     return (
-      <div className="bg-black/95 backdrop-blur-xl border border-[#dc1e3a]/30 rounded-2xl p-5 shadow-2xl transform scale-105 transition-all duration-200">
-        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-[#dc1e3a] rotate-45 border border-[#dc1e3a]/30"></div>
-        <p className="text-white text-sm font-medium mb-1">
+      <div className="ch-tooltip">
+        <p className="text-sm font-medium mb-1" style={{ color: 'var(--txt-hi)' }}>
           {t('ch.week', { n: label })}
         </p>
-        <p className="text-[#dc1e3a] text-xl font-bold flex items-center">
-          <span className="w-3 h-3 bg-[#dc1e3a] rounded-full mr-2 animate-pulse"></span>
+        <p className="text-xl font-bold flex items-center font-saira tnum" style={{ color: 'var(--red)' }}>
+          <span className="w-3 h-3 rounded-full mr-2 animate-pulse" style={{ background: 'var(--red)' }} />
           {volume.toLocaleString()} kg
         </p>
-        <p className="text-white/60 text-xs mt-1 capitalize">{t('ch.muscleVolume', { muscle: muscleGroup })}</p>
+        <p className="text-xs mt-1 capitalize text-mid">{t('ch.muscleVolume', { muscle: muscleGroup })}</p>
       </div>
     );
   }
@@ -158,29 +157,45 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
 
   if (loading) {
     return (
-      <div className="min-h-[50vh] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
-          <p className="text-slate-300">{t('ch.loading')}</p>
+      <div className="ch-shell px-1">
+        <div className="cardio-loading" aria-busy="true">
+          <div className="cardio-loading-pulse" />
+          <div className="cardio-loading-pulse" style={{ height: 140 }} />
         </div>
       </div>
     );
   }
 
+  const totalExercises = Object.values(workoutExercises).reduce((sum, exercises) => sum + exercises.length, 0);
+
   return (
-    <div className="py-2">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-red" style={{ background: 'var(--grad-red)' }}>
-              <Target className="w-6 h-6 text-white" />
+    <div className="ch-shell py-2">
+      <div className="max-w-7xl mx-auto px-1">
+        <div className="ch-summary">
+          <div className="ch-summary-icon">
+            <Target className="w-[22px] h-[22px]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="font-saira font-semibold text-[18px] truncate" style={{ color: 'var(--txt-hi)' }}>
+              {t('nav.progress')}
             </div>
-            <div>
-              <h1 className="text-2xl font-bold font-display" style={{ color: 'var(--txt-hi)' }}>{t('ch.title')}</h1>
-              <p style={{ color: 'var(--txt-mid)' }}>{t('ch.subtitle')}</p>
+            <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>
+              {t('home.progressDesc')}
             </div>
           </div>
+          <div className="text-center shrink-0">
+            <div className="font-saira font-bold text-[24px] leading-none tnum" style={{ color: 'var(--blue)' }}>
+              {availableMuscleGroups.length}
+            </div>
+            <div className="text-[10px] uppercase tracking-[0.08em] mt-1 text-lo">
+              {t('ch.muscleGroupsAvailable')}
+            </div>
+          </div>
+        </div>
+
+        <div className="workout-seclabel">
+          <span>{t('ch.title')}</span>
+          <span className="line" />
         </div>
 
         {/* Muscle Group Charts */}
@@ -241,11 +256,8 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
             const trend = firstWeekVolume > 0 ? ((lastWeekVolume - firstWeekVolume) / firstWeekVolume) * 100 : 0;
 
             return (
-              <div key={muscleGroup} className="bg-gradient-to-br from-black/60 via-black/40 to-black/60 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl relative overflow-hidden group hover:border-[#dc1e3a]/30 transition-all duration-700">
-                {/* Background Effects */}
-                <div className="absolute inset-0 bg-gradient-to-r from-[#dc1e3a]/5 via-transparent to-[#dc1e3a]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-[#dc1e3a]/10 to-transparent rounded-full blur-3xl"></div>
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-blue-500/5 to-transparent rounded-full blur-2xl"></div>
+              <div key={muscleGroup} className="ch-muscle-card group">
+                <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-40 pointer-events-none" style={{ background: 'rgba(255,45,85,.08)' }} />
                 
                 <div className="relative z-10 p-6">
                   {/* Header */}
@@ -283,10 +295,10 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                         )}
                       </div>
                       <div>
-                        <h3 className="text-2xl font-bold text-white capitalize mb-1">{muscleGroup}</h3>
+                        <h3 className="text-xl font-saira font-semibold capitalize mb-1" style={{ color: 'var(--txt-hi)' }}>{muscleGroup}</h3>
                         <div className="flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-[#dc1e3a] rounded-full animate-pulse"></div>
-                          <p className="text-white/60 text-sm">
+                          <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--red)' }} />
+                          <p className="text-mid text-sm">
                             {t('ch.exercisesInWorkout', { count: exercises.length })}
                           </p>
                         </div>
@@ -294,9 +306,9 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                     </div>
                     
                     <div className="text-right">
-                      <div className="flex items-center space-x-2 bg-white/10 rounded-full px-4 py-2">
-                        <div className="w-3 h-3 bg-[#dc1e3a] rounded-full animate-pulse"></div>
-                        <span className="text-white/80 text-sm font-medium">{t('ch.exercises', { count: exercises.length })}</span>
+                      <div className="flex items-center space-x-2 rounded-full px-4 py-2" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                        <div className="w-3 h-3 rounded-full animate-pulse" style={{ background: 'var(--red)' }} />
+                        <span className="text-mid text-sm font-medium">{t('ch.exercises', { count: exercises.length })}</span>
                       </div>
                     </div>
                   </div>
@@ -355,31 +367,31 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
 
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-4 border border-white/20 backdrop-blur-sm">
-                      <div className={`text-lg font-bold flex items-center space-x-2 ${
-                        trend > 0 ? 'text-green-400' : trend < 0 ? 'text-red-400' : 'text-white/60'
-                      }`}>
+                    <div className="ch-stat-box">
+                      <div className="text-lg font-bold flex items-center space-x-2 tnum" style={{
+                        color: trend > 0 ? 'var(--emerald)' : trend < 0 ? 'var(--red)' : 'var(--txt-mid)',
+                      }}>
                         <TrendingUp className={`w-4 h-4 ${trend < 0 ? 'rotate-180' : ''}`} />
                         <span>{trend > 0 ? '+' : ''}{trend.toFixed(1)}%</span>
                       </div>
-                      <div className="text-white/60 text-sm mt-1">{t('ch.progressTrend')}</div>
+                      <div className="text-mid text-sm mt-1">{t('ch.progressTrend')}</div>
                     </div>
                     
-                    <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-4 border border-white/20 backdrop-blur-sm">
-                      <div className="text-lg font-bold text-white flex items-center space-x-2">
-                        <div className="w-2 h-2 bg-[#dc1e3a] rounded-full"></div>
+                    <div className="ch-stat-box">
+                      <div className="text-lg font-bold font-saira tnum flex items-center space-x-2" style={{ color: 'var(--txt-hi)' }}>
+                        <div className="w-2 h-2 rounded-full" style={{ background: 'var(--red)' }} />
                         <span>{maxVolume.toLocaleString()}</span>
                       </div>
-                      <div className="text-white/60 text-sm mt-1">{t('ch.peakVolume')}</div>
+                      <div className="text-mid text-sm mt-1">{t('ch.peakVolume')}</div>
                     </div>
                   </div>
 
                   {/* Volume Calculation Summary */}
                   {exercises.length > 0 && (
-                    <div className="mb-6 p-4 bg-gradient-to-br from-white/5 to-white/10 rounded-2xl border border-white/20 backdrop-blur-sm">
+                    <div className="mb-6 p-4 ch-inner-panel">
                       <div className="flex items-center space-x-2 mb-3">
-                        <div className="w-2 h-2 bg-[#dc1e3a] rounded-full"></div>
-                        <div className="text-white/80 text-sm font-medium">{t('ch.volumeBreakdown', { muscle: muscleGroup })}</div>
+                        <div className="w-2 h-2 rounded-full" style={{ background: 'var(--red)' }} />
+                        <div className="text-mid text-sm font-medium">{t('ch.volumeBreakdown', { muscle: muscleGroup })}</div>
                       </div>
                       <div className="space-y-2">
                         {exercises.map((exercise, exerciseIndex) => {
@@ -623,34 +635,28 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
         </div>
 
         {/* Summary Stats */}
-        <div className="mt-8 bg-gradient-to-br from-gray-800/80 to-gray-900/60 backdrop-blur-xl border border-gray-700/50 rounded-3xl p-6 shadow-2xl">
+        <div className="ch-summary-footer">
           <div className="flex items-center space-x-3 mb-4">
-            <div className="w-8 h-8 bg-gradient-to-br from-[#dc1e3a]/20 to-red-500/10 rounded-xl flex items-center justify-center border border-[#dc1e3a]/30">
-              <Activity className="w-4 h-4 text-[#dc1e3a]" />
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,45,85,.12)', border: '1px solid rgba(255,45,85,.22)' }}>
+              <Activity className="w-4 h-4" style={{ color: 'var(--red)' }} />
             </div>
-            <h3 className="text-lg font-bold text-white">{t('ch.summary')}</h3>
+            <h3 className="text-lg font-saira font-semibold" style={{ color: 'var(--txt-hi)' }}>{t('ch.summary')}</h3>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white">
-                {availableMuscleGroups.length}
-              </div>
-              <div className="text-gray-400 text-sm">{t('ch.muscleGroupsAvailable')}</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="wt-stat-tile text-center">
+              <div className="wt-stat-val">{availableMuscleGroups.length}</div>
+              <div className="text-mid text-sm mt-1">{t('ch.muscleGroupsAvailable')}</div>
             </div>
             
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white">
-                {Object.values(workoutExercises).reduce((sum, exercises) => sum + exercises.length, 0)}
-              </div>
-              <div className="text-gray-400 text-sm">{t('ch.totalExercises')}</div>
+            <div className="wt-stat-tile text-center">
+              <div className="wt-stat-val">{totalExercises}</div>
+              <div className="text-mid text-sm mt-1">{t('ch.totalExercises')}</div>
             </div>
             
-            <div className="text-center">
-              <div className="text-2xl font-bold text-white">
-                {chartData.length}
-              </div>
-              <div className="text-gray-400 text-sm">{t('ch.weeksTracked')}</div>
+            <div className="wt-stat-tile text-center">
+              <div className="wt-stat-val">{chartData.length}</div>
+              <div className="text-mid text-sm mt-1">{t('ch.weeksTracked')}</div>
             </div>
           </div>
         </div>

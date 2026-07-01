@@ -13,8 +13,7 @@ import {
   Minus,
   Heart,
   Save,
-  ChevronDown,
-  ArrowRight
+  ChevronDown
 } from 'lucide-react';
 import { Client, WorkoutProgram } from '../types';
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking';
@@ -420,17 +419,14 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   if (!workoutProgram && !client.workoutAssignment?.program) {
   return (
       <div className="px-3 sm:px-4 py-10">
-        <div
-          className="rounded-[20px] p-8 text-center max-w-sm mx-auto"
-          style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
-        >
+        <div className="workout-empty">
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
             style={{ background: 'rgba(255,45,85,.12)' }}
           >
             <Dumbbell className="w-8 h-8" style={{ color: 'var(--red)' }} />
           </div>
-          <h3 className="font-display text-xl font-semibold mb-2" style={{ color: 'var(--txt-hi)' }}>
+          <h3 className="font-saira text-xl font-semibold mb-2" style={{ color: 'var(--txt-hi)' }}>
             {t('workout.noPlanTitle')}
           </h3>
           <p className="text-sm mb-5 leading-relaxed" style={{ color: 'var(--txt-mid)' }}>
@@ -832,6 +828,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     try {
       await saveClientEdits();
       setExerciseSaveState(prev => ({ ...prev, [exerciseId]: 'saved' }));
+      navigator.vibrate?.(8);
       setTimeout(() => {
         setExerciseSaveState(prev => {
           const next = { ...prev };
@@ -874,7 +871,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   };
 
   return (
-    <div className="workout-shell min-h-screen overflow-x-hidden relative">
+    <div className="workout-shell min-h-[100dvh] overflow-x-hidden relative">
 
       {/* Banner to clear cached data when old data is detected */}
       {isUsingOldData && (
@@ -896,15 +893,14 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             <button
               type="button"
               onClick={() => setWeekStripOpen((o) => !o)}
-              className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-[14px] active:scale-[0.99] transition-transform"
-              style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+              className="workout-week-toggle"
               aria-expanded={weekStripOpen}
             >
               <span className="flex items-baseline gap-2 min-w-0">
                 <span className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--txt-lo)' }}>
                   {t('workout.trainingWeek')}
                 </span>
-                <span className="font-display font-semibold text-[14px]" style={{ color: 'var(--txt-hi)' }}>
+                <span className="font-saira font-semibold text-[14px]" style={{ color: 'var(--txt-hi)' }}>
                   {t('workout.weekOfTotal', { current: currentWeek, total: totalProgramWeeks })}
                 </span>
               </span>
@@ -994,11 +990,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 
         {/* Day Navigation - token-styled cards */}
         <div>
-          <div className="flex items-center gap-2 mb-3 px-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--txt-lo)' }}>
-              {t('workout.selectDay')}
-            </span>
-            <span className="flex-1 h-px" style={{ background: 'var(--hair)' }} />
+          <div className="workout-seclabel">
+            <span>{t('workout.selectDay')}</span>
+            <span className="line" />
           </div>
 
           {/* Horizontal Scrolling Days */}
@@ -1062,7 +1056,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                       >
                         {isDayUnlocked ? getDayStatusIcon(status) : <Lock className="w-4 h-4" />}
                       </div>
-                      <div className="font-display font-semibold text-[16px] truncate" style={{ color: 'var(--txt-hi)' }}>
+                      <div className="font-saira font-semibold text-[16px] truncate" style={{ color: 'var(--txt-hi)' }}>
                         {day.name}
                       </div>
                       <div className="text-[11.5px] mt-0.5 truncate" style={{ color: 'var(--txt-mid)' }}>
@@ -1103,14 +1097,21 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           </div>
 
           {!isDayUnlocked && (
-            <div className="mt-4 sm:mt-6 p-4 bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/30 rounded-2xl backdrop-blur-sm">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center">
-                  <Lock className="w-4 h-4 text-yellow-400" />
+            <div className="workout-locked-banner">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: 'rgba(245, 158, 11, 0.18)' }}
+                >
+                  <Lock className="w-4 h-4 wk-lock-icon" style={{ color: 'rgb(251, 191, 36)' }} />
                 </div>
                 <div>
-                  <p className="text-yellow-300 text-sm font-medium">{t('workout.weekLocked')}</p>
-                  <p className="text-yellow-400/80 text-xs">{t('workout.weekLockedBody')}</p>
+                  <p className="text-sm font-medium wk-lock-title">
+                    {t('workout.weekLocked')}
+                  </p>
+                  <p className="text-xs mt-0.5 wk-lock-body">
+                    {t('workout.weekLockedBody')}
+                  </p>
                 </div>
               </div>
         </div>
@@ -1121,10 +1122,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         {isDayUnlocked && currentDayData && (
           <div className="space-y-6 sm:space-y-8">
             {/* Workout Header (today) */}
-            <div
-              className="flex items-center gap-3.5 p-4 rounded-[18px]"
-              style={{ background: 'linear-gradient(135deg, var(--surface-2), var(--surface-1))', border: '1px solid var(--hair)' }}
-            >
+            <div className="workout-day-hero">
               <div
                 className="w-[46px] h-[46px] rounded-[14px] flex items-center justify-center shrink-0 shadow-red"
                 style={{ background: 'var(--grad-red)', color: '#fff' }}
@@ -1132,7 +1130,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                 <Dumbbell className="w-[22px] h-[22px]" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-display font-semibold text-[20px] truncate" style={{ color: 'var(--txt-hi)' }}>
+                <div className="font-saira font-semibold text-[20px] truncate" style={{ color: 'var(--txt-hi)' }}>
                   {currentDayData.name}
                 </div>
                 <div className="text-[11.5px] mt-1 truncate" style={{ color: 'var(--txt-mid)' }}>
@@ -1150,11 +1148,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             </div>
 
             {/* Today's exercises */}
-            <div className="flex items-center gap-2 mb-3 px-1">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.16em]" style={{ color: 'var(--txt-lo)' }}>
-                {t('workout.todaysExercises')}
-              </span>
-              <span className="flex-1 h-px" style={{ background: 'var(--hair)' }} />
+            <div className="workout-seclabel">
+              <span>{t('workout.todaysExercises')}</span>
+              <span className="line" />
             </div>
 
             {/* Exercises */}
@@ -1165,12 +1161,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                   : [];
                 const isSuperset = ssGroup.length >= 2;
                 const ssPos = isSuperset ? ssGroup.findIndex((e: any) => e.id === exercise.id) : -1;
-                const ssPartner = isSuperset ? ssGroup.find((e: any) => e.id !== exercise.id) : undefined;
-                const isFirstOfGroup = isSuperset && ssGroup[0]?.id === exercise.id;
-                const ssRest = (exercise as any).restPeriod ?? (ssPartner as any)?.restPeriod ?? 90;
-                const ssRounds = isSuperset
-                  ? Math.max(exercise.sets?.length || 0, ssPartner?.sets?.length || 0)
-                  : 0;
                 return (
                 <div
                   key={exercise.id}
@@ -1238,45 +1228,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                       </div>
                     </div>
                   </div>
-
-                  {/* Superset execution guide (shown once, on the first exercise of the pair) */}
-                  {isFirstOfGroup && ssPartner && (
-                    <div
-                      className="mx-4 mb-4 rounded-[18px] p-3.5"
-                      style={{ background: 'rgba(59,130,246,.08)', border: '1px solid rgba(59,130,246,.28)' }}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white inline-flex items-center gap-1" style={{ background: 'linear-gradient(135deg,#3b82f6,#06b6d4)' }}>
-                          <Zap className="w-2.5 h-2.5" />
-                          {exercise.supersetName || t('workout.superset')}
-                        </span>
-                        <span className="text-[12px] font-semibold" style={{ color: 'var(--txt-hi)' }}>
-                          {t('workout.supersetHow')}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-1.5 text-[11.5px]" style={{ color: 'var(--txt-mid)' }}>
-                        {Array.from({ length: Math.max(1, ssRounds) }).map((_, r) => (
-                          <React.Fragment key={r}>
-                            <span
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg font-medium"
-                              style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)' }}
-                            >
-                              <span className="font-bold" style={{ color: 'var(--blue)' }}>R{r + 1}</span>
-                              {exercise.exercise.name}
-                              <ArrowRight className="w-3 h-3 opacity-60" />
-                              {ssPartner.exercise.name}
-                            </span>
-                            {r < Math.max(1, ssRounds) - 1 && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-1 rounded-lg" style={{ color: 'var(--txt-lo)' }}>
-                                <Clock className="w-3 h-3" />
-                                {t('workout.restSeconds', { n: ssRest })}
-                              </span>
-                            )}
-                          </React.Fragment>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   {/* Form demo video — always visible */}
                   <a
@@ -1372,7 +1323,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                     const newReps = typeof currentReps === 'number' ? Math.max(0, currentReps - 1) : 0;
                                     updateExerciseData(exercise.id, setIndex, 'reps', newReps);
                                   }}
-                                  className="wk-step w-8 h-[34px] flex items-center justify-center shrink-0"
+                                  className="wk-step flex items-center justify-center shrink-0"
                                   style={{ color: 'var(--blue)' }}
                                   aria-label="Decrease reps"
                                 >
@@ -1395,7 +1346,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                     const newReps = typeof currentReps === 'number' ? currentReps + 1 : 1;
                                     updateExerciseData(exercise.id, setIndex, 'reps', newReps);
                                   }}
-                                  className="wk-step w-8 h-[34px] flex items-center justify-center shrink-0"
+                                  className="wk-step flex items-center justify-center shrink-0"
                                   style={{ color: 'var(--red)' }}
                                   aria-label="Increase reps"
                                 >
@@ -1418,7 +1369,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                     updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
                                     setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
                                   }}
-                                  className="wk-step w-8 h-[34px] flex items-center justify-center shrink-0"
+                                  className="wk-step flex items-center justify-center shrink-0"
                                   style={{ color: 'var(--blue)' }}
                                   aria-label="Decrease weight 2.5 kg"
                                 >
@@ -1437,7 +1388,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                       step={0.5}
                                       inputMode="decimal"
                                       placeholder="0"
-                                      className="w-[44px] max-w-full bg-transparent text-center font-display font-bold text-[17px] tnum
+                                      className="w-[44px] max-w-full bg-transparent text-center font-display font-bold text-[16px] tnum
                                         focus:outline-none focus:ring-0
                                         [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                       style={{ color: 'var(--txt-hi)' }}
@@ -1486,7 +1437,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                     updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
                                     setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
                                   }}
-                                  className="wk-step w-8 h-[34px] flex items-center justify-center shrink-0"
+                                  className="wk-step flex items-center justify-center shrink-0"
                                   style={{ color: 'var(--red)' }}
                                   aria-label={t('workout.increaseWeight')}
                                 >
@@ -1509,7 +1460,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                           type="button"
                           onClick={() => handleSaveExercise(exercise.id)}
                           disabled={isSaving}
-                          className="w-full py-3 rounded-[15px] font-semibold text-[14px] text-white flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.97] disabled:cursor-not-allowed"
+                          className="workout-save-btn disabled:cursor-not-allowed"
                           style={
                             isSaved
                               ? { background: 'linear-gradient(90deg, var(--emerald-deep), var(--emerald))', boxShadow: '0 12px 28px -10px rgba(52,211,153,.55)' }

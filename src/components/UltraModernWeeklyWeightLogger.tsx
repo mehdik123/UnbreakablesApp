@@ -191,6 +191,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
 
       setEditingCell(null);
       setTempValue('');
+      navigator.vibrate?.(8);
       
       // Don't reload data immediately - the local state update should be sufficient
       // await loadWeightData();
@@ -305,102 +306,96 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
   };
 
   return (
-    <div className="space-y-4 md:space-y-8">
-      {/* Header with Tabs and Week Navigation */}
-      <div className="backdrop-blur-xl border border-[color:var(--hair)] bg-[var(--surface-1)] rounded-3xl p-4 md:p-6">
-        {/* Tabs */}
-        <div className="flex items-center justify-between mb-4 md:mb-6">
-          <div className="flex items-center space-x-2">
+    <div className="wt-shell space-y-4">
+      <div className="wt-summary">
+        <div className="wt-summary-icon">
+          <Scale className="w-[22px] h-[22px]" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="font-saira font-semibold text-[18px] truncate" style={{ color: 'var(--txt-hi)' }}>
+            {t('nav.weight')}
+          </div>
+          <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>
+            {t('home.weightDesc')}
+          </div>
+        </div>
+        <div className="text-center shrink-0">
+          <div className="font-saira font-bold text-[24px] leading-none tnum" style={{ color: 'var(--red)' }}>
+            {getCurrentWeight() > 0 ? getCurrentWeight().toFixed(1) : '—'}
+          </div>
+          <div className="text-[10px] uppercase tracking-[0.08em] mt-1" style={{ color: 'var(--txt-lo)' }}>
+            kg
+          </div>
+        </div>
+      </div>
+
+      <div className="wt-panel">
+        <div className="wt-tabs">
+          <div className="wt-tab-group">
             <button
+              type="button"
               onClick={() => setActiveTab('weight')}
-              className={`flex items-center space-x-2 px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl font-semibold transition-all duration-300 ${
-                activeTab === 'weight'
-                  ? 'bg-[#dc1e3a] text-white shadow-lg shadow-[#dc1e3a]/30'
-                  : 'bg-gray-800 text-white/60 hover:bg-gray-700 hover:text-white'
-              }`}
+              className={`wt-tab ${activeTab === 'weight' ? 'wt-tab--active' : ''}`}
             >
-              <Scale className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="text-xs md:text-base">{t('wt.weight')}</span>
+              <Scale className="w-4 h-4" />
+              <span>{t('wt.weight')}</span>
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('measurements')}
-              className={`flex items-center space-x-2 px-4 md:px-6 py-2 md:py-3 rounded-xl md:rounded-2xl font-semibold transition-all duration-300 ${
-                activeTab === 'measurements'
-                  ? 'bg-[#dc1e3a] text-white shadow-lg shadow-[#dc1e3a]/30'
-                  : 'bg-gray-800 text-white/60 hover:bg-gray-700 hover:text-white'
-              }`}
+              className={`wt-tab ${activeTab === 'measurements' ? 'wt-tab--active' : ''}`}
             >
-              <Ruler className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="text-xs md:text-base">{t('wt.measurements')}</span>
+              <Ruler className="w-4 h-4" />
+              <span>{t('wt.measurements')}</span>
             </button>
           </div>
-          
-          {/* Week Navigation - Ultra Modern */}
-          <div className="flex items-center gap-1">
-            {/* Previous Week Button */}
+
+          <div className="wt-week-nav">
             <button
+              type="button"
               onClick={() => setSelectedWeek(Math.max(1, selectedWeek - 1))}
               disabled={selectedWeek <= 1}
-              className="group relative w-7 h-7 rounded-lg overflow-hidden transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-110 active:scale-95"
+              className="wt-week-btn"
+              aria-label="Previous week"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 group-hover:from-gray-600 group-hover:to-gray-700 transition-all duration-300"></div>
-              <div className="absolute inset-0 bg-gradient-to-tr from-[#dc1e3a]/0 via-[#dc1e3a]/0 to-[#dc1e3a]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <div className="relative w-full h-full flex items-center justify-center">
-                <ChevronLeft className="w-3.5 h-3.5 text-white group-hover:text-[#dc1e3a] transition-colors duration-300" />
-              </div>
+              <ChevronLeft className="w-4 h-4" />
             </button>
-            
-            {/* Week Display */}
-            <div className="relative px-3 py-1 overflow-hidden rounded-lg">
-              <div className="absolute inset-0 bg-gradient-to-r from-[#dc1e3a]/20 via-[#dc1e3a]/30 to-[#dc1e3a]/20"></div>
-              <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent"></div>
-              <div className="relative flex items-center gap-0.5 text-xs font-bold">
-                <span className="text-white">{selectedWeek}</span>
-                <span className="text-white/40">/</span>
-                <span className="text-white/60">{maxWeeks}</span>
-              </div>
+            <div className="wt-week-pill">
+              {selectedWeek} / {maxWeeks}
             </div>
-            
-            {/* Next Week Button */}
             <button
+              type="button"
               onClick={() => setSelectedWeek(Math.min(maxWeeks, selectedWeek + 1))}
               disabled={selectedWeek >= maxWeeks}
-              className="group relative w-7 h-7 rounded-lg overflow-hidden transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-110 active:scale-95"
+              className="wt-week-btn"
+              aria-label="Next week"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-800 group-hover:from-gray-600 group-hover:to-gray-700 transition-all duration-300"></div>
-              <div className="absolute inset-0 bg-gradient-to-tl from-[#dc1e3a]/0 via-[#dc1e3a]/0 to-[#dc1e3a]/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              <div className="relative w-full h-full flex items-center justify-center">
-                <ChevronRight className="w-3.5 h-3.5 text-white group-hover:text-[#dc1e3a] transition-colors duration-300" />
-              </div>
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Tab Content */}
       {activeTab === 'weight' ? (
-        /* Ultra-Modern Weight Tracking Interface */
-        <div className="space-y-4 md:space-y-8">
-          {/* Weekly Overview with Interactive Cards */}
-          <div className="backdrop-blur-xl border border-[color:var(--hair)] bg-[var(--surface-1)] rounded-3xl p-4 md:p-8 relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#dc1e3a]/5 via-transparent to-[#dc1e3a]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+        <div className="space-y-4">
+          <div className="wt-panel relative overflow-hidden">
           <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4 md:mb-8">
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg md:text-2xl font-bold text-white mb-1">{t('wt.thisWeek')}</h3>
-                <p className="text-white/60 text-xs md:text-sm">
+                <h3 className="font-saira font-semibold text-[18px]" style={{ color: 'var(--txt-hi)' }}>{t('wt.thisWeek')}</h3>
+                <p className="text-[12.5px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>
                   {editingCell ? t('wt.editingCell', { week: editingCell.week, day: editingCell.day }) : t('wt.clickToLog')}
                 </p>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 {isLoading && (
-                  <div className="w-4 h-4 border-2 border-[#dc1e3a] border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--red)', borderTopColor: 'transparent' }} />
                 )}
-                <div className="w-2 h-2 md:w-3 md:h-3 bg-[#dc1e3a] rounded-full animate-pulse"></div>
+                <div className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: 'var(--red)' }} />
               </div>
             </div>
 
-            <div className="grid grid-cols-7 gap-2 md:gap-3">
+            <div className="grid grid-cols-7 gap-2">
               {DAYS_OF_WEEK.map((day, dayIndex) => {
                 const dayData = getCurrentWeekData()[day.key];
                 const weight = dayData?.weight;
@@ -410,20 +405,17 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
                 return (
                   <div
                     key={day.key}
-                    className={`relative rounded-xl p-2 md:p-4 transition-all duration-300 cursor-pointer ${
-                      hasWeight
-                        ? 'bg-gray-800 border-2 border-[#dc1e3a] shadow-lg shadow-[#dc1e3a]/20'
-                        : 'bg-gray-800 border border-gray-600'
-                    }`}
+                    className={`wt-day-cell relative ${hasWeight ? 'wt-day-cell--filled' : ''}`}
                     onClick={() => handleCellClick(selectedWeek, day.key)}
                   >
                     {isEditing ? (
                       <input
                         type="number"
                         step="0.1"
+                        inputMode="decimal"
                         value={tempValue}
                         onChange={(e) => setTempValue(e.target.value)}
-                        className="w-full bg-transparent text-white text-center text-sm md:text-lg font-bold focus:outline-none touch-target"
+                        className="wt-day-input touch-target"
                         placeholder="kg"
                         autoFocus
                         onKeyDown={(e) => {
@@ -434,43 +426,40 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
                       />
                     ) : (
                       <div className="text-center">
-                        <div className={`text-xs font-semibold mb-1 md:mb-2 ${
-                          hasWeight ? 'text-white' : 'text-white/60'
-                        }`}>
+                        <div className="text-[10px] font-semibold mb-1 uppercase tracking-wide" style={{ color: hasWeight ? 'var(--txt-hi)' : 'var(--txt-lo)' }}>
                           {t('wt.day', { n: dayIndex + 1 })}
                         </div>
-                        <div className={`text-xs md:text-sm font-medium ${
-                          hasWeight ? 'text-[#dc1e3a]' : 'text-white/40'
-                        }`}>
-                          {hasWeight ? `${weight.toFixed(1)} kg` : '--'}
+                        <div className="text-[12px] font-bold tnum" style={{ color: hasWeight ? 'var(--red)' : 'var(--txt-lo)' }}>
+                          {hasWeight ? `${weight.toFixed(1)}` : '--'}
                         </div>
                       </div>
                     )}
                     
                     {hasWeight && !isEditing && (
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleWeightDelete(selectedWeek, day.key);
                         }}
-                        className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold transition-colors"
+                        className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                        style={{ background: 'var(--red)' }}
                         title={t('wt.deleteWeight')}
                       >
                         ×
                       </button>
                     )}
                     {hasWeight && isEditing && (
-                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#dc1e3a] rounded-full animate-pulse"></div>
+                      <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full animate-pulse" style={{ background: 'var(--red)' }} />
                     )}
                   </div>
                 );
               })}
             </div>
             
-            {/* Error Display */}
             {saveError && (
-              <div className="mt-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg">
-                <p className="text-red-400 text-sm">{saveError}</p>
+              <div className="wt-error">
+                {saveError}
               </div>
             )}
           </div>

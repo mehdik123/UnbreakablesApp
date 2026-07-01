@@ -12,8 +12,8 @@ interface StatsCardProps {
 
 export const StatsCard: React.FC<StatsCardProps> = ({ title, value, change, icon, unit }) => {
   const getChangeColor = () => {
-    if (change === undefined || change === 0) return 'text-white/60';
-    return change > 0 ? 'text-red-400' : 'text-green-400';
+    if (change === undefined || change === 0) return 'var(--txt-lo)';
+    return change > 0 ? 'var(--red)' : 'var(--emerald)';
   };
 
   const getChangeIcon = () => {
@@ -22,30 +22,24 @@ export const StatsCard: React.FC<StatsCardProps> = ({ title, value, change, icon
   };
 
   return (
-    <div className="bg-gray-800 backdrop-blur-xl border border-gray-700 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 md:p-6 hover:border-[#dc1e3a]/40 hover:shadow-2xl hover:shadow-[#dc1e3a]/20 transition-all duration-700 group relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#dc1e3a]/10 via-transparent to-[#dc1e3a]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-      <div className="relative z-10">
-        <div className="flex items-center justify-between mb-2 sm:mb-4">
-          <div className="p-2 sm:p-3 md:p-4 bg-gray-700 rounded-lg sm:rounded-xl group-hover:bg-gray-600 transition-all duration-500 shadow-lg">
-            {icon}
+    <div className="wt-stat-tile group relative overflow-hidden">
+      <div className="flex items-center justify-between mb-3">
+        <div className="wt-stat-icon">{icon}</div>
+        {change !== undefined && (
+          <div
+            className="flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-bold tnum"
+            style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: getChangeColor() }}
+          >
+            {getChangeIcon()}
+            <span>{Math.abs(change).toFixed(1)}{unit}</span>
           </div>
-          {change !== undefined && (
-            <div className={`flex items-center space-x-1 sm:space-x-2 px-1.5 sm:px-3 py-0.5 sm:py-2 rounded-full bg-gray-700 backdrop-blur-sm ${getChangeColor()}`}>
-              {getChangeIcon()}
-              <span className="text-[10px] sm:text-sm font-bold">
-                {Math.abs(change).toFixed(1)}{unit}
-              </span>
-            </div>
-          )}
-        </div>
-        
-        <div className="space-y-0.5 sm:space-y-2">
-          <h3 className="text-white/80 text-[9px] sm:text-xs md:text-sm font-semibold uppercase tracking-wider">{title}</h3>
-          <div className="text-white text-lg sm:text-2xl md:text-3xl font-bold group-hover:text-[#dc1e3a] transition-colors duration-500">
-            {typeof value === 'number' ? value.toFixed(1) : value}
-            {unit && <span className="text-sm sm:text-lg md:text-xl text-white/70 ml-0.5 sm:ml-1 group-hover:text-[#dc1e3a]/80 transition-colors duration-500">{unit}</span>}
-          </div>
-        </div>
+        )}
+      </div>
+
+      <h3 className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--txt-lo)' }}>{title}</h3>
+      <div className="wt-stat-val mt-1">
+        {typeof value === 'number' ? value.toFixed(1) : value}
+        {unit && <span className="text-sm ml-1" style={{ color: 'var(--txt-mid)' }}>{unit}</span>}
       </div>
     </div>
   );
@@ -68,31 +62,31 @@ export const WeightStatsGrid: React.FC<WeightStatsGridProps> = ({
 }) => {
   const { t } = useClientLocale();
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-6">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       <StatsCard
         title={t('wt.currentWeight')}
         value={currentWeight}
-        icon={<Target className="w-5 h-5 sm:w-7 sm:h-7 text-[#dc1e3a] drop-shadow-lg" />}
+        icon={<Target className="w-5 h-5" style={{ color: 'var(--red)' }} />}
         unit="kg"
       />
       <StatsCard
         title={t('wt.weeklyChange')}
         value={Math.abs(weeklyChange)}
         change={weeklyChange}
-        icon={<TrendingUp className="w-5 h-5 sm:w-7 sm:h-7 text-[#dc1e3a] drop-shadow-lg" />}
+        icon={<TrendingUp className="w-5 h-5" style={{ color: 'var(--blue)' }} />}
         unit="kg"
       />
       <StatsCard
         title={t('wt.monthlyChange')}
         value={Math.abs(monthlyChange)}
         change={monthlyChange}
-        icon={<Calendar className="w-5 h-5 sm:w-7 sm:h-7 text-[#dc1e3a] drop-shadow-lg" />}
+        icon={<Calendar className="w-5 h-5" style={{ color: 'var(--emerald)' }} />}
         unit="kg"
       />
       <StatsCard
         title={t('wt.averageWeight')}
         value={averageWeight}
-        icon={<BarChart3 className="w-5 h-5 sm:w-7 sm:h-7 text-[#dc1e3a] drop-shadow-lg" />}
+        icon={<BarChart3 className="w-5 h-5" style={{ color: 'var(--amber)' }} />}
         unit="kg"
       />
     </div>

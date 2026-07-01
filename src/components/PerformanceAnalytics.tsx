@@ -282,29 +282,45 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
 
   if (isLoading) {
     return (
-      <div className="min-h-[50vh] flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-4" style={{ borderColor: 'var(--red)', borderTopColor: 'transparent' }}></div>
-          <p className="text-white text-lg font-medium">{t('an.analyzing')}</p>
+      <div className="an-shell px-1">
+        <div className="cardio-loading" aria-busy="true">
+          <div className="cardio-loading-pulse" />
+          <div className="cardio-loading-pulse" style={{ height: 160 }} />
         </div>
       </div>
     );
   }
 
+  const improvingCount = muscleGroups.filter(m => m.trend === 'increasing').length;
+
   return (
-    <div className="py-2">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-red" style={{ background: 'var(--grad-red)' }}>
-              <BarChart3 className="w-6 h-6 text-white" />
+    <div className="an-shell py-2">
+      <div className="max-w-7xl mx-auto px-1">
+        <div className="an-summary">
+          <div className="an-summary-icon">
+            <BarChart3 className="w-[22px] h-[22px]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="font-saira font-semibold text-[18px] truncate" style={{ color: 'var(--txt-hi)' }}>
+              {t('nav.analytics')}
             </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-black font-display" style={{ color: 'var(--txt-hi)' }}>{t('an.title')}</h1>
-              <p className="text-sm sm:text-base" style={{ color: 'var(--txt-mid)' }}>{t('an.subtitle', { name: clientName })}</p>
+            <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>
+              {t('home.analyticsDesc')}
             </div>
           </div>
+          <div className="text-center shrink-0">
+            <div className="font-saira font-bold text-[24px] leading-none tnum" style={{ color: 'var(--blue)' }}>
+              {improvingCount}
+            </div>
+            <div className="text-[10px] uppercase tracking-[0.08em] mt-1 text-lo">
+              {t('an.improving')}
+            </div>
+          </div>
+        </div>
+
+        <div className="workout-seclabel">
+          <span>{t('an.title')}</span>
+          <span className="line" />
         </div>
 
         {/* Performance Cards Grid */}
@@ -313,8 +329,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
             <div
               key={muscle.name}
               onClick={() => setSelectedMuscle(selectedMuscle === muscle.name ? null : muscle.name)}
-              className="group relative backdrop-blur-xl rounded-3xl overflow-hidden transition-all duration-500 cursor-pointer hover:scale-[1.02] shadow-soft"
-              style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+              className="an-muscle-card group relative hover:scale-[1.01] shadow-soft"
             >
               {/* Background Pattern */}
               <div className="absolute inset-0 opacity-5 group-hover:opacity-10 transition-opacity duration-500">
@@ -332,11 +347,11 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                       {getTrendIcon(muscle.trend)}
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-white">{muscle.name}</h3>
-                      <p className="text-slate-400 text-sm capitalize">{t('an.trend' + muscle.trend.charAt(0).toUpperCase() + muscle.trend.slice(1))}</p>
+                      <h3 className="text-lg font-saira font-semibold" style={{ color: 'var(--txt-hi)' }}>{muscle.name}</h3>
+                      <p className="text-mid text-sm capitalize">{t('an.trend' + muscle.trend.charAt(0).toUpperCase() + muscle.trend.slice(1))}</p>
                     </div>
                   </div>
-                  <ChevronRight className={`w-5 h-5 text-slate-400 transition-transform ${selectedMuscle === muscle.name ? 'rotate-90' : ''}`} />
+                  <ChevronRight className={`w-5 h-5 text-lo transition-transform ${selectedMuscle === muscle.name ? 'rotate-90' : ''}`} />
                 </div>
 
                 {/* Enhanced Muscle Illustration */}
@@ -350,15 +365,15 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                 {/* Stats */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400 text-sm">{t('an.currentWeek')}</span>
-                    <span className="text-white font-bold">{muscle.currentWeekVolume.toLocaleString()} kg</span>
+                    <span className="text-mid text-sm">{t('an.currentWeek')}</span>
+                    <span className="font-bold font-saira tnum" style={{ color: 'var(--txt-hi)' }}>{muscle.currentWeekVolume.toLocaleString()} kg</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400 text-sm">{t('an.previousWeek')}</span>
-                    <span className="text-slate-300 font-medium">{muscle.previousWeekVolume.toLocaleString()} kg</span>
+                    <span className="text-mid text-sm">{t('an.previousWeek')}</span>
+                    <span className="font-medium tnum text-mid">{muscle.previousWeekVolume.toLocaleString()} kg</span>
                   </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-700/50">
-                    <span className="text-slate-400 text-sm">{t('an.change')}</span>
+                  <div className="flex items-center justify-between pt-2 an-divider mt-2">
+                    <span className="text-mid text-sm">{t('an.change')}</span>
                     <div className={`flex items-center gap-1 font-bold ${
                       muscle.changePercentage > 0 ? 'text-green-400' : 
                       muscle.changePercentage < 0 ? 'text-red-400' : 'text-blue-400'
@@ -373,7 +388,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
 
                 {/* Expanded Report */}
                 {selectedMuscle === muscle.name && (
-                  <div className="mt-4 pt-4 border-t border-slate-700/50 animate-fadeIn space-y-4">
+                  <div className="mt-4 pt-4 an-divider animate-fadeIn space-y-4">
                     {/* Week-to-Week Analysis */}
                     <div className="rounded-xl p-4" style={{ background: 'linear-gradient(135deg, rgba(255,45,85,.1), rgba(255,106,85,.06))', border: '1px solid rgba(255,45,85,.2)' }}>
                       <div className="flex items-center gap-2 mb-2">
@@ -381,7 +396,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                         <h4 className="text-sm font-bold" style={{ color: 'var(--coral)' }}>{t('an.thisVsLast')}</h4>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-300 text-sm">
+                        <span className="text-mid text-sm">
                           {muscle.previousWeekVolume.toLocaleString()} kg → {muscle.currentWeekVolume.toLocaleString()} kg
                         </span>
                         <div className={`flex items-center gap-1 font-bold text-lg ${
@@ -400,7 +415,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                         <h4 className="text-sm font-bold text-emerald-300">{t('an.totalProgress')}</h4>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-300 text-sm">
+                        <span className="text-mid text-sm">
                           {muscle.week1Volume.toLocaleString()} kg → {muscle.currentWeekVolume.toLocaleString()} kg
                         </span>
                         <div className={`flex items-center gap-1 font-bold text-lg ${
@@ -419,7 +434,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                         <h4 className="text-sm font-bold text-blue-300">{t('an.vsAverage')}</h4>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-300 text-sm">
+                        <span className="text-mid text-sm">
                           {t('an.avg', { n: muscle.averageVolume.toLocaleString() })}
                         </span>
                         <div className={`flex items-center gap-1 font-bold text-lg ${
@@ -429,7 +444,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                           {muscle.vsAveragePercentage > 0 ? '+' : ''}{muscle.vsAveragePercentage.toFixed(1)}%
                         </div>
                       </div>
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-xs text-lo mt-1">
                         {muscle.vsAveragePercentage > 0 ? t('an.abovePerf') : muscle.vsAveragePercentage < 0 ? t('an.belowPerf') : t('an.atPerf')}
                       </p>
                     </div>
@@ -470,11 +485,11 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                             />
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-lg font-bold text-white">{muscle.consistencyScore.toFixed(0)}</span>
+                            <span className="text-lg font-bold font-saira tnum" style={{ color: 'var(--txt-hi)' }}>{muscle.consistencyScore.toFixed(0)}</span>
                           </div>
                         </div>
                         <div className="flex-1">
-                          <p className="text-slate-200 text-sm leading-relaxed">
+                          <p className="text-mid text-sm leading-relaxed">
                             {muscle.consistencyScore >= 80 
                               ? t('an.consistencyHigh') 
                               : muscle.consistencyScore >= 60 
@@ -487,7 +502,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
 
                     {/* Mini Chart */}
                     <div className="mt-3">
-                      <h5 className="text-xs font-semibold text-slate-400 mb-2">{t('an.volumeHistory')}</h5>
+                      <h5 className="text-xs font-semibold text-lo mb-2">{t('an.volumeHistory')}</h5>
                       <div className="flex items-end gap-1 h-16">
                         {muscle.weeklyHistory.map((volume, idx) => (
                           <div
@@ -502,8 +517,8 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                         ))}
                       </div>
                       <div className="flex justify-between mt-1">
-                        <span className="text-[10px] text-slate-500">{t('an.week', { n: 1 })}</span>
-                        <span className="text-[10px] text-slate-500">{t('an.week', { n: muscle.weeklyHistory.length })}</span>
+                        <span className="text-[10px] text-lo">{t('an.week', { n: 1 })}</span>
+                        <span className="text-[10px] text-lo">{t('an.week', { n: muscle.weeklyHistory.length })}</span>
                       </div>
                     </div>
                   </div>
@@ -522,38 +537,38 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
             <h2 className="text-2xl font-bold font-display" style={{ color: 'var(--txt-hi)' }}>{t('an.overallSummary')}</h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="an-summary-pill">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-5 h-5 text-green-400" />
-                <span className="text-green-400 font-bold text-sm">{t('an.improving')}</span>
+                <TrendingUp className="w-5 h-5" style={{ color: 'var(--emerald)' }} />
+                <span className="font-bold text-sm" style={{ color: 'var(--emerald)' }}>{t('an.improving')}</span>
               </div>
-              <p className="text-3xl font-black text-white">
+              <p className="text-3xl font-black font-saira tnum" style={{ color: 'var(--txt-hi)' }}>
                 {muscleGroups.filter(m => m.trend === 'increasing').length}
               </p>
-              <p className="text-slate-400 text-sm">{t('an.muscleGroupsLabel')}</p>
+              <p className="text-mid text-sm">{t('an.muscleGroupsLabel')}</p>
             </div>
 
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
+            <div className="an-summary-pill">
               <div className="flex items-center gap-2 mb-2">
-                <Minus className="w-5 h-5 text-blue-400" />
-                <span className="text-blue-400 font-bold text-sm">{t('an.stable')}</span>
+                <Minus className="w-5 h-5" style={{ color: 'var(--blue)' }} />
+                <span className="font-bold text-sm" style={{ color: 'var(--blue)' }}>{t('an.stable')}</span>
               </div>
-              <p className="text-3xl font-black text-white">
+              <p className="text-3xl font-black font-saira tnum" style={{ color: 'var(--txt-hi)' }}>
                 {muscleGroups.filter(m => m.trend === 'stable').length}
               </p>
-              <p className="text-slate-400 text-sm">{t('an.muscleGroupsLabel')}</p>
+              <p className="text-mid text-sm">{t('an.muscleGroupsLabel')}</p>
             </div>
 
-            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+            <div className="an-summary-pill">
               <div className="flex items-center gap-2 mb-2">
-                <TrendingDown className="w-5 h-5 text-red-400" />
-                <span className="text-red-400 font-bold text-sm">{t('an.declining')}</span>
+                <TrendingDown className="w-5 h-5" style={{ color: 'var(--red)' }} />
+                <span className="font-bold text-sm" style={{ color: 'var(--red)' }}>{t('an.declining')}</span>
               </div>
-              <p className="text-3xl font-black text-white">
+              <p className="text-3xl font-black font-saira tnum" style={{ color: 'var(--txt-hi)' }}>
                 {muscleGroups.filter(m => m.trend === 'decreasing').length}
               </p>
-              <p className="text-slate-400 text-sm">{t('an.muscleGroupsLabel')}</p>
+              <p className="text-mid text-sm">{t('an.muscleGroupsLabel')}</p>
             </div>
           </div>
         </div>

@@ -182,7 +182,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Camera className="w-4 h-4" style={{ color: 'var(--red)' }} />
-            <span className="text-sm font-semibold font-display" style={{ color: 'var(--txt-hi)' }}>{t('photo.progressPhotos')}</span>
+            <span className="text-sm font-semibold font-saira" style={{ color: 'var(--txt-hi)' }}>{t('photo.progressPhotos')}</span>
           </div>
           {weekPhotos.length > 0 && (
             <span className="text-xs" style={{ color: 'var(--txt-mid)' }}>{weekPhotos.length}/3</span>
@@ -211,7 +211,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
 
           {/* Ultra Modern Dropdown Menu */}
           {isWeekDropdownOpen && (
-            <div className="absolute top-full left-0 right-0 mt-2 backdrop-blur-xl rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200" style={{ background: 'rgba(21,23,31,.97)', border: '1px solid var(--hair)' }}>
+            <div className="absolute top-full left-0 right-0 mt-2 backdrop-blur-xl rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200 nut-modal-surface">
               <div className="max-h-64 overflow-y-auto custom-scrollbar">
                 {/* Current Week Badge */}
                 <div className="sticky top-0 px-3 py-2 backdrop-blur-sm z-10" style={{ background: 'var(--surface-2)' }}>

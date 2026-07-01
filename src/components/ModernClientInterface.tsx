@@ -1378,26 +1378,35 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               isDark={isDark}
             />
           ) : activeTab === 'photos' ? (
-            <div className="space-y-3">
-              <div
-                className={`client-compact-card rounded-xl border p-3 ${useDarkTheme ? '' : 'bg-white border-slate-200'}`}
-                style={useDarkTheme ? { background: 'var(--surface-1)', borderColor: 'var(--hair)' } : undefined}
-              >
-                <h2
-                  className="client-compact-title font-display font-semibold mb-2 flex items-center gap-2"
-                  style={{ color: useDarkTheme ? 'var(--txt-hi)' : '#0f172a' }}
-                >
-                  <Camera className="w-4 h-4 shrink-0" style={{ color: 'var(--red)' }} />
-                  {t('photos.uploadWeek', { week: currentWeek })}
-                </h2>
-                <WeeklyPhotoUpload
-                  clientId={databaseClientId || client.id}
-                  currentWeek={currentWeek}
-                  maxWeeks={client.numberOfWeeks}
-                  onPhotosUpdate={setWeeklyPhotos}
-                  existingPhotos={weeklyPhotos}
-                />
+            <div className="photos-shell px-1">
+              <div className="photos-summary">
+                <div className="photos-summary-icon">
+                  <Camera className="w-[22px] h-[22px]" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-saira font-semibold text-[18px] truncate" style={{ color: 'var(--txt-hi)' }}>
+                    {t('nav.photos')}
+                  </div>
+                  <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>
+                    {t('home.photosDesc')}
+                  </div>
+                </div>
+                <div className="text-center shrink-0">
+                  <div className="font-saira font-bold text-[24px] leading-none tnum" style={{ color: 'var(--red)' }}>
+                    {weeklyPhotos.filter((p) => p.week === currentWeek).length}
+                  </div>
+                  <div className="text-[10px] uppercase tracking-[0.08em] mt-1" style={{ color: 'var(--txt-lo)' }}>
+                    / 3
+                  </div>
+                </div>
               </div>
+              <WeeklyPhotoUpload
+                clientId={databaseClientId || client.id}
+                currentWeek={currentWeek}
+                maxWeeks={client.numberOfWeeks}
+                onPhotosUpdate={setWeeklyPhotos}
+                existingPhotos={weeklyPhotos}
+              />
             </div>
           ) : null}
         </Suspense>

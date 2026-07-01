@@ -11,7 +11,6 @@ import {
   Gauge,
   Mountain,
   StickyNote,
-  Loader2,
 } from 'lucide-react';
 import { Client, CardioItem, CardioPlan } from '../types';
 import {
@@ -72,43 +71,74 @@ export const ClientCardioView: React.FC<ClientCardioViewProps> = ({ client }) =>
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--red)' }} />
+      <div className="cardio-shell px-1">
+        <div className="cardio-loading" aria-busy="true" aria-label="Loading">
+          <div className="cardio-loading-pulse" />
+          <div className="cardio-loading-pulse" style={{ height: 96 }} />
+        </div>
       </div>
     );
   }
 
   if (plan.items.length === 0) {
     return (
-      <div className="rounded-2xl p-10 text-center" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
-        <div className="w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center bg-gradient-to-br from-red-500 to-rose-500">
-          <HeartPulse className="w-7 h-7 text-white" />
+      <div className="cardio-shell px-1 py-6">
+        <div className="workout-empty">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-red"
+            style={{ background: 'linear-gradient(135deg, #ff8a5c, #e11d48)' }}
+          >
+            <HeartPulse className="w-8 h-8 text-white" />
+          </div>
+          <h3 className="font-saira text-xl font-semibold mb-2" style={{ color: 'var(--txt-hi)' }}>
+            {t('cardio.emptyTitle')}
+          </h3>
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--txt-mid)' }}>
+            {t('cardio.emptyDesc')}
+          </p>
         </div>
-        <p className="text-base font-semibold font-display" style={{ color: 'var(--txt-hi)' }}>
-          {t('cardio.emptyTitle')}
-        </p>
-        <p className="text-sm mt-1.5" style={{ color: 'var(--txt-lo)' }}>
-          {t('cardio.emptyDesc')}
-        </p>
       </div>
     );
   }
 
+  const weeklyMin = plan.items.reduce((sum, item) => sum + item.durationMin * item.timesPerWeek, 0);
+
   return (
-    <div className="space-y-3">
-      {plan.items.map((item) => (
-        <CardioCard key={item.id} item={item} t={t} />
-      ))}
+    <div className="cardio-shell px-1 space-y-3">
+      <div className="cardio-summary">
+        <div className="cardio-summary-icon">
+          <HeartPulse className="w-[22px] h-[22px]" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="font-saira font-semibold text-[18px] truncate" style={{ color: 'var(--txt-hi)' }}>
+            {t('nav.cardio')}
+          </div>
+          <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>
+            {t('home.cardioDesc')}
+          </div>
+        </div>
+        <div className="text-center shrink-0">
+          <div className="font-saira font-bold text-[24px] leading-none tnum" style={{ color: 'var(--red)' }}>
+            {weeklyMin}
+          </div>
+          <div className="text-[10px] uppercase tracking-[0.08em] mt-1" style={{ color: 'var(--txt-lo)' }}>
+            {t('cardio.time')}
+          </div>
+        </div>
+      </div>
+
+      <div>
+        {plan.items.map((item) => (
+          <CardioCard key={item.id} item={item} t={t} />
+        ))}
+      </div>
     </div>
   );
 };
 
 const Chip: React.FC<{ icon: React.ReactNode; children: React.ReactNode }> = ({ icon, children }) => (
-  <span
-    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-medium"
-    style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)' }}
-  >
-    <span style={{ color: 'var(--red)' }}>{icon}</span>
+  <span className="cardio-chip">
+    <span className="cardio-chip-ic">{icon}</span>
     {children}
   </span>
 );
@@ -122,16 +152,16 @@ const CardioCard: React.FC<{
   const isSprints = modalityIsSprints(item.modality);
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
-      <div className="flex items-center gap-3 p-4">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center bg-gradient-to-br ${meta.gradient} shrink-0`}>
+    <div className="cardio-card">
+      <div className="flex items-center gap-3.5 p-4">
+        <div className={`w-12 h-12 rounded-[14px] flex items-center justify-center bg-gradient-to-br ${meta.gradient} shrink-0 shadow-soft`}>
           <Icon className="w-5 h-5 text-white" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="font-semibold text-sm" style={{ color: 'var(--txt-hi)' }}>
+          <div className="font-saira font-semibold text-[16px] truncate" style={{ color: 'var(--txt-hi)' }}>
             {item.name}
           </div>
-          <div className="text-[11px] mt-0.5" style={{ color: 'var(--txt-lo)' }}>
+          <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--txt-lo)' }}>
             {t('cardio.timesPerWeek', { count: item.timesPerWeek })}
             {' · '}
             {t(WHEN_KEYS[item.when])}
@@ -166,7 +196,7 @@ const CardioCard: React.FC<{
       </div>
 
       {item.whenNote && (
-        <div className="mx-4 mb-4 rounded-xl p-3 flex gap-2" style={{ background: 'var(--surface-2)' }}>
+        <div className="cardio-note">
           <StickyNote className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: 'var(--red)' }} />
           <p className="text-[12.5px] leading-relaxed" style={{ color: 'var(--txt-mid)' }}>
             {item.whenNote}
