@@ -15,7 +15,13 @@ import {
   HelpCircle,
   Languages,
   Check,
-  HeartPulse
+  HeartPulse,
+  Bell,
+  ArrowUpRight,
+  Play,
+  Clock,
+  Zap,
+  BadgeCheck,
 } from 'lucide-react';
 import { ClientWelcomeTour } from './ClientWelcomeTour';
 import { Client, ClientWorkoutAssignment, NutritionPlan } from '../types';
@@ -25,6 +31,7 @@ import { enrichProgramAndWeeksWithExercises } from '../utils/enrichAssignment';
 import { normalizeCardioPlan } from '../data/cardioPresets';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
 import { getClientWeightLogs, getClientPRHistory } from '../lib/progressTracking';
+import { getClientSupplements } from '../services/supplementsService';
 import { ErrorBoundary } from './ErrorBoundary';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 import { 
@@ -87,6 +94,8 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [cardioSummary, setCardioSummary] = useState('');
+  const [supplementsCount, setSupplementsCount] = useState(0);
+  const [weightSparkline, setWeightSparkline] = useState<number[]>([]);
   const [weeklyPhotos, setWeeklyPhotos] = useState<any[]>([]);
   // Real progress stats for the dashboard (weight + strength change). Null = not enough data yet.
   const [dashStats, setDashStats] = useState<{ weightDelta: number | null; strengthPct: number | null; strengthLift: string | null }>({
@@ -100,6 +109,8 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const { locale, setLocale, t, isRtl } = useClientLocale();
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const langMenuRef = useRef<HTMLDivElement | null>(null);
+  const [notifMenuOpen, setNotifMenuOpen] = useState(false);
+  const notifMenuRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!langMenuOpen) return;
     const onDown = (e: MouseEvent | TouchEvent) => {
@@ -114,6 +125,20 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       document.removeEventListener('touchstart', onDown);
     };
   }, [langMenuOpen]);
+  useEffect(() => {
+    if (!notifMenuOpen) return;
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (notifMenuRef.current && !notifMenuRef.current.contains(e.target as Node)) {
+        setNotifMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+    };
+  }, [notifMenuOpen]);
 
   // First-run welcome tour (shown once per client, re-openable via the "?" button)
   const welcomeKey = `ub_welcome_seen_${client.id}`;
@@ -237,6 +262,13 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         if (weightLogs.length >= 2) {
           const asc = [...weightLogs].sort((a, b) => a.date.getTime() - b.date.getTime());
           weightDelta = Math.round((asc[asc.length - 1].weight - asc[0].weight) * 10) / 10;
+          const slice = asc.slice(-8).map((w) => w.weight);
+          const min = Math.min(...slice);
+          const max = Math.max(...slice);
+          const range = max - min || 1;
+          setWeightSparkline(slice.map((w) => 1 - (w - min) / range));
+        } else {
+          setWeightSparkline([]);
         }
 
         // Strength change: pick the lift with the most weeks logged, compare earliest vs latest estimated 1RM
@@ -286,6 +318,18 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       cancelled = true;
     };
   }, [databaseClientId, currentWeek]);
+
+  // Supplements count for home tile status
+  useEffect(() => {
+    if (!databaseClientId) return;
+    let cancelled = false;
+    getClientSupplements(databaseClientId).then(({ data }) => {
+      if (!cancelled) setSupplementsCount(data?.length ?? 0);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [databaseClientId]);
 
   // Cardio summary for the dashboard card
   useEffect(() => {
@@ -573,7 +617,32 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     };
   }, [effectiveWorkoutAssignment, currentWeek]);
 
-  // Quick-stat chips for the dashboard (all real data; show "—" until there's enough)
+  const nutritionDailyKcal = useMemo(() => {
+    if (!nutritionPlan?.mealSlots?.length) return null;
+    let total = 0;
+    let counted = 0;
+    for (const slot of nutritionPlan.mealSlots) {
+      const sm = slot.selectedMeals?.[0];
+      const ings = sm?.customIngredients ?? sm?.meal?.ingredients;
+      if (!ings?.length) continue;
+      const qty = sm?.quantity ?? 1;
+      const kcal = ings.reduce((sum, ing) => sum + ((ing.food?.kcal ?? 0) * ing.quantity * qty) / 100, 0);
+      if (kcal > 0) {
+        total += kcal;
+        counted++;
+      }
+    }
+    return counted > 0 ? Math.round(total) : null;
+  }, [nutritionPlan]);
+
+  const heroEstimatedMin = todayExerciseCount > 0 ? Math.max(15, Math.round(todayExerciseCount * 6.5)) : 0;
+  const heroIntensityKey =
+    client.goal === 'bulking' ? 'home.intensityHeavy' : client.goal === 'shredding' ? 'home.intensityModerate' : 'home.intensityModerate';
+
+  const HERO_RING_R = 22;
+  const HERO_RING_C = 2 * Math.PI * HERO_RING_R;
+
+  // Quick-stat chips for the dashboard (hide strength when no data)
   const dashChips = [
     {
       Icon: Dumbbell,
@@ -591,15 +660,25 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       unit: dashStats.weightDelta == null ? '' : 'kg',
       label: t('home.statWeight'),
     },
-    {
-      Icon: TrendingUp,
-      tint: 'var(--emerald)',
-      bg: 'rgba(52,211,153,.14)',
-      value: dashStats.strengthPct == null ? '—' : `${dashStats.strengthPct > 0 ? '+' : ''}${dashStats.strengthPct}`,
-      unit: dashStats.strengthPct == null ? '' : '%',
-      label: t('home.statStrength'),
-    },
+    ...(dashStats.strengthPct != null
+      ? [{
+          Icon: TrendingUp,
+          tint: 'var(--green)',
+          bg: 'rgba(52,211,153,.14)',
+          value: `${dashStats.strengthPct > 0 ? '+' : ''}${dashStats.strengthPct}`,
+          unit: '%',
+          label: t('home.statStrength'),
+        }]
+      : []),
   ];
+
+  const nutritionStatus = nutritionPlan
+    ? nutritionDailyKcal != null
+      ? t('home.nutritionSummary', { meals: nutritionPlan.mealsPerDay, kcal: nutritionDailyKcal.toLocaleString() })
+      : t('home.mealsPerDay', { count: nutritionPlan.mealsPerDay })
+    : t('home.viewPlan');
+
+  const supplementsStatus = supplementsCount > 0 ? t('home.supplementsToday', { count: supplementsCount }) : '';
 
   const progressCardStatus = dashStats.strengthPct != null
     ? t('home.strengthStat', { pct: `${dashStats.strengthPct > 0 ? '+' : ''}${dashStats.strengthPct}` })
@@ -607,12 +686,21 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     ? `${dashStats.weightDelta > 0 ? '+' : ''}${dashStats.weightDelta} kg`
     : '';
 
-  const homeCards = [
-    { route: 'workout' as Route, title: t('nav.workouts'), desc: t('home.workoutDesc'), Icon: Dumbbell, grad: 'from-red-500 to-orange-500', status: t('modern.weekOf', { current: currentWeek, total: totalWeeks }) },
-    { route: 'cardio' as Route, title: t('nav.cardio'), desc: t('home.cardioDesc'), Icon: HeartPulse, grad: 'from-red-500 to-rose-500', status: cardioSummary },
-    { route: 'nutrition' as Route, title: t('nav.nutrition'), desc: t('home.nutritionDesc'), Icon: Utensils, grad: 'from-green-500 to-emerald-500', status: nutritionPlan ? t('home.mealsPerDay', { count: nutritionPlan.mealsPerDay }) : t('home.viewPlan') },
-    { route: 'supplements' as Route, title: t('nav.supplements'), desc: t('home.supplementsDesc'), Icon: Pill, grad: 'from-purple-500 to-pink-500', status: '' },
-    { route: 'progressHub' as Route, title: t('nav.progress'), desc: t('home.progressDesc'), Icon: TrendingUp, grad: 'from-blue-500 to-indigo-500', status: progressCardStatus },
+  type HomeAccent = 'red' | 'orange' | 'green' | 'violet' | 'blue';
+  const homeCards: {
+    route: Route;
+    title: string;
+    desc: string;
+    Icon: React.ComponentType<{ className?: string }>;
+    accent: HomeAccent;
+    status: string;
+    wide?: boolean;
+  }[] = [
+    { route: 'workout', title: t('nav.workouts'), desc: t('home.workoutDesc'), Icon: Dumbbell, accent: 'red', status: t('modern.weekOf', { current: currentWeek, total: totalWeeks }) },
+    { route: 'cardio', title: t('nav.cardio'), desc: t('home.cardioDesc'), Icon: HeartPulse, accent: 'orange', status: cardioSummary },
+    { route: 'nutrition', title: t('nav.nutrition'), desc: t('home.nutritionDesc'), Icon: Utensils, accent: 'green', status: nutritionStatus },
+    { route: 'supplements', title: t('nav.supplements'), desc: t('home.supplementsDesc'), Icon: Pill, accent: 'violet', status: supplementsStatus },
+    { route: 'progressHub', title: t('nav.progress'), desc: t('home.progressDesc'), Icon: TrendingUp, accent: 'blue', status: progressCardStatus, wide: true },
   ];
 
   const hubCards = [
@@ -768,114 +856,292 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       {/* ============ HOME DASHBOARD (hub) ============ */}
       {route === 'home' && (
         <div className="relative z-10 max-w-3xl mx-auto px-4 pb-16">
-          <div className="flex items-center justify-between pt-5 pb-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-[52px] h-[52px] shrink-0 rounded-2xl p-[2px] bg-grad-coral shadow-red">
-                <div
-                  className="w-full h-full rounded-[14px] flex items-center justify-center overflow-hidden"
-                  style={{ background: '#ffffff' }}
-                >
-                  <img src="/brand-logo.png" alt="" className="w-[74%] h-[74%] object-contain" />
-                </div>
-              </div>
-              <div className="min-w-0">
-                <div className="text-[12px] font-medium" style={{ color: 'var(--txt-mid)' }}>
-                  {t('modern.welcomeBackShort')}
-                </div>
-                <div className="font-display font-semibold text-[20px] leading-tight truncate" style={{ color: 'var(--txt-hi)' }}>
-                  {client.name.split(' ')[0]}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowWelcome(true)}
-                className="w-[38px] h-[38px] rounded-xl flex items-center justify-center transition-transform duration-150 active:scale-90"
-                style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
-                aria-label={t('home.help')}
-                title={t('home.help')}
-              >
-                <HelpCircle className="w-4 h-4" />
-              </button>
-              {HeaderToggles}
-              {ProgressRing}
-            </div>
-          </div>
-
-          <p className="text-[13px] mb-4" style={{ color: 'var(--txt-mid)' }}>{t('home.subtitle')}</p>
-
-          {/* Quick stats (real data) */}
-          <div className="grid grid-cols-3 gap-2.5 mb-4">
-            {dashChips.map((chip, i) => (
+          {/* Header — avatar, name, language, notifications menu */}
+          <div className="home-header">
+            <div className="home-avatar-ring">
               <div
-                key={i}
-                className="rounded-2xl p-3"
-                style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+                className="w-full h-full rounded-[12px] flex items-center justify-center overflow-hidden"
+                style={{ background: '#ffffff' }}
               >
-                <div
-                  className="w-7 h-7 rounded-lg flex items-center justify-center mb-2"
-                  style={{ background: chip.bg, color: chip.tint }}
-                >
-                  <chip.Icon className="w-4 h-4" />
-                </div>
-                <div className="font-display font-bold text-[18px] leading-none" style={{ color: 'var(--txt-hi)' }}>
-                  {chip.value}
-                  {chip.unit ? (
-                    <span className="text-[11px] font-semibold ml-0.5" style={{ color: 'var(--txt-mid)' }}>{chip.unit}</span>
-                  ) : null}
-                </div>
-                <div className="text-[9.5px] uppercase tracking-wider font-semibold mt-1.5" style={{ color: 'var(--txt-lo)' }}>
-                  {chip.label}
-                </div>
+                <img src="/brand-logo.png" alt="" className="w-[74%] h-[74%] object-contain" />
               </div>
-            ))}
-          </div>
-
-          {/* Today quick-access */}
-          <button
-            onClick={() => navigate('workout')}
-            className="w-full text-left rounded-2xl p-4 mb-4 flex items-center gap-4 transition-transform active:scale-[.98]"
-            style={{
-              background: 'linear-gradient(135deg, rgba(255,45,85,.16), rgba(255,138,92,.05))',
-              border: '1px solid rgba(255,45,85,.22)',
-            }}
-          >
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'var(--grad-red)' }}>
-              <Dumbbell className="w-6 h-6 text-white" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--red)' }}>{t('home.today')}</div>
-              <div className="font-display font-semibold text-[16px] truncate" style={{ color: 'var(--txt-hi)' }}>
-                {todayName || t('home.continueProgram')}
+              <div className="text-[12px]" style={{ color: 'var(--txt-mid)' }}>
+                {t('modern.welcomeBackShort')}
               </div>
-              <div className="text-[12px] truncate" style={{ color: 'var(--txt-mid)' }}>
-                {todayExerciseCount > 0 ? `${t('workout.nExercises', { count: todayExerciseCount })} · ` : ''}
-                {t('modern.weekOf', { current: currentWeek, total: totalWeeks })}
+              <div className="font-saira text-[22px] leading-none truncate" style={{ color: 'var(--txt-hi)' }}>
+                {client.name.split(' ')[0]}
               </div>
             </div>
-            <ChevronRight className="w-5 h-5 shrink-0" style={{ color: 'var(--txt-lo)' }} />
-          </button>
+            <div className="relative shrink-0" ref={langMenuRef}>
+              <button
+                type="button"
+                onClick={() => setLangMenuOpen((v) => !v)}
+                className="h-[38px] px-[11px] rounded-xl flex items-center gap-1.5 text-[12px] font-bold transition-transform duration-150 active:scale-90"
+                style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
+                aria-label={t('modern.language')}
+                aria-haspopup="listbox"
+                aria-expanded={langMenuOpen}
+              >
+                <Languages className="w-3.5 h-3.5" />
+                {currentLang.short}
+              </button>
+              {langMenuOpen && (
+                <div
+                  role="listbox"
+                  className="absolute top-[44px] z-50 min-w-[150px] rounded-xl overflow-hidden shadow-xl"
+                  style={{
+                    [isRtl ? 'left' : 'right']: 0,
+                    background: 'var(--surface-1)',
+                    border: '1px solid var(--hair)',
+                  } as React.CSSProperties}
+                >
+                  <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide" style={{ color: 'var(--txt-mid)' }}>
+                    {t('modern.language')}
+                  </div>
+                  {LANGS.map((l) => {
+                    const active = l.code === locale;
+                    return (
+                      <button
+                        key={l.code}
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        onClick={() => {
+                          setLocale(l.code);
+                          setLangMenuOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm transition-colors"
+                        style={{
+                          color: active ? 'var(--txt-hi)' : 'var(--txt-mid)',
+                          background: active ? 'var(--glass)' : 'transparent',
+                          fontWeight: active ? 700 : 500,
+                        }}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="text-[11px] font-bold w-6 text-start" style={{ color: 'var(--red)' }}>{l.short}</span>
+                          {t(l.labelKey)}
+                        </span>
+                        {active && <Check className="w-4 h-4" style={{ color: 'var(--red)' }} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="relative shrink-0" ref={notifMenuRef}>
+              <button
+                type="button"
+                onClick={() => setNotifMenuOpen((v) => !v)}
+                className="w-[38px] h-[38px] rounded-xl flex items-center justify-center transition-transform duration-150 active:scale-90 relative"
+                style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
+                aria-label={t('home.notifications')}
+              >
+                <Bell className="w-[18px] h-[18px]" />
+                <span
+                  className="absolute top-2 end-2.5 w-[7px] h-[7px] rounded-full"
+                  style={{ background: 'var(--red)', boxShadow: '0 0 0 2px var(--bg)' }}
+                />
+              </button>
+              {notifMenuOpen && (
+                <div
+                  className="absolute top-[44px] z-50 min-w-[200px] rounded-xl overflow-hidden shadow-xl py-1"
+                  style={{
+                    [isRtl ? 'left' : 'right']: 0,
+                    background: 'var(--surface-1)',
+                    border: '1px solid var(--hair)',
+                  } as React.CSSProperties}
+                >
+                  <button
+                    type="button"
+                    onClick={() => { setShowWelcome(true); setNotifMenuOpen(false); }}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-start"
+                    style={{ color: 'var(--txt-hi)' }}
+                  >
+                    <HelpCircle className="w-4 h-4" style={{ color: 'var(--red)' }} />
+                    {t('home.helpTour')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUseDarkTheme((p) => !p)}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-start"
+                    style={{ color: 'var(--txt-hi)' }}
+                  >
+                    {useDarkTheme ? <Sun className="w-4 h-4" style={{ color: 'var(--amber)' }} /> : <Moon className="w-4 h-4" style={{ color: 'var(--blue)' }} />}
+                    {t('home.themeToggle')}
+                  </button>
+                  <div className="my-1 h-px" style={{ background: 'var(--hair)' }} />
+                  <p className="px-3 py-2 text-[12px]" style={{ color: 'var(--txt-lo)' }}>{t('home.noNotifications')}</p>
+                </div>
+              )}
+            </div>
+          </div>
 
-          {/* Section cards */}
-          <div className="grid grid-cols-2 gap-3">
-            {homeCards.map((card) => (
+          <p className="home-prompt home-anim" style={{ animationDelay: '0.03s' }}>
+            <b>{t('home.subtitle')}</b>
+          </p>
+
+          {/* Quick stats */}
+          <div className="home-stats home-anim" style={{ animationDelay: '0.06s' }}>
+            {dashChips.map((chip, i) => (
+              <div key={i} className="home-qstat">
+                <div
+                  className="w-[26px] h-[26px] rounded-lg flex items-center justify-center mb-2"
+                  style={{ background: chip.bg, color: chip.tint }}
+                >
+                  <chip.Icon className="w-[15px] h-[15px]" />
+                </div>
+                <b className="font-display font-bold text-[19px] leading-none block" style={{ color: 'var(--txt-hi)' }}>
+                  {chip.value}
+                  {chip.unit ? (
+                    <span className="text-[11px] font-semibold ms-0.5" style={{ color: 'var(--txt-mid)' }}>{chip.unit}</span>
+                  ) : null}
+                </b>
+                <small className="text-[9.5px] uppercase tracking-wide font-semibold block mt-1" style={{ color: 'var(--txt-lo)' }}>
+                  {chip.label}
+                </small>
+              </div>
+            ))}
+          </div>
+
+          {/* Hero — today's session */}
+          <div className="home-hero home-anim" style={{ animationDelay: '0.12s' }}>
+            <div className="home-hero-grid" aria-hidden="true" />
+            <div className="relative flex items-center justify-between gap-2">
+              <span className="inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-widest font-bold" style={{ color: 'var(--red)' }}>
+                <span className="home-hero-pip" />
+                {t('home.todaysSession')}
+              </span>
+              <span
+                className="text-[10.5px] font-semibold px-2.5 py-1 rounded-full"
+                style={{ color: 'var(--txt-mid)', background: 'var(--glass)', border: '1px solid var(--hair)' }}
+              >
+                {t('modern.weekOf', { current: currentWeek, total: totalWeeks })}
+                {currentWeek >= totalWeeks ? ` · ${t('home.finalWeek')}` : ''}
+              </span>
+            </div>
+            <h2 className="font-saira text-[30px] leading-[0.95] my-3 relative" style={{ color: 'var(--txt-hi)' }}>
+              {todayName || t('home.continueProgram')}
+            </h2>
+            <div className="relative flex flex-wrap gap-3 mb-4 text-[11.5px]" style={{ color: 'var(--txt-mid)' }}>
+              {todayExerciseCount > 0 && (
+                <span className="inline-flex items-center gap-1">
+                  <Dumbbell className="w-3 h-3" />
+                  {t('workout.nExercises', { count: todayExerciseCount })}
+                </span>
+              )}
+              {heroEstimatedMin > 0 && (
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {t('home.heroMinutes', { n: heroEstimatedMin })}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1">
+                <Zap className="w-3 h-3" />
+                {t(heroIntensityKey)}
+              </span>
+            </div>
+            <div className="relative flex items-center gap-2.5">
+              <button type="button" className="home-start-btn" onClick={() => navigate('workout')}>
+                {t('home.startSession')}
+                <Play className="w-[18px] h-[18px] fill-current" />
+              </button>
+              <div className="relative w-[54px] h-[54px] shrink-0">
+                <svg width="54" height="54" className="block -rotate-90">
+                  <circle cx="27" cy="27" r={HERO_RING_R} stroke="rgba(255,255,255,.1)" strokeWidth="5" fill="none" />
+                  <circle
+                    cx="27"
+                    cy="27"
+                    r={HERO_RING_R}
+                    stroke="url(#heroRingGrad)"
+                    strokeWidth="5"
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeDasharray={HERO_RING_C}
+                    strokeDashoffset={HERO_RING_C * (1 - Math.min(100, progressPercentage) / 100)}
+                    style={{ transition: 'stroke-dashoffset 1s var(--ease)' }}
+                  />
+                  <defs>
+                    <linearGradient id="heroRingGrad" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0" stopColor="#ff8a5c" />
+                      <stop offset="1" stopColor="#e11d48" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center font-display font-bold text-[13px] leading-none" style={{ color: 'var(--txt-hi)' }}>
+                  {progressPercentage}%
+                  <small className="text-[7px] uppercase tracking-widest mt-0.5" style={{ color: 'var(--txt-lo)' }}>{t('home.programLabel')}</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Explore grid */}
+          <div className="home-seclabel home-anim" style={{ animationDelay: '0.18s' }}>
+            <span>{t('home.explore')}</span>
+            <span className="line" />
+          </div>
+          <div className="home-grid">
+            {homeCards.map((card, idx) => (
               <button
                 key={card.route}
+                type="button"
                 onClick={() => navigate(card.route)}
-                className="text-left rounded-2xl p-4 transition-transform active:scale-95"
-                style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+                className={`home-tile ${card.accent} home-anim${card.wide ? ' wide' : ''}`}
+                style={{ animationDelay: `${0.2 + idx * 0.06}s` }}
               >
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-3 bg-gradient-to-br ${card.grad}`}>
-                  <card.Icon className="w-5 h-5 text-white" />
+                <ArrowUpRight className={`t-arrow w-[17px] h-[17px]${card.wide ? ' hidden' : ''}`} />
+                <div className="t-ic">
+                  <card.Icon className="w-5 h-5" />
                 </div>
-                <div className="font-display font-semibold text-[15px]" style={{ color: 'var(--txt-hi)' }}>{card.title}</div>
-                <div className="text-[12px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>{card.desc}</div>
-                {card.status ? (
-                  <div className="text-[11px] mt-2 font-medium" style={{ color: 'var(--txt-lo)' }}>{card.status}</div>
-                ) : null}
+                {card.wide ? (
+                  <>
+                    <div className="w-txt">
+                      <div className="font-saira text-[18px] leading-tight" style={{ color: 'var(--txt-hi)' }}>{card.title}</div>
+                      <div className="text-[11px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>{card.desc}</div>
+                      {card.status ? <span className="t-stat">{card.status}</span> : null}
+                    </div>
+                    <WeightSparkline points={weightSparkline} />
+                    <ChevronRight className="t-arrow w-[17px] h-[17px]" />
+                  </>
+                ) : (
+                  <>
+                    <div className="font-saira text-[18px] leading-tight" style={{ color: 'var(--txt-hi)' }}>{card.title}</div>
+                    <div className="text-[11px] mt-0.5 leading-snug" style={{ color: 'var(--txt-mid)' }}>{card.desc}</div>
+                    {card.status ? <span className="t-stat">{card.status}</span> : null}
+                  </>
+                )}
               </button>
             ))}
+          </div>
+
+          {/* Coach note (placeholder until coach messages exist) */}
+          <div className="home-seclabel home-anim" style={{ animationDelay: '0.48s' }}>
+            <span>{t('home.fromCoach')}</span>
+            <span className="line" />
+          </div>
+          <div className="home-coach home-anim mb-4" style={{ animationDelay: '0.5s' }}>
+            <div className="w-[42px] h-[42px] rounded-xl p-[2px] shrink-0" style={{ background: 'var(--grad-coral)' }}>
+              <div
+                className="w-full h-full rounded-[10px] flex items-center justify-center font-display font-bold text-[15px]"
+                style={{ background: 'var(--surface-3)', color: 'var(--txt-hi)' }}
+              >
+                {t('home.coachName').charAt(0).toUpperCase()}
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div className="text-[12px] font-bold flex items-center gap-1.5" style={{ color: 'var(--txt-hi)' }}>
+                {t('home.coachName')}
+                <BadgeCheck className="w-[13px] h-[13px]" style={{ color: 'var(--blue)' }} />
+              </div>
+              <div className="text-[9.5px] uppercase tracking-wide font-semibold mt-0.5" style={{ color: 'var(--txt-lo)' }}>
+                {t('home.coachRole')}
+              </div>
+              <p className="text-[12.5px] leading-relaxed mt-1.5" style={{ color: 'var(--txt-mid)' }}>
+                {t('home.coachNoteBody')}
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -1142,5 +1408,32 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     </div>
   );
 };
+
+function WeightSparkline({ points }: { points: number[] }) {
+  const w = 88;
+  const h = 44;
+  const pts = points.length >= 2
+    ? points
+    : [0.78, 0.68, 0.72, 0.5, 0.45, 0.32, 0.22, 0.12];
+  const step = pts.length > 1 ? (w - 4) / (pts.length - 1) : w - 4;
+  const toY = (p: number) => 4 + p * (h - 8);
+  const lineD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${2 + i * step},${toY(p)}`).join(' ');
+  const areaD = `${lineD} L${2 + (pts.length - 1) * step},${h} L2,${h} Z`;
+  const lastX = 2 + (pts.length - 1) * step;
+  const lastY = toY(pts[pts.length - 1]);
+  return (
+    <svg className="shrink-0 w-[88px] h-[44px]" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="homeSparkGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="rgba(91,140,255,.35)" />
+          <stop offset="1" stopColor="rgba(91,140,255,0)" />
+        </linearGradient>
+      </defs>
+      <path d={areaD} fill="url(#homeSparkGrad)" />
+      <path d={lineD} fill="none" stroke="#5b8cff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r="3" fill="#5b8cff" />
+    </svg>
+  );
+}
 
 export default ModernClientInterface;
