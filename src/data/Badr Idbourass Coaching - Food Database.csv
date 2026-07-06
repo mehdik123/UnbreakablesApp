@@ -68,7 +68,7 @@ Quail,156,25,14,0
 "Chicken, Breast",152,30,8,0
 "Turkey, breast",144,29,7,0
 Apples,58,0,0,14
-1 Avocado,240,3,22,13
+Avocado,240,3,22,13
 Bananas,99,1,0,23
 Dates,313,2,0,75
 Dried Fruit Mix,272,2,0,65
@@ -88,7 +88,6 @@ Lemon,103,1,0,11
 Blackberry,94,1,0,10
 Rhubarb,49,1,0,5
 Tomato,40,1,0,4
-1/2 Avocado,120,2,11,7
 "Olive, green",100,1,15,4
 Watermelon,76,1,0,8
 Strawberry,76,1,0,8
@@ -305,3 +304,11 @@ Salt,0,0,0,0
 Water,0,0,0,0
 Ebly,355,12,1,70
 Perly,97,8,3,9
+Whole Bread Toast,256,10,3,46
+Shrimps,100,23,2,2
+Basmati Rice,360,9,2,76
+Pineapple,83,1,0,22
+"Dark Chocolate, 90%",590,14,91,12
+Philadelphia,146,8,10,7
+Smoked Salmon,184,13,10,0
+Mass Gainer Superior,360,28,2,58

@@ -33,6 +33,14 @@ import { WeekProgressionManager } from '../utils/weekProgressionManager';
 import { getClientWeightLogs, getClientPRHistory } from '../lib/progressTracking';
 import { getClientSupplements } from '../services/supplementsService';
 import { ErrorBoundary } from './ErrorBoundary';
+import { OfflineBanner } from './OfflineBanner';
+import { useOnlineStatus, useOnBackOnline } from '../hooks/useOnlineStatus';
+import {
+  flushOfflineQueue,
+  getPendingSyncCount,
+  loadClientOfflineSnapshot,
+  saveClientOfflineSnapshot,
+} from '../lib/offlineStore';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 import { 
   WorkoutDaySkeleton, 
@@ -105,6 +113,9 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   });
   const [databaseClientId, setDatabaseClientId] = useState<string | null>(null);
   const [isLoadingTab, setIsLoadingTab] = useState(false);
+  const isOnline = useOnlineStatus();
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   const { locale, setLocale, t, isRtl } = useClientLocale();
   const [langMenuOpen, setLangMenuOpen] = useState(false);
@@ -163,6 +174,26 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     localStorage.setItem('client_interface_theme', useDarkTheme ? 'dark' : 'light');
   }, [useDarkTheme]);
 
+  useEffect(() => {
+    setPendingSyncCount(getPendingSyncCount(client.id));
+  }, [client.id, effectiveWorkoutAssignment, isOnline]);
+
+  useOnBackOnline(() => {
+    flushOfflineQueue(client.id).then(() => {
+      setPendingSyncCount(getPendingSyncCount(client.id));
+    });
+  }, [client.id]);
+
+  const handleSyncNow = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      await flushOfflineQueue(client.id);
+      setPendingSyncCount(getPendingSyncCount(client.id));
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [client.id]);
+
   // Keep effective assignment in sync with prop and with sync fetch
   useEffect(() => {
     setEffectiveWorkoutAssignment(client.workoutAssignment ?? undefined);
@@ -211,7 +242,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   useEffect(() => {
     const loadNutritionPlan = async () => {
       try {
-        if (isSupabaseReady && supabase) {
+        if (isOnline && isSupabaseReady && supabase) {
           const { data: cRow } = await supabase
             .from('clients')
             .select('id')
@@ -236,6 +267,18 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         
         if (client.nutritionPlan) {
           setNutritionPlan(client.nutritionPlan);
+          return;
+        }
+
+        const snapshot = loadClientOfflineSnapshot(client.id);
+        if (snapshot?.nutritionPlan) {
+          setNutritionPlan(snapshot.nutritionPlan);
+          return;
+        }
+
+        const savedNutritionPlan = localStorage.getItem(`nutrition_plan_${client.id}`);
+        if (savedNutritionPlan) {
+          setNutritionPlan(JSON.parse(savedNutritionPlan));
         }
       } catch (error) {
         console.error('❌ Failed to load nutrition plan:', error);
@@ -243,7 +286,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     };
 
     loadNutritionPlan();
-  }, [client.id, client.nutritionPlan]);
+  }, [client.id, client.name, client.nutritionPlan, isOnline]);
 
   // Load real progress stats (weight delta + strength change on the client's most-logged compound lift)
   useEffect(() => {
@@ -337,10 +380,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     (async () => {
       try {
         let raw = client.cardioPlan || null;
-        const clientId = await dbResolveClientIdByName(client.name);
-        if (clientId) {
-          const { data } = await dbGetCardioPlan(clientId);
-          if (data) raw = data;
+        if (isOnline) {
+          const clientId = await dbResolveClientIdByName(client.name);
+          if (clientId) {
+            const { data } = await dbGetCardioPlan(clientId);
+            if (data) raw = data;
+          }
+        } else {
+          const snapshot = loadClientOfflineSnapshot(client.id);
+          if (snapshot?.cardioPlan) raw = snapshot.cardioPlan;
         }
         if (cancelled) return;
         const plan = normalizeCardioPlan(raw);
@@ -359,7 +407,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [client.name, client.cardioPlan, route, t]);
+  }, [client.id, client.name, client.cardioPlan, route, t, isOnline]);
 
   // When parent passes an updated active week (e.g. coach changed it), apply unless client just picked a week
   useEffect(() => {
@@ -371,7 +419,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
   // Real-time sync for current week from database
   useEffect(() => {
-    if (!isSupabaseReady || !supabase) return;
+    if (!isOnline || !isSupabaseReady || !supabase) return;
 
     const syncCurrentWeek = async () => {
       if (!supabase) return;
@@ -443,10 +491,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         supabase.removeChannel(channel);
       }
     };
-  }, [client.id, client.name, currentWeek]);
+  }, [client.id, client.name, currentWeek, isOnline]);
 
   // Update weeks with real-time sync
   useEffect(() => {
+    if (!isOnline) return;
+
     const interval = setInterval(async () => {
       try {
         console.log('🔄 CLIENT SYNC DEBUG - Starting sync check...', {
@@ -537,6 +587,17 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 lastModifiedAt: raw.lastModifiedAt ? new Date(raw.lastModifiedAt) : undefined,
               };
               setEffectiveWorkoutAssignment(freshAssignment);
+              saveClientOfflineSnapshot(client.id, {
+                client: {
+                  ...client,
+                  workoutAssignment: freshAssignment,
+                  nutritionPlan: nutritionPlan ?? client.nutritionPlan,
+                  cardioPlan: client.cardioPlan,
+                },
+                nutritionPlan: nutritionPlan ?? client.nutritionPlan ?? null,
+                cardioPlan: client.cardioPlan ?? null,
+                syncedAt: new Date().toISOString(),
+              });
               const freshWeeks = raw.weeks || [];
               if (freshWeeks.length > 0) {
                 if (assignment.last_modified_by === 'coach') {
@@ -572,7 +633,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     }, 1000); // Check every 1 second for faster sync
 
     return () => clearInterval(interval);
-  }, [client.id, client.name, currentWeek]);
+  }, [client.id, client.name, currentWeek, isOnline, nutritionPlan]);
 
   const assignmentForWeeks = effectiveWorkoutAssignment ?? client.workoutAssignment;
   const clientForCharts = useMemo(
@@ -852,6 +913,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
       {showWelcome && (
         <ClientWelcomeTour name={client.name.split(' ')[0] || 'there'} isRtl={isRtl} t={t} onClose={closeWelcome} />
       )}
+
+      <OfflineBanner
+        pendingSyncCount={pendingSyncCount}
+        onSyncNow={handleSyncNow}
+        isSyncing={isSyncing}
+      />
 
       {/* ============ HOME DASHBOARD (hub) ============ */}
       {route === 'home' && (

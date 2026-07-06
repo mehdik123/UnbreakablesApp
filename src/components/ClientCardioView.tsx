@@ -21,6 +21,7 @@ import {
   normalizeCardioPlan,
 } from '../data/cardioPresets';
 import { dbResolveClientIdByName, dbGetCardioPlan } from '../lib/db';
+import { isAppOnline, loadClientOfflineSnapshot } from '../lib/offlineStore';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface ClientCardioViewProps {
@@ -53,11 +54,16 @@ export const ClientCardioView: React.FC<ClientCardioViewProps> = ({ client }) =>
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const id = await dbResolveClientIdByName(client.name);
       let raw = client.cardioPlan;
-      if (id) {
-        const { data } = await dbGetCardioPlan(id);
-        if (data) raw = data;
+      if (isAppOnline()) {
+        const id = await dbResolveClientIdByName(client.name);
+        if (id) {
+          const { data } = await dbGetCardioPlan(id);
+          if (data) raw = data;
+        }
+      } else {
+        const snapshot = loadClientOfflineSnapshot(client.id);
+        if (snapshot?.cardioPlan) raw = snapshot.cardioPlan;
       }
       if (!cancelled) {
         setPlan(normalizeCardioPlan(raw));

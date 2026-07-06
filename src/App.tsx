@@ -33,7 +33,13 @@ import { foods as defaultFoods } from './data/foods';
 import { meals as defaultMeals } from './data/meals';
 import { exercises as defaultExercises } from './data/exercises';
 import { supabase, isSupabaseReady } from './lib/supabaseClient';
-import { dbListClients, dbListClientsWithWorkoutAssignments, dbGetClientWithWorkoutAssignment, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment, dbUpsertNutritionPlan, dbGetNutritionPlan } from './lib/db';
+import { dbListClients, dbListClientsWithWorkoutAssignments, dbGetClientWithWorkoutAssignment, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment, dbUpsertNutritionPlan, dbGetNutritionPlan, dbGetCardioPlan } from './lib/db';
+import {
+  buildClientFromSnapshot,
+  isAppOnline,
+  loadClientOfflineSnapshot,
+  saveClientOfflineSnapshot,
+} from './lib/offlineStore';
 import { buildDuplicatedClient, DuplicateClientOptions } from './utils/duplicateClientProgram';
 import { authService } from './lib/authService';
 import {
@@ -73,7 +79,26 @@ function App() {
 
   const openClientInterface = async (clientId: string) => {
     let foundClient = appState.clients.find((c) => c.id === clientId);
-    if (!foundClient && isSupabaseReady) {
+
+    const openWithClient = (client: Client) => {
+      setAppState((prev) => ({
+        ...prev,
+        currentView: 'client-interface',
+        selectedClient: client,
+        clients: prev.clients.some((c) => c.id === client.id)
+          ? prev.clients.map((c) => (c.id === client.id ? client : c))
+          : [...prev.clients, client],
+      }));
+    };
+
+    if (!foundClient) {
+      const snapshot = loadClientOfflineSnapshot(clientId);
+      if (snapshot) {
+        foundClient = buildClientFromSnapshot(snapshot);
+      }
+    }
+
+    if (!foundClient && isSupabaseReady && isAppOnline()) {
       const { data: row } = await dbGetClientWithWorkoutAssignment(clientId);
       if (row) {
         const assignment =
@@ -96,6 +121,12 @@ function App() {
               lastModifiedBy: assignment.last_modified_by,
             }
           : undefined;
+
+        const [{ data: nutritionPlan }, { data: cardioPlan }] = await Promise.all([
+          dbGetNutritionPlan(row.id),
+          dbGetCardioPlan(row.id),
+        ]);
+
         foundClient = {
           id: row.id,
           name: row.full_name,
@@ -108,21 +139,21 @@ function App() {
           favorites: row.favorites || [],
           weightLog: row.weight_log || [],
           workoutAssignment,
+          nutritionPlan: nutritionPlan || undefined,
+          cardioPlan: cardioPlan || undefined,
         };
-        setAppState((prev) => ({
-          ...prev,
-          clients: prev.clients.some((c) => c.id === foundClient!.id)
-            ? prev.clients
-            : [...prev.clients, foundClient!],
-        }));
+
+        saveClientOfflineSnapshot(clientId, {
+          client: foundClient,
+          nutritionPlan: nutritionPlan || null,
+          cardioPlan: cardioPlan || null,
+          syncedAt: new Date().toISOString(),
+        });
       }
     }
+
     if (foundClient) {
-      setAppState((prev) => ({
-        ...prev,
-        currentView: 'client-interface',
-        selectedClient: foundClient,
-      }));
+      openWithClient(foundClient);
     }
     return foundClient;
   };

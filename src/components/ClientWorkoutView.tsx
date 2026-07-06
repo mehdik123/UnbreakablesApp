@@ -19,6 +19,11 @@ import { Client, WorkoutProgram } from '../types';
 import { usePerformanceTracking } from '../hooks/usePerformanceTracking';
 import { useHorizontalScroll } from '../hooks/useHorizontalScroll';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
+import {
+  enqueueWorkoutSync,
+  isAppOnline,
+  patchClientOfflineSnapshot,
+} from '../lib/offlineStore';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -434,10 +439,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             {t('workout.noPlanBody')}
           </p>
           <button
-            onClick={() => {
-              localStorage.clear();
-              window.location.reload();
-            }}
+            onClick={() => window.location.reload()}
             className="px-4 py-2.5 rounded-[12px] text-white text-sm font-semibold active:scale-[0.97] transition-transform"
             style={{ background: 'var(--grad-red)' }}
           >
@@ -464,10 +466,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           </p>
           <div className="space-x-2">
             <button
-              onClick={() => {
-                localStorage.clear();
-                window.location.reload();
-              }}
+              onClick={() => window.location.reload()}
               className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm"
             >
               {t('workout.clearReload')}
@@ -511,19 +510,40 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       lastModifiedBy: 'client' as const,
       lastModifiedAt: new Date(),
     };
-    if (isSupabaseReady && supabase && assignmentId) {
-      await supabase
-        .from('workout_assignments')
-        .update({
-          program_json: updatedAssignment as any,
-          last_modified_by: 'client',
-          version: (sharedVersion || 0) + 1,
-        })
-        .eq('id', assignmentId);
+    if (assignmentId) {
+      const payload = {
+        program_json: updatedAssignment as any,
+        last_modified_by: 'client',
+      };
+      if (isAppOnline() && isSupabaseReady && supabase) {
+        const { error } = await supabase
+          .from('workout_assignments')
+          .update({
+            ...payload,
+            version: (sharedVersion || 0) + 1,
+          })
+          .eq('id', assignmentId);
+        if (error) {
+          enqueueWorkoutSync(client.id, {
+            type: 'workout_assignment',
+            assignmentId,
+            payload,
+          });
+        }
+      } else {
+        enqueueWorkoutSync(client.id, {
+          type: 'workout_assignment',
+          assignmentId,
+          payload,
+        });
+      }
     }
     localStorage.setItem(SHARED_KEY, JSON.stringify({ workoutAssignment: updatedAssignment, version: (sharedVersion || 0) + 1, lastModified: new Date().toISOString() }));
     setSharedVersion((v) => v + 1);
     setLocalAssignment(updatedAssignment);
+    patchClientOfflineSnapshot(client.id, {
+      client: { ...client, workoutAssignment: updatedAssignment },
+    });
   };
 
   const completeExercise = (exerciseId: string) => {
@@ -744,13 +764,29 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 
       // Save to Supabase if available (full assignment so coach and charts see client's edits)
       if (assignmentId) {
-        const { dbUpdateWorkoutAssignment } = await import('../lib/db');
-        await dbUpdateWorkoutAssignment(assignmentId, {
+        const payload = {
           program_json: updatedAssignment as any,
           current_week: currentWeek,
           current_day: currentDay + 1,
-          last_modified_by: 'client'
-        });
+          last_modified_by: 'client',
+        };
+        if (isAppOnline()) {
+          const { dbUpdateWorkoutAssignment } = await import('../lib/db');
+          const { error } = await dbUpdateWorkoutAssignment(assignmentId, payload);
+          if (error) {
+            enqueueWorkoutSync(client.id, {
+              type: 'workout_assignment',
+              assignmentId,
+              payload,
+            });
+          }
+        } else {
+          enqueueWorkoutSync(client.id, {
+            type: 'workout_assignment',
+            assignmentId,
+            payload,
+          });
+        }
       }
 
       // Save to localStorage for real-time sync
@@ -761,6 +797,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       };
       localStorage.setItem(SHARED_KEY, JSON.stringify(sharedData));
       setSharedVersion(prev => prev + 1);
+
+      patchClientOfflineSnapshot(client.id, {
+        client: { ...client, workoutAssignment: updatedAssignment },
+      });
 
       // Update client in clients list
       const clientsRaw = localStorage.getItem('clients');

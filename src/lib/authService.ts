@@ -1,4 +1,9 @@
 import { supabase } from './supabaseClient';
+import {
+  saveCachedClientLogin,
+  loadCachedClientLogin,
+  isAppOnline,
+} from './offlineStore';
 
 // Simple password hashing (in production, use bcrypt or similar)
 const hashPassword = (password: string): string => {
@@ -93,8 +98,8 @@ class AuthService {
   }
 
   async loginClient(username: string, password: string, clientId?: string): Promise<{ success: boolean; error?: string; clientId?: string }> {
-    if (!supabase) {
-      return { success: false, error: 'Database not configured' };
+    if (!isAppOnline() || !supabase) {
+      return this.loginClientFromCache(username, password, clientId);
     }
 
     try {
@@ -107,6 +112,9 @@ class AuthService {
         .single();
 
       if (error || !data) {
+        if (!isAppOnline()) {
+          return this.loginClientFromCache(username, password, clientId);
+        }
         return { success: false, error: 'Invalid username or password' };
       }
 
@@ -120,11 +128,13 @@ class AuthService {
         return { success: false, error: 'Access denied' };
       }
 
-      // Update last login
+      // Update last login (best-effort)
       await supabase
         .from('client_credentials')
         .update({ last_login: new Date().toISOString() })
         .eq('id', data.id);
+
+      saveCachedClientLogin(data.client_id, username, data.password_hash);
 
       // Create user session
       const user: AuthUser = {
@@ -140,8 +150,45 @@ class AuthService {
       return { success: true, clientId: data.client_id };
     } catch (error) {
       console.error('Client login error:', error);
-      return { success: false, error: 'Login failed. Please try again.' };
+      return this.loginClientFromCache(username, password, clientId);
     }
+  }
+
+  private loginClientFromCache(
+    username: string,
+    password: string,
+    clientId?: string
+  ): { success: boolean; error?: string; clientId?: string } {
+    if (!clientId) {
+      return {
+        success: false,
+        error: 'Connect once while online on this device, then you can log in offline.',
+      };
+    }
+
+    const cached = loadCachedClientLogin(clientId);
+    if (!cached || cached.username !== username) {
+      return {
+        success: false,
+        error: isAppOnline()
+          ? 'Invalid username or password'
+          : 'No offline login saved for this account. Connect once while online.',
+      };
+    }
+
+    if (!verifyPassword(password, cached.passwordHash)) {
+      return { success: false, error: 'Invalid username or password' };
+    }
+
+    const user: AuthUser = {
+      id: `offline-${clientId}`,
+      type: 'client',
+      username,
+      clientId,
+    };
+    this.currentUser = user;
+    this.saveAuthToStorage(user);
+    return { success: true, clientId };
   }
 
   logout() {

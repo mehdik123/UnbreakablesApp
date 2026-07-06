@@ -55,5 +55,14 @@ export const foods: Food[] = [
   { name: "Spinach", kcal: 48, protein: 3, fat: 0, carbs: 4 },
   { name: "Sweet Potato, Raw", kcal: 87, protein: 2, fat: 0, carbs: 20 },
   { name: "Carrots, raw", kcal: 76, protein: 1, fat: 0, carbs: 8 },
-  { name: "Tomatoes", kcal: 21, protein: 1, fat: 0, carbs: 4 }
+  { name: "Tomatoes", kcal: 21, protein: 1, fat: 0, carbs: 4 },
+  { name: "Whole Bread Toast", kcal: 256, protein: 10, fat: 3, carbs: 46 },
+  { name: "Shrimps", kcal: 100, protein: 23, fat: 2, carbs: 2 },
+  { name: "Basmati Rice", kcal: 360, protein: 9, fat: 2, carbs: 76 },
+  { name: "Pineapple", kcal: 83, protein: 1, fat: 0, carbs: 22 },
+  { name: "Dark Chocolate, 90%", kcal: 590, protein: 14, fat: 91, carbs: 12 },
+  { name: "Philadelphia", kcal: 146, protein: 8, fat: 10, carbs: 7 },
+  { name: "Smoked Salmon", kcal: 184, protein: 13, fat: 10, carbs: 0 },
+  { name: "Mass Gainer Superior", kcal: 360, protein: 28, fat: 2, carbs: 58 },
+  { name: "Perly", kcal: 97, protein: 8, fat: 3, carbs: 9 }
 ];
