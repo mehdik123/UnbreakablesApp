@@ -29,6 +29,8 @@ import {
   canCreateNextWeek,
   addWeekToAssignment,
   markWeekAsDeployed,
+  canDeleteWeek,
+  removeWeekFromAssignment,
 } from '../utils/weekCreation';
 import { applyAutoProgression, applyDeload } from '../utils/autoProgression';
 
@@ -160,6 +162,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   const [showExerciseSearch, setShowExerciseSearch] = useState<string | null>(null);
   const [showFinisherModal, setShowFinisherModal] = useState<number | null>(null);
   const [showCreateWeekModal, setShowCreateWeekModal] = useState(false);
+  const [showDeleteWeekConfirm, setShowDeleteWeekConfirm] = useState<number | null>(null);
+  const [isDeletingWeek, setIsDeletingWeek] = useState(false);
   const [draftNewWeek, setDraftNewWeek] = useState<WorkoutWeek | null>(null);
   const [weekGenMode, setWeekGenMode] = useState<WeekGenMode>('progress');
   const [progressionSourceWeek, setProgressionSourceWeek] = useState<WorkoutWeek | null>(null);
@@ -182,6 +186,59 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     if (mode === 'deload') return applyDeload(base);
     if (mode === 'copy') return base;
     return applyAutoProgression(base);
+  };
+
+  const handleDeleteWeek = async (weekNumber: number, openRecreateModal = false) => {
+    if (!client.workoutAssignment) return;
+    setIsDeletingWeek(true);
+    try {
+      const result = removeWeekFromAssignment(client.workoutAssignment, weekNumber);
+      if (!result.success) {
+        alert(result.message);
+        return;
+      }
+
+      const updated = result.assignment;
+      const prevWeek = updated.weeks?.find((w) => w.weekNumber === weekNumber - 1);
+      const programJsonToSave = {
+        ...updated.program,
+        weeks: updated.weeks,
+      };
+
+      if (client.workoutAssignment.id) {
+        const { error } = await dbUpdateWorkoutAssignment(client.workoutAssignment.id, {
+          program_json: programJsonToSave,
+          current_week: updated.currentWeek,
+          last_modified_by: 'coach',
+        });
+        if (error) {
+          console.error('Failed to remove week:', error);
+          alert('Failed to remove week. Please try again.');
+          return;
+        }
+      }
+
+      setCurrentWeek(updated.currentWeek ?? weekNumber - 1);
+      if (prevWeek?.days?.length) {
+        setSelectedProgram({
+          ...updated.program,
+          days: prevWeek.days,
+        });
+      }
+      onSaveAssignment(updated);
+      setShowDeleteWeekConfirm(null);
+
+      if (openRecreateModal && prevWeek?.days?.length) {
+        setProgressionSourceWeek(prevWeek);
+        setWeekGenMode('progress');
+        setDraftNewWeek(buildDraftWeek(prevWeek, weekNumber, 'progress'));
+        setShowCreateWeekModal(true);
+      } else {
+        alert(result.message);
+      }
+    } finally {
+      setIsDeletingWeek(false);
+    }
   };
 
 
@@ -1501,6 +1558,55 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                 </div>
               </div>
 
+              {/* Deployed Weeks Management */}
+              <div className="bg-slate-700/20 rounded-xl p-6">
+                <h3 className="text-lg font-semibold text-white mb-2 text-center">Deployed Weeks</h3>
+                <p className="text-slate-400 text-sm text-center mb-4">
+                  Wrong progression on the latest week? Remove it and create that week again with different rules.
+                </p>
+                <div className="space-y-2">
+                  {(client.workoutAssignment.weeks || [])
+                    .slice()
+                    .sort((a, b) => a.weekNumber - b.weekNumber)
+                    .map((week) => {
+                      const deletable = canDeleteWeek(client.workoutAssignment, week.weekNumber);
+                      return (
+                        <div
+                          key={week.weekNumber}
+                          className="flex items-center justify-between gap-3 px-4 py-3 bg-slate-700/40 rounded-xl"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-white font-medium">
+                              Week {week.weekNumber}
+                              {week.isCompleted ? ' ✓' : ''}
+                              {week.weekNumber === client.workoutAssignment?.currentWeek ? (
+                                <span className="ml-2 text-xs font-normal text-blue-400">(client active)</span>
+                              ) : null}
+                            </div>
+                            <div className="text-xs text-slate-400">
+                              {week.deployedAt
+                                ? `Deployed ${new Date(week.deployedAt).toLocaleDateString()}`
+                                : week.isUnlocked
+                                  ? 'Unlocked'
+                                  : 'Locked'}
+                            </div>
+                          </div>
+                          {deletable && (
+                            <button
+                              type="button"
+                              onClick={() => setShowDeleteWeekConfirm(week.weekNumber)}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-600/20 hover:bg-red-600/30 text-red-300 text-sm font-medium transition-colors shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span className="hidden sm:inline">Remove week</span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
               {/* Program Info */}
               <div className="bg-slate-700/20 rounded-xl p-6">
                 <div className="grid grid-cols-2 gap-4 text-center">
@@ -1524,6 +1630,46 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                   Changes are immediately reflected in the client's interface. The client will see Week {client.workoutAssignment.currentWeek} content.
                 </p>
               </div>
+
+              {showDeleteWeekConfirm != null && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                  <div className="bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl max-w-md w-full p-6">
+                    <h3 className="text-lg font-bold text-white mb-2">
+                      Remove Week {showDeleteWeekConfirm}?
+                    </h3>
+                    <p className="text-slate-400 text-sm mb-6">
+                      This deletes Week {showDeleteWeekConfirm} from the client&apos;s program. The client will return to Week {showDeleteWeekConfirm - 1}.
+                      You can then create Week {showDeleteWeekConfirm} again with auto-progress, deload, or copy rules.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteWeekConfirm(null)}
+                        disabled={isDeletingWeek}
+                        className="flex-1 px-4 py-2 rounded-xl bg-slate-600 hover:bg-slate-500 text-white disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteWeek(showDeleteWeekConfirm, false)}
+                        disabled={isDeletingWeek}
+                        className="flex-1 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white disabled:opacity-50"
+                      >
+                        {isDeletingWeek ? 'Removing…' : 'Remove only'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteWeek(showDeleteWeekConfirm, true)}
+                        disabled={isDeletingWeek}
+                        className="flex-1 px-4 py-2 rounded-xl bg-green-600 hover:bg-green-500 text-white font-medium disabled:opacity-50"
+                      >
+                        {isDeletingWeek ? 'Removing…' : 'Remove & recreate'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -3034,8 +3180,11 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
           </div>
         )}
 
-          {/* Create Next Week Modal */}
-          {showCreateWeekModal && draftNewWeek && client.workoutAssignment && (() => {
+          </>
+        )}
+
+        {/* Create Next Week Modal — shared across Workout & Week Progress tabs */}
+        {showCreateWeekModal && draftNewWeek && client.workoutAssignment && (() => {
             const prevWeek = client.workoutAssignment.weeks?.find((w) => w.weekNumber === draftNewWeek.weekNumber - 1);
             const updateDraftSet = (dayIdx: number, exIdx: number, setIdx: number, field: 'reps' | 'weight', value: number) => {
               setDraftNewWeek((prev) => {
@@ -3218,8 +3367,6 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               </div>
             );
           })()}
-          </>
-        )}
 
         {/* Save as Template Modal */}
         {showSaveTemplate && (

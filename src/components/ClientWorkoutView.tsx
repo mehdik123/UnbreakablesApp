@@ -64,6 +64,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const [sharedVersion, setSharedVersion] = useState<number>(0);
   // Local state to track the assignment so we can update it after client edits
   const [localAssignment, setLocalAssignment] = useState<ClientWorkoutAssignment | null>(client.workoutAssignment || null);
+  const [exerciseSaveState, setExerciseSaveState] = useState<{ [exerciseId: string]: 'saving' | 'saved' }>({});
 
   // Performance tracking
   const { recordExercise } = usePerformanceTracking({
@@ -821,8 +822,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     }
   };
 
-  // Per-exercise save feedback state ('saving' | 'saved')
-  const [exerciseSaveState, setExerciseSaveState] = useState<{ [exerciseId: string]: 'saving' | 'saved' }>({});
   const handleSaveExercise = async (exerciseId: string) => {
     setExerciseSaveState(prev => ({ ...prev, [exerciseId]: 'saving' }));
     try {

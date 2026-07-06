@@ -155,3 +155,58 @@ export function markWeekAsDeployed(week: WorkoutWeek): WorkoutWeek {
     startDate: new Date().toISOString(),
   };
 }
+
+export interface RemoveWeekResult {
+  success: boolean;
+  message: string;
+  assignment: ClientWorkoutAssignment;
+}
+
+/**
+ * Only the latest deployed week can be removed (not Week 1).
+ * Used when progression rules were applied incorrectly.
+ */
+export function canDeleteWeek(
+  assignment: ClientWorkoutAssignment | null | undefined,
+  weekNumber: number
+): boolean {
+  if (!assignment) return false;
+  const weeks = assignment.weeks || [];
+  if (weeks.length <= 1) return false;
+  if (weekNumber <= 1) return false;
+  const maxWeek = Math.max(...weeks.map((w) => w.weekNumber));
+  return weekNumber === maxWeek && weeks.some((w) => w.weekNumber === weekNumber);
+}
+
+/**
+ * Remove the latest week and move the client back to the previous week.
+ */
+export function removeWeekFromAssignment(
+  assignment: ClientWorkoutAssignment,
+  weekNumber: number
+): RemoveWeekResult {
+  if (!canDeleteWeek(assignment, weekNumber)) {
+    return {
+      success: false,
+      message: 'Only the latest week can be removed. Week 1 cannot be deleted.',
+      assignment,
+    };
+  }
+
+  const remainingWeeks = (assignment.weeks || []).filter((w) => w.weekNumber !== weekNumber);
+  const prevWeekNum = weekNumber - 1;
+  const wasActiveWeek = (assignment.currentWeek ?? 1) === weekNumber;
+  const newCurrentWeek = wasActiveWeek ? prevWeekNum : Math.min(assignment.currentWeek ?? prevWeekNum, prevWeekNum);
+
+  return {
+    success: true,
+    message: `Week ${weekNumber} removed. You can create Week ${weekNumber} again with different progression rules.`,
+    assignment: {
+      ...assignment,
+      weeks: remainingWeeks,
+      currentWeek: newCurrentWeek,
+      lastModifiedBy: 'coach',
+      lastModifiedAt: new Date(),
+    },
+  };
+}
