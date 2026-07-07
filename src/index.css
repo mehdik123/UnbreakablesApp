@@ -168,12 +168,19 @@
   .group:hover .wk-play { transform: translate(-50%, -50%); }
 }
 
-/* Set-row steppers — 44px min touch target */
+/* Set-row steppers — 44px min touch target (compact on narrow phones) */
 .wk-step {
   min-width: 44px;
   min-height: 44px;
   transition: transform 0.15s var(--spring), background 0.15s, color 0.15s;
   user-select: none;
+}
+@media (max-width: 430px) {
+  .wk-step {
+    min-width: 34px;
+    width: 34px;
+    min-height: 38px;
+  }
 }
 .wk-step:hover { background: rgba(255, 255, 255, 0.06); }
 .wk-step:active { transform: scale(0.82); }

@@ -1324,7 +1324,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                   </a>
 
                   {/* Sets & Reps Section */}
-                  <div className="space-y-2 sm:space-y-4 px-4 pb-4">
+                  <div className="space-y-2 sm:space-y-4 px-3 sm:px-4 pb-4">
                       <div className="flex items-center justify-between mb-3 px-0.5">
                         <div className="flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--txt-hi)' }}>
                           <Dumbbell className="w-3.5 h-3.5" style={{ color: 'var(--red)' }} />
@@ -1339,11 +1339,11 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                         {exercise.sets.map((set, setIndex) => (
                           <div
                             key={setIndex}
-                            className="flex items-center gap-2.5 rounded-[18px] p-3"
+                            className="flex items-center gap-1.5 sm:gap-2.5 rounded-[18px] p-2 sm:p-3"
                             style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                           >
                             <div
-                              className="w-[26px] h-[26px] rounded-[8px] flex items-center justify-center font-display font-bold text-[12px] shrink-0"
+                              className="w-[22px] h-[22px] sm:w-[26px] sm:h-[26px] rounded-[8px] flex items-center justify-center font-display font-bold text-[11px] sm:text-[12px] shrink-0"
                               style={{ background: 'var(--surface-3)', border: '1px solid var(--hair-strong)', color: 'var(--txt-mid)' }}
                             >
                               {setIndex + 1}
@@ -1351,10 +1351,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 
                             {/* Reps stepper */}
                             <div className="flex-1 min-w-0">
-                              <div className="text-[9px] font-semibold uppercase tracking-[0.12em] mb-1.5 pl-0.5 flex items-center gap-1" style={{ color: 'var(--txt-lo)' }}>
+                              <div className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.1em] sm:tracking-[0.12em] mb-1 sm:mb-1.5 pl-0.5 flex items-center gap-1" style={{ color: 'var(--txt-lo)' }}>
                                 {set.isDropset ? t('workout.dropset') : t('workout.reps')}
                               </div>
-                              <div className="flex items-center rounded-[11px] overflow-hidden" style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}>
+                              <div className="flex items-center rounded-[10px] sm:rounded-[11px] overflow-hidden" style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1366,11 +1366,11 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                   style={{ color: 'var(--blue)' }}
                                   aria-label="Decrease reps"
                                 >
-                                  <Minus className="w-4 h-4" />
+                                  <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                 </button>
                                 <div
-                                  className={`flex-1 text-center font-display font-bold tnum truncate px-0.5 ${
-                                    set.isDropset && Array.isArray(set.reps) ? 'text-[13px]' : 'text-[17px]'
+                                  className={`flex-1 min-w-0 text-center font-display font-bold tnum truncate px-0.5 ${
+                                    set.isDropset && Array.isArray(set.reps) ? 'text-[12px] sm:text-[13px]' : 'text-[15px] sm:text-[17px]'
                                   }`}
                                   style={{ color: 'var(--txt-hi)' }}
                                 >
@@ -1389,17 +1389,17 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                   style={{ color: 'var(--red)' }}
                                   aria-label="Increase reps"
                                 >
-                                  <Plus className="w-4 h-4" />
+                                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                 </button>
                               </div>
                             </div>
 
                             {/* Weight stepper */}
                             <div className="flex-1 min-w-0">
-                              <div className="text-[9px] font-semibold uppercase tracking-[0.12em] mb-1.5 pl-0.5" style={{ color: 'var(--txt-lo)' }}>
+                              <div className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.1em] sm:tracking-[0.12em] mb-1 sm:mb-1.5 pl-0.5" style={{ color: 'var(--txt-lo)' }}>
                                 {t('workout.weight')}
                               </div>
-                              <div className="flex items-center rounded-[11px] overflow-hidden" style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}>
+                              <div className="flex items-center rounded-[10px] sm:rounded-[11px] overflow-hidden" style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1412,22 +1412,22 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                   style={{ color: 'var(--blue)' }}
                                   aria-label="Decrease weight 2.5 kg"
                                 >
-                                  <Minus className="w-4 h-4" />
+                                  <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                 </button>
                                 {set.isDropset && Array.isArray(set.weight) ? (
-                                  <div className="flex-1 text-center font-display font-bold text-[13px] tnum truncate px-1" style={{ color: 'var(--txt-hi)' }}>
+                                  <div className="flex-1 min-w-0 text-center font-display font-bold text-[12px] sm:text-[13px] tnum truncate px-0.5" style={{ color: 'var(--txt-hi)' }}>
                                     {set.weight.join('→')}
-                                    <span className="text-[10px] font-medium ml-0.5" style={{ color: 'var(--txt-lo)' }}>{t('workout.kg')}</span>
+                                    <span className="text-[9px] sm:text-[10px] font-medium ml-0.5" style={{ color: 'var(--txt-lo)' }}>{t('workout.kg')}</span>
                                   </div>
                                 ) : (
-                                  <div className="flex-1 flex items-baseline justify-center px-1">
+                                  <div className="flex-1 min-w-0 flex items-baseline justify-center px-0.5">
                                     <input
                                       type="number"
                                       min={0}
                                       step={0.5}
                                       inputMode="decimal"
                                       placeholder="0"
-                                      className="w-[44px] max-w-full bg-transparent text-center font-display font-bold text-[16px] tnum
+                                      className="w-[30px] sm:w-[40px] max-w-full bg-transparent text-center font-display font-bold text-[14px] sm:text-[16px] tnum
                                         focus:outline-none focus:ring-0
                                         [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                       style={{ color: 'var(--txt-hi)' }}
@@ -1465,7 +1465,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                       }}
                                       aria-label={t('workout.weightAria')}
                                     />
-                                    <span className="text-[10px] font-medium" style={{ color: 'var(--txt-lo)' }}>{t('workout.kg')}</span>
+                                    <span className="text-[9px] sm:text-[10px] font-medium shrink-0" style={{ color: 'var(--txt-lo)' }}>{t('workout.kg')}</span>
                                   </div>
                                 )}
                                 <button
@@ -1480,7 +1480,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                   style={{ color: 'var(--red)' }}
                                   aria-label={t('workout.increaseWeight')}
                                 >
-                                  <Plus className="w-4 h-4" />
+                                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                 </button>
                               </div>
                             </div>
