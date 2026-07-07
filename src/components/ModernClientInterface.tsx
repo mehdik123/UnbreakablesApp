@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Activity,
   HelpCircle,
+  BookOpen,
   Languages,
   Check,
   HeartPulse,
@@ -24,6 +25,7 @@ import {
   BadgeCheck,
 } from 'lucide-react';
 import { ClientWelcomeTour } from './ClientWelcomeTour';
+import { ClientHelpGuide } from './ClientHelpGuide';
 import { Client, ClientWorkoutAssignment, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { dbResolveClientIdByName, dbGetCardioPlan } from '../lib/db';
@@ -151,9 +153,11 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     };
   }, [notifMenuOpen]);
 
-  // First-run welcome tour (shown once per client, re-openable via the "?" button)
+  // First-run welcome tour (shown once per client, re-openable via the bell menu)
   const welcomeKey = `ub_welcome_seen_${client.id}`;
+  const guideKey = `ub_guide_seen_${client.id}`;
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showHelpGuide, setShowHelpGuide] = useState(false);
   useEffect(() => {
     try {
       if (!localStorage.getItem(welcomeKey)) setShowWelcome(true);
@@ -164,11 +168,21 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const closeWelcome = useCallback(() => {
     setShowWelcome(false);
     try {
+      const wasFirst = !localStorage.getItem(welcomeKey);
       localStorage.setItem(welcomeKey, '1');
+      if (wasFirst && !localStorage.getItem(guideKey)) setShowHelpGuide(true);
     } catch {
       /* ignore storage errors */
     }
-  }, [welcomeKey]);
+  }, [welcomeKey, guideKey]);
+  const closeHelpGuide = useCallback(() => {
+    setShowHelpGuide(false);
+    try {
+      localStorage.setItem(guideKey, '1');
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [guideKey]);
 
   useEffect(() => {
     localStorage.setItem('client_interface_theme', useDarkTheme ? 'dark' : 'light');
@@ -914,6 +928,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         <ClientWelcomeTour name={client.name.split(' ')[0] || 'there'} isRtl={isRtl} t={t} onClose={closeWelcome} />
       )}
 
+      {showHelpGuide && (
+        <ClientHelpGuide
+          isRtl={isRtl}
+          t={t}
+          onClose={closeHelpGuide}
+          onReplayTour={() => setShowWelcome(true)}
+        />
+      )}
+
       <OfflineBanner
         pendingSyncCount={pendingSyncCount}
         onSyncNow={handleSyncNow}
@@ -1020,6 +1043,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                     border: '1px solid var(--hair)',
                   } as React.CSSProperties}
                 >
+                  <button
+                    type="button"
+                    onClick={() => { setShowHelpGuide(true); setNotifMenuOpen(false); }}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-start"
+                    style={{ color: 'var(--txt-hi)' }}
+                  >
+                    <BookOpen className="w-4 h-4" style={{ color: 'var(--red)' }} />
+                    {t('home.fullGuide')}
+                  </button>
                   <button
                     type="button"
                     onClick={() => { setShowWelcome(true); setNotifMenuOpen(false); }}

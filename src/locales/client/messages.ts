@@ -78,7 +78,96 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'tour.weeksTitle': 'Built week by week',
     'tour.weeksBody': 'You start on Week 1. When you finish it, your coach prepares the next week — so new weeks appear as you go.',
     'tour.helpTitle': "You're all set 💪",
-    'tour.helpBody': 'Tap the “?” on your home screen any time to see this guide again. Now let’s get to work!',
+    'tour.helpBody': 'Open the bell menu → “Full guide” for video + answers to almost every question. You can replay this quick tour there too.',
+
+    'guide.title': 'Client guide',
+    'guide.subtitle': 'Video + answers to almost everything',
+    'guide.close': 'Close',
+    'guide.videoTitle': 'Video walkthrough',
+    'guide.videoMissing':
+      'Your coach can add a demo video here. Until then, browse the questions below — they cover login, workouts, meals, cardio, progress, and offline gym use.',
+    'guide.replayTour': 'Replay quick tour',
+    'guide.footer': 'Still stuck? Message your coach with a screenshot — they will help you quickly.',
+
+    'guide.section.start': 'Getting started',
+    'guide.section.workout': 'Workouts',
+    'guide.section.nutrition': 'Nutrition & supplements',
+    'guide.section.cardio': 'Cardio',
+    'guide.section.progress': 'Progress & photos',
+    'guide.section.offline': 'Offline & gym use',
+    'guide.section.troubleshoot': 'Troubleshooting',
+
+    'guide.faq.login.q': 'How do I log in?',
+    'guide.faq.login.a':
+      'Open the personal link your coach sent you. Enter the username and password they gave you. Use the same link on phone and computer — bookmark it or Add to Home Screen for quick access.',
+    'guide.faq.install.q': 'How do I install the app on my phone?',
+    'guide.faq.install.a':
+      'No App Store needed — this is a web app. iPhone: open your link in Safari → Share → Add to Home Screen. Android: Chrome menu → Install app or Add to Home screen. Open from that icon like a normal app.',
+    'guide.faq.language.q': 'How do I change the language?',
+    'guide.faq.language.a':
+      'On your home screen, tap the globe in the top bar and pick English, العربية, or Français. Your choice is saved on this device.',
+    'guide.faq.home.q': 'What are the main sections?',
+    'guide.faq.home.a':
+      'Workout = today’s session and training week. Nutrition = meals and calories. Supplements = what to take and when. Cardio = your cardio plan. Progress = weight, photos, and strength charts. Tap a card to open it; use the back arrow to return home.',
+
+    'guide.faq.openWorkout.q': 'How do I start my workout?',
+    'guide.faq.openWorkout.a':
+      'From home, tap Workout or Start session. You will see your current week and today’s exercises. Tap an exercise to expand it, watch the demo if there is one, then log your sets.',
+    'guide.faq.logSets.q': 'How do I log weight and reps?',
+    'guide.faq.logSets.a':
+      'Each set has fields for weight (kg) and reps. Enter what you actually lifted. Rest times are a guide. If you miss a set, log what you did — honest logs help your coach adjust your plan.',
+    'guide.faq.save.q': 'Why tap “Save my numbers”?',
+    'guide.faq.save.a':
+      'Saving sends your logged sets to your coach. They use this to track progress and build your next week. Save after each exercise — unsaved numbers may be lost if you leave the page.',
+    'guide.faq.weeks.q': 'How do weeks work?',
+    'guide.faq.weeks.a':
+      'You start on Week 1. Only weeks your coach has published are visible. When you finish a week, they review your logs and add the next. Seeing only Week 1 at first is normal.',
+    'guide.faq.exerciseVideos.q': 'Where are exercise demo videos?',
+    'guide.faq.exerciseVideos.a':
+      'Tap an exercise to expand it. If your coach attached a video, you will see a play button or embedded clip. Videos need internet unless you opened them before while online.',
+    'guide.faq.completeExercise.q': 'What does marking an exercise complete do?',
+    'guide.faq.completeExercise.a':
+      'It tracks which exercises you finished today. Your coach mainly uses saved weights and reps for progression — always save your numbers even after marking complete.',
+
+    'guide.faq.meals.q': 'How do I read my meal plan?',
+    'guide.faq.meals.a':
+      'Open Nutrition from home. You will see meals with foods, portions, and macros. Follow the portions your coach set. The daily calorie target at the top is a guide unless your coach says otherwise.',
+    'guide.faq.supplements.q': 'Where are my supplements?',
+    'guide.faq.supplements.a':
+      'Open Supplements from home. You will see product names, doses, and timing (morning, with meals, before bed, etc.). Follow your coach’s instructions exactly.',
+
+    'guide.faq.cardioPlan.q': 'How do I follow my cardio plan?',
+    'guide.faq.cardioPlan.a':
+      'Open Cardio from home. Your coach lists sessions (after workout, off day, morning, etc.) with duration, speed, or distance. Do them on the scheduled days.',
+
+    'guide.faq.weight.q': 'How do I log my weight?',
+    'guide.faq.weight.a':
+      'Progress → Weight. Enter your weight in kg on a regular schedule (e.g. weekly, same day, morning). Your coach sees the trend over time.',
+    'guide.faq.photos.q': 'How do I upload progress photos?',
+    'guide.faq.photos.a':
+      'Progress → Photos. Upload front, side, and back for the week your coach requested. Same pose and lighting each time. Photos stay private between you and your coach.',
+    'guide.faq.charts.q': 'What do the progress charts show?',
+    'guide.faq.charts.a':
+      'My Results and Muscle Focus show which muscles you train most and how your lifts improve over saved sessions. More consistent logging means more accurate charts.',
+
+    'guide.faq.offlineGym.q': 'Can I use the app at the gym without Wi‑Fi?',
+    'guide.faq.offlineGym.a':
+      'Yes. Open the app once while online so your plan downloads. At the gym you can view workouts and log sets offline. An offline banner when disconnected is normal.',
+    'guide.faq.syncPending.q': 'When do offline logs sync?',
+    'guide.faq.syncPending.a':
+      'When you are back online, pending saves upload automatically. Tap Sync now on the banner if shown. Keep the app open briefly after your session so everything sends.',
+
+    'guide.faq.noPlan.q': 'Why don’t I see a workout or meal plan?',
+    'guide.faq.noPlan.a':
+      'Your coach may still be building your program. Log in with the correct link. If it has been more than a day, message your coach — they will publish your plan.',
+    'guide.faq.wrongWeek.q': 'Wrong week or old numbers?',
+    'guide.faq.wrongWeek.a':
+      'Refresh on home. Make sure you are on the latest week your coach published. If it still looks wrong, tell your coach with a screenshot — they can check your assignment.',
+    'guide.faq.contactCoach.q': 'How do I contact my coach?',
+    'guide.faq.contactCoach.a':
+      'Use WhatsApp, Instagram, or whatever channel your coach gave you with your link and login. Include your name and a screenshot of the issue.',
+
+    'home.fullGuide': 'Full guide',
 
     'nav.nutrition': 'Nutrition',
     'nav.supplements': 'Supplements',
@@ -449,7 +538,96 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'tour.weeksTitle': 'يُبنى أسبوعًا بأسبوع',
     'tour.weeksBody': 'تبدأ بالأسبوع 1. عند إكماله يجهّز مدربك الأسبوع التالي — لذا تظهر الأسابيع الجديدة تباعًا.',
     'tour.helpTitle': 'أنت جاهز 💪',
-    'tour.helpBody': 'اضغط على «؟» في صفحتك الرئيسية في أي وقت لرؤية هذا الدليل مجددًا. هيا لنبدأ!',
+    'tour.helpBody': 'من قائمة الجرس → «الدليل الكامل» فيديو وإجابات لأغلب الأسئلة. يمكنك إعادة هذه الجولة السريعة من هناك أيضًا.',
+
+    'guide.title': 'دليل العميل',
+    'guide.subtitle': 'فيديو + إجابات لكل ما تحتاجه',
+    'guide.close': 'إغلاق',
+    'guide.videoTitle': 'شرح بالفيديو',
+    'guide.videoMissing':
+      'يمكن لمدربك إضافة فيديو توضيحي هنا. حتى ذلك الحين، تصفّح الأسئلة أدناه — تغطي تسجيل الدخول والتمرين والوجبات والكارديو والتقدّم والاستخدام دون إنترنت.',
+    'guide.replayTour': 'إعادة الجولة السريعة',
+    'guide.footer': 'ما زلت بحاجة لمساعدة؟ راسل مدربك مع لقطة شاشة — سيساعدك بسرعة.',
+
+    'guide.section.start': 'البداية',
+    'guide.section.workout': 'التمرين',
+    'guide.section.nutrition': 'التغذية والمكملات',
+    'guide.section.cardio': 'الكارديو',
+    'guide.section.progress': 'التقدّم والصور',
+    'guide.section.offline': 'دون إنترنت وفي الصالة',
+    'guide.section.troubleshoot': 'حل المشاكل',
+
+    'guide.faq.login.q': 'كيف أسجّل الدخول؟',
+    'guide.faq.login.a':
+      'افتح الرابط الشخصي الذي أرسله مدربك. أدخل اسم المستخدم وكلمة المرور. استخدم نفس الرابط على الهاتف والحاسوب — احفظه أو أضفه إلى الشاشة الرئيسية.',
+    'guide.faq.install.q': 'كيف أثبّت التطبيق على هاتفي؟',
+    'guide.faq.install.a':
+      'لا حاجة لمتجر تطبيقات. آيفون: Safari → مشاركة → إضافة إلى الشاشة الرئيسية. أندرويد: قائمة Chrome → تثبيت التطبيق أو إضافة إلى الشاشة الرئيسية.',
+    'guide.faq.language.q': 'كيف أغيّر اللغة؟',
+    'guide.faq.language.a':
+      'في الصفحة الرئيسية اضغط أيقونة الكرة الأرضية واختر English أو العربية أو Français. يُحفظ اختيارك على هذا الجهاز.',
+    'guide.faq.home.q': 'ما الأقسام الرئيسية؟',
+    'guide.faq.home.a':
+      'التمرين = حصة اليوم وأسبوعك. التغذية = الوجبات والسعرات. المكملات = ماذا تأخذ ومتى. الكارديو = خطتك. التقدّم = الوزن والصور والرسوم. اضغط أي بطاقة للفتح؛ سهم الرجوع للعودة.',
+
+    'guide.faq.openWorkout.q': 'كيف أبدأ التمرين؟',
+    'guide.faq.openWorkout.a':
+      'من الرئيسية اضغط التمرين أو ابدأ الحصة. ستظهر أسبوعك الحالي وتمارين اليوم. اضغط التمرين لتوسيعه، شاهد العرض إن وُجد، ثم سجّل مجموعاتك.',
+    'guide.faq.logSets.q': 'كيف أسجّل الوزن والتكرارات؟',
+    'guide.faq.logSets.a':
+      'كل مجموعة لها حقول للوزن (كغ) والتكرارات. أدخل ما رفعته فعلًا. أوقات الراحة إرشادية. إن فاتتك مجموعة، سجّل ما أنجزته — الصدق يساعد مدربك.',
+    'guide.faq.save.q': 'لماذا «احفظ أرقامي»؟',
+    'guide.faq.save.a':
+      'الحفظ يرسل مجموعاتك لمدربك ليتتبع تقدّمك ويبني أسبوعك التالي. احفظ بعد كل تمرين — الأرقام غير المحفوظة قد تضيع عند مغادرة الصفحة.',
+    'guide.faq.weeks.q': 'كيف تعمل الأسابيع؟',
+    'guide.faq.weeks.a':
+      'تبدأ بالأسبوع 1. تظهر فقط الأسابيع التي نشرها مدربك. عند إنهاء أسبوع يراجع سجلاتك ويضيف التالي. رؤية الأسبوع 1 فقط في البداية طبيعي.',
+    'guide.faq.exerciseVideos.q': 'أين فيديوهات التمارين؟',
+    'guide.faq.exerciseVideos.a':
+      'اضغط التمرين لتوسيعه. إن أرفق مدربك فيديو ستجد زر تشغيل. الفيديو يحتاج إنترنت إلا إن فتحته سابقًا وأنت متصل.',
+    'guide.faq.completeExercise.q': 'ماذا يعني إكمال التمرين؟',
+    'guide.faq.completeExercise.a':
+      'يتتبع ما أنهيته اليوم. مدربك يعتمد على الأوزان والتكرارات المحفوظة — احفظ أرقامك دائمًا حتى بعد وضع علامة الإكمال.',
+
+    'guide.faq.meals.q': 'كيف أقرأ خطة الوجبات؟',
+    'guide.faq.meals.a':
+      'افتح التغذية من الرئيسية. ستجد الوجبات مع الأطعمة والحصص والماكرو. اتبع الحصص التي حددها مدربك. هدف السعرات اليومي إرشادي ما لم يقل مدربك غير ذلك.',
+    'guide.faq.supplements.q': 'أين مكملاتي؟',
+    'guide.faq.supplements.a':
+      'افتح المكملات من الرئيسية. ستجد الأسماء والجرعات والتوقيت (صباحًا، مع الوجبات، قبل النوم...). اتبع تعليمات مدربك بدقة.',
+
+    'guide.faq.cardioPlan.q': 'كيف أتبع خطة الكارديو؟',
+    'guide.faq.cardioPlan.a':
+      'افتح الكارديو من الرئيسية. يسرد مدربك الجلسات (بعد التمرين، يوم راحة، صباحًا...) مع المدة أو السرعة أو المسافة. نفّذها في الأيام المحددة.',
+
+    'guide.faq.weight.q': 'كيف أسجّل وزني؟',
+    'guide.faq.weight.a':
+      'التقدّم → الوزن. أدخل وزنك بالكغ بانتظام (مثلاً أسبوعيًا، نفس اليوم، صباحًا). يرى مدربك الاتجاه مع الوقت.',
+    'guide.faq.photos.q': 'كيف أرفع صور التقدّم؟',
+    'guide.faq.photos.a':
+      'التقدّم → الصور. ارفع أمامي وجانبي وخلفي للأسبوع المطلوب. نفس الوضعية والإضاءة. الصور خاصة بينك وبين مدربك.',
+    'guide.faq.charts.q': 'ماذا تعرض الرسوم البيانية؟',
+    'guide.faq.charts.a':
+      'نتائجي وتركيز العضلات يوضحان أكثر ما تتمرّن عليه وكيف تتحسّن أوزانك. كلما سجّلت بانتظام كانت الرسوم أدق.',
+
+    'guide.faq.offlineGym.q': 'هل أستخدم التطبيق في الصالة دون واي فاي؟',
+    'guide.faq.offlineGym.a':
+      'نعم. افتح التطبيق مرة وأنت متصل ليُحمّل برنامجك. في الصالة يمكنك عرض التمرين وتسجيل المجموعات دون إنترنت. شريط «دون اتصال» طبيعي.',
+    'guide.faq.syncPending.q': 'متى تُزامَن السجلات؟',
+    'guide.faq.syncPending.a':
+      'عند عودة الاتصال تُرفع الحفظات تلقائيًا. اضغط «مزامنة الآن» على الشريط إن ظهر. أبقِ التطبيق مفتوحًا قليلًا بعد الحصة.',
+
+    'guide.faq.noPlan.q': 'لماذا لا أرى خطة تمرين أو وجبات؟',
+    'guide.faq.noPlan.a':
+      'قد يكون مدربك ما زال يبني برنامجك. تأكد من الرابط الصحيح. إن مرّ أكثر من يوم، راسل مدربك — سينشر خطتك.',
+    'guide.faq.wrongWeek.q': 'أسبوع خاطئ أو أرقام قديمة؟',
+    'guide.faq.wrongWeek.a':
+      'حدّث الصفحة الرئيسية. تأكد أنك على آخر أسبوع نشره مدربك. إن استمر الخطأ، أخبر مدربك مع لقطة شاشة.',
+    'guide.faq.contactCoach.q': 'كيف أتواصل مع مدربي؟',
+    'guide.faq.contactCoach.a':
+      'استخدم واتساب أو إنستغرام أو القناة التي أعطاك إياها مع الرابط وبيانات الدخول. اذكر اسمك وأرفق لقطة للمشكلة.',
+
+    'home.fullGuide': 'الدليل الكامل',
 
     'nav.nutrition': 'التغذية',
     'nav.supplements': 'المكملات',
@@ -819,7 +997,96 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'tour.weeksTitle': 'Construit semaine après semaine',
     'tour.weeksBody': 'Vous commencez à la Semaine 1. Une fois terminée, votre coach prépare la semaine suivante — de nouvelles semaines apparaissent au fil de votre progression.',
     'tour.helpTitle': 'Vous êtes prêt 💪',
-    'tour.helpBody': "Touchez le « ? » sur votre écran d'accueil à tout moment pour revoir ce guide. Maintenant, au travail !",
+    'tour.helpBody': 'Menu cloche → « Guide complet » : vidéo et réponses à presque toutes vos questions. Vous pouvez aussi revoir cette visite rapide.',
+
+    'guide.title': 'Guide client',
+    'guide.subtitle': 'Vidéo + réponses à presque tout',
+    'guide.close': 'Fermer',
+    'guide.videoTitle': 'Vidéo de démonstration',
+    'guide.videoMissing':
+      'Votre coach peut ajouter une vidéo ici. En attendant, parcourez les questions ci-dessous — connexion, séances, repas, cardio, progression et mode hors ligne.',
+    'guide.replayTour': 'Revoir la visite rapide',
+    'guide.footer': 'Toujours bloqué ? Envoyez une capture d’écran à votre coach — il vous aidera rapidement.',
+
+    'guide.section.start': 'Premiers pas',
+    'guide.section.workout': 'Entraînements',
+    'guide.section.nutrition': 'Nutrition & compléments',
+    'guide.section.cardio': 'Cardio',
+    'guide.section.progress': 'Progression & photos',
+    'guide.section.offline': 'Hors ligne & salle',
+    'guide.section.troubleshoot': 'Dépannage',
+
+    'guide.faq.login.q': 'Comment me connecter ?',
+    'guide.faq.login.a':
+      'Ouvrez le lien personnel envoyé par votre coach. Entrez l’identifiant et le mot de passe fournis. Utilisez le même lien sur téléphone et ordinateur — ajoutez-le à l’écran d’accueil.',
+    'guide.faq.install.q': 'Comment installer l’app sur mon téléphone ?',
+    'guide.faq.install.a':
+      'Pas besoin du store : c’est une app web. iPhone : Safari → Partager → Sur l’écran d’accueil. Android : menu Chrome → Installer l’application.',
+    'guide.faq.language.q': 'Comment changer la langue ?',
+    'guide.faq.language.a':
+      'Sur l’accueil, touchez le globe en haut et choisissez English, العربية ou Français. Le choix est mémorisé sur cet appareil.',
+    'guide.faq.home.q': 'Quelles sont les sections principales ?',
+    'guide.faq.home.a':
+      'Entraînement = séance du jour et semaine. Nutrition = repas et calories. Compléments = quoi prendre et quand. Cardio = votre plan. Progression = poids, photos et graphiques. Touchez une carte ; flèche retour pour l’accueil.',
+
+    'guide.faq.openWorkout.q': 'Comment démarrer ma séance ?',
+    'guide.faq.openWorkout.a':
+      'Depuis l’accueil, touchez Entraînement ou Commencer. Vous voyez votre semaine et les exercices du jour. Développez un exercice, regardez la démo, puis notez vos séries.',
+    'guide.faq.logSets.q': 'Comment noter charges et répétitions ?',
+    'guide.faq.logSets.a':
+      'Chaque série a des champs poids (kg) et reps. Entrez ce que vous avez vraiment soulevé. Les temps de repos sont indicatifs. Notez honnêtement — votre coach s’en sert pour ajuster le plan.',
+    'guide.faq.save.q': 'Pourquoi « Enregistrer mes chiffres » ?',
+    'guide.faq.save.a':
+      'L’enregistrement envoie vos séries au coach pour suivre la progression et préparer la semaine suivante. Enregistrez après chaque exercice.',
+    'guide.faq.weeks.q': 'Comment fonctionnent les semaines ?',
+    'guide.faq.weeks.a':
+      'Vous commencez à la Semaine 1. Seules les semaines publiées par le coach sont visibles. À la fin, il ajoute la suivante. Ne voir que la Semaine 1 au début est normal.',
+    'guide.faq.exerciseVideos.q': 'Où sont les vidéos d’exercices ?',
+    'guide.faq.exerciseVideos.a':
+      'Développez l’exercice. Si une vidéo est jointe, un bouton lecture apparaît. Internet requis sauf si déjà ouverte en ligne.',
+    'guide.faq.completeExercise.q': 'À quoi sert marquer un exercice terminé ?',
+    'guide.faq.completeExercise.a':
+      'Cela suit ce que vous avez fini aujourd’hui. Le coach utilise surtout les charges enregistrées — enregistrez toujours vos chiffres.',
+
+    'guide.faq.meals.q': 'Comment lire mon plan repas ?',
+    'guide.faq.meals.a':
+      'Ouvrez Nutrition. Repas, aliments, portions et macros. Suivez les portions du coach. L’objectif calorique du jour est indicatif sauf consigne contraire.',
+    'guide.faq.supplements.q': 'Où sont mes compléments ?',
+    'guide.faq.supplements.a':
+      'Ouvrez Compléments depuis l’accueil : produits, doses et horaires (matin, repas, soir…). Suivez les instructions du coach.',
+
+    'guide.faq.cardioPlan.q': 'Comment suivre mon plan cardio ?',
+    'guide.faq.cardioPlan.a':
+      'Ouvrez Cardio. Le coach liste les séances (après muscu, jour off, matin…) avec durée, vitesse ou distance. Faites-les aux jours prévus.',
+
+    'guide.faq.weight.q': 'Comment noter mon poids ?',
+    'guide.faq.weight.a':
+      'Progression → Poids. Entrez votre poids en kg régulièrement (ex. chaque semaine, même jour, le matin). Le coach voit la tendance.',
+    'guide.faq.photos.q': 'Comment envoyer des photos de progression ?',
+    'guide.faq.photos.a':
+      'Progression → Photos. Face, profil, dos pour la semaine demandée. Même pose et éclairage. Photos privées entre vous et le coach.',
+    'guide.faq.charts.q': 'Que montrent les graphiques ?',
+    'guide.faq.charts.a':
+      'Mes résultats et Focus musculaire montrent ce que vous travaillez le plus et l’évolution des charges. Plus vous enregistrez, plus c’est précis.',
+
+    'guide.faq.offlineGym.q': 'Puis-je utiliser l’app en salle sans Wi‑Fi ?',
+    'guide.faq.offlineGym.a':
+      'Oui. Ouvrez l’app une fois en ligne pour télécharger le plan. En salle, consultez et notez hors ligne. La bannière hors ligne est normale.',
+    'guide.faq.syncPending.q': 'Quand les notes hors ligne se synchronisent ?',
+    'guide.faq.syncPending.a':
+      'Au retour en ligne, envoi automatique. Touchez Synchroniser sur la bannière si besoin. Gardez l’app ouverte un moment après la séance.',
+
+    'guide.faq.noPlan.q': 'Pourquoi je ne vois pas de plan ?',
+    'guide.faq.noPlan.a':
+      'Le coach prépare peut-être encore votre programme. Vérifiez le bon lien. Après un jour, contactez-le — il publiera votre plan.',
+    'guide.faq.wrongWeek.q': 'Mauvaise semaine ou vieux chiffres ?',
+    'guide.faq.wrongWeek.a':
+      'Rafraîchissez l’accueil. Vérifiez la dernière semaine publiée. Si ça persiste, écrivez au coach avec une capture.',
+    'guide.faq.contactCoach.q': 'Comment contacter mon coach ?',
+    'guide.faq.contactCoach.a':
+      'WhatsApp, Instagram ou le canal fourni avec votre lien. Indiquez votre nom et une capture du problème.',
+
+    'home.fullGuide': 'Guide complet',
 
     'nav.nutrition': 'Nutrition',
     'nav.supplements': 'Compléments',
