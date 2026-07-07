@@ -3,7 +3,6 @@ import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { 
   Dumbbell, 
   Clock,
-  Play,
   CheckCircle,
   Circle,
   Zap,
@@ -24,6 +23,7 @@ import {
   isAppOnline,
   patchClientOfflineSnapshot,
 } from '../lib/offlineStore';
+import { ExerciseVideoEmbed } from './ExerciseVideoEmbed';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -70,6 +70,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   // Local state to track the assignment so we can update it after client edits
   const [localAssignment, setLocalAssignment] = useState<ClientWorkoutAssignment | null>(client.workoutAssignment || null);
   const [exerciseSaveState, setExerciseSaveState] = useState<{ [exerciseId: string]: 'saving' | 'saved' }>({});
+  const [activeVideoExerciseId, setActiveVideoExerciseId] = useState<string | null>(null);
 
   // Performance tracking
   const { recordExercise } = usePerformanceTracking({
@@ -836,14 +837,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     }
   };
 
-  // Function to get YouTube thumbnail
-  const getYouTubeThumbnail = (videoUrl: string) => {
-    if (!videoUrl) return null;
-    const videoId = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1];
-    if (!videoId) return null;
-    return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-  };
-
   const getDayStatus = (dayIndex: number) => {
     const dayExercises = currentWorkoutProgram.days[dayIndex].exercises;
     const completedCount = dayExercises.filter(ex => completedExercises[ex.id]).length;
@@ -1268,60 +1261,17 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                     </div>
                   </div>
 
-                  {/* Form demo video — always visible */}
-                  <a
-                    href={exercise.exercise.videoUrl || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block relative mx-4 mb-4 rounded-[18px] overflow-hidden group"
-                    style={{
-                      aspectRatio: '16 / 9',
-                      border: '1px solid var(--hair)',
-                      background:
-                        'radial-gradient(120% 120% at 70% 20%, rgba(255,45,85,.22), transparent 55%), linear-gradient(135deg,#23262f,#0e0f14)',
-                    }}
-                  >
-                    {getYouTubeThumbnail(exercise.exercise.videoUrl || '') && (
-                      <img
-                        src={getYouTubeThumbnail(exercise.exercise.videoUrl || '') || ''}
-                        alt={`${exercise.exercise.name} demonstration`}
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    )}
-
-                    <div className="wk-video-grid absolute inset-0" />
-
-                    <div
-                      className="absolute top-3 left-3 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] px-2.5 py-1.5 rounded-lg"
-                      style={{
-                        color: 'rgba(255,255,255,.7)',
-                        background: 'rgba(0,0,0,.35)',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(255,255,255,.1)',
-                      }}
-                    >
-                      <Circle className="w-2.5 h-2.5" />
-                      {t('workout.formDemo')}
-                    </div>
-
-                    <div className="wk-play absolute left-1/2 top-1/2 w-14 h-14 rounded-full flex items-center justify-center text-white">
-                      <Play className="w-5 h-5 ml-0.5" fill="currentColor" strokeWidth={0} />
-                    </div>
-
-                    <div
-                      className="absolute bottom-3 right-3 flex items-center gap-1.5 text-[12px] font-semibold text-white px-2.5 py-1.5 rounded-lg"
-                      style={{
-                        background: 'rgba(0,0,0,.35)',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(255,255,255,.12)',
-                      }}
-                    >
-                      {t('workout.watchDemo')}
-                    </div>
-                  </a>
+                  {/* Form demo video — plays inline */}
+                  <ExerciseVideoEmbed
+                    videoUrl={exercise.exercise.videoUrl}
+                    title={exercise.exercise.name}
+                    formDemoLabel={t('workout.formDemo')}
+                    watchDemoLabel={t('workout.watchDemo')}
+                    offlineLabel={t('workout.videoOffline')}
+                    isPlaying={activeVideoExerciseId === exercise.id}
+                    onPlay={() => setActiveVideoExerciseId(exercise.id)}
+                    onClose={() => setActiveVideoExerciseId(null)}
+                  />
 
                   {/* Sets & Reps Section */}
                   <div className="space-y-2 sm:space-y-4 px-3 sm:px-4 pb-4">
