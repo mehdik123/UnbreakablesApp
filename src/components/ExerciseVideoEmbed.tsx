@@ -27,6 +27,7 @@ export const ExerciseVideoEmbed: React.FC<ExerciseVideoEmbedProps> = ({
   const [offlineHint, setOfflineHint] = useState(false);
   const embedUrl = toYoutubeEmbedUrl(videoUrl || '');
   const thumbnail = getYouTubeThumbnail(videoUrl || '');
+  const nocookieEmbed = embedUrl?.replace('www.youtube.com', 'www.youtube-nocookie.com') ?? null;
 
   if (!embedUrl) return null;
 
@@ -47,7 +48,7 @@ export const ExerciseVideoEmbed: React.FC<ExerciseVideoEmbedProps> = ({
       >
         <iframe
           title={title}
-          src={`${embedUrl}?autoplay=1&playsinline=1&rel=0&modestbranding=1`}
+          src={`${nocookieEmbed ?? embedUrl}?autoplay=1&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3`}
           className="absolute inset-0 w-full h-full"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen

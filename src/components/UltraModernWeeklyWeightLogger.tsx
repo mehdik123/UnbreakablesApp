@@ -31,6 +31,13 @@ const DAYS_OF_WEEK = [
   { key: 'day7', label: 'Day 7' }
 ];
 
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLoggerProps> = ({
   client,
   currentWeek: initialWeek,
@@ -118,7 +125,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
     const base = client.startDate ? new Date(client.startDate) : new Date(2020, 0, 1);
     const target = new Date(base.getFullYear(), base.getMonth(), base.getDate());
     target.setDate(target.getDate() + (weekNumber - 1) * 7 + dayIndex);
-    return target;
+    return formatLocalDate(target);
   };
 
   const getCurrentWeekData = () => {
@@ -149,9 +156,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
       setIsLoading(true);
       setSaveError(null);
       
-      const date = getDateForWeekAndDay(editingCell.week, editingCell.day);
-      
-      const dateString = date.toISOString().split('T')[0];
+      const dateString = getDateForWeekAndDay(editingCell.week, editingCell.day);
       
 
       const savedData = await logClientWeight({

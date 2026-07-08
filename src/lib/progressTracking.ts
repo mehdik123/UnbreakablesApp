@@ -10,6 +10,22 @@ import {
 
 // ========== Weight Logging Functions ==========
 
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function parseStoredDate(dateValue: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue);
+  if (match) {
+    const [, year, month, day] = match;
+    return new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0, 0);
+  }
+  return new Date(dateValue);
+}
+
 export async function logClientWeight(params: {
   clientId: string;
   weight: number;
@@ -21,7 +37,7 @@ export async function logClientWeight(params: {
   
   if (!supabase) throw new Error('Supabase not initialized');
   
-  const logDate = params.date || new Date().toISOString().split('T')[0];
+  const logDate = params.date || formatLocalDate(new Date());
   const logPayload = {
     client_id: params.clientId,
     date: logDate,
@@ -74,7 +90,7 @@ export async function getClientWeightLogs(clientId: string, limit?: number): Pro
   const mappedData = (data || []).map(log => ({
     id: log.id,
     clientId: log.client_id,
-    date: new Date(log.date),
+    date: parseStoredDate(log.date),
     weight: parseFloat(log.weight),
     notes: log.notes
   }));

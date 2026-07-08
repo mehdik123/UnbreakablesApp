@@ -19,3 +19,11 @@ export function getYouTubeThumbnail(videoUrl: string): string | null {
   if (!videoId) return null;
   return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
 }
+
+/** Format kg values for chart Y-axis — avoids showing "0k" when volume is under 1000. */
+export function formatChartVolume(value: number): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return '0';
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+  return `${Math.round(n)}`;
+}

@@ -4,6 +4,7 @@ import { Activity, TrendingUp, Dumbbell, ChevronDown, ChevronUp, Target, Zap } f
 import { Client, ClientWorkoutAssignment, Exercise } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { computeVolumeFromAssignment, MuscleVolumeData } from '../utils/volumeCalculator';
+import { formatChartVolume } from '../utils/youtube';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface IndependentMuscleGroupChartsProps {
@@ -259,10 +260,10 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
               <div key={muscleGroup} className="ch-muscle-card group">
                 <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-40 pointer-events-none" style={{ background: 'rgba(255,45,85,.08)' }} />
                 
-                <div className="relative z-10 p-6">
+                <div className="relative z-10 p-4 sm:p-6">
                   {/* Header */}
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3 mb-4 sm:mb-6">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div 
                         className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl border relative overflow-hidden"
                         style={{ 
@@ -305,24 +306,24 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                       </div>
                     </div>
                     
-                    <div className="text-right">
-                      <div className="flex items-center space-x-2 rounded-full px-4 py-2" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
-                        <div className="w-3 h-3 rounded-full animate-pulse" style={{ background: 'var(--red)' }} />
-                        <span className="text-mid text-sm font-medium">{t('ch.exercises', { count: exercises.length })}</span>
+                    <div className="shrink-0">
+                      <div className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] sm:text-sm font-medium whitespace-nowrap" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                        <div className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ background: 'var(--red)' }} />
+                        <span className="text-mid">{t('ch.exercises', { count: exercises.length })}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Chart */}
-                  <div className="h-48 mb-4">
+                  <div className="h-40 sm:h-48 mb-4 -mx-1">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart
                         data={seriesData}
                         margin={{
-                          top: 10,
-                          right: 10,
-                          left: 10,
-                          bottom: 10,
+                          top: 8,
+                          right: 4,
+                          left: -4,
+                          bottom: 0,
                         }}
                       >
                         <XAxis 
@@ -332,11 +333,13 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                           tick={{ fill: '#9ca3af', fontSize: 11, fontWeight: 500 }}
                           tickFormatter={(value) => `W${value}`}
                         />
-                        <YAxis 
+                        <YAxis
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fill: '#9ca3af', fontSize: 11, fontWeight: 500 }}
-                          tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                          tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 500 }}
+                          width={36}
+                          domain={[0, 'dataMax + 20']}
+                          tickFormatter={formatChartVolume}
                         />
                         <Tooltip content={<CustomTooltip />} />
                         <Area
