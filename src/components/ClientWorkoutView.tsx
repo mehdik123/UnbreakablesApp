@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
+import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { 
   Dumbbell, 
@@ -78,6 +78,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const [localAssignment, setLocalAssignment] = useState<ClientWorkoutAssignment | null>(client.workoutAssignment || null);
   const [exerciseSaveState, setExerciseSaveState] = useState<{ [exerciseId: string]: 'saving' | 'saved' }>({});
   const [activeVideoExerciseId, setActiveVideoExerciseId] = useState<string | null>(null);
+  /** Only jump to next-session day once when opening this screen — never after Save my numbers */
+  const hasFocusedNextSessionRef = useRef(false);
 
   // Performance tracking
   const { recordExercise } = usePerformanceTracking({
@@ -204,15 +206,19 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                 } as any;
                 setLocalAssignment(loaded);
                 onAssignmentUpdated?.(loaded);
-                const next = getNextWorkoutSession(loaded, client.numberOfWeeks || raw.duration || 12, {
-                  current_week: asg.current_week,
-                  current_day: asg.current_day,
-                  last_modified_by: (asg as any).last_modified_by,
-                });
-                if (next) {
-                  setCurrentDay(next.dayIndex);
-                  if (next.week !== currentWeek && onWeekChange) {
-                    onWeekChange(next.week);
+                // Open on next session once; stay put after subsequent saves/reloads
+                if (!hasFocusedNextSessionRef.current) {
+                  const next = getNextWorkoutSession(loaded, client.numberOfWeeks || raw.duration || 12, {
+                    current_week: asg.current_week,
+                    current_day: asg.current_day,
+                    last_modified_by: (asg as any).last_modified_by,
+                  });
+                  if (next) {
+                    hasFocusedNextSessionRef.current = true;
+                    setCurrentDay(next.dayIndex);
+                    if (next.week !== currentWeek && onWeekChange) {
+                      onWeekChange(next.week);
+                    }
                   }
                 }
               }
@@ -260,9 +266,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             };
           }
           setWorkoutProgram(programToSet);
-          if (assignmentForNext) {
+          if (assignmentForNext && !hasFocusedNextSessionRef.current) {
             const next = getNextWorkoutSession(assignmentForNext, client.numberOfWeeks || 12);
             if (next) {
+              hasFocusedNextSessionRef.current = true;
               setCurrentDay(next.dayIndex);
               if (next.week !== currentWeek && onWeekChange) {
                 onWeekChange(next.week);
@@ -289,7 +296,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       window.addEventListener('storage', handleStorageChange);
       return () => window.removeEventListener('storage', handleStorageChange);
     }
-  }, [client.id, client.name, assignmentId, SHARED_KEY, sharedVersion]);
+  }, [client.id, client.name, assignmentId, SHARED_KEY]);
 
   // Supabase realtime subscription for automatic updates
   useEffect(() => {
@@ -325,26 +332,14 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           setLocalAssignment(updated);
           setSharedVersion(row.version || 0);
           onAssignmentUpdated?.(updated);
-          const next = getNextWorkoutSession(updated, client.numberOfWeeks || raw.duration || 12, {
-            current_week: row.current_week,
-            current_day: row.current_day,
-            last_modified_by: row.last_modified_by,
-          });
-          if (next) {
-            if (typeof row.current_week === 'number' && next.week !== currentWeek && onWeekChange) {
-              onWeekChange(next.week);
-            }
-            if (next.dayIndex !== currentDay) {
-              setCurrentDay(next.dayIndex);
-            }
-          }
+          // Keep the client on the day they're viewing; home uses lastSaved* for next session
         })
         .subscribe();
       return () => { 
         supabase?.removeChannel(channel); 
       };
     }
-  }, [assignmentId, currentWeek, currentDay, onAssignmentUpdated]);
+  }, [assignmentId, onAssignmentUpdated]);
 
   // Sync localAssignment with client prop when it changes
   useEffect(() => {
