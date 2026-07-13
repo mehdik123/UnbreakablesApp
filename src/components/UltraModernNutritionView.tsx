@@ -245,7 +245,7 @@ export const UltraModernNutritionView: React.FC<UltraModernNutritionViewProps> =
                 No Nutrition Plan Yet
               </h3>
               <p className="text-slate-300 mb-6 leading-relaxed">
-                Your coach is crafting your personalized nutrition plan. Once it's ready, you'll see it here with beautiful meal cards and detailed instructions.
+                Mehdi is crafting your personalized nutrition plan. Once it's ready, you'll see it here with beautiful meal cards and detailed instructions.
               </p>
               
               <button 

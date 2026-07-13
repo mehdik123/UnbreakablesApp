@@ -420,13 +420,13 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                           });
                           return (
                             <div key={exercise.id} className="flex justify-between items-center py-1">
-                              <span className="text-white/70 text-sm">{exercise.name}</span>
-                              <span className="text-white font-bold text-sm">{exerciseVolume.toLocaleString()}kg</span>
+                              <span className="text-sm" style={{ color: 'var(--txt-mid)' }}>{exercise.name}</span>
+                              <span className="font-bold text-sm tnum" style={{ color: 'var(--txt-hi)' }}>{exerciseVolume.toLocaleString()}kg</span>
                             </div>
                           );
                         })}
-                        <div className="border-t border-white/20 pt-2 mt-3 flex justify-between items-center">
-                          <span className="text-white font-bold">{t('ch.totalVolume', { muscle: muscleGroup })}</span>
+                        <div className="pt-2 mt-3 flex justify-between items-center" style={{ borderTop: '1px solid var(--hair)' }}>
+                          <span className="font-bold" style={{ color: 'var(--txt-hi)' }}>{t('ch.totalVolume', { muscle: muscleGroup })}</span>
                           <span className="text-[#dc1e3a] font-bold text-lg">
                             {exercises.reduce((sum, exercise) => {
                               let exerciseVolume = 0;
@@ -458,21 +458,23 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                   )}
 
                   {/* Exercises Section */}
-                  <div className="border-t border-white/20 pt-6">
+                  <div className="pt-6" style={{ borderTop: '1px solid var(--hair)' }}>
                     <button
+                      type="button"
                       onClick={() => toggleChartExpansion(muscleGroup)}
-                      className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-white/10 to-white/5 rounded-2xl hover:from-white/15 hover:to-white/10 transition-all duration-300 border border-white/20 backdrop-blur-sm group"
+                      className="w-full flex items-center justify-between p-4 rounded-2xl transition-all duration-300 group active:scale-[0.99]"
+                      style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                     >
                       <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg flex items-center justify-center">
-                          <Dumbbell className="w-4 h-4 text-[#dc1e3a]" />
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,45,85,.12)' }}>
+                          <Dumbbell className="w-4 h-4" style={{ color: 'var(--red)' }} />
                         </div>
-                        <span className="text-white font-medium">{t('ch.viewExerciseDetails', { count: exercises.length })}</span>
+                        <span className="font-medium" style={{ color: 'var(--txt-hi)' }}>{t('ch.viewExerciseDetails', { count: exercises.length })}</span>
                       </div>
                       {isExpanded ? (
-                        <ChevronUp className="w-5 h-5 text-white/60 group-hover:text-white transition-colors" />
+                        <ChevronUp className="w-5 h-5 transition-colors" style={{ color: 'var(--txt-mid)' }} />
                       ) : (
-                        <ChevronDown className="w-5 h-5 text-white/60 group-hover:text-white transition-colors" />
+                        <ChevronDown className="w-5 h-5 transition-colors" style={{ color: 'var(--txt-mid)' }} />
                       )}
                     </button>
 
@@ -519,55 +521,60 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                             return (
                               <div
                                 key={exercise.id}
-                                className="p-3 sm:p-5 bg-gradient-to-br from-white/5 to-white/10 rounded-xl sm:rounded-2xl border border-white/20 backdrop-blur-sm"
+                                className="p-3 sm:p-5 rounded-xl sm:rounded-2xl"
+                                style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                               >
                                 <div className="flex items-center gap-2 sm:space-x-4 mb-2 sm:mb-4">
-                                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-[#dc1e3a]/20 to-[#dc1e3a]/10 rounded-lg sm:rounded-xl flex items-center justify-center border border-[#dc1e3a]/30 shrink-0">
-                                    <Dumbbell className="w-4 h-4 sm:w-5 sm:h-5 text-[#dc1e3a]" />
+                                  <div
+                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0"
+                                    style={{ background: 'rgba(255,45,85,.12)', border: '1px solid rgba(255,45,85,.25)' }}
+                                  >
+                                    <Dumbbell className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: 'var(--red)' }} />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-white font-bold text-sm sm:text-base truncate">
+                                    <div className="font-bold text-sm sm:text-base truncate" style={{ color: 'var(--txt-hi)' }}>
                                       {exercise.name}
                                     </div>
-                                    <div className="flex items-center space-x-1.5 text-white/60 text-[10px] sm:text-sm">
+                                    <div className="flex items-center space-x-1.5 text-[10px] sm:text-sm" style={{ color: 'var(--txt-mid)' }}>
                                       <span className="truncate">{exercise.equipment}</span>
                                       <span>•</span>
                                       <span className="capitalize">{exercise.difficulty}</span>
                                     </div>
                                   </div>
                                   <div className="text-right shrink-0">
-                                    <div className="text-[#dc1e3a] font-bold text-sm sm:text-lg">
+                                    <div className="font-bold text-sm sm:text-lg tnum" style={{ color: 'var(--red)' }}>
                                       {totalExerciseVolume.toLocaleString()} kg
                                     </div>
-                                    <div className="text-white/60 text-[9px] sm:text-xs">{t('ch.totalVolumeShort')}</div>
+                                    <div className="text-[9px] sm:text-xs" style={{ color: 'var(--txt-lo)' }}>{t('ch.totalVolumeShort')}</div>
                                   </div>
                                 </div>
                                 
                                 {occurrences.length > 0 && (
                                   <div className="space-y-2 sm:space-y-4">
                                     <div className="flex items-center space-x-1.5">
-                                      <div className="w-1.5 h-1.5 bg-[#dc1e3a] rounded-full"></div>
-                                      <div className="text-white/80 text-[11px] sm:text-sm font-medium">{t('ch.setsRepsBreakdown')}</div>
+                                      <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--red)' }} />
+                                      <div className="text-[11px] sm:text-sm font-medium" style={{ color: 'var(--txt-mid)' }}>{t('ch.setsRepsBreakdown')}</div>
                                     </div>
                                     {occurrences.map((occ, occIndex) => (
                                       <div key={occIndex}>
                                         {occurrences.length > 1 && (
-                                          <div className="text-white/70 text-[10px] sm:text-sm font-medium mb-1">{occ.dayName}</div>
+                                          <div className="text-[10px] sm:text-sm font-medium mb-1" style={{ color: 'var(--txt-mid)' }}>{occ.dayName}</div>
                                         )}
                                         <div className="grid grid-cols-3 sm:grid-cols-3 gap-1.5 sm:gap-3">
                                           {occ.sets.map((set, setIndex) => (
                                             <div
                                               key={setIndex}
-                                              className="bg-gradient-to-br from-white/10 to-white/5 rounded-lg sm:rounded-xl p-1.5 sm:p-3 text-center border border-white/20"
+                                              className="rounded-lg sm:rounded-xl p-1.5 sm:p-3 text-center"
+                                              style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}
                                             >
-                                              <div className="text-white text-[10px] sm:text-sm font-bold mb-0.5">{t('ch.set', { n: setIndex + 1 })}</div>
-                                              <div className="text-white/80 text-[9px] sm:text-sm font-medium mb-0.5 leading-tight">
+                                              <div className="text-[10px] sm:text-sm font-bold mb-0.5" style={{ color: 'var(--txt-hi)' }}>{t('ch.set', { n: setIndex + 1 })}</div>
+                                              <div className="text-[9px] sm:text-sm font-medium mb-0.5 leading-tight" style={{ color: 'var(--txt-mid)' }}>
                                                 {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)
                                                   ? `${set.reps.join('→')} × ${set.weight.join('→')}kg`
                                                   : `${set.reps} × ${set.weight}kg`
                                                 }
                                               </div>
-                                              <div className="text-[#dc1e3a] text-[10px] sm:text-sm font-bold">
+                                              <div className="text-[10px] sm:text-sm font-bold tnum" style={{ color: 'var(--red)' }}>
                                                 = {getSetVolume(set)}kg
                                               </div>
                                             </div>
@@ -576,35 +583,35 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                                       </div>
                                     ))}
                                     
-                                    <div className="mt-2 sm:mt-4 p-2 sm:p-4 bg-gradient-to-br from-white/5 to-white/10 rounded-lg sm:rounded-xl border border-white/20">
+                                    <div className="mt-2 sm:mt-4 p-2 sm:p-4 rounded-lg sm:rounded-xl" style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}>
                                       <div className="flex items-center space-x-1.5 mb-1.5 sm:mb-3">
-                                        <div className="w-1.5 h-1.5 bg-[#dc1e3a] rounded-full"></div>
-                                        <div className="text-white/80 text-[11px] sm:text-sm font-medium">{t('ch.volumeCalc')}</div>
+                                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--red)' }} />
+                                        <div className="text-[11px] sm:text-sm font-medium" style={{ color: 'var(--txt-mid)' }}>{t('ch.volumeCalc')}</div>
                                       </div>
                                       <div className="space-y-1">
                                         {occurrences.map((occ, occIndex) => (
                                           <div key={occIndex}>
                                             {occurrences.length > 1 && (
-                                              <div className="text-white/60 text-xs font-medium mt-2 mb-1">{occ.dayName}</div>
+                                              <div className="text-xs font-medium mt-2 mb-1" style={{ color: 'var(--txt-lo)' }}>{occ.dayName}</div>
                                             )}
                                             {occ.sets.map((set, setIndex) => (
                                               <div key={setIndex} className="flex justify-between items-center py-0.5 sm:py-1">
-                                                <span className="text-white/70 text-[10px] sm:text-sm">
+                                                <span className="text-[10px] sm:text-sm" style={{ color: 'var(--txt-mid)' }}>
                                                   {t('ch.set', { n: setIndex + 1 })}: {set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)
                                                     ? `${set.reps.join('→')} ${t('ch.reps')} × ${set.weight.join('→')}kg`
                                                     : `${set.reps} ${t('ch.reps')} × ${set.weight}kg`
                                                   }
                                                 </span>
-                                                <span className="text-white font-bold text-[10px] sm:text-sm">
+                                                <span className="font-bold text-[10px] sm:text-sm tnum" style={{ color: 'var(--txt-hi)' }}>
                                                   = {getSetVolume(set)}kg
                                                 </span>
                                               </div>
                                             ))}
                                           </div>
                                         ))}
-                                        <div className="border-t border-white/20 pt-1.5 sm:pt-2 mt-2 sm:mt-3 flex justify-between items-center">
-                                          <span className="text-white font-bold text-[10px] sm:text-sm">{t('ch.totalExerciseVolume')}</span>
-                                          <span className="text-[#dc1e3a] font-bold text-sm sm:text-lg">
+                                        <div className="pt-1.5 sm:pt-2 mt-2 sm:mt-3 flex justify-between items-center" style={{ borderTop: '1px solid var(--hair)' }}>
+                                          <span className="font-bold text-[10px] sm:text-sm" style={{ color: 'var(--txt-hi)' }}>{t('ch.totalExerciseVolume')}</span>
+                                          <span className="font-bold text-sm sm:text-lg tnum" style={{ color: 'var(--red)' }}>
                                             {totalExerciseVolume.toLocaleString()}kg
                                           </span>
                                         </div>
@@ -617,13 +624,16 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                           })
                         ) : (
                           <div className="text-center py-8">
-                            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl flex items-center justify-center border border-white/20">
-                              <Dumbbell className="w-8 h-8 text-white/40" />
+                            <div
+                              className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center"
+                              style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+                            >
+                              <Dumbbell className="w-8 h-8" style={{ color: 'var(--txt-lo)' }} />
                             </div>
-                            <div className="text-white/60 text-sm font-medium mb-1">
+                            <div className="text-sm font-medium mb-1" style={{ color: 'var(--txt-mid)' }}>
                               {t('ch.noExercisesTargeting', { muscle: muscleGroup.toLowerCase() })}
                             </div>
-                            <div className="text-white/40 text-xs">
+                            <div className="text-xs" style={{ color: 'var(--txt-lo)' }}>
                               {t('ch.notInPlan')}
                             </div>
                           </div>

@@ -432,7 +432,7 @@ export const ClientInterface: React.FC<ClientInterfaceProps> = ({
                 ) : currentWeek === 1 && unlockedWeeks.includes(2) ? (
                   <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
                     <p className="text-sm text-green-700 dark:text-green-300 font-medium">
-                      🎉 Congratulations! Week 1 is complete. Your coach has unlocked Week 2 for you!
+                      🎉 Congratulations! Week 1 is complete. Mehdi has unlocked Week 2 for you!
                     </p>
                   </div>
                 ) : currentWeek > 1 ? (

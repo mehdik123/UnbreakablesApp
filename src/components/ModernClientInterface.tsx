@@ -32,6 +32,7 @@ import { dbResolveClientIdByName, dbGetCardioPlan } from '../lib/db';
 import { enrichProgramAndWeeksWithExercises } from '../utils/enrichAssignment';
 import { normalizeCardioPlan } from '../data/cardioPresets';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
+import { getNextWorkoutSession } from '../utils/nextWorkoutSession';
 import { getClientWeightLogs, getClientPRHistory } from '../lib/progressTracking';
 import { getClientSupplements } from '../services/supplementsService';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -592,14 +593,16 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 startDate: base?.startDate ?? new Date(),
                 duration: base?.duration ?? 12,
                 currentWeek: assignment.current_week ?? base?.currentWeek ?? 1,
-                currentDay: base?.currentDay ?? 0,
+                currentDay: assignment.current_day ?? raw.currentDay ?? base?.currentDay ?? 0,
                 weeks: enrichedWeeks.length ? enrichedWeeks : (raw.weeks || []),
                 progressionRules: base?.progressionRules ?? [],
                 isActive: base?.isActive ?? true,
                 program: enrichedProgram?.days?.length ? enrichedProgram : (raw.program || raw),
-                lastModifiedBy: raw.lastModifiedBy,
+                lastModifiedBy: (assignment.last_modified_by as any) ?? raw.lastModifiedBy,
                 lastModifiedAt: raw.lastModifiedAt ? new Date(raw.lastModifiedAt) : undefined,
-              };
+                ...(raw.lastSavedDay != null ? { lastSavedDay: raw.lastSavedDay } : {}),
+                ...(raw.lastSavedWeek != null ? { lastSavedWeek: raw.lastSavedWeek } : {}),
+              } as ClientWorkoutAssignment;
               setEffectiveWorkoutAssignment(freshAssignment);
               saveClientOfflineSnapshot(client.id, {
                 client: {
@@ -675,22 +678,27 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
   const totalWeeks = client.numberOfWeeks || 12;
 
-  // Derive this-week session progress and today's session from the assignment (no extra fetch needed)
-  const { sessionsDone, sessionsTotal, todayName, todayExerciseCount } = useMemo(() => {
-    const weeks = (effectiveWorkoutAssignment as any)?.weeks || [];
+  // This-week session progress + next session after latest "Save my numbers" (client or coach)
+  const { sessionsDone, sessionsTotal, todayName, todayExerciseCount, nextSession } = useMemo(() => {
+    const assignment = effectiveWorkoutAssignment as any;
+    const weeks = assignment?.weeks || [];
     const weekData = weeks.find((w: any) => w.weekNumber === currentWeek);
     const days: any[] = Array.isArray(weekData?.days) ? weekData.days : [];
     const trainingDays = days.filter((d) => (d.exercises?.length || 0) > 0);
-    const isDayDone = (d: any) => d.exercises.every((ex: any) => (ex.sets || []).length > 0 && ex.sets.every((s: any) => s.completed === true));
+    const isDayDone = (d: any) =>
+      (d.exercises || []).every(
+        (ex: any) => (ex.sets || []).length > 0 && ex.sets.every((s: any) => s.completed === true)
+      );
     const done = trainingDays.filter(isDayDone).length;
-    const today = trainingDays.find((d) => !isDayDone(d)) || trainingDays[0];
+    const next = getNextWorkoutSession(assignment, totalWeeks);
     return {
       sessionsDone: done,
       sessionsTotal: trainingDays.length,
-      todayName: today?.name as string | undefined,
-      todayExerciseCount: today?.exercises?.length || 0,
+      todayName: next?.dayName as string | undefined,
+      todayExerciseCount: next?.exerciseCount || 0,
+      nextSession: next,
     };
-  }, [effectiveWorkoutAssignment, currentWeek]);
+  }, [effectiveWorkoutAssignment, currentWeek, totalWeeks]);
 
   const nutritionDailyKcal = useMemo(() => {
     if (!nutritionPlan?.mealSlots?.length) return null;
@@ -1116,8 +1124,8 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 className="text-[10.5px] font-semibold px-2.5 py-1 rounded-full"
                 style={{ color: 'var(--txt-mid)', background: 'var(--glass)', border: '1px solid var(--hair)' }}
               >
-                {t('modern.weekOf', { current: currentWeek, total: totalWeeks })}
-                {currentWeek >= totalWeeks ? ` · ${t('home.finalWeek')}` : ''}
+                {t('modern.weekOf', { current: nextSession?.week ?? currentWeek, total: totalWeeks })}
+                {(nextSession?.week ?? currentWeek) >= totalWeeks ? ` · ${t('home.finalWeek')}` : ''}
               </span>
             </div>
             <h2 className="font-saira text-[30px] leading-[0.95] my-3 relative" style={{ color: 'var(--txt-hi)' }}>
@@ -1142,7 +1150,16 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               </span>
             </div>
             <div className="relative flex items-center gap-2.5">
-              <button type="button" className="home-start-btn" onClick={() => navigate('workout')}>
+              <button
+                type="button"
+                className="home-start-btn"
+                onClick={() => {
+                  if (nextSession?.week != null) {
+                    handleClientWeekChange(nextSession.week);
+                  }
+                  navigate('workout');
+                }}
+              >
                 {t('home.startSession')}
                 <Play className="w-[18px] h-[18px] fill-current" />
               </button>

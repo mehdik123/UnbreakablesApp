@@ -1311,6 +1311,15 @@
   .horizontal-scroll > * {
     scroll-snap-align: start;
   }
+
+  /* Workout day picker — native momentum swipe + soft snap */
+  .wk-day-strip {
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 2px;
+  }
   
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;

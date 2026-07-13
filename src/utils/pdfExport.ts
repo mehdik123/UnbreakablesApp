@@ -108,7 +108,7 @@ export const exportToPDF = async (clientName: string) => {
       pdf.setPage(i);
       pdf.setFontSize(10);
       pdf.setTextColor(100);
-      pdf.text('For questions or modifications, contact your nutrition coach', 20, 285);
+      pdf.text('For questions or modifications, contact Mehdi', 20, 285);
       pdf.text('UnbreakableSteam - Professional Nutrition Coaching', 20, 290);
     }
 

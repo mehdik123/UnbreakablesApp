@@ -24,6 +24,7 @@ import {
   patchClientOfflineSnapshot,
 } from '../lib/offlineStore';
 import { ExerciseVideoEmbed } from './ExerciseVideoEmbed';
+import { getNextWorkoutSession } from '../utils/nextWorkoutSession';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -38,6 +39,12 @@ interface ClientWorkoutAssignment {
   program: WorkoutProgram;
   weeks?: any[];
   lastModifiedBy?: string;
+  lastModifiedAt?: Date | string;
+  currentWeek?: number;
+  currentDay?: number;
+  lastSavedWeek?: number;
+  lastSavedDay?: number;
+  duration?: number;
 }
 
 interface ClientWorkoutViewCombinedProps {
@@ -83,9 +90,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 
   // Horizontal scroll for workout days
   const { scrollRef: daysScrollRef, scrollBy: scrollDaysBy } = useHorizontalScroll({
-    scrollStep: 200,
+    scrollStep: 128,
     snapToItems: true,
-    enableSwipe: true
+    enableSwipe: true,
   });
 
 
@@ -168,7 +175,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           if (clientDbId) {
             const { data: asg } = await supabase
               .from('workout_assignments')
-              .select('id, program_json, current_week, current_day, version')
+              .select('id, program_json, current_week, current_day, version, last_modified_by')
               .eq('client_id', clientDbId)
               .eq('is_active', true)
               .order('last_modified_at', { ascending: false })
@@ -183,13 +190,32 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                 const programToEnrich = programWithDays || raw.program || raw;
                 const enrichedProgram = await enrichProgramWithVideoUrls(programToEnrich);
                 setWorkoutProgram(enrichedProgram as WorkoutProgram);
-                // Keep local assignment in sync so getCurrentWeekProgram and saveClientEdits have correct shape
                 const weeks = raw.weeks || (raw.days ? [{ weekNumber: 1, isUnlocked: true, isCompleted: false, days: raw.days, exercises: [] }] : []);
-                const loaded = { program: enrichedProgram, weeks, lastModifiedBy: raw.lastModifiedBy, lastModifiedAt: raw.lastModifiedAt } as any;
+                const loaded = {
+                  program: enrichedProgram,
+                  weeks,
+                  lastModifiedBy: raw.lastModifiedBy ?? (asg as any).last_modified_by,
+                  lastModifiedAt: raw.lastModifiedAt,
+                  currentWeek: asg.current_week,
+                  currentDay: asg.current_day,
+                  lastSavedDay: raw.lastSavedDay,
+                  lastSavedWeek: raw.lastSavedWeek,
+                  duration: raw.duration,
+                } as any;
                 setLocalAssignment(loaded);
                 onAssignmentUpdated?.(loaded);
+                const next = getNextWorkoutSession(loaded, client.numberOfWeeks || raw.duration || 12, {
+                  current_week: asg.current_week,
+                  current_day: asg.current_day,
+                  last_modified_by: (asg as any).last_modified_by,
+                });
+                if (next) {
+                  setCurrentDay(next.dayIndex);
+                  if (next.week !== currentWeek && onWeekChange) {
+                    onWeekChange(next.week);
+                  }
+                }
               }
-              if (typeof asg.current_day === 'number') setCurrentDay(Math.max(0, (asg.current_day || 1) - 1));
               setSharedVersion(asg.version || 0);
               return;
             }
@@ -200,11 +226,13 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       try {
         const sharedRaw = localStorage.getItem(SHARED_KEY);
         let programToSet: WorkoutProgram | null = null;
+        let assignmentForNext: any = client.workoutAssignment || null;
         
         if (sharedRaw) {
           const shared = JSON.parse(sharedRaw);
           if (shared?.workoutAssignment?.program) {
             programToSet = shared.workoutAssignment.program;
+            assignmentForNext = shared.workoutAssignment;
             setSharedVersion(shared.version || 0);
           }
         } else if (client.workoutAssignment?.program) {
@@ -221,7 +249,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             };
           }
           
-          const currentWeekData = client.workoutAssignment?.weeks?.find((w: any) => w.weekNumber === currentWeek);
+          const currentWeekData = assignmentForNext?.weeks?.find((w: any) => w.weekNumber === currentWeek);
           if (currentWeekData && currentWeekData.days && Array.isArray(currentWeekData.days) && currentWeekData.days.length > 0) {
             programToSet = {
               ...programToSet,
@@ -232,6 +260,15 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             };
           }
           setWorkoutProgram(programToSet);
+          if (assignmentForNext) {
+            const next = getNextWorkoutSession(assignmentForNext, client.numberOfWeeks || 12);
+            if (next) {
+              setCurrentDay(next.dayIndex);
+              if (next.week !== currentWeek && onWeekChange) {
+                onWeekChange(next.week);
+              }
+            }
+          }
         }
       } catch {}
     })();
@@ -273,16 +310,33 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           const programToEnrich = programWithDays || raw.program || raw;
           const enrichedProgram = await enrichProgramWithVideoUrls(programToEnrich);
           const weeks = raw.weeks ?? (raw.days?.length ? [{ weekNumber: 1, isUnlocked: true, isCompleted: false, days: raw.days, exercises: [] }] : []);
-          const updated = { program: enrichedProgram, weeks, lastModifiedBy: raw.lastModifiedBy, lastModifiedAt: raw.lastModifiedAt } as any;
+          const updated = {
+            program: enrichedProgram,
+            weeks,
+            lastModifiedBy: raw.lastModifiedBy ?? row.last_modified_by,
+            lastModifiedAt: raw.lastModifiedAt,
+            currentWeek: row.current_week,
+            currentDay: row.current_day,
+            lastSavedDay: raw.lastSavedDay,
+            lastSavedWeek: raw.lastSavedWeek,
+            duration: raw.duration,
+          } as any;
           setWorkoutProgram(enrichedProgram as WorkoutProgram);
           setLocalAssignment(updated);
           setSharedVersion(row.version || 0);
           onAssignmentUpdated?.(updated);
-          if (typeof row.current_week === 'number' && row.current_week !== currentWeek && onWeekChange) {
-            onWeekChange(row.current_week);
-          }
-          if (typeof row.current_day === 'number' && row.current_day !== currentDay + 1) {
-            setCurrentDay(Math.max(0, (row.current_day || 1) - 1));
+          const next = getNextWorkoutSession(updated, client.numberOfWeeks || raw.duration || 12, {
+            current_week: row.current_week,
+            current_day: row.current_day,
+            last_modified_by: row.last_modified_by,
+          });
+          if (next) {
+            if (typeof row.current_week === 'number' && next.week !== currentWeek && onWeekChange) {
+              onWeekChange(next.week);
+            }
+            if (next.dayIndex !== currentDay) {
+              setCurrentDay(next.dayIndex);
+            }
           }
         })
         .subscribe();
@@ -543,7 +597,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     setSharedVersion((v) => v + 1);
     setLocalAssignment(updatedAssignment);
     patchClientOfflineSnapshot(client.id, {
-      client: { ...client, workoutAssignment: updatedAssignment },
+      client: { ...client, workoutAssignment: updatedAssignment as any },
     });
   };
 
@@ -760,7 +814,11 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         program: programWithDays,
         weeks: existingWeeks,
         lastModifiedBy: 'client' as const,
-        lastModifiedAt: new Date()
+        lastModifiedAt: new Date(),
+        currentWeek,
+        currentDay: currentDay + 1,
+        lastSavedWeek: currentWeek,
+        lastSavedDay: currentDay + 1,
       };
 
       // Save to Supabase if available (full assignment so coach and charts see client's edits)
@@ -800,7 +858,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       setSharedVersion(prev => prev + 1);
 
       patchClientOfflineSnapshot(client.id, {
-        client: { ...client, workoutAssignment: updatedAssignment },
+        client: { ...client, workoutAssignment: updatedAssignment as any },
       });
 
       // Update client in clients list
@@ -993,7 +1051,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           </div>
         )}
 
-        {/* Next week — your coach builds the program week by week, so we reassure the client more is coming */}
+        {/* Next week — Mehdi builds the program week by week */}
         {moreWeeksComing && (
           <div
             className="rounded-2xl p-4 flex items-center gap-3"
@@ -1032,10 +1090,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             <div
               ref={daysScrollRef}
               data-horizontal-scroll="true"
-              className="overflow-x-auto scrollbar-hide horizontal-scroll touch-pan-x"
-              style={{ WebkitOverflowScrolling: 'touch' }}
+              className="overflow-x-auto scrollbar-hide wk-day-strip"
+              style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}
             >
-              <div className="flex gap-3 pb-2 min-w-max">
+              <div className="flex gap-2 pb-1 min-w-max px-0.5">
                 {currentWorkoutProgram?.days?.map((day, index) => {
                   const status = getDayStatus(index);
                   const isCurrentDay = index === currentDay;
@@ -1050,7 +1108,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                         .map((m: string) => m.charAt(0).toUpperCase() + m.slice(1))
                     )
                   );
-                  const subline = muscles.length ? muscles.slice(0, 3).join(' · ') : t('workout.nExercises', { count: total });
+                  const subline = muscles.length ? muscles.slice(0, 2).join(' · ') : t('workout.nExercises', { count: total });
                   const statusText =
                     completedCount > 0
                       ? t('workout.ofComplete', { done: completedCount, total })
@@ -1059,13 +1117,15 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                   return (
                     <button
                       key={day.id}
+                      type="button"
                       data-scroll-item
                       onClick={() => setCurrentDay(index)}
                       disabled={!isDayUnlocked}
-                      className={`group relative flex-shrink-0 w-[152px] text-left p-4 rounded-[18px] transition-all duration-300 active:scale-[0.97] ${
+                      className={`group relative flex-shrink-0 w-[118px] sm:w-[132px] text-left p-2.5 sm:p-3 rounded-[14px] transition-all duration-200 active:scale-[0.97] ${
                         isCurrentDay ? 'shadow-glow-red' : ''
                       } ${!isDayUnlocked ? 'cursor-not-allowed opacity-60' : ''}`}
                       style={{
+                        scrollSnapAlign: 'start',
                         background: isCurrentDay
                           ? 'radial-gradient(120% 100% at 0% 0%, rgba(255,45,85,.22), transparent 60%), var(--surface-2)'
                           : 'var(--surface-1)',
@@ -1074,28 +1134,36 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                     >
                       {isCurrentDay && (
                         <span
-                          className="wk-live-dot absolute top-3.5 right-3.5 w-[9px] h-[9px] rounded-full"
+                          className="wk-live-dot absolute top-2.5 right-2.5 w-2 h-2 rounded-full"
                           style={{ background: 'var(--red)' }}
                         />
                       )}
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center mb-3.5 transition-all duration-300"
-                        style={{
-                          background: isCurrentDay ? 'var(--grad-red)' : isCompleted ? 'rgba(52,211,153,.1)' : 'var(--surface-3)',
-                          border: isCurrentDay ? '1px solid transparent' : isCompleted ? '1px solid rgba(52,211,153,.3)' : '1px solid var(--hair)',
-                          color: isCurrentDay ? '#fff' : isCompleted ? 'var(--emerald)' : 'var(--txt-mid)',
-                        }}
-                      >
-                        {isDayUnlocked ? getDayStatusIcon(status) : <Lock className="w-4 h-4" />}
+                      <div className="flex items-center gap-2 mb-2">
+                        <div
+                          className="w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0 transition-all duration-200"
+                          style={{
+                            background: isCurrentDay ? 'var(--grad-red)' : isCompleted ? 'rgba(52,211,153,.1)' : 'var(--surface-3)',
+                            border: isCurrentDay ? '1px solid transparent' : isCompleted ? '1px solid rgba(52,211,153,.3)' : '1px solid var(--hair)',
+                            color: isCurrentDay ? '#fff' : isCompleted ? 'var(--emerald)' : 'var(--txt-mid)',
+                          }}
+                        >
+                          {isDayUnlocked ? getDayStatusIcon(status) : <Lock className="w-3.5 h-3.5" />}
+                        </div>
+                        <span
+                          className="text-[10px] font-bold uppercase tracking-[0.08em]"
+                          style={{ color: isCurrentDay ? 'var(--red)' : 'var(--txt-lo)' }}
+                        >
+                          {t('wt.day', { n: index + 1 })}
+                        </span>
                       </div>
-                      <div className="font-saira font-semibold text-[16px] truncate" style={{ color: 'var(--txt-hi)' }}>
+                      <div className="font-saira font-semibold text-[13px] sm:text-[14px] leading-tight truncate" style={{ color: 'var(--txt-hi)' }}>
                         {day.name}
                       </div>
-                      <div className="text-[11.5px] mt-0.5 truncate" style={{ color: 'var(--txt-mid)' }}>
+                      <div className="text-[10px] mt-0.5 truncate" style={{ color: 'var(--txt-mid)' }}>
                         {subline}
                       </div>
                       <div
-                        className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold"
+                        className="mt-2 flex items-center gap-1 text-[10px] font-semibold"
                         style={{ color: isCurrentDay ? 'var(--red)' : completedCount > 0 ? 'var(--emerald)' : 'var(--txt-lo)' }}
                       >
                         {completedCount > 0 && <CheckCircle className="w-3 h-3" />}
@@ -1109,20 +1177,24 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 
             {/* Scroll buttons */}
             <button
+              type="button"
               onClick={() => scrollDaysBy('left')}
-              className="absolute top-1/2 -left-2 transform -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center opacity-50 hover:opacity-100 transition-all duration-200"
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}
+              className="absolute top-1/2 -left-1 transform -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center opacity-70 active:opacity-100 transition-all duration-200 z-10"
+              style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)', color: 'var(--txt-hi)' }}
+              aria-label="Previous days"
             >
-              <svg className="w-4 h-4" style={{ color: 'var(--txt-hi)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
             <button
+              type="button"
               onClick={() => scrollDaysBy('right')}
-              className="absolute top-1/2 -right-2 transform -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center opacity-50 hover:opacity-100 transition-all duration-200"
-              style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}
+              className="absolute top-1/2 -right-1 transform -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center opacity-70 active:opacity-100 transition-all duration-200 z-10"
+              style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)', color: 'var(--txt-hi)' }}
+              aria-label="Next days"
             >
-              <svg className="w-4 h-4" style={{ color: 'var(--txt-hi)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
@@ -1558,7 +1630,11 @@ export const ClientWorkoutViewCombined: React.FC<ClientWorkoutViewCombinedProps>
       progressionRules: [],
       isActive: true,
       weeks: clientView.workoutAssignment.weeks || [],
-      lastModifiedBy: clientView.workoutAssignment.lastModifiedBy as 'client' | 'coach' | undefined
+      lastModifiedBy: clientView.workoutAssignment.lastModifiedBy as 'client' | 'coach' | undefined,
+      lastModifiedAt:
+        typeof clientView.workoutAssignment.lastModifiedAt === 'string'
+          ? new Date(clientView.workoutAssignment.lastModifiedAt)
+          : clientView.workoutAssignment.lastModifiedAt,
     },
     nutritionPlan: undefined // Will be loaded separately
   };

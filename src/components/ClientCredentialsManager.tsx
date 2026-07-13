@@ -103,7 +103,7 @@ export const ClientCredentialsManager: React.FC<ClientCredentialsManagerProps> =
   };
 
   const copyCredentialsMessage = () => {
-    const message = `Hi ${clientName},\n\nHere are your login credentials for your training program:\n\nUsername: ${username}\nPassword: ${password}\n\nKeep these credentials safe and don't share them with anyone.\n\nBest regards,\nYour Coach`;
+    const message = `Hi ${clientName},\n\nHere are your login credentials for your training program:\n\nUsername: ${username}\nPassword: ${password}\n\nKeep these credentials safe and don't share them with anyone.\n\nBest regards,\nMehdi`;
     
     navigator.clipboard.writeText(message).then(() => {
       setSuccess('Credentials message copied! Ready to share with client.');

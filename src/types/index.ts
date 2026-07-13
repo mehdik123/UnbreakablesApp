@@ -321,6 +321,9 @@ export interface ClientWorkoutAssignment {
   assignedAt?: string;
   lastUpdated?: string;
   clientPerformance?: any[];
+  /** 1-based day last saved via Save my numbers / coach save; used for next-session pointer */
+  lastSavedDay?: number;
+  lastSavedWeek?: number;
 }
 
 export interface ProgressionRule {

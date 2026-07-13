@@ -45,7 +45,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'home.viewPlan': 'View your plan',
     'home.help': 'Help',
     'home.explore': 'Explore',
-    'home.fromCoach': 'From your coach',
+    'home.fromCoach': 'From Mehdi',
     'home.startSession': 'Start session',
     'home.todaysSession': "Today's session",
     'home.programLabel': 'program',
@@ -61,8 +61,8 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'home.intensityLight': 'Light',
     'home.heroMinutes': '~{n} min',
     'home.coachName': 'Mehdi',
-    'home.coachRole': 'Your coach',
-    'home.coachNoteBody': 'Stay consistent this week, hit your sessions, log your weights, and keep cardio on schedule. Your coach will update your plan when ready.',
+    'home.coachRole': 'Mehdi',
+    'home.coachNoteBody': 'Stay consistent this week, hit your sessions, log your weights, and keep cardio on schedule. Mehdi will update your plan when ready.',
 
     'tour.kicker': 'Quick tour',
     'tour.skip': 'Skip',
@@ -70,13 +70,13 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'tour.next': 'Next',
     'tour.done': "Let's go",
     'tour.welcomeTitle': 'Welcome, {name}! 👋',
-    'tour.welcomeBody': 'This is your training home. Everything your coach builds for you — workouts, meals and progress — lives right here.',
+    'tour.welcomeBody': 'This is your training home. Everything Mehdi builds for you — workouts, meals and progress — lives right here.',
     'tour.navTitle': 'Tap a card to open it',
     'tour.navBody': 'Workout, Nutrition, Supplements and Progress each have their own page. Use the back arrow at the top to come home any time.',
     'tour.saveTitle': 'Save your numbers',
-    'tour.saveBody': "After each exercise, tap “Save my numbers”. Your coach sees your progress and uses it to build your next week.",
+    'tour.saveBody': "After each exercise, tap “Save my numbers”. Mehdi sees your progress and uses it to build your next week.",
     'tour.weeksTitle': 'Built week by week',
-    'tour.weeksBody': 'You start on Week 1. When you finish it, your coach prepares the next week — so new weeks appear as you go.',
+    'tour.weeksBody': 'You start on Week 1. When you finish it, Mehdi prepares the next week — so new weeks appear as you go.',
     'tour.helpTitle': "You're all set 💪",
     'tour.helpBody': 'Open the bell menu → “Full guide” for video + answers to almost every question. You can replay this quick tour there too.',
 
@@ -85,9 +85,9 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'guide.close': 'Close',
     'guide.videoTitle': 'Video walkthrough',
     'guide.videoMissing':
-      'Your coach can add a demo video here. Until then, browse the questions below — they cover login, workouts, meals, cardio, progress, and offline gym use.',
+      'Mehdi can add a demo video here. Until then, browse the questions below — they cover login, workouts, meals, cardio, progress, and offline gym use.',
     'guide.replayTour': 'Replay quick tour',
-    'guide.footer': 'Still stuck? Message your coach with a screenshot — they will help you quickly.',
+    'guide.footer': 'Still stuck? Message Mehdi with a screenshot — he will help you quickly.',
 
     'guide.section.start': 'Getting started',
     'guide.section.workout': 'Workouts',
@@ -99,7 +99,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
 
     'guide.faq.login.q': 'How do I log in?',
     'guide.faq.login.a':
-      'Open the personal link your coach sent you. Enter the username and password they gave you. Use the same link on phone and computer — bookmark it or Add to Home Screen for quick access.',
+      'Open the personal link Mehdi sent you. Enter the username and password he gave you. Use the same link on phone and computer — bookmark it or Add to Home Screen for quick access.',
     'guide.faq.install.q': 'How do I install the app on my phone?',
     'guide.faq.install.a':
       'No App Store needed — this is a web app. iPhone: open your link in Safari → Share → Add to Home Screen. Android: Chrome menu → Install app or Add to Home screen. Open from that icon like a normal app.',
@@ -115,37 +115,37 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
       'From home, tap Workout or Start session. You will see your current week and today’s exercises. Tap an exercise to expand it, watch the demo if there is one, then log your sets.',
     'guide.faq.logSets.q': 'How do I log weight and reps?',
     'guide.faq.logSets.a':
-      'Each set has fields for weight (kg) and reps. Enter what you actually lifted. Rest times are a guide. If you miss a set, log what you did — honest logs help your coach adjust your plan.',
+      'Each set has fields for weight (kg) and reps. Enter what you actually lifted. Rest times are a guide. If you miss a set, log what you did — honest logs help Mehdi adjust your plan.',
     'guide.faq.save.q': 'Why tap “Save my numbers”?',
     'guide.faq.save.a':
-      'Saving sends your logged sets to your coach. They use this to track progress and build your next week. Save after each exercise — unsaved numbers may be lost if you leave the page.',
+      'Saving sends your logged sets to Mehdi. He uses this to track progress and build your next week. Save after each exercise — unsaved numbers may be lost if you leave the page.',
     'guide.faq.weeks.q': 'How do weeks work?',
     'guide.faq.weeks.a':
-      'You start on Week 1. Only weeks your coach has published are visible. When you finish a week, they review your logs and add the next. Seeing only Week 1 at first is normal.',
+      'You start on Week 1. Only weeks Mehdi has published are visible. When you finish a week, he reviews your logs and adds the next. Seeing only Week 1 at first is normal.',
     'guide.faq.exerciseVideos.q': 'Where are exercise demo videos?',
     'guide.faq.exerciseVideos.a':
-      'Tap an exercise to expand it. If your coach attached a video, you will see a play button or embedded clip. Videos need internet unless you opened them before while online.',
+      'Tap an exercise to expand it. If Mehdi attached a video, you will see a play button or embedded clip. Videos need internet unless you opened them before while online.',
     'guide.faq.completeExercise.q': 'What does marking an exercise complete do?',
     'guide.faq.completeExercise.a':
-      'It tracks which exercises you finished today. Your coach mainly uses saved weights and reps for progression — always save your numbers even after marking complete.',
+      'It tracks which exercises you finished today. Mehdi mainly uses saved weights and reps for progression — always save your numbers even after marking complete.',
 
     'guide.faq.meals.q': 'How do I read my meal plan?',
     'guide.faq.meals.a':
-      'Open Nutrition from home. You will see meals with foods, portions, and macros. Follow the portions your coach set. The daily calorie target at the top is a guide unless your coach says otherwise.',
+      'Open Nutrition from home. You will see meals with foods, portions, and macros. Follow the portions Mehdi set. The daily calorie target at the top is a guide unless Mehdi says otherwise.',
     'guide.faq.supplements.q': 'Where are my supplements?',
     'guide.faq.supplements.a':
-      'Open Supplements from home. You will see product names, doses, and timing (morning, with meals, before bed, etc.). Follow your coach’s instructions exactly.',
+      "Open Supplements from home. You will see product names, doses, and timing (morning, with meals, before bed, etc.). Follow Mehdi's instructions exactly.",
 
     'guide.faq.cardioPlan.q': 'How do I follow my cardio plan?',
     'guide.faq.cardioPlan.a':
-      'Open Cardio from home. Your coach lists sessions (after workout, off day, morning, etc.) with duration, speed, or distance. Do them on the scheduled days.',
+      'Open Cardio from home. Mehdi lists sessions (after workout, off day, morning, etc.) with duration, speed, or distance. Do them on the scheduled days.',
 
     'guide.faq.weight.q': 'How do I log my weight?',
     'guide.faq.weight.a':
-      'Progress → Weight. Enter your weight in kg on a regular schedule (e.g. weekly, same day, morning). Your coach sees the trend over time.',
+      'Progress → Weight. Enter your weight in kg on a regular schedule (e.g. weekly, same day, morning). Mehdi sees the trend over time.',
     'guide.faq.photos.q': 'How do I upload progress photos?',
     'guide.faq.photos.a':
-      'Progress → Photos. Upload front, side, and back for the week your coach requested. Same pose and lighting each time. Photos stay private between you and your coach.',
+      'Progress → Photos. Upload front, side, and back for the week Mehdi requested. Same pose and lighting each time. Photos stay private between you and Mehdi.',
     'guide.faq.charts.q': 'What do the progress charts show?',
     'guide.faq.charts.a':
       'My Results and Muscle Focus show which muscles you train most and how your lifts improve over saved sessions. More consistent logging means more accurate charts.',
@@ -159,13 +159,13 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
 
     'guide.faq.noPlan.q': 'Why don’t I see a workout or meal plan?',
     'guide.faq.noPlan.a':
-      'Your coach may still be building your program. Log in with the correct link. If it has been more than a day, message your coach — they will publish your plan.',
+      'Mehdi may still be building your program. Log in with the correct link. If it has been more than a day, message Mehdi — he will publish your plan.',
     'guide.faq.wrongWeek.q': 'Wrong week or old numbers?',
     'guide.faq.wrongWeek.a':
-      'Refresh on home. Make sure you are on the latest week your coach published. If it still looks wrong, tell your coach with a screenshot — they can check your assignment.',
-    'guide.faq.contactCoach.q': 'How do I contact my coach?',
+      'Refresh on home. Make sure you are on the latest week Mehdi published. If it still looks wrong, tell Mehdi with a screenshot — he can check your assignment.',
+    'guide.faq.contactCoach.q': 'How do I contact Mehdi?',
     'guide.faq.contactCoach.a':
-      'Use WhatsApp, Instagram, or whatever channel your coach gave you with your link and login. Include your name and a screenshot of the issue.',
+      'Use WhatsApp, Instagram, or whatever channel Mehdi gave you with your link and login. Include your name and a screenshot of the issue.',
 
     'home.fullGuide': 'Full guide',
 
@@ -177,9 +177,9 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'nav.analytics': 'My Results',
     'nav.weight': 'Weight',
 
-    'home.cardioDesc': 'Your cardio plan from your coach',
+    'home.cardioDesc': 'Your cardio plan from Mehdi',
     'cardio.emptyTitle': 'No cardio assigned yet',
-    'cardio.emptyDesc': 'Your coach will add your cardio plan here.',
+    'cardio.emptyDesc': 'Mehdi will add your cardio plan here.',
     'cardio.afterWorkout': 'After workout',
     'cardio.offDay': 'Off day',
     'cardio.morning': 'Morning',
@@ -207,20 +207,20 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
 
     'workout.noPlanTitle': 'No Workout Plan Assigned',
     'workout.noPlanBody':
-      "Your coach hasn't assigned a workout plan yet. Please check back later or contact your coach.",
+      "Mehdi hasn't assigned a workout plan yet. Please check back later or contact Mehdi.",
     'workout.clearReload': 'Clear Cache & Reload',
     'workout.oldDataTitle': '⚠️ Old Data Detected',
     'workout.oldDataBody':
-      'This client is using old cached data instead of the fresh CSV exercise database. The coach needs to re-assign the workout plan to use the correct exercise names and video links.',
+      'This client is using old cached data instead of the fresh CSV exercise database. Mehdi needs to re-assign the workout plan to use the correct exercise names and video links.',
     'workout.cacheBanner':
       'Old cached workout data detected. Clear and reload to use latest video links.',
     'workout.clearCached': 'Clear cached workout',
-    'workout.performanceTracked': 'Performance tracked — Coach can see your progress',
+    'workout.performanceTracked': 'Performance tracked — Mehdi can see your progress',
     'workout.programTitle': "{name}'s Program",
     'workout.weekLabel': 'Week',
     'workout.weekN': 'Week {n}',
     'workout.waitingTitle': 'Great work!',
-    'workout.waitingBody': 'Your coach is preparing your next week. Check back soon.',
+    'workout.waitingBody': 'Mehdi is preparing your next week. Check back soon.',
     'workout.daysTitle': 'Workout Days',
     'workout.daysSubtitle': 'Select your training day',
     'workout.active': 'Active',
@@ -233,9 +233,9 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'workout.wkSoon': 'soon',
     'workout.weekOfTotal': 'Week {current} of {total}',
     'workout.nextWeekComing': 'Week {n} coming up',
-    'workout.nextWeekDesc': 'Your coach unlocks this once you complete Week {current}. Your program is built week by week around your progress.',
+    'workout.nextWeekDesc': 'Mehdi unlocks this once you complete Week {current}. Your program is built week by week around your progress.',
     'workout.preparingTitle': 'Great work! 🎉',
-    'workout.preparingDesc': 'Your coach is preparing your next week. Check back soon.',
+    'workout.preparingDesc': 'Mehdi is preparing your next week. Check back soon.',
     'workout.nExercises': '{count} exercises',
     'workout.ofComplete': '{done} of {total} complete',
     'workout.todaysExercises': "Today's exercises",
@@ -275,7 +275,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'workout.weekLockedFull': "Complete previous weeks to unlock this week's workouts.",
 
     'nut.noPlanTitle': 'No nutrition plan yet',
-    'nut.noPlanBody': "Your coach is crafting your personalized nutrition plan. Once it's ready, your meals and daily targets will show up here.",
+    'nut.noPlanBody': "Mehdi is crafting your personalized nutrition plan. Once it's ready, your meals and daily targets will show up here.",
     'nut.checkUpdates': 'Check for updates',
     'nut.dailyCalories': 'Daily Calories',
     'nut.remaining': 'Remaining {n}',
@@ -323,7 +323,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
 
     'supp.title': 'Your Supplements',
     'supp.subtitle': 'Optimized supplement schedule',
-    'supp.prescribed': '{count} supplements prescribed by your coach',
+    'supp.prescribed': '{count} supplements prescribed by Mehdi',
     'supp.waterGoal': 'Daily Water Goal',
     'supp.waterSubtitle': 'Stay hydrated throughout the day',
     'supp.mlPerDay': '{ml} ml/day',
@@ -331,7 +331,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'supp.duringDay': 'During Day',
     'supp.evening': 'Evening',
     'supp.noneTitle': 'No Supplements Assigned',
-    'supp.noneBody': "Your coach hasn't assigned any supplements yet",
+    'supp.noneBody': "Mehdi hasn't assigned any supplements yet",
     'supp.one': '{count} supplement',
     'supp.many': '{count} supplements',
     'supp.asDirected': 'As directed',
@@ -339,7 +339,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'supp.tip1': 'Always take supplements with water unless specified otherwise',
     'supp.tip2': 'Fat-soluble vitamins (A, D, E, K) work best with meals containing fats',
     'supp.tip3': 'Consistency is key - try to take supplements at the same time each day',
-    'supp.tip4': 'Track how you feel and report any concerns to your coach',
+    'supp.tip4': 'Track how you feel and report any concerns to Mehdi',
     'supp.timing.morning': '🌅 Morning',
     'supp.timing.pre_workout': '💪 Pre-Workout (30min before)',
     'supp.timing.during_workout': '🏋️ During Workout',
@@ -506,7 +506,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'home.viewPlan': 'اعرض خطتك',
     'home.help': 'مساعدة',
     'home.explore': 'استكشف',
-    'home.fromCoach': 'من مدربك',
+    'home.fromCoach': 'من Mehdi',
     'home.startSession': 'ابدأ الحصة',
     'home.todaysSession': 'حصة اليوم',
     'home.programLabel': 'البرنامج',
@@ -522,8 +522,8 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'home.intensityLight': 'خفيف',
     'home.heroMinutes': '~{n} د',
     'home.coachName': 'Mehdi',
-    'home.coachRole': 'مدربك',
-    'home.coachNoteBody': 'حافظ على الانتظام هذا الأسبوع، أكمل حصصك، سجّل أوزانك، والتزم بالكارديو. سيحدّث مدربك برنامجك عند الحاجة.',
+    'home.coachRole': 'Mehdi',
+    'home.coachNoteBody': 'حافظ على الانتظام هذا الأسبوع، أكمل حصصك، سجّل أوزانك، والتزم بالكارديو. سيحدّث Mehdi برنامجك عند الحاجة.',
 
     'tour.kicker': 'جولة سريعة',
     'tour.skip': 'تخطّي',
@@ -531,13 +531,13 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'tour.next': 'التالي',
     'tour.done': 'لنبدأ',
     'tour.welcomeTitle': 'مرحبًا، {name}! 👋',
-    'tour.welcomeBody': 'هذه هي صفحتك الرئيسية للتدريب. كل ما يعدّه لك مدربك — التمارين والوجبات والتقدّم — تجده هنا.',
+    'tour.welcomeBody': 'هذه هي صفحتك الرئيسية للتدريب. كل ما يعدّه لك Mehdi — التمارين والوجبات والتقدّم — تجده هنا.',
     'tour.navTitle': 'اضغط على أي بطاقة لفتحها',
     'tour.navBody': 'التمرين والتغذية والمكملات والتقدّم، لكلٍّ منها صفحته. استخدم سهم الرجوع في الأعلى للعودة إلى الرئيسية في أي وقت.',
     'tour.saveTitle': 'احفظ أرقامك',
-    'tour.saveBody': 'بعد كل تمرين اضغط «احفظ أرقامي». يرى مدربك تقدّمك ويبني عليه أسبوعك التالي.',
+    'tour.saveBody': 'بعد كل تمرين اضغط «احفظ أرقامي». يرى Mehdi تقدّمك ويبني عليه أسبوعك التالي.',
     'tour.weeksTitle': 'يُبنى أسبوعًا بأسبوع',
-    'tour.weeksBody': 'تبدأ بالأسبوع 1. عند إكماله يجهّز مدربك الأسبوع التالي — لذا تظهر الأسابيع الجديدة تباعًا.',
+    'tour.weeksBody': 'تبدأ بالأسبوع 1. عند إكماله يجهّز Mehdi الأسبوع التالي — لذا تظهر الأسابيع الجديدة تباعًا.',
     'tour.helpTitle': 'أنت جاهز 💪',
     'tour.helpBody': 'من قائمة الجرس → «الدليل الكامل» فيديو وإجابات لأغلب الأسئلة. يمكنك إعادة هذه الجولة السريعة من هناك أيضًا.',
 
@@ -546,9 +546,9 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'guide.close': 'إغلاق',
     'guide.videoTitle': 'شرح بالفيديو',
     'guide.videoMissing':
-      'يمكن لمدربك إضافة فيديو توضيحي هنا. حتى ذلك الحين، تصفّح الأسئلة أدناه — تغطي تسجيل الدخول والتمرين والوجبات والكارديو والتقدّم والاستخدام دون إنترنت.',
+      'يمكن لMehdi إضافة فيديو توضيحي هنا. حتى ذلك الحين، تصفّح الأسئلة أدناه — تغطي تسجيل الدخول والتمرين والوجبات والكارديو والتقدّم والاستخدام دون إنترنت.',
     'guide.replayTour': 'إعادة الجولة السريعة',
-    'guide.footer': 'ما زلت بحاجة لمساعدة؟ راسل مدربك مع لقطة شاشة — سيساعدك بسرعة.',
+    'guide.footer': 'ما زلت بحاجة لمساعدة؟ راسل Mehdi مع لقطة شاشة — سيساعدك بسرعة.',
 
     'guide.section.start': 'البداية',
     'guide.section.workout': 'التمرين',
@@ -560,7 +560,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
 
     'guide.faq.login.q': 'كيف أسجّل الدخول؟',
     'guide.faq.login.a':
-      'افتح الرابط الشخصي الذي أرسله مدربك. أدخل اسم المستخدم وكلمة المرور. استخدم نفس الرابط على الهاتف والحاسوب — احفظه أو أضفه إلى الشاشة الرئيسية.',
+      'افتح الرابط الشخصي الذي أرسله Mehdi. أدخل اسم المستخدم وكلمة المرور. استخدم نفس الرابط على الهاتف والحاسوب — احفظه أو أضفه إلى الشاشة الرئيسية.',
     'guide.faq.install.q': 'كيف أثبّت التطبيق على هاتفي؟',
     'guide.faq.install.a':
       'لا حاجة لمتجر تطبيقات. آيفون: Safari → مشاركة → إضافة إلى الشاشة الرئيسية. أندرويد: قائمة Chrome → تثبيت التطبيق أو إضافة إلى الشاشة الرئيسية.',
@@ -576,37 +576,37 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
       'من الرئيسية اضغط التمرين أو ابدأ الحصة. ستظهر أسبوعك الحالي وتمارين اليوم. اضغط التمرين لتوسيعه، شاهد العرض إن وُجد، ثم سجّل مجموعاتك.',
     'guide.faq.logSets.q': 'كيف أسجّل الوزن والتكرارات؟',
     'guide.faq.logSets.a':
-      'كل مجموعة لها حقول للوزن (كغ) والتكرارات. أدخل ما رفعته فعلًا. أوقات الراحة إرشادية. إن فاتتك مجموعة، سجّل ما أنجزته — الصدق يساعد مدربك.',
+      'كل مجموعة لها حقول للوزن (كغ) والتكرارات. أدخل ما رفعته فعلًا. أوقات الراحة إرشادية. إن فاتتك مجموعة، سجّل ما أنجزته — الصدق يساعد Mehdi.',
     'guide.faq.save.q': 'لماذا «احفظ أرقامي»؟',
     'guide.faq.save.a':
-      'الحفظ يرسل مجموعاتك لمدربك ليتتبع تقدّمك ويبني أسبوعك التالي. احفظ بعد كل تمرين — الأرقام غير المحفوظة قد تضيع عند مغادرة الصفحة.',
+      'الحفظ يرسل مجموعاتك لMehdi ليتتبع تقدّمك ويبني أسبوعك التالي. احفظ بعد كل تمرين — الأرقام غير المحفوظة قد تضيع عند مغادرة الصفحة.',
     'guide.faq.weeks.q': 'كيف تعمل الأسابيع؟',
     'guide.faq.weeks.a':
-      'تبدأ بالأسبوع 1. تظهر فقط الأسابيع التي نشرها مدربك. عند إنهاء أسبوع يراجع سجلاتك ويضيف التالي. رؤية الأسبوع 1 فقط في البداية طبيعي.',
+      'تبدأ بالأسبوع 1. تظهر فقط الأسابيع التي نشرها Mehdi. عند إنهاء أسبوع يراجع سجلاتك ويضيف التالي. رؤية الأسبوع 1 فقط في البداية طبيعي.',
     'guide.faq.exerciseVideos.q': 'أين فيديوهات التمارين؟',
     'guide.faq.exerciseVideos.a':
-      'اضغط التمرين لتوسيعه. إن أرفق مدربك فيديو ستجد زر تشغيل. الفيديو يحتاج إنترنت إلا إن فتحته سابقًا وأنت متصل.',
+      'اضغط التمرين لتوسيعه. إن أرفق Mehdi فيديو ستجد زر تشغيل. الفيديو يحتاج إنترنت إلا إن فتحته سابقًا وأنت متصل.',
     'guide.faq.completeExercise.q': 'ماذا يعني إكمال التمرين؟',
     'guide.faq.completeExercise.a':
-      'يتتبع ما أنهيته اليوم. مدربك يعتمد على الأوزان والتكرارات المحفوظة — احفظ أرقامك دائمًا حتى بعد وضع علامة الإكمال.',
+      'يتتبع ما أنهيته اليوم. Mehdi يعتمد على الأوزان والتكرارات المحفوظة — احفظ أرقامك دائمًا حتى بعد وضع علامة الإكمال.',
 
     'guide.faq.meals.q': 'كيف أقرأ خطة الوجبات؟',
     'guide.faq.meals.a':
-      'افتح التغذية من الرئيسية. ستجد الوجبات مع الأطعمة والحصص والماكرو. اتبع الحصص التي حددها مدربك. هدف السعرات اليومي إرشادي ما لم يقل مدربك غير ذلك.',
+      'افتح التغذية من الرئيسية. ستجد الوجبات مع الأطعمة والحصص والماكرو. اتبع الحصص التي حددها Mehdi. هدف السعرات اليومي إرشادي ما لم يقل Mehdi غير ذلك.',
     'guide.faq.supplements.q': 'أين مكملاتي؟',
     'guide.faq.supplements.a':
-      'افتح المكملات من الرئيسية. ستجد الأسماء والجرعات والتوقيت (صباحًا، مع الوجبات، قبل النوم...). اتبع تعليمات مدربك بدقة.',
+      'افتح المكملات من الرئيسية. ستجد الأسماء والجرعات والتوقيت (صباحًا، مع الوجبات، قبل النوم...). اتبع تعليمات Mehdi بدقة.',
 
     'guide.faq.cardioPlan.q': 'كيف أتبع خطة الكارديو؟',
     'guide.faq.cardioPlan.a':
-      'افتح الكارديو من الرئيسية. يسرد مدربك الجلسات (بعد التمرين، يوم راحة، صباحًا...) مع المدة أو السرعة أو المسافة. نفّذها في الأيام المحددة.',
+      'افتح الكارديو من الرئيسية. يسرد Mehdi الجلسات (بعد التمرين، يوم راحة، صباحًا...) مع المدة أو السرعة أو المسافة. نفّذها في الأيام المحددة.',
 
     'guide.faq.weight.q': 'كيف أسجّل وزني؟',
     'guide.faq.weight.a':
-      'التقدّم → الوزن. أدخل وزنك بالكغ بانتظام (مثلاً أسبوعيًا، نفس اليوم، صباحًا). يرى مدربك الاتجاه مع الوقت.',
+      'التقدّم → الوزن. أدخل وزنك بالكغ بانتظام (مثلاً أسبوعيًا، نفس اليوم، صباحًا). يرى Mehdi الاتجاه مع الوقت.',
     'guide.faq.photos.q': 'كيف أرفع صور التقدّم؟',
     'guide.faq.photos.a':
-      'التقدّم → الصور. ارفع أمامي وجانبي وخلفي للأسبوع المطلوب. نفس الوضعية والإضاءة. الصور خاصة بينك وبين مدربك.',
+      'التقدّم → الصور. ارفع أمامي وجانبي وخلفي للأسبوع المطلوب. نفس الوضعية والإضاءة. الصور خاصة بينك وبين Mehdi.',
     'guide.faq.charts.q': 'ماذا تعرض الرسوم البيانية؟',
     'guide.faq.charts.a':
       'نتائجي وتركيز العضلات يوضحان أكثر ما تتمرّن عليه وكيف تتحسّن أوزانك. كلما سجّلت بانتظام كانت الرسوم أدق.',
@@ -620,11 +620,11 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
 
     'guide.faq.noPlan.q': 'لماذا لا أرى خطة تمرين أو وجبات؟',
     'guide.faq.noPlan.a':
-      'قد يكون مدربك ما زال يبني برنامجك. تأكد من الرابط الصحيح. إن مرّ أكثر من يوم، راسل مدربك — سينشر خطتك.',
+      'قد يكون Mehdi ما زال يبني برنامجك. تأكد من الرابط الصحيح. إن مرّ أكثر من يوم، راسل Mehdi — سينشر خطتك.',
     'guide.faq.wrongWeek.q': 'أسبوع خاطئ أو أرقام قديمة؟',
     'guide.faq.wrongWeek.a':
-      'حدّث الصفحة الرئيسية. تأكد أنك على آخر أسبوع نشره مدربك. إن استمر الخطأ، أخبر مدربك مع لقطة شاشة.',
-    'guide.faq.contactCoach.q': 'كيف أتواصل مع مدربي؟',
+      'حدّث الصفحة الرئيسية. تأكد أنك على آخر أسبوع نشره Mehdi. إن استمر الخطأ، أخبر Mehdi مع لقطة شاشة.',
+    'guide.faq.contactCoach.q': 'كيف أتواصل مع Mehdi؟',
     'guide.faq.contactCoach.a':
       'استخدم واتساب أو إنستغرام أو القناة التي أعطاك إياها مع الرابط وبيانات الدخول. اذكر اسمك وأرفق لقطة للمشكلة.',
 
@@ -635,9 +635,9 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'nav.workouts': 'التمرين',
     'nav.cardio': 'الكارديو',
 
-    'home.cardioDesc': 'خطة الكارديو من مدربك',
+    'home.cardioDesc': 'خطة الكارديو من Mehdi',
     'cardio.emptyTitle': 'لا يوجد كارديو بعد',
-    'cardio.emptyDesc': 'سيضيف مدربك خطة الكارديو هنا.',
+    'cardio.emptyDesc': 'سيضيف Mehdi خطة الكارديو هنا.',
     'cardio.afterWorkout': 'بعد التمرين',
     'cardio.offDay': 'يوم راحة',
     'cardio.morning': 'صباحاً',
@@ -668,19 +668,19 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
 
     'workout.noPlanTitle': 'لا يوجد برنامج تمرين',
     'workout.noPlanBody':
-      'لم يقم المدرب بتعيين خطة تمرين بعد. يرجى المراجعة لاحقًا أو التواصل مع المدرب.',
+      'لم يقم Mehdi بتعيين خطة تمرين بعد. يرجى المراجعة لاحقًا أو التواصل مع Mehdi.',
     'workout.clearReload': 'مسح الذاكرة المؤقتة وإعادة التحميل',
     'workout.oldDataTitle': '⚠️ بيانات قديمة',
     'workout.oldDataBody':
-      'يستخدم هذا العميل بيانات مخزنة قديمة. يحتاج المدرب إلى إعادة تعيين خطة التمرين لاستخدام أسماء التمارين وروابط الفيديو الصحيحة.',
+      'يستخدم هذا العميل بيانات مخزنة قديمة. يحتاج Mehdi إلى إعادة تعيين خطة التمرين لاستخدام أسماء التمارين وروابط الفيديو الصحيحة.',
     'workout.cacheBanner': 'تم اكتشاف بيانات تمرين قديمة في الذاكرة المؤقتة. امسح وأعد التحميل لأحدث الروابط.',
     'workout.clearCached': 'مسح التمرين المخزن',
-    'workout.performanceTracked': 'تم تسجيل الأداء — المدرب يرى تقدمك',
+    'workout.performanceTracked': 'تم تسجيل الأداء — Mehdi يرى تقدمك',
     'workout.programTitle': 'برنامج {name}',
     'workout.weekLabel': 'أسبوع',
     'workout.weekN': 'أسبوع {n}',
     'workout.waitingTitle': 'عمل رائع!',
-    'workout.waitingBody': 'المدرب يجهز أسبوعك القادم. عد لاحقًا.',
+    'workout.waitingBody': 'Mehdi يجهز أسبوعك القادم. عد لاحقًا.',
     'workout.daysTitle': 'أيام التمرين',
     'workout.daysSubtitle': 'اختر يوم التمرين',
     'workout.active': 'نشط',
@@ -693,9 +693,9 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'workout.wkSoon': 'قريبًا',
     'workout.weekOfTotal': 'الأسبوع {current} من {total}',
     'workout.nextWeekComing': 'الأسبوع {n} قادم',
-    'workout.nextWeekDesc': 'يفتحه مدربك بمجرد إكمالك الأسبوع {current}. برنامجك يُبنى أسبوعًا بأسبوع حسب تقدمك.',
+    'workout.nextWeekDesc': 'يفتحه Mehdi بمجرد إكمالك الأسبوع {current}. برنامجك يُبنى أسبوعًا بأسبوع حسب تقدمك.',
     'workout.preparingTitle': 'عمل رائع! 🎉',
-    'workout.preparingDesc': 'مدربك يجهّز أسبوعك التالي. تحقق قريبًا.',
+    'workout.preparingDesc': 'Mehdi يجهّز أسبوعك التالي. تحقق قريبًا.',
     'workout.nExercises': '{count} تمارين',
     'workout.ofComplete': '{done} من {total} مكتمل',
     'workout.todaysExercises': 'تمارين اليوم',
@@ -735,7 +735,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'workout.weekLockedFull': 'أكمل الأسابيع السابقة لفتح تمارين هذا الأسبوع.',
 
     'nut.noPlanTitle': 'لا توجد خطة تغذية بعد',
-    'nut.noPlanBody': 'مدربك يجهّز خطة تغذيتك المخصصة. بمجرد جاهزيتها ستظهر وجباتك وأهدافك اليومية هنا.',
+    'nut.noPlanBody': 'Mehdi يجهّز خطة تغذيتك المخصصة. بمجرد جاهزيتها ستظهر وجباتك وأهدافك اليومية هنا.',
     'nut.checkUpdates': 'تحقق من التحديثات',
     'nut.dailyCalories': 'السعرات اليومية',
     'nut.remaining': 'المتبقي {n}',
@@ -783,7 +783,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
 
     'supp.title': 'مكملاتك',
     'supp.subtitle': 'جدول مكملات مُحسّن',
-    'supp.prescribed': '{count} مكملات موصوفة من مدربك',
+    'supp.prescribed': '{count} مكملات موصوفة من Mehdi',
     'supp.waterGoal': 'هدف الماء اليومي',
     'supp.waterSubtitle': 'حافظ على الترطيب طوال اليوم',
     'supp.mlPerDay': '{ml} مل/يوم',
@@ -791,7 +791,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'supp.duringDay': 'خلال اليوم',
     'supp.evening': 'المساء',
     'supp.noneTitle': 'لا توجد مكملات',
-    'supp.noneBody': 'لم يخصص مدربك أي مكملات بعد',
+    'supp.noneBody': 'لم يخصص Mehdi أي مكملات بعد',
     'supp.one': '{count} مكمل',
     'supp.many': '{count} مكملات',
     'supp.asDirected': 'حسب التوجيهات',
@@ -799,7 +799,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'supp.tip1': 'تناول المكملات دائمًا مع الماء ما لم يُذكر خلاف ذلك',
     'supp.tip2': 'الفيتامينات الذائبة في الدهون (أ، د، هـ، ك) تعمل أفضل مع وجبات تحتوي على دهون',
     'supp.tip3': 'الانتظام هو المفتاح - حاول تناول المكملات في نفس الوقت يوميًا',
-    'supp.tip4': 'تابع شعورك وأبلغ مدربك بأي ملاحظات',
+    'supp.tip4': 'تابع شعورك وأبلغ Mehdi بأي ملاحظات',
     'supp.timing.morning': '🌅 الصباح',
     'supp.timing.pre_workout': '💪 قبل التمرين (30 دقيقة)',
     'supp.timing.during_workout': '🏋️ أثناء التمرين',
@@ -966,7 +966,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'home.viewPlan': 'Voir votre plan',
     'home.help': 'Aide',
     'home.explore': 'Explorer',
-    'home.fromCoach': 'De votre coach',
+    'home.fromCoach': 'De Mehdi',
     'home.startSession': 'Commencer',
     'home.todaysSession': 'Séance du jour',
     'home.programLabel': 'programme',
@@ -982,8 +982,8 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'home.intensityLight': 'Léger',
     'home.heroMinutes': '~{n} min',
     'home.coachName': 'Mehdi',
-    'home.coachRole': 'Votre coach',
-    'home.coachNoteBody': 'Restez régulier cette semaine, faites vos séances, notez vos charges et gardez le cardio. Votre coach mettra à jour le plan quand il le faudra.',
+    'home.coachRole': 'Mehdi',
+    'home.coachNoteBody': 'Restez régulier cette semaine, faites vos séances, notez vos charges et gardez le cardio. Mehdi mettra à jour le plan quand il le faudra.',
 
     'tour.kicker': 'Visite rapide',
     'tour.skip': 'Passer',
@@ -991,13 +991,13 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'tour.next': 'Suivant',
     'tour.done': "C'est parti",
     'tour.welcomeTitle': 'Bienvenue, {name} ! 👋',
-    'tour.welcomeBody': "Voici votre espace d'entraînement. Tout ce que votre coach prépare pour vous — séances, repas et progression — se trouve ici.",
+    'tour.welcomeBody': "Voici votre espace d'entraînement. Tout ce que Mehdi prépare pour vous — séances, repas et progression — se trouve ici.",
     'tour.navTitle': 'Touchez une carte pour l’ouvrir',
     'tour.navBody': 'Entraînement, Nutrition, Compléments et Progression ont chacun leur page. Utilisez la flèche de retour en haut pour revenir à l’accueil à tout moment.',
     'tour.saveTitle': 'Enregistrez vos chiffres',
-    'tour.saveBody': "Après chaque exercice, touchez « Enregistrer mes chiffres ». Votre coach voit votre progression et l'utilise pour bâtir votre semaine suivante.",
+    'tour.saveBody': "Après chaque exercice, touchez « Enregistrer mes chiffres ». Mehdi voit votre progression et l'utilise pour bâtir votre semaine suivante.",
     'tour.weeksTitle': 'Construit semaine après semaine',
-    'tour.weeksBody': 'Vous commencez à la Semaine 1. Une fois terminée, votre coach prépare la semaine suivante — de nouvelles semaines apparaissent au fil de votre progression.',
+    'tour.weeksBody': 'Vous commencez à la Semaine 1. Une fois terminée, Mehdi prépare la semaine suivante — de nouvelles semaines apparaissent au fil de votre progression.',
     'tour.helpTitle': 'Vous êtes prêt 💪',
     'tour.helpBody': 'Menu cloche → « Guide complet » : vidéo et réponses à presque toutes vos questions. Vous pouvez aussi revoir cette visite rapide.',
 
@@ -1006,9 +1006,9 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'guide.close': 'Fermer',
     'guide.videoTitle': 'Vidéo de démonstration',
     'guide.videoMissing':
-      'Votre coach peut ajouter une vidéo ici. En attendant, parcourez les questions ci-dessous — connexion, séances, repas, cardio, progression et mode hors ligne.',
+      'Mehdi peut ajouter une vidéo ici. En attendant, parcourez les questions ci-dessous — connexion, séances, repas, cardio, progression et mode hors ligne.',
     'guide.replayTour': 'Revoir la visite rapide',
-    'guide.footer': 'Toujours bloqué ? Envoyez une capture d’écran à votre coach — il vous aidera rapidement.',
+    'guide.footer': 'Toujours bloqué ? Envoyez une capture d’écran à Mehdi — il vous aidera rapidement.',
 
     'guide.section.start': 'Premiers pas',
     'guide.section.workout': 'Entraînements',
@@ -1020,7 +1020,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
 
     'guide.faq.login.q': 'Comment me connecter ?',
     'guide.faq.login.a':
-      'Ouvrez le lien personnel envoyé par votre coach. Entrez l’identifiant et le mot de passe fournis. Utilisez le même lien sur téléphone et ordinateur — ajoutez-le à l’écran d’accueil.',
+      'Ouvrez le lien personnel envoyé par Mehdi. Entrez l’identifiant et le mot de passe fournis. Utilisez le même lien sur téléphone et ordinateur — ajoutez-le à l’écran d’accueil.',
     'guide.faq.install.q': 'Comment installer l’app sur mon téléphone ?',
     'guide.faq.install.a':
       'Pas besoin du store : c’est une app web. iPhone : Safari → Partager → Sur l’écran d’accueil. Android : menu Chrome → Installer l’application.',
@@ -1036,37 +1036,37 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
       'Depuis l’accueil, touchez Entraînement ou Commencer. Vous voyez votre semaine et les exercices du jour. Développez un exercice, regardez la démo, puis notez vos séries.',
     'guide.faq.logSets.q': 'Comment noter charges et répétitions ?',
     'guide.faq.logSets.a':
-      'Chaque série a des champs poids (kg) et reps. Entrez ce que vous avez vraiment soulevé. Les temps de repos sont indicatifs. Notez honnêtement — votre coach s’en sert pour ajuster le plan.',
+      'Chaque série a des champs poids (kg) et reps. Entrez ce que vous avez vraiment soulevé. Les temps de repos sont indicatifs. Notez honnêtement — Mehdi s’en sert pour ajuster le plan.',
     'guide.faq.save.q': 'Pourquoi « Enregistrer mes chiffres » ?',
     'guide.faq.save.a':
-      'L’enregistrement envoie vos séries au coach pour suivre la progression et préparer la semaine suivante. Enregistrez après chaque exercice.',
+      'L’enregistrement envoie vos séries à Mehdi pour suivre la progression et préparer la semaine suivante. Enregistrez après chaque exercice.',
     'guide.faq.weeks.q': 'Comment fonctionnent les semaines ?',
     'guide.faq.weeks.a':
-      'Vous commencez à la Semaine 1. Seules les semaines publiées par le coach sont visibles. À la fin, il ajoute la suivante. Ne voir que la Semaine 1 au début est normal.',
+      'Vous commencez à la Semaine 1. Seules les semaines publiées par Mehdi sont visibles. À la fin, il ajoute la suivante. Ne voir que la Semaine 1 au début est normal.',
     'guide.faq.exerciseVideos.q': 'Où sont les vidéos d’exercices ?',
     'guide.faq.exerciseVideos.a':
       'Développez l’exercice. Si une vidéo est jointe, un bouton lecture apparaît. Internet requis sauf si déjà ouverte en ligne.',
     'guide.faq.completeExercise.q': 'À quoi sert marquer un exercice terminé ?',
     'guide.faq.completeExercise.a':
-      'Cela suit ce que vous avez fini aujourd’hui. Le coach utilise surtout les charges enregistrées — enregistrez toujours vos chiffres.',
+      'Cela suit ce que vous avez fini aujourd’hui. Mehdi utilise surtout les charges enregistrées — enregistrez toujours vos chiffres.',
 
     'guide.faq.meals.q': 'Comment lire mon plan repas ?',
     'guide.faq.meals.a':
-      'Ouvrez Nutrition. Repas, aliments, portions et macros. Suivez les portions du coach. L’objectif calorique du jour est indicatif sauf consigne contraire.',
+      'Ouvrez Nutrition. Repas, aliments, portions et macros. Suivez les portions de Mehdi. L’objectif calorique du jour est indicatif sauf consigne contraire.',
     'guide.faq.supplements.q': 'Où sont mes compléments ?',
     'guide.faq.supplements.a':
-      'Ouvrez Compléments depuis l’accueil : produits, doses et horaires (matin, repas, soir…). Suivez les instructions du coach.',
+      'Ouvrez Compléments depuis l’accueil : produits, doses et horaires (matin, repas, soir…). Suivez les instructions de Mehdi.',
 
     'guide.faq.cardioPlan.q': 'Comment suivre mon plan cardio ?',
     'guide.faq.cardioPlan.a':
-      'Ouvrez Cardio. Le coach liste les séances (après muscu, jour off, matin…) avec durée, vitesse ou distance. Faites-les aux jours prévus.',
+      'Ouvrez Cardio. Mehdi liste les séances (après muscu, jour off, matin…) avec durée, vitesse ou distance. Faites-les aux jours prévus.',
 
     'guide.faq.weight.q': 'Comment noter mon poids ?',
     'guide.faq.weight.a':
-      'Progression → Poids. Entrez votre poids en kg régulièrement (ex. chaque semaine, même jour, le matin). Le coach voit la tendance.',
+      'Progression → Poids. Entrez votre poids en kg régulièrement (ex. chaque semaine, même jour, le matin). Mehdi voit la tendance.',
     'guide.faq.photos.q': 'Comment envoyer des photos de progression ?',
     'guide.faq.photos.a':
-      'Progression → Photos. Face, profil, dos pour la semaine demandée. Même pose et éclairage. Photos privées entre vous et le coach.',
+      'Progression → Photos. Face, profil, dos pour la semaine demandée. Même pose et éclairage. Photos privées entre vous et Mehdi.',
     'guide.faq.charts.q': 'Que montrent les graphiques ?',
     'guide.faq.charts.a':
       'Mes résultats et Focus musculaire montrent ce que vous travaillez le plus et l’évolution des charges. Plus vous enregistrez, plus c’est précis.',
@@ -1080,11 +1080,11 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
 
     'guide.faq.noPlan.q': 'Pourquoi je ne vois pas de plan ?',
     'guide.faq.noPlan.a':
-      'Le coach prépare peut-être encore votre programme. Vérifiez le bon lien. Après un jour, contactez-le — il publiera votre plan.',
+      'Mehdi prépare peut-être encore votre programme. Vérifiez le bon lien. Après un jour, contactez-le — il publiera votre plan.',
     'guide.faq.wrongWeek.q': 'Mauvaise semaine ou vieux chiffres ?',
     'guide.faq.wrongWeek.a':
-      'Rafraîchissez l’accueil. Vérifiez la dernière semaine publiée. Si ça persiste, écrivez au coach avec une capture.',
-    'guide.faq.contactCoach.q': 'Comment contacter mon coach ?',
+      'Rafraîchissez l’accueil. Vérifiez la dernière semaine publiée. Si ça persiste, écrivez à Mehdi avec une capture.',
+    'guide.faq.contactCoach.q': 'Comment contacter Mehdi ?',
     'guide.faq.contactCoach.a':
       'WhatsApp, Instagram ou le canal fourni avec votre lien. Indiquez votre nom et une capture du problème.',
 
@@ -1095,9 +1095,9 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'nav.workouts': 'Entraînements',
     'nav.cardio': 'Cardio',
 
-    'home.cardioDesc': 'Votre plan cardio par votre coach',
+    'home.cardioDesc': 'Votre plan cardio par Mehdi',
     'cardio.emptyTitle': 'Pas de cardio pour l\'instant',
-    'cardio.emptyDesc': 'Votre coach ajoutera votre plan cardio ici.',
+    'cardio.emptyDesc': 'Mehdi ajoutera votre plan cardio ici.',
     'cardio.afterWorkout': 'Après la séance',
     'cardio.offDay': 'Jour de repos',
     'cardio.morning': 'Matin',
@@ -1128,20 +1128,20 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
 
     'workout.noPlanTitle': "Aucun programme d'entraînement attribué",
     'workout.noPlanBody':
-      "Votre coach ne vous a pas encore attribué de programme. Revenez plus tard ou contactez votre coach.",
+      "Mehdi ne vous a pas encore attribué de programme. Revenez plus tard ou contactez Mehdi.",
     'workout.clearReload': 'Vider le cache et recharger',
     'workout.oldDataTitle': '⚠️ Données obsolètes détectées',
     'workout.oldDataBody':
-      "Ce client utilise d'anciennes données en cache. Le coach doit réattribuer le programme pour utiliser les bons noms d'exercices et liens vidéo.",
+      "Ce client utilise d'anciennes données en cache. Mehdi doit réattribuer le programme pour utiliser les bons noms d'exercices et liens vidéo.",
     'workout.cacheBanner':
       "Anciennes données d'entraînement détectées. Videz et rechargez pour les derniers liens vidéo.",
     'workout.clearCached': "Vider l'entraînement en cache",
-    'workout.performanceTracked': 'Performance enregistrée — Votre coach voit votre progression',
+    'workout.performanceTracked': 'Performance enregistrée — Mehdi voit votre progression',
     'workout.programTitle': 'Programme de {name}',
     'workout.weekLabel': 'Semaine',
     'workout.weekN': 'Semaine {n}',
     'workout.waitingTitle': 'Bravo !',
-    'workout.waitingBody': 'Votre coach prépare votre semaine suivante. Revenez bientôt.',
+    'workout.waitingBody': 'Mehdi prépare votre semaine suivante. Revenez bientôt.',
     'workout.daysTitle': "Jours d'entraînement",
     'workout.daysSubtitle': 'Choisissez votre jour',
     'workout.active': 'Actif',
@@ -1154,9 +1154,9 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'workout.wkSoon': 'bientôt',
     'workout.weekOfTotal': 'Semaine {current} sur {total}',
     'workout.nextWeekComing': 'Semaine {n} à venir',
-    'workout.nextWeekDesc': 'Votre coach la débloque dès que vous terminez la Semaine {current}. Votre programme est bâti semaine après semaine selon votre progression.',
+    'workout.nextWeekDesc': 'Mehdi la débloque dès que vous terminez la Semaine {current}. Votre programme est bâti semaine après semaine selon votre progression.',
     'workout.preparingTitle': 'Bravo ! 🎉',
-    'workout.preparingDesc': 'Votre coach prépare votre semaine suivante. Revenez bientôt.',
+    'workout.preparingDesc': 'Mehdi prépare votre semaine suivante. Revenez bientôt.',
     'workout.nExercises': '{count} exercices',
     'workout.ofComplete': '{done} sur {total} terminés',
     'workout.todaysExercises': 'Exercices du jour',
@@ -1196,7 +1196,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'workout.weekLockedFull': "Terminez les semaines précédentes pour débloquer les séances de cette semaine.",
 
     'nut.noPlanTitle': 'Aucun plan nutritionnel pour le moment',
-    'nut.noPlanBody': "Votre coach prépare votre plan nutritionnel personnalisé. Dès qu'il sera prêt, vos repas et objectifs quotidiens apparaîtront ici.",
+    'nut.noPlanBody': "Mehdi prépare votre plan nutritionnel personnalisé. Dès qu'il sera prêt, vos repas et objectifs quotidiens apparaîtront ici.",
     'nut.checkUpdates': 'Vérifier les mises à jour',
     'nut.dailyCalories': 'Calories quotidiennes',
     'nut.remaining': 'Restant {n}',
@@ -1244,7 +1244,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
 
     'supp.title': 'Vos compléments',
     'supp.subtitle': 'Programme de compléments optimisé',
-    'supp.prescribed': '{count} compléments prescrits par votre coach',
+    'supp.prescribed': '{count} compléments prescrits par Mehdi',
     'supp.waterGoal': "Objectif d'eau quotidien",
     'supp.waterSubtitle': 'Restez hydraté tout au long de la journée',
     'supp.mlPerDay': '{ml} ml/jour',
@@ -1252,7 +1252,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'supp.duringDay': 'Pendant la journée',
     'supp.evening': 'Soir',
     'supp.noneTitle': 'Aucun complément attribué',
-    'supp.noneBody': "Votre coach ne vous a pas encore attribué de compléments",
+    'supp.noneBody': "Mehdi ne vous a pas encore attribué de compléments",
     'supp.one': '{count} complément',
     'supp.many': '{count} compléments',
     'supp.asDirected': 'Selon les indications',
@@ -1260,7 +1260,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'supp.tip1': "Prenez toujours les compléments avec de l'eau sauf indication contraire",
     'supp.tip2': 'Les vitamines liposolubles (A, D, E, K) agissent mieux avec des repas contenant des lipides',
     'supp.tip3': 'La régularité est essentielle - prenez vos compléments à la même heure chaque jour',
-    'supp.tip4': 'Notez votre ressenti et signalez toute préoccupation à votre coach',
+    'supp.tip4': 'Notez votre ressenti et signalez toute préoccupation à Mehdi',
     'supp.timing.morning': '🌅 Matin',
     'supp.timing.pre_workout': '💪 Avant la séance (30 min avant)',
     'supp.timing.during_workout': '🏋️ Pendant la séance',

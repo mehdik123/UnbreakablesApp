@@ -138,7 +138,7 @@ export const ClientLogin: React.FC<ClientLoginProps> = ({ clientId, onLoginSucce
           {/* Help Text */}
           <div className="mt-6 text-center">
             <p className="text-slate-400 text-sm">
-              Need help? Contact your coach.
+              Need help? Contact Mehdi.
             </p>
           </div>
         </div>
@@ -146,7 +146,7 @@ export const ClientLogin: React.FC<ClientLoginProps> = ({ clientId, onLoginSucce
         {/* Security Notice */}
         <div className="mt-6 bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-4">
           <p className="text-slate-400 text-xs text-center">
-            🔒 Your credentials were provided by your coach along with your program link.
+            🔒 Your credentials were provided by Mehdi along with your program link.
           </p>
         </div>
       </div>

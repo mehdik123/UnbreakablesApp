@@ -456,7 +456,7 @@ export const ClientProgressView: React.FC<ClientProgressViewProps> = ({
       <div className="flex items-center justify-between">
         <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Your Strength Progress</h3>
         <div className="text-sm text-slate-500 dark:text-slate-400">
-          Tracked by your coach
+          Tracked by Mehdi
         </div>
       </div>
 

@@ -189,12 +189,12 @@ export const exportEnhancedNutritionPDF = async (options: PDFExportOptions) => {
           <li>When multiple options are provided for a meal, choose ONE option that fits your preferences</li>
           <li>All ingredients are measured in grams for accuracy</li>
           <li>Meal prep tips: You can prepare multiple meals in advance and store them properly</li>
-          <li>Feel free to swap similar ingredients if needed (consult with your coach first)</li>
+          <li>Feel free to swap similar ingredients if needed (consult with Mehdi first)</li>
           <li>Stay hydrated throughout the day - aim for 2-3 liters of water</li>
         </ul>
         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
           <p style="margin: 0; color: #666; font-size: 12px;">
-            📞 For questions or meal modifications, contact your nutrition coach<br/>
+            📞 For questions or meal modifications, contact Mehdi<br/>
             💪 UnbreakableSteam - Professional Nutrition Coaching
           </p>
         </div>

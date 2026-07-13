@@ -185,7 +185,7 @@ export const ClientCombinedView: React.FC<ClientCombinedViewProps> = ({
             {activeTab === 'nutrition' ? 'No Nutrition Plan' : 'No Workout Plan'}
           </h3>
           <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Your coach hasn't created a {activeTab} plan yet. Please contact them for more information.
+            Mehdi hasn't created a {activeTab} plan yet. Please contact him for more information.
           </p>
         </div>
       )}
@@ -195,7 +195,7 @@ export const ClientCombinedView: React.FC<ClientCombinedViewProps> = ({
         isDark ? 'bg-gray-800 text-white border border-gray-700' : 'bg-white text-gray-900 shadow-xl'
       }`}>
         <p className={`text-lg ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          This complete plan was created by your coach. For questions or modifications, please contact them directly.
+          This complete plan was created by Mehdi. For questions or modifications, please contact him directly.
         </p>
         <div className="mt-4 flex items-center justify-center space-x-4">
           <div className="flex items-center space-x-2">
