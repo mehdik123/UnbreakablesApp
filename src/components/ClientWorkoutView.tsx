@@ -733,8 +733,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       });
 
       // Create updated days with client's edits applied and videoUrl/muscleGroup preserved so videos don't disappear after save
-      const updatedDays = sourceDays.map((day: any) => ({
+      const updatedDays = sourceDays.map((day: any, dayIndex: number) => ({
         ...day,
+        // Mark only the day being saved — prescribed weights on other/new weeks do not count
+        ...(dayIndex === currentDay ? { numbersSaved: true } : {}),
         exercises: (day.exercises && Array.isArray(day.exercises) ? day.exercises : []).map((exercise: any) => {
           const exName = (exercise.exercise?.name ?? exercise.exercise?.id ?? exercise.name ?? '').toString().trim().toLowerCase();
           const videoMeta = exName ? videoByName[exName] : null;

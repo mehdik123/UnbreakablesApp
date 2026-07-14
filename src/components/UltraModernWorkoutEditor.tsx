@@ -1298,8 +1298,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       // Real-time sync tracking
       lastModifiedBy: 'coach',
       lastModifiedAt: new Date(),
-      lastSavedWeek: currentWeek,
-      lastSavedDay: currentDay + 1,
+      // Do NOT set lastSavedDay / numbersSaved here — preparing a week must not mark sessions done
     } as ClientWorkoutAssignment;
 
     if (isSupabaseReady && supabase && assignmentId) {

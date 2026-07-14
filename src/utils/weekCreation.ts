@@ -36,6 +36,7 @@ export function copyWeekData(
         completedAt: undefined,
       } as WorkoutSet)),
     })),
+    // Fresh week: never carry over "Save my numbers" from previous week
   }));
 
   return {

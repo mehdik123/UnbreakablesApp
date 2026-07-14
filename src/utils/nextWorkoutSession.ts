@@ -1,11 +1,11 @@
 /**
  * Resolve the next workout session for the client home "Start session" card.
  *
- * Last saved day = day where "Save my numbers" (client) or coach assignment save
- * last wrote numbers. Stored as 1-based `lastSavedDay` / DB `current_day`.
+ * A day counts as done only when Save my numbers (client) set `numbersSaved: true`
+ * on that day. Coach-prescribed weights on a new week do NOT count.
  *
- * Next session = the day after that. If it was the last day of the week → Day 1
- * of the next week that has days. If nothing has been saved yet → Day 1 of current week.
+ * Next session = first day (in order) that still needs a save. If every training
+ * day in a week is saved → Day 1 of the next prepared week.
  */
 
 export type NextWorkoutSession = {
@@ -31,57 +31,83 @@ function getDaysForWeek(assignment: any, weekNumber: number): any[] {
   if (Array.isArray(weekData?.days) && weekData.days.length > 0) {
     return weekData.days;
   }
-  const programDays = assignment?.program?.days;
-  if (Array.isArray(programDays) && programDays.length > 0) {
-    return programDays;
+  // Only fall back to program.days for week 1 shape when that week row has no days yet
+  if (weekNumber === 1) {
+    const programDays = assignment?.program?.days;
+    if (Array.isArray(programDays) && programDays.length > 0) {
+      return programDays;
+    }
   }
   return [];
 }
 
-function resolveLastSaved(
+function isTrainingDay(day: any): boolean {
+  return Array.isArray(day?.exercises) && day.exercises.length > 0;
+}
+
+function isDayNumbersSaved(day: any): boolean {
+  return day?.numbersSaved === true || day?.numbers_saved === true;
+}
+
+function weekHasAnyNumbersSaved(days: any[]): boolean {
+  return days.some((d) => isDayNumbersSaved(d));
+}
+
+function assignmentHasAnyNumbersSaved(assignment: any): boolean {
+  const weeks = Array.isArray(assignment?.weeks) ? assignment.weeks : [];
+  for (const w of weeks) {
+    if (Array.isArray(w?.days) && weekHasAnyNumbersSaved(w.days)) return true;
+  }
+  if (Array.isArray(assignment?.program?.days) && weekHasAnyNumbersSaved(assignment.program.days)) {
+    return true;
+  }
+  return false;
+}
+
+function sessionFromDay(
+  week: number,
+  dayIndex: number,
+  days: any[]
+): NextWorkoutSession {
+  const day = days[dayIndex] || days[0];
+  return {
+    week,
+    dayIndex,
+    dayNumber: dayIndex + 1,
+    dayName: day?.name,
+    exerciseCount: day?.exercises?.length || 0,
+    daysInWeek: days.length,
+  };
+}
+
+/** Legacy pointer: day after lastSavedDay (used only when no numbersSaved flags exist yet). */
+function resolveLegacyNext(
   assignment: any,
+  maxW: number,
   dbMeta?: AssignmentSessionMeta
-): { week: number; lastSavedDay: number } {
+): NextWorkoutSession | null {
   const columnWeek = Math.max(
     1,
     Number(dbMeta?.current_week ?? assignment?.currentWeek ?? assignment?.current_week ?? 1) || 1
   );
   const columnDay = Number(dbMeta?.current_day ?? assignment?.currentDay ?? assignment?.current_day ?? 0);
-
   const explicitDay = assignment?.lastSavedDay ?? assignment?.last_saved_day;
-  if (explicitDay != null && Number.isFinite(Number(explicitDay))) {
-    return {
-      week: Math.max(
-        1,
-        Number(assignment?.lastSavedWeek ?? assignment?.last_saved_week ?? columnWeek) || columnWeek
-      ),
-      lastSavedDay: Math.max(0, Number(explicitDay)),
-    };
-  }
-
   const lastModifiedBy =
     assignment?.lastModifiedBy ?? assignment?.last_modified_by ?? dbMeta?.last_modified_by;
 
-  // current_day defaults to 1 on new assignments — only treat it as a real save
-  // once the client has saved numbers (or lastSavedDay was set by coach/client).
-  if (lastModifiedBy === 'client' && columnDay > 0) {
-    return { week: columnWeek, lastSavedDay: columnDay };
+  let lastSavedDay = 0;
+  let week = columnWeek;
+  if (explicitDay != null && Number.isFinite(Number(explicitDay))) {
+    lastSavedDay = Math.max(0, Number(explicitDay));
+    week = Math.max(
+      1,
+      Number(assignment?.lastSavedWeek ?? assignment?.last_saved_week ?? columnWeek) || columnWeek
+    );
+  } else if (lastModifiedBy === 'client' && columnDay > 0) {
+    lastSavedDay = columnDay;
   }
 
-  return { week: columnWeek, lastSavedDay: 0 };
-}
-
-export function getNextWorkoutSession(
-  assignment: any,
-  maxWeeks: number,
-  dbMeta?: AssignmentSessionMeta
-): NextWorkoutSession | null {
-  if (!assignment) return null;
-
-  const maxW = Math.max(1, maxWeeks || assignment?.duration || 12);
-  const { week: savedWeek, lastSavedDay } = resolveLastSaved(assignment, dbMeta);
-  let week = Math.min(maxW, Math.max(1, savedWeek));
-
+  week = Math.min(maxW, Math.max(1, week));
   let days = getDaysForWeek(assignment, week);
   if (days.length === 0) {
     const weeks = Array.isArray(assignment?.weeks) ? assignment.weeks : [];
@@ -93,40 +119,83 @@ export function getNextWorkoutSession(
   }
   if (days.length === 0) return null;
 
-  let nextWeek = week;
-  let nextDayIndex = 0;
-
-  if (lastSavedDay > 0) {
-    if (lastSavedDay >= days.length) {
-      let candidate = week + 1;
-      let rolled = false;
-      while (candidate <= maxW) {
-        const nextDays = getDaysForWeek(assignment, candidate);
-        if (nextDays.length > 0) {
-          nextWeek = candidate;
-          days = nextDays;
-          nextDayIndex = 0;
-          rolled = true;
-          break;
-        }
-        candidate += 1;
-      }
-      if (!rolled) {
-        nextWeek = week;
-        nextDayIndex = Math.max(0, days.length - 1);
-      }
-    } else {
-      nextDayIndex = lastSavedDay; // 1-based last saved → 0-based next index
-    }
+  if (lastSavedDay <= 0) {
+    const firstIdx = days.findIndex(isTrainingDay);
+    return sessionFromDay(week, firstIdx >= 0 ? firstIdx : 0, days);
   }
 
-  const day = days[nextDayIndex] || days[0];
-  return {
-    week: nextWeek,
-    dayIndex: nextDayIndex,
-    dayNumber: nextDayIndex + 1,
-    dayName: day?.name,
-    exerciseCount: day?.exercises?.length || 0,
-    daysInWeek: days.length,
-  };
+  if (lastSavedDay >= days.length) {
+    let candidate = week + 1;
+    while (candidate <= maxW) {
+      const nextDays = getDaysForWeek(assignment, candidate);
+      if (nextDays.length > 0) {
+        const firstIdx = nextDays.findIndex(isTrainingDay);
+        return sessionFromDay(candidate, firstIdx >= 0 ? firstIdx : 0, nextDays);
+      }
+      candidate += 1;
+    }
+    return sessionFromDay(week, Math.max(0, days.length - 1), days);
+  }
+
+  return sessionFromDay(week, lastSavedDay, days);
+}
+
+export function getNextWorkoutSession(
+  assignment: any,
+  maxWeeks: number,
+  dbMeta?: AssignmentSessionMeta
+): NextWorkoutSession | null {
+  if (!assignment) return null;
+
+  const maxW = Math.max(1, maxWeeks || assignment?.duration || 12);
+  const weeks = Array.isArray(assignment?.weeks) ? assignment.weeks : [];
+
+  // Prefer explicit per-day save flags (handles out-of-order logging)
+  if (assignmentHasAnyNumbersSaved(assignment)) {
+    const weekNumbers = [
+      ...new Set(
+        [
+          ...weeks.map((w: any) => Number(w?.weekNumber)).filter((n: number) => n >= 1 && n <= maxW),
+          1,
+        ].sort((a, b) => a - b)
+      ),
+    ];
+
+    // Also consider weeks that exist only as prepared rows in range 1..maxW
+    for (let w = 1; w <= maxW; w++) {
+      if (!weekNumbers.includes(w) && getDaysForWeek(assignment, w).length > 0) {
+        weekNumbers.push(w);
+      }
+    }
+    weekNumbers.sort((a, b) => a - b);
+
+    let lastPrepared: NextWorkoutSession | null = null;
+
+    for (const weekNum of weekNumbers) {
+      const weekRow = weeks.find((w: any) => w.weekNumber === weekNum);
+      const days = getDaysForWeek(assignment, weekNum);
+      if (days.length === 0) continue;
+
+      lastPrepared = sessionFromDay(weekNum, Math.max(0, days.length - 1), days);
+
+      // Coach-marked week complete → skip to next week
+      if (weekRow?.isCompleted === true) continue;
+
+      const trainingIndexes = days
+        .map((d, i) => (isTrainingDay(d) ? i : -1))
+        .filter((i) => i >= 0);
+
+      if (trainingIndexes.length === 0) continue;
+
+      const pendingIdx = trainingIndexes.find((i) => !isDayNumbersSaved(days[i]));
+      if (pendingIdx != null) {
+        return sessionFromDay(weekNum, pendingIdx, days);
+      }
+      // All training days saved → try next week
+    }
+
+    return lastPrepared;
+  }
+
+  return resolveLegacyNext(assignment, maxW, dbMeta);
 }
