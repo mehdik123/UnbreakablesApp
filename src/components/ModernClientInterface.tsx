@@ -20,8 +20,6 @@ import {
   Bell,
   ArrowUpRight,
   Play,
-  Clock,
-  Zap,
   BadgeCheck,
 } from 'lucide-react';
 import { ClientWelcomeTour } from './ClientWelcomeTour';
@@ -32,7 +30,7 @@ import { dbResolveClientIdByName, dbGetCardioPlan } from '../lib/db';
 import { enrichProgramAndWeeksWithExercises } from '../utils/enrichAssignment';
 import { normalizeCardioPlan } from '../data/cardioPresets';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
-import { getNextWorkoutSession } from '../utils/nextWorkoutSession';
+import { getLatestDeployedWeekNumber } from '../utils/weekCreation';
 import { getClientWeightLogs, getClientPRHistory } from '../lib/progressTracking';
 import { getClientSupplements } from '../services/supplementsService';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -622,8 +620,11 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 }
                 if (Date.now() >= weekSyncLockUntilRef.current) {
                   const deployedWeekNumbers = freshWeeks.map((w: any) => w.weekNumber);
-                  const rawWeek = assignment.current_week || 1;
-                  const newCurrentWeek = deployedWeekNumbers.includes(rawWeek)
+                  const latestDeployed = getLatestDeployedWeekNumber(freshAssignment);
+                  const rawWeek = assignment.current_week || latestDeployed || 1;
+                  const newCurrentWeek = deployedWeekNumbers.includes(latestDeployed)
+                    ? latestDeployed
+                    : deployedWeekNumbers.includes(rawWeek)
                     ? rawWeek
                     : Math.min(rawWeek, Math.max(...deployedWeekNumbers)) || deployedWeekNumbers[0];
                   if (newCurrentWeek !== currentWeek) setCurrentWeek(newCurrentWeek);
@@ -666,9 +667,6 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     return WeekProgressionManager.getWeekStatus(week);
   };
 
-  // Dynamic progress calculation based on current week
-  const progressPercentage = Math.round((currentWeek / (client.numberOfWeeks || 12)) * 100);
-
   // Workout header ring geometry (r=19 → circumference ≈ 119.38)
   const HEADER_RING_C = 2 * Math.PI * 19;
   const programTitle =
@@ -678,27 +676,21 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
   const totalWeeks = client.numberOfWeeks || 12;
 
-  // This-week session progress + next session after latest "Save my numbers" (client or coach)
-  const { sessionsDone, sessionsTotal, todayName, todayExerciseCount, nextSession } = useMemo(() => {
-    const assignment = effectiveWorkoutAssignment as any;
-    const weeks = assignment?.weeks || [];
-    const weekData = weeks.find((w: any) => w.weekNumber === currentWeek);
-    const days: any[] = Array.isArray(weekData?.days) ? weekData.days : [];
-    const trainingDays = days.filter((d) => (d.exercises?.length || 0) > 0);
-    const isDayDone = (d: any) =>
-      (d.exercises || []).every(
-        (ex: any) => (ex.sets || []).length > 0 && ex.sets.every((s: any) => s.completed === true)
-      );
-    const done = trainingDays.filter(isDayDone).length;
-    const next = getNextWorkoutSession(assignment, totalWeeks);
-    return {
-      sessionsDone: done,
-      sessionsTotal: trainingDays.length,
-      todayName: next?.dayName as string | undefined,
-      todayExerciseCount: next?.exerciseCount || 0,
-      nextSession: next,
-    };
-  }, [effectiveWorkoutAssignment, currentWeek, totalWeeks]);
+  // Latest week coach deployed (no day-pointer logic on home)
+  const activeWeek = useMemo(
+    () => getLatestDeployedWeekNumber(effectiveWorkoutAssignment ?? client.workoutAssignment),
+    [effectiveWorkoutAssignment, client.workoutAssignment]
+  );
+
+  const progressPercentage = Math.round((activeWeek / totalWeeks) * 100);
+
+  // Keep client on the newly deployed week unless they just picked another week in workout
+  useEffect(() => {
+    if (Date.now() < weekSyncLockUntilRef.current) return;
+    if (activeWeek >= 1 && activeWeek !== currentWeek) {
+      setCurrentWeek(activeWeek);
+    }
+  }, [activeWeek, currentWeek]);
 
   const nutritionDailyKcal = useMemo(() => {
     if (!nutritionPlan?.mealSlots?.length) return null;
@@ -717,43 +709,6 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     }
     return counted > 0 ? Math.round(total) : null;
   }, [nutritionPlan]);
-
-  const heroEstimatedMin = todayExerciseCount > 0 ? Math.max(15, Math.round(todayExerciseCount * 6.5)) : 0;
-  const heroIntensityKey =
-    client.goal === 'bulking' ? 'home.intensityHeavy' : client.goal === 'shredding' ? 'home.intensityModerate' : 'home.intensityModerate';
-
-  const HERO_RING_R = 22;
-  const HERO_RING_C = 2 * Math.PI * HERO_RING_R;
-
-  // Quick-stat chips for the dashboard (hide strength when no data)
-  const dashChips = [
-    {
-      Icon: Dumbbell,
-      tint: 'var(--red)',
-      bg: 'rgba(255,45,85,.14)',
-      value: String(sessionsDone),
-      unit: `/${sessionsTotal || 0}`,
-      label: t('home.statWeek'),
-    },
-    {
-      Icon: Scale,
-      tint: 'var(--blue)',
-      bg: 'rgba(91,140,255,.14)',
-      value: dashStats.weightDelta == null ? '—' : `${dashStats.weightDelta > 0 ? '+' : ''}${dashStats.weightDelta}`,
-      unit: dashStats.weightDelta == null ? '' : 'kg',
-      label: t('home.statWeight'),
-    },
-    ...(dashStats.strengthPct != null
-      ? [{
-          Icon: TrendingUp,
-          tint: 'var(--green)',
-          bg: 'rgba(52,211,153,.14)',
-          value: `${dashStats.strengthPct > 0 ? '+' : ''}${dashStats.strengthPct}`,
-          unit: '%',
-          label: t('home.statStrength'),
-        }]
-      : []),
-  ];
 
   const nutritionStatus = nutritionPlan
     ? nutritionDailyKcal != null
@@ -779,7 +734,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     status: string;
     wide?: boolean;
   }[] = [
-    { route: 'workout', title: t('nav.workouts'), desc: t('home.workoutDesc'), Icon: Dumbbell, accent: 'red', status: t('modern.weekOf', { current: currentWeek, total: totalWeeks }) },
+    { route: 'workout', title: t('nav.workouts'), desc: t('home.workoutDesc'), Icon: Dumbbell, accent: 'red', status: t('modern.weekOf', { current: activeWeek, total: totalWeeks }) },
     { route: 'cardio', title: t('nav.cardio'), desc: t('home.cardioDesc'), Icon: HeartPulse, accent: 'orange', status: cardioSummary },
     { route: 'nutrition', title: t('nav.nutrition'), desc: t('home.nutritionDesc'), Icon: Utensils, accent: 'green', status: nutritionStatus },
     { route: 'supplements', title: t('nav.supplements'), desc: t('home.supplementsDesc'), Icon: Pill, accent: 'violet', status: supplementsStatus },
@@ -1089,108 +1044,52 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             <b>{t('home.subtitle')}</b>
           </p>
 
-          {/* Quick stats */}
-          <div className="home-stats home-anim" style={{ animationDelay: '0.06s' }}>
-            {dashChips.map((chip, i) => (
-              <div key={i} className="home-qstat">
-                <div
-                  className="w-[26px] h-[26px] rounded-lg flex items-center justify-center mb-2"
-                  style={{ background: chip.bg, color: chip.tint }}
-                >
-                  <chip.Icon className="w-[15px] h-[15px]" />
-                </div>
-                <b className="font-display font-bold text-[19px] leading-none block" style={{ color: 'var(--txt-hi)' }}>
-                  {chip.value}
-                  {chip.unit ? (
-                    <span className="text-[11px] font-semibold ms-0.5" style={{ color: 'var(--txt-mid)' }}>{chip.unit}</span>
-                  ) : null}
-                </b>
-                <small className="text-[9.5px] uppercase tracking-wide font-semibold block mt-1" style={{ color: 'var(--txt-lo)' }}>
-                  {chip.label}
-                </small>
-              </div>
-            ))}
+          {/* Program progress — simple */}
+          <div className="home-prog home-anim" style={{ animationDelay: '0.06s' }}>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-[10.5px] uppercase tracking-widest font-bold" style={{ color: 'var(--txt-lo)' }}>
+                {t('home.programProgress')}
+              </span>
+              <span className="font-display font-bold text-[13px] tnum" style={{ color: 'var(--txt-hi)' }}>
+                {progressPercentage}%
+              </span>
+            </div>
+            <div className="home-prog-track" aria-hidden="true">
+              <div
+                className="home-prog-fill"
+                style={{ width: `${Math.min(100, Math.max(0, progressPercentage))}%` }}
+              />
+            </div>
+            <p className="text-[12px] mt-2 font-medium" style={{ color: 'var(--txt-mid)' }}>
+              {t('modern.weekOf', { current: activeWeek, total: totalWeeks })}
+              {activeWeek >= totalWeeks ? ` · ${t('home.finalWeek')}` : ''}
+            </p>
           </div>
 
-          {/* Hero — today's session */}
+          {/* Current week — no day pointer */}
           <div className="home-hero home-anim" style={{ animationDelay: '0.12s' }}>
             <div className="home-hero-grid" aria-hidden="true" />
-            <div className="relative flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-widest font-bold" style={{ color: 'var(--red)' }}>
-                <span className="home-hero-pip" />
-                {t('home.todaysSession')}
-              </span>
-              <span
-                className="text-[10.5px] font-semibold px-2.5 py-1 rounded-full"
-                style={{ color: 'var(--txt-mid)', background: 'var(--glass)', border: '1px solid var(--hair)' }}
-              >
-                {t('modern.weekOf', { current: nextSession?.week ?? currentWeek, total: totalWeeks })}
-                {(nextSession?.week ?? currentWeek) >= totalWeeks ? ` · ${t('home.finalWeek')}` : ''}
-              </span>
-            </div>
-            <h2 className="font-saira text-[30px] leading-[0.95] my-3 relative" style={{ color: 'var(--txt-hi)' }}>
-              {todayName || t('home.continueProgram')}
+            <span className="relative inline-flex items-center gap-1.5 text-[10.5px] uppercase tracking-widest font-bold" style={{ color: 'var(--red)' }}>
+              <span className="home-hero-pip" />
+              {t('modern.currentWeek')}
+            </span>
+            <h2 className="font-saira text-[34px] leading-[0.95] my-3 relative" style={{ color: 'var(--txt-hi)' }}>
+              {t('home.weekTitle', { n: activeWeek })}
             </h2>
-            <div className="relative flex flex-wrap gap-3 mb-4 text-[11.5px]" style={{ color: 'var(--txt-mid)' }}>
-              {todayExerciseCount > 0 && (
-                <span className="inline-flex items-center gap-1">
-                  <Dumbbell className="w-3 h-3" />
-                  {t('workout.nExercises', { count: todayExerciseCount })}
-                </span>
-              )}
-              {heroEstimatedMin > 0 && (
-                <span className="inline-flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {t('home.heroMinutes', { n: heroEstimatedMin })}
-                </span>
-              )}
-              <span className="inline-flex items-center gap-1">
-                <Zap className="w-3 h-3" />
-                {t(heroIntensityKey)}
-              </span>
-            </div>
-            <div className="relative flex items-center gap-2.5">
-              <button
-                type="button"
-                className="home-start-btn"
-                onClick={() => {
-                  if (nextSession?.week != null) {
-                    handleClientWeekChange(nextSession.week);
-                  }
-                  navigate('workout');
-                }}
-              >
-                {t('home.startSession')}
-                <Play className="w-[18px] h-[18px] fill-current" />
-              </button>
-              <div className="relative w-[54px] h-[54px] shrink-0">
-                <svg width="54" height="54" className="block -rotate-90">
-                  <circle cx="27" cy="27" r={HERO_RING_R} stroke="rgba(255,255,255,.1)" strokeWidth="5" fill="none" />
-                  <circle
-                    cx="27"
-                    cy="27"
-                    r={HERO_RING_R}
-                    stroke="url(#heroRingGrad)"
-                    strokeWidth="5"
-                    fill="none"
-                    strokeLinecap="round"
-                    strokeDasharray={HERO_RING_C}
-                    strokeDashoffset={HERO_RING_C * (1 - Math.min(100, progressPercentage) / 100)}
-                    style={{ transition: 'stroke-dashoffset 1s var(--ease)' }}
-                  />
-                  <defs>
-                    <linearGradient id="heroRingGrad" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0" stopColor="#ff8a5c" />
-                      <stop offset="1" stopColor="#e11d48" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center font-display font-bold text-[13px] leading-none" style={{ color: 'var(--txt-hi)' }}>
-                  {progressPercentage}%
-                  <small className="text-[7px] uppercase tracking-widest mt-0.5" style={{ color: 'var(--txt-lo)' }}>{t('home.programLabel')}</small>
-                </div>
-              </div>
-            </div>
+            <p className="relative text-[12.5px] mb-4" style={{ color: 'var(--txt-mid)' }}>
+              {t('home.currentWeekHint')}
+            </p>
+            <button
+              type="button"
+              className="home-start-btn relative"
+              onClick={() => {
+                handleClientWeekChange(activeWeek);
+                navigate('workout');
+              }}
+            >
+              {t('home.openWorkouts')}
+              <Play className="w-[18px] h-[18px] fill-current" />
+            </button>
           </div>
 
           {/* Explore grid */}

@@ -8,6 +8,26 @@ import {
 } from '../types';
 
 /**
+ * Latest week the coach has deployed for the client (has workout days).
+ * Prefers unlocked/deployed weeks; falls back to any week that has days.
+ */
+export function getLatestDeployedWeekNumber(
+  assignment: { weeks?: any[]; currentWeek?: number; current_week?: number } | null | undefined
+): number {
+  const weeks = Array.isArray(assignment?.weeks) ? assignment!.weeks! : [];
+  const withDays = weeks.filter((w: any) => Array.isArray(w?.days) && w.days.length > 0);
+  if (withDays.length === 0) {
+    return Math.max(1, Number(assignment?.currentWeek ?? assignment?.current_week ?? 1) || 1);
+  }
+
+  const unlocked = withDays.filter(
+    (w: any) => w.isUnlocked === true || w.deployedAt != null || w.weekNumber === 1
+  );
+  const pool = unlocked.length > 0 ? unlocked : withDays;
+  return Math.max(...pool.map((w: any) => Number(w.weekNumber) || 1));
+}
+
+/**
  * Deep copy a week's data and reset completion state.
  * Used when creating the next week from previous week's actual performance.
  * Generates new IDs for exercises/sets to avoid collisions.
@@ -139,6 +159,7 @@ export function addWeekToAssignment(
   return {
     ...assignment,
     weeks: [...existing, newWeek],
+    currentWeek: newWeek.weekNumber,
     lastModifiedBy: 'coach',
     lastModifiedAt: new Date(),
   };

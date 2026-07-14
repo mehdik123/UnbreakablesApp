@@ -269,6 +269,27 @@
   .home-prompt { font-size: 14px; color: var(--txt-mid); margin: 6px 2px 16px; }
   .home-prompt b { color: var(--txt-hi); font-weight: 600; }
 
+  .home-prog {
+    background: var(--surface-1);
+    border: 1px solid var(--hair);
+    border-radius: var(--r-md);
+    padding: 14px 14px 12px;
+    margin-bottom: 14px;
+  }
+  .home-prog-track {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--glass);
+    border: 1px solid var(--hair);
+    overflow: hidden;
+  }
+  .home-prog-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--grad-red);
+    transition: width 0.8s var(--ease);
+  }
+
   .home-stats { display: flex; gap: 9px; margin-bottom: 18px; }
   .home-qstat {
     flex: 1;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, memo, useCallback } from 'react';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { 
   Dumbbell, 
@@ -24,7 +24,6 @@ import {
   patchClientOfflineSnapshot,
 } from '../lib/offlineStore';
 import { ExerciseVideoEmbed } from './ExerciseVideoEmbed';
-import { getNextWorkoutSession } from '../utils/nextWorkoutSession';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -78,8 +77,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const [localAssignment, setLocalAssignment] = useState<ClientWorkoutAssignment | null>(client.workoutAssignment || null);
   const [exerciseSaveState, setExerciseSaveState] = useState<{ [exerciseId: string]: 'saving' | 'saved' }>({});
   const [activeVideoExerciseId, setActiveVideoExerciseId] = useState<string | null>(null);
-  /** Only jump to next-session day once when opening this screen — never after Save my numbers */
-  const hasFocusedNextSessionRef = useRef(false);
 
   // Performance tracking
   const { recordExercise } = usePerformanceTracking({
@@ -206,21 +203,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                 } as any;
                 setLocalAssignment(loaded);
                 onAssignmentUpdated?.(loaded);
-                // Open on next session once; stay put after subsequent saves/reloads
-                if (!hasFocusedNextSessionRef.current) {
-                  const next = getNextWorkoutSession(loaded, client.numberOfWeeks || raw.duration || 12, {
-                    current_week: asg.current_week,
-                    current_day: asg.current_day,
-                    last_modified_by: (asg as any).last_modified_by,
-                  });
-                  if (next) {
-                    hasFocusedNextSessionRef.current = true;
-                    setCurrentDay(next.dayIndex);
-                    if (next.week !== currentWeek && onWeekChange) {
-                      onWeekChange(next.week);
-                    }
-                  }
-                }
               }
               setSharedVersion(asg.version || 0);
               return;
@@ -266,16 +248,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             };
           }
           setWorkoutProgram(programToSet);
-          if (assignmentForNext && !hasFocusedNextSessionRef.current) {
-            const next = getNextWorkoutSession(assignmentForNext, client.numberOfWeeks || 12);
-            if (next) {
-              hasFocusedNextSessionRef.current = true;
-              setCurrentDay(next.dayIndex);
-              if (next.week !== currentWeek && onWeekChange) {
-                onWeekChange(next.week);
-              }
-            }
-          }
         }
       } catch {}
     })();
