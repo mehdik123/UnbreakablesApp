@@ -422,13 +422,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     };
   }, [client.id, client.name, client.cardioPlan, route, t, isOnline]);
 
-  // When parent passes an updated active week (e.g. coach changed it), apply unless client just picked a week
+  // When parent/assignment updates, prefer latest deployed week (not a stale currentWeek: 1)
   useEffect(() => {
-    const w = client.workoutAssignment?.currentWeek;
-    if (w == null || w < 1) return;
     if (Date.now() < weekSyncLockUntilRef.current) return;
-    setCurrentWeek(w);
-  }, [client.workoutAssignment?.currentWeek]);
+    const w = getLatestDeployedWeekNumber(client.workoutAssignment);
+    if (w >= 1 && w !== currentWeek) setCurrentWeek(w);
+  }, [client.workoutAssignment]);
 
   // Real-time sync for current week from database
   useEffect(() => {
@@ -447,19 +446,25 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         if (cRow?.id) {
           const { data: assignment } = await supabase
             .from('workout_assignments')
-            .select('current_week, last_modified_by')
+            .select('current_week, last_modified_by, program_json')
             .eq('client_id', cRow.id)
             .eq('is_active', true)
             .order('last_modified_at', { ascending: false })
             .limit(1)
             .maybeSingle();
 
-          if (assignment?.current_week && assignment.current_week !== currentWeek) {
+          if (!assignment) return;
+          const fromJson = getLatestDeployedWeekNumber({
+            weeks: (assignment.program_json as any)?.weeks,
+            currentWeek: assignment.current_week,
+          });
+          const resolved = Math.max(fromJson, assignment.current_week || 1);
+          if (resolved !== currentWeek) {
             if (assignment.last_modified_by === 'coach') {
               weekSyncLockUntilRef.current = 0;
             }
             if (Date.now() >= weekSyncLockUntilRef.current) {
-              setCurrentWeek(assignment.current_week);
+              setCurrentWeek(resolved);
             }
           }
         }
@@ -485,14 +490,18 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
           filter: `client_id=eq.${client.id}`
         }, 
         (payload) => {
-
-          if (payload.new.current_week && payload.new.current_week !== currentWeek) {
-            if (payload.new.last_modified_by === 'coach') {
-              weekSyncLockUntilRef.current = 0;
-            }
-            if (Date.now() >= weekSyncLockUntilRef.current) {
-              setCurrentWeek(payload.new.current_week);
-            }
+          const row: any = payload.new;
+          if (row.last_modified_by === 'coach') {
+            weekSyncLockUntilRef.current = 0;
+          }
+          if (Date.now() < weekSyncLockUntilRef.current) return;
+          const fromJson = getLatestDeployedWeekNumber({
+            weeks: row.program_json?.weeks,
+            currentWeek: row.current_week,
+          });
+          const resolved = Math.max(fromJson, Number(row.current_week) || 1);
+          if (resolved >= 1 && resolved !== currentWeek) {
+            setCurrentWeek(resolved);
           }
         }
       )
@@ -654,10 +663,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   }, [client.id, client.name, currentWeek, isOnline, nutritionPlan]);
 
   const assignmentForWeeks = effectiveWorkoutAssignment ?? client.workoutAssignment;
-  const clientForCharts = useMemo(
-    () => ({ ...client, workoutAssignment: effectiveWorkoutAssignment ?? client.workoutAssignment }),
-    [client, effectiveWorkoutAssignment, client.workoutAssignment]
-  );
+  const clientForCharts = useMemo(() => {
+    const wa = effectiveWorkoutAssignment ?? client.workoutAssignment;
+    if (!wa) return { ...client, workoutAssignment: wa };
+    const latest = getLatestDeployedWeekNumber(wa);
+    return {
+      ...client,
+      workoutAssignment: { ...wa, currentWeek: latest },
+    };
+  }, [client, effectiveWorkoutAssignment, client.workoutAssignment]);
   const getWeekStatus = (weekNumber: number): 'locked' | 'active' | 'completed' => {
     if (!assignmentForWeeks?.weeks) return 'locked';
     
@@ -683,14 +697,6 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   );
 
   const progressPercentage = Math.round((activeWeek / totalWeeks) * 100);
-
-  // Keep client on the newly deployed week unless they just picked another week in workout
-  useEffect(() => {
-    if (Date.now() < weekSyncLockUntilRef.current) return;
-    if (activeWeek >= 1 && activeWeek !== currentWeek) {
-      setCurrentWeek(activeWeek);
-    }
-  }, [activeWeek, currentWeek]);
 
   const nutritionDailyKcal = useMemo(() => {
     if (!nutritionPlan?.mealSlots?.length) return null;

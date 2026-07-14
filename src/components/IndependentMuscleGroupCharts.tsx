@@ -5,6 +5,7 @@ import { Client, ClientWorkoutAssignment, Exercise } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { computeVolumeFromAssignment, MuscleVolumeData } from '../utils/volumeCalculator';
 import { formatChartVolume } from '../utils/youtube';
+import { getLatestDeployedWeekNumber } from '../utils/weekCreation';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface IndependentMuscleGroupChartsProps {
@@ -81,8 +82,8 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
     [client.workoutAssignment, availableMuscleGroups]
   );
 
-  // Current week's days: use assignment.weeks[currentWeek].days (client-saved reps/weight) when present, else program.days
-  const currentWeek = client.workoutAssignment?.currentWeek ?? 1;
+  // Latest deployed week (not a stale assignment.currentWeek that can stay at 1 after week 2 is added)
+  const currentWeek = getLatestDeployedWeekNumber(client.workoutAssignment);
   const displayDaysForCurrentWeek = useMemo(() => {
     const assignment = client.workoutAssignment;
     if (!assignment) return [];
