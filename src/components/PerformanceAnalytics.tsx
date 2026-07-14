@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { computeVolumeFromAssignment } from '../utils/volumeCalculator';
+import { getLatestDeployedWeekNumber } from '../utils/weekCreation';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 
 interface MuscleGroupData {
@@ -169,7 +170,8 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
   const muscleGroups = useMemo((): MuscleGroupData[] => {
     if (!workoutAssignment?.program || availableMuscleGroups.length === 0) return [];
     const volumeData = computeVolumeFromAssignment(workoutAssignment, availableMuscleGroups);
-    const currentWeekNumber = workoutAssignment.currentWeek || 1;
+    // Same as charts: latest deployed week, not a stale assignment.currentWeek (often stuck at 1)
+    const currentWeekNumber = getLatestDeployedWeekNumber(workoutAssignment);
     const result: MuscleGroupData[] = [];
 
     availableMuscleGroups.forEach((muscleGroup) => {

@@ -1382,7 +1382,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               clientId={databaseClientId || client.id}
               clientName={client.name}
               isDark={isDark}
-              workoutAssignment={effectiveWorkoutAssignment ?? client.workoutAssignment}
+              workoutAssignment={clientForCharts.workoutAssignment ?? effectiveWorkoutAssignment ?? client.workoutAssignment}
             />
           ) : activeTab === 'weight' ? (
             <UltraModernWeeklyWeightLogger
