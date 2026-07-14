@@ -90,13 +90,25 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     return saved === 'dark';
   });
   const [currentWeek, setCurrentWeek] = useState<number>(() => {
-    return client.workoutAssignment?.currentWeek || 1;
+    return getLatestDeployedWeekNumber(client.workoutAssignment) || client.workoutAssignment?.currentWeek || 1;
   });
-  /** After client picks a week, ignore DB/prop sync briefly so polling does not snap back before `current_week` persists */
-  const weekSyncLockUntilRef = useRef(0);
+  /**
+   * Once the client picks a week in the workout strip, keep it until they leave
+   * via home "Open workouts" (do not snap back to latest deployed after a few seconds).
+   */
+  const weekBrowsePinnedRef = useRef(false);
   const handleClientWeekChange = useCallback((week: number) => {
+    weekBrowsePinnedRef.current = true;
     setCurrentWeek(week);
-    weekSyncLockUntilRef.current = Date.now() + 8000;
+  }, []);
+  const jumpToActiveTrainingWeek = useCallback((week: number) => {
+    weekBrowsePinnedRef.current = false;
+    setCurrentWeek(week);
+  }, []);
+  const applySyncedWeekIfUnpinned = useCallback((week: number) => {
+    if (weekBrowsePinnedRef.current) return;
+    if (week < 1) return;
+    setCurrentWeek((prev) => (prev === week ? prev : week));
   }, []);
   // Latest assignment (from save or sync) so Progress charts and Performance see client edits
   const [effectiveWorkoutAssignment, setEffectiveWorkoutAssignment] = useState(client.workoutAssignment ?? undefined);
@@ -422,12 +434,11 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     };
   }, [client.id, client.name, client.cardioPlan, route, t, isOnline]);
 
-  // When parent/assignment updates, prefer latest deployed week (not a stale currentWeek: 1)
+  // Only auto-follow latest deployed week when the client is not browsing another week
   useEffect(() => {
-    if (Date.now() < weekSyncLockUntilRef.current) return;
     const w = getLatestDeployedWeekNumber(client.workoutAssignment);
-    if (w >= 1 && w !== currentWeek) setCurrentWeek(w);
-  }, [client.workoutAssignment]);
+    applySyncedWeekIfUnpinned(w);
+  }, [client.workoutAssignment, applySyncedWeekIfUnpinned]);
 
   // Real-time sync for current week from database
   useEffect(() => {
@@ -459,14 +470,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             currentWeek: assignment.current_week,
           });
           const resolved = Math.max(fromJson, assignment.current_week || 1);
-          if (resolved !== currentWeek) {
-            if (assignment.last_modified_by === 'coach') {
-              weekSyncLockUntilRef.current = 0;
-            }
-            if (Date.now() >= weekSyncLockUntilRef.current) {
-              setCurrentWeek(resolved);
-            }
-          }
+          applySyncedWeekIfUnpinned(resolved);
         }
       } catch (error) {
         console.error('Error syncing current week:', error);
@@ -491,18 +495,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         }, 
         (payload) => {
           const row: any = payload.new;
-          if (row.last_modified_by === 'coach') {
-            weekSyncLockUntilRef.current = 0;
-          }
-          if (Date.now() < weekSyncLockUntilRef.current) return;
           const fromJson = getLatestDeployedWeekNumber({
             weeks: row.program_json?.weeks,
             currentWeek: row.current_week,
           });
           const resolved = Math.max(fromJson, Number(row.current_week) || 1);
-          if (resolved >= 1 && resolved !== currentWeek) {
-            setCurrentWeek(resolved);
-          }
+          applySyncedWeekIfUnpinned(resolved);
         }
       )
       .subscribe();
@@ -513,7 +511,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         supabase.removeChannel(channel);
       }
     };
-  }, [client.id, client.name, currentWeek, isOnline]);
+  }, [client.id, client.name, isOnline, applySyncedWeekIfUnpinned]);
 
   // Update weeks with real-time sync
   useEffect(() => {
@@ -624,20 +622,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               });
               const freshWeeks = raw.weeks || [];
               if (freshWeeks.length > 0) {
-                if (assignment.last_modified_by === 'coach') {
-                  weekSyncLockUntilRef.current = 0;
-                }
-                if (Date.now() >= weekSyncLockUntilRef.current) {
-                  const deployedWeekNumbers = freshWeeks.map((w: any) => w.weekNumber);
-                  const latestDeployed = getLatestDeployedWeekNumber(freshAssignment);
-                  const rawWeek = assignment.current_week || latestDeployed || 1;
-                  const newCurrentWeek = deployedWeekNumbers.includes(latestDeployed)
-                    ? latestDeployed
-                    : deployedWeekNumbers.includes(rawWeek)
-                    ? rawWeek
-                    : Math.min(rawWeek, Math.max(...deployedWeekNumbers)) || deployedWeekNumbers[0];
-                  if (newCurrentWeek !== currentWeek) setCurrentWeek(newCurrentWeek);
-                }
+                const deployedWeekNumbers = freshWeeks.map((w: any) => w.weekNumber);
+                const latestDeployed = getLatestDeployedWeekNumber(freshAssignment);
+                const rawWeek = assignment.current_week || latestDeployed || 1;
+                const newCurrentWeek = deployedWeekNumbers.includes(latestDeployed)
+                  ? latestDeployed
+                  : deployedWeekNumbers.includes(rawWeek)
+                  ? rawWeek
+                  : Math.min(rawWeek, Math.max(...deployedWeekNumbers)) || deployedWeekNumbers[0];
+                applySyncedWeekIfUnpinned(newCurrentWeek);
               }
             }
           } else {
@@ -660,7 +653,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     }, 1000); // Check every 1 second for faster sync
 
     return () => clearInterval(interval);
-  }, [client.id, client.name, currentWeek, isOnline, nutritionPlan]);
+  }, [client.id, client.name, currentWeek, isOnline, nutritionPlan, applySyncedWeekIfUnpinned]);
 
   const assignmentForWeeks = effectiveWorkoutAssignment ?? client.workoutAssignment;
   const clientForCharts = useMemo(() => {
@@ -1089,7 +1082,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               type="button"
               className="home-start-btn relative"
               onClick={() => {
-                handleClientWeekChange(activeWeek);
+                jumpToActiveTrainingWeek(activeWeek);
                 navigate('workout');
               }}
             >

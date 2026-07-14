@@ -24,6 +24,7 @@ import {
   patchClientOfflineSnapshot,
 } from '../lib/offlineStore';
 import { ExerciseVideoEmbed } from './ExerciseVideoEmbed';
+import { getLatestDeployedWeekNumber } from '../utils/weekCreation';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -424,23 +425,20 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 
   // Program is built week-by-week by the coach: figure out whether more weeks are still to come
   const totalProgramWeeks = client.numberOfWeeks || 12;
-  const maxDeployedWeek = deployedWeeks.length ? Math.max(...deployedWeeks.map((w) => w.weekNumber)) : currentWeek;
+  /** Latest deployed week = "current" for tags (not the week the client is browsing) */
+  const programCurrentWeek = getLatestDeployedWeekNumber(
+    localAssignment || client.workoutAssignment
+  );
+  const maxDeployedWeek = programCurrentWeek;
   const nextWeekNumber = maxDeployedWeek + 1;
   const moreWeeksComing = nextWeekNumber <= totalProgramWeeks;
 
-  // When client selects a week: update UI immediately (parent may lock sync), then persist so polling/realtime match
+  // Week strip is view-only navigation — do not persist current_week (that snaps the client back on sync)
   const handleWeekSelect = useCallback(
-    async (newWeek: number) => {
+    (newWeek: number) => {
       onWeekChange?.(newWeek);
-      if (isSupabaseReady && supabase && assignmentId) {
-        const { error } = await supabase
-          .from('workout_assignments')
-          .update({ current_week: newWeek, last_modified_by: 'client' })
-          .eq('id', assignmentId);
-        if (error) console.error('Failed to persist week selection:', error);
-      }
     },
-    [assignmentId, onWeekChange, isSupabaseReady, supabase]
+    [onWeekChange]
   );
 
   // If no workout program is assigned, show a message
@@ -975,9 +973,14 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                 style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
               >
                 {deployedWeeks.map((w) => {
-                  const isActive = w.weekNumber === currentWeek;
-                  const done = (w as any).isCompleted === true || w.weekNumber < currentWeek;
-                  const label = isActive ? t('workout.wkCurrent') : done ? t('workout.wkDone') : t('workout.wkSoon');
+                  const isViewing = w.weekNumber === currentWeek;
+                  const isProgramCurrent = w.weekNumber === programCurrentWeek;
+                  const done = w.weekNumber < programCurrentWeek;
+                  const label = isProgramCurrent
+                    ? t('workout.wkCurrent')
+                    : done
+                    ? t('workout.wkDone')
+                    : t('workout.wkSoon');
                   return (
                     <button
                       key={w.weekNumber}
@@ -986,13 +989,21 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                         setWeekStripOpen(false);
                       }}
                       className={`flex-1 min-w-[64px] text-center py-2 rounded-[11px] text-[13px] font-semibold transition-all duration-200 ${
-                        isActive ? 'text-white bg-grad-red shadow-red' : ''
+                        isViewing ? 'text-white bg-grad-red shadow-red' : ''
                       }`}
-                      style={isActive ? undefined : { color: 'var(--txt-mid)' }}
+                      style={isViewing ? undefined : { color: 'var(--txt-mid)' }}
                     >
                       <span
                         className="block text-[9px] font-semibold uppercase tracking-[0.1em] mb-0.5"
-                        style={{ color: isActive ? 'rgba(255,255,255,.75)' : done ? 'var(--emerald)' : 'var(--txt-lo)' }}
+                        style={{
+                          color: isViewing
+                            ? 'rgba(255,255,255,.75)'
+                            : isProgramCurrent
+                            ? 'var(--red)'
+                            : done
+                            ? 'var(--emerald)'
+                            : 'var(--txt-lo)',
+                        }}
                       >
                         {label}
                       </span>
