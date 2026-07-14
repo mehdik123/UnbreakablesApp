@@ -38,6 +38,10 @@ export const getSupplementsByCategory = async (category: string) => {
 // ============================================
 
 export const getClientSupplements = async (clientId: string) => {
+  if (import.meta.env.DEV && clientId === 'marketing-demo') {
+    const { marketingDemoSupplements } = await import('../data/marketingDemoData');
+    return { data: marketingDemoSupplements, error: null };
+  }
   if (!supabase) {
     return { data: null, error: new Error('Supabase not initialized') };
   }
@@ -123,6 +127,10 @@ export const updateClientSupplement = async (
 // ============================================
 
 export const getClientHydration = async (clientId: string) => {
+  if (import.meta.env.DEV && clientId === 'marketing-demo') {
+    const { marketingDemoHydration } = await import('../data/marketingDemoData');
+    return { data: marketingDemoHydration, error: null };
+  }
   if (!supabase) {
     return { data: null, error: new Error('Supabase not initialized') };
   }

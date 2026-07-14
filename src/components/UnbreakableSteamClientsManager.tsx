@@ -138,7 +138,8 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
     goal: 'maintenance' as 'shredding' | 'bulking' | 'maintenance',
     numberOfWeeks: 12,
     startDate: new Date(),
-    isActive: true
+    isActive: true,
+    startingWeight: '' as string,
   });
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
@@ -267,9 +268,19 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
 
   const handleAddClient = (e: React.FormEvent) => {
     e.preventDefault();
+    const parsedStart =
+      newClient.startingWeight.trim() === ''
+        ? undefined
+        : Number.parseFloat(newClient.startingWeight.replace(',', '.'));
+    const startingWeight =
+      typeof parsedStart === 'number' && Number.isFinite(parsedStart) && parsedStart > 0
+        ? Math.round(parsedStart * 10) / 10
+        : undefined;
+    const { startingWeight: _sw, ...rest } = newClient;
     const client: Client = {
       id: Date.now().toString(),
-      ...newClient,
+      ...rest,
+      startingWeight,
       weightLog: [],
       favorites: [],
       nutritionPlan: undefined,
@@ -284,7 +295,8 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
       goal: 'maintenance',
       numberOfWeeks: 12,
       startDate: new Date(),
-      isActive: true
+      isActive: true,
+      startingWeight: '',
     });
   };
 
@@ -965,6 +977,26 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     max="52"
                     required
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
+                    Starting weight (kg)
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="0.1"
+                    min="20"
+                    max="400"
+                    value={newClient.startingWeight}
+                    onChange={(e) => setNewClient({ ...newClient, startingWeight: e.target.value })}
+                    className="w-full px-4 py-3 rounded-lg border border-slate-600 bg-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-300"
+                    placeholder="e.g. 70"
+                  />
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    Baseline for the home weight highlight. Shown once the client logs their first weight.
+                  </p>
                 </div>
 
                 <div className="sticky bottom-0 bg-slate-800/95 backdrop-blur-sm pt-4">

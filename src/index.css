@@ -270,24 +270,94 @@
   .home-prompt b { color: var(--txt-hi); font-weight: 600; }
 
   .home-prog {
-    background: var(--surface-1);
-    border: 1px solid var(--hair);
-    border-radius: var(--r-md);
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(120% 120% at 0% 0%, rgba(255, 45, 85, 0.14), transparent 55%),
+      linear-gradient(135deg, var(--surface-2), var(--surface-1));
+    border: 1px solid rgba(255, 45, 85, 0.16);
+    border-radius: var(--r-lg);
     padding: 14px 14px 12px;
     margin-bottom: 14px;
+    box-shadow: 0 14px 36px -22px rgba(255, 45, 85, 0.35);
+  }
+  .home-prog-glow {
+    pointer-events: none;
+    position: absolute;
+    inset: -40% -20% auto auto;
+    width: 55%;
+    height: 90%;
+    background: radial-gradient(circle, rgba(255, 45, 85, 0.18), transparent 70%);
+    opacity: 0.7;
+  }
+  .home-prog-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .home-prog-ring {
+    --prog: 0;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    background:
+      conic-gradient(from -90deg, var(--red) calc(var(--prog) * 1%), transparent 0),
+      var(--surface-3);
+    border: 1px solid var(--hair-strong);
+    box-shadow: inset 0 0 0 5px var(--surface-1);
+  }
+  .home-prog-ring-val {
+    font-size: 12px;
+    color: var(--txt-hi);
+    letter-spacing: -0.02em;
   }
   .home-prog-track {
-    height: 8px;
+    height: 9px;
     border-radius: 999px;
     background: var(--glass);
     border: 1px solid var(--hair);
     overflow: hidden;
   }
   .home-prog-fill {
+    position: relative;
     height: 100%;
     border-radius: inherit;
     background: var(--grad-red);
-    transition: width 0.8s var(--ease);
+    box-shadow: 0 0 16px rgba(255, 45, 85, 0.45);
+    transition: width 0.9s var(--ease);
+  }
+  .home-prog-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    transform: translateX(-120%);
+  }
+  .home-prog-pips {
+    display: flex;
+    gap: 4px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .home-prog-pip {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--surface-3);
+    border: 1px solid var(--hair);
+    transition: background 0.3s var(--ease), transform 0.3s var(--ease), box-shadow 0.3s var(--ease);
+  }
+  .home-prog-pip.is-done {
+    background: var(--red);
+    border-color: transparent;
+    box-shadow: 0 0 8px rgba(255, 45, 85, 0.45);
+  }
+  .home-prog-pip.is-now {
+    transform: scale(1.25);
   }
 
   .home-stats { display: flex; gap: 9px; margin-bottom: 18px; }
@@ -297,6 +367,96 @@
     border: 1px solid var(--hair);
     border-radius: var(--r-md);
     padding: 12px 11px;
+  }
+
+  .home-weight-card {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    margin-bottom: 14px;
+    padding: 14px 14px;
+    border-radius: var(--r-lg);
+    background:
+      radial-gradient(120% 120% at 100% 0%, rgba(255, 45, 85, 0.18), transparent 52%),
+      linear-gradient(135deg, var(--surface-2), var(--surface-1));
+    border: 1px solid rgba(255, 45, 85, 0.2);
+    box-shadow: 0 16px 40px -24px rgba(255, 45, 85, 0.45);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      transform 0.18s var(--spring),
+      border-color 0.2s var(--ease),
+      box-shadow 0.2s var(--ease);
+  }
+  .home-weight-card:active {
+    transform: scale(0.975);
+  }
+  .home-weight-glow {
+    pointer-events: none;
+    position: absolute;
+    inset: auto -10% -40% auto;
+    width: 50%;
+    height: 80%;
+    background: radial-gradient(circle, rgba(255, 45, 85, 0.22), transparent 70%);
+  }
+  .home-weight-ic {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    color: #fff;
+    background: var(--grad-red);
+    box-shadow: 0 10px 22px -10px rgba(255, 45, 85, 0.7);
+  }
+  .home-weight-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .home-weight-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+    background: var(--glass);
+    border: 1px solid var(--hair);
+    color: var(--txt-mid);
+  }
+  .home-weight-chip.up {
+    color: var(--emerald);
+    background: rgba(52, 211, 153, 0.1);
+    border-color: rgba(52, 211, 153, 0.28);
+  }
+  .home-weight-chip.down {
+    color: var(--red);
+    background: rgba(255, 45, 85, 0.1);
+    border-color: rgba(255, 45, 85, 0.28);
+  }
+  .home-weight-chip.muted {
+    font-family: Inter, system-ui, sans-serif;
+    font-weight: 600;
+    font-size: 10.5px;
+    color: var(--txt-mid);
+  }
+  .home-weight-chevron {
+    color: var(--txt-lo);
+    transition: transform 0.2s var(--ease), color 0.2s var(--ease);
+  }
+  .home-weight-card:active .home-weight-chevron {
+    transform: translateX(3px);
+    color: var(--red);
+  }
+  .home-weight-spark {
+    opacity: 0.95;
   }
 
   .home-hero {
@@ -503,12 +663,45 @@
     @keyframes home-rise {
       to { opacity: 1; transform: none; }
     }
+    .home-prog-fill::after {
+      animation: home-prog-sheen 2.4s var(--ease) 0.6s infinite;
+    }
+    @keyframes home-prog-sheen {
+      0% { transform: translateX(-120%); }
+      55%, 100% { transform: translateX(140%); }
+    }
+    .home-prog-pip.is-now {
+      animation: home-pip-pulse 1.8s var(--ease) infinite;
+    }
+    @keyframes home-pip-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255, 45, 85, 0.45); }
+      50% { box-shadow: 0 0 0 5px rgba(255, 45, 85, 0); }
+    }
+    .home-weight-ic {
+      animation: home-weight-ic-soft 2.8s var(--ease) infinite;
+    }
+    @keyframes home-weight-ic-soft {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+    }
+    .home-weight-dot {
+      animation: home-weight-dot 1.6s var(--ease) infinite;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    @keyframes home-weight-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.35); opacity: 0.85; }
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .home-hero-pip { animation: none; }
     .home-start-btn:active { transform: none; }
     .home-tile:active { transform: none; }
+    .home-weight-card:active { transform: none; }
+    .home-prog-fill::after { display: none; }
+    .home-prog-pip.is-now { transform: none; }
   }
 
   /* Workout screen — aligned with home dashboard tokens */

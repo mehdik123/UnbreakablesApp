@@ -12,6 +12,10 @@ interface ExerciseVideoEmbedProps {
   isPlaying?: boolean;
   onPlay?: () => void;
   onClose?: () => void;
+  /** Override thumbnail (e.g. coach's own video cover for marketing). */
+  posterUrl?: string;
+  /** Marketing screenshots: hide the real YouTube thumbnail (coach uploads their own clips). */
+  hideThumbnail?: boolean;
 }
 
 export const ExerciseVideoEmbed: React.FC<ExerciseVideoEmbedProps> = ({
@@ -23,10 +27,12 @@ export const ExerciseVideoEmbed: React.FC<ExerciseVideoEmbedProps> = ({
   isPlaying = false,
   onPlay,
   onClose,
+  posterUrl,
+  hideThumbnail = false,
 }) => {
   const [offlineHint, setOfflineHint] = useState(false);
   const embedUrl = toYoutubeEmbedUrl(videoUrl || '');
-  const thumbnail = getYouTubeThumbnail(videoUrl || '');
+  const thumbnail = posterUrl || getYouTubeThumbnail(videoUrl || '');
   const nocookieEmbed = embedUrl?.replace('www.youtube.com', 'www.youtube-nocookie.com') ?? null;
 
   if (!embedUrl) return null;
@@ -85,7 +91,7 @@ export const ExerciseVideoEmbed: React.FC<ExerciseVideoEmbedProps> = ({
           'radial-gradient(120% 120% at 70% 20%, rgba(255,45,85,.22), transparent 55%), linear-gradient(135deg,#23262f,#0e0f14)',
       }}
     >
-      {thumbnail && (
+      {thumbnail && !hideThumbnail && (
         <img
           src={thumbnail}
           alt={`${title} demonstration`}

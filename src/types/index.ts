@@ -126,6 +126,8 @@ export interface Client {
   isActive: boolean;
   favorites: string[]; // meal IDs
   weightLog: WeightEntry[];
+  /** Coach-set baseline body weight (kg) at client creation — home compares latest log vs this */
+  startingWeight?: number;
   nutritionPlan?: NutritionPlan;
   workoutAssignment?: ClientWorkoutAssignment;
   cardioPlan?: CardioPlan;

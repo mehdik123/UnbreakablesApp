@@ -79,6 +79,21 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const [exerciseSaveState, setExerciseSaveState] = useState<{ [exerciseId: string]: 'saving' | 'saved' }>({});
   const [activeVideoExerciseId, setActiveVideoExerciseId] = useState<string | null>(null);
 
+  // Marketing screenshots: scroll so the requested block is in frame (form demo by default, or sets)
+  useEffect(() => {
+    if (client.id !== 'marketing-demo') return;
+    const focus = new URLSearchParams(window.location.search).get('focus');
+    if (focus === 'none') return;
+    const selector = focus === 'sets' ? '[data-marketing-sets]' : '[data-marketing-form-demo]';
+    const id = window.setTimeout(() => {
+      document.querySelector<HTMLElement>(selector)?.scrollIntoView({
+        block: focus === 'sets' ? 'start' : 'center',
+        behavior: 'instant' as ScrollBehavior,
+      });
+    }, 900);
+    return () => window.clearTimeout(id);
+  }, [client.id, currentDay, currentWeek]);
+
   // Performance tracking
   const { recordExercise } = usePerformanceTracking({
     clientId: client.id,
@@ -407,9 +422,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   // Heuristic: detect obviously old data (fallback sample IDs or missing videoUrl)
   // Only show old data warning if we have exercises but no video URLs AND no Supabase assignment
   const hasSupabaseAssignment = assignmentId && workoutProgram;
-  const isUsingOldData = !hasSupabaseAssignment && currentWorkoutProgram?.days?.some(day =>
-    day.exercises?.some(ex => !ex.exercise?.videoUrl)
-  );
+  const isUsingOldData =
+    client.id !== 'marketing-demo' &&
+    !hasSupabaseAssignment &&
+    currentWorkoutProgram?.days?.some((day) => day.exercises?.some((ex) => !ex.exercise?.videoUrl));
   
   
   // Check if using old data (not CSV data)
@@ -1314,19 +1330,22 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                   </div>
 
                   {/* Form demo video — plays inline */}
-                  <ExerciseVideoEmbed
-                    videoUrl={exercise.exercise.videoUrl}
-                    title={exercise.exercise.name}
-                    formDemoLabel={t('workout.formDemo')}
-                    watchDemoLabel={t('workout.watchDemo')}
-                    offlineLabel={t('workout.videoOffline')}
-                    isPlaying={activeVideoExerciseId === exercise.id}
-                    onPlay={() => setActiveVideoExerciseId(exercise.id)}
-                    onClose={() => setActiveVideoExerciseId(null)}
-                  />
+                  <div {...(exerciseIndex === 0 ? { 'data-marketing-form-demo': true } : {})}>
+                    <ExerciseVideoEmbed
+                      videoUrl={exercise.exercise.videoUrl}
+                      title={exercise.exercise.name}
+                      formDemoLabel={t('workout.formDemo')}
+                      watchDemoLabel={t('workout.watchDemo')}
+                      offlineLabel={t('workout.videoOffline')}
+                      isPlaying={activeVideoExerciseId === exercise.id}
+                      onPlay={() => setActiveVideoExerciseId(exercise.id)}
+                      onClose={() => setActiveVideoExerciseId(null)}
+                      posterUrl={client.id === 'marketing-demo' ? '/marketing/mehdi-form-demo-cover.png' : undefined}
+                    />
+                  </div>
 
                   {/* Sets & Reps Section */}
-                  <div className="space-y-2 sm:space-y-4 px-3 sm:px-4 pb-4">
+                  <div className="space-y-2 sm:space-y-4 px-3 sm:px-4 pb-4" {...(exerciseIndex === 0 ? { 'data-marketing-sets': true } : {})}>
                       <div className="flex items-center justify-between mb-3 px-0.5">
                         <div className="flex items-center gap-1.5 text-[13px] font-semibold" style={{ color: 'var(--txt-hi)' }}>
                           <Dumbbell className="w-3.5 h-3.5" style={{ color: 'var(--red)' }} />

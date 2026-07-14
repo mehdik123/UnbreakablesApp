@@ -66,6 +66,8 @@ const ClientCardioView = lazy(() => import('./ClientCardioView').then(module => 
 interface ModernClientInterfaceProps {
   client: Client;
   isDark: boolean;
+  /** DEV/marketing only — open a specific client section immediately */
+  initialRoute?: 'home' | 'progressHub' | 'nutrition' | 'supplements' | 'workout' | 'cardio' | 'progress' | 'weight' | 'photos' | 'performance';
 }
 
 // Loading component for Suspense
@@ -77,10 +79,11 @@ const LoadingSpinner = () => (
 
 export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   client,
-  isDark
+  isDark,
+  initialRoute = 'home',
 }) => {
   type Route = 'home' | 'progressHub' | 'nutrition' | 'supplements' | 'workout' | 'cardio' | 'progress' | 'weight' | 'photos' | 'performance';
-  const [route, setRoute] = useState<Route>('home');
+  const [route, setRoute] = useState<Route>(initialRoute);
   const activeTab = route;
   const SECTION_ROUTES: Route[] = ['nutrition', 'supplements', 'workout', 'cardio', 'progress', 'weight', 'photos', 'performance'];
   const [useDarkTheme, setUseDarkTheme] = useState<boolean>(() => {
@@ -119,7 +122,17 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const [weightSparkline, setWeightSparkline] = useState<number[]>([]);
   const [weeklyPhotos, setWeeklyPhotos] = useState<any[]>([]);
   // Real progress stats for the dashboard (weight + strength change). Null = not enough data yet.
-  const [dashStats, setDashStats] = useState<{ weightDelta: number | null; strengthPct: number | null; strengthLift: string | null }>({
+  const [dashStats, setDashStats] = useState<{
+    latestWeight: number | null;
+    weightDeltaKg: number | null;
+    weightDeltaPct: number | null;
+    weightDelta: number | null;
+    strengthPct: number | null;
+    strengthLift: string | null;
+  }>({
+    latestWeight: null,
+    weightDeltaKg: null,
+    weightDeltaPct: null,
     weightDelta: null,
     strengthPct: null,
     strengthLift: null,
@@ -131,7 +144,13 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const [isSyncing, setIsSyncing] = useState(false);
   
   const { locale, setLocale, t, isRtl } = useClientLocale();
-  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const marketingParams =
+    client.id === 'marketing-demo' && typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search)
+      : null;
+  const [langMenuOpen, setLangMenuOpen] = useState(
+    () => marketingParams?.get('openLang') === '1',
+  );
   const langMenuRef = useRef<HTMLDivElement | null>(null);
   const [notifMenuOpen, setNotifMenuOpen] = useState(false);
   const notifMenuRef = useRef<HTMLDivElement | null>(null);
@@ -170,12 +189,13 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const [showWelcome, setShowWelcome] = useState(false);
   const [showHelpGuide, setShowHelpGuide] = useState(false);
   useEffect(() => {
+    if (client.id === 'marketing-demo') return;
     try {
       if (!localStorage.getItem(welcomeKey)) setShowWelcome(true);
     } catch {
       /* ignore storage errors */
     }
-  }, [welcomeKey]);
+  }, [welcomeKey, client.id]);
   const closeWelcome = useCallback(() => {
     setShowWelcome(false);
     try {
@@ -242,6 +262,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
   // Resolve database client UUID from client name
   useEffect(() => {
+    if (client.id === 'marketing-demo') {
+      setDatabaseClientId(client.id);
+      return;
+    }
     const resolveClientId = async () => {
       try {
         if (isSupabaseReady && supabase) {
@@ -261,7 +285,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     };
 
     resolveClientId();
-  }, [client.name]);
+  }, [client.name, client.id]);
 
   // Load nutrition plan and sync current week
   useEffect(() => {
@@ -313,28 +337,49 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     loadNutritionPlan();
   }, [client.id, client.name, client.nutritionPlan, isOnline]);
 
-  // Load real progress stats (weight delta + strength change on the client's most-logged compound lift)
+  // Load real progress stats (weight vs coach starting weight + strength change)
   useEffect(() => {
-    if (!databaseClientId || !isSupabaseReady || !supabase) return;
+    if (!databaseClientId) return;
+    // Skip remote fetch when offline unless marketing demo (local shim data)
+    if (!isSupabaseReady && client.id !== 'marketing-demo') return;
     let cancelled = false;
     (async () => {
       try {
         const [weightLogs, prs] = await Promise.all([
           getClientWeightLogs(databaseClientId),
-          getClientPRHistory(databaseClientId),
+          client.id === 'marketing-demo'
+            ? Promise.resolve([])
+            : getClientPRHistory(databaseClientId),
         ]);
         if (cancelled) return;
 
-        // Weight change since the first logged entry
+        const asc = [...weightLogs].sort((a, b) => a.date.getTime() - b.date.getTime());
+        let latestWeight: number | null = null;
+        let weightDeltaKg: number | null = null;
+        let weightDeltaPct: number | null = null;
         let weightDelta: number | null = null;
-        if (weightLogs.length >= 2) {
-          const asc = [...weightLogs].sort((a, b) => a.date.getTime() - b.date.getTime());
-          weightDelta = Math.round((asc[asc.length - 1].weight - asc[0].weight) * 10) / 10;
-          const slice = asc.slice(-8).map((w) => w.weight);
-          const min = Math.min(...slice);
-          const max = Math.max(...slice);
-          const range = max - min || 1;
-          setWeightSparkline(slice.map((w) => 1 - (w - min) / range));
+
+        if (asc.length >= 1) {
+          latestWeight = Math.round(asc[asc.length - 1].weight * 10) / 10;
+          // Baseline = coach starting weight; fall back to first log for older clients
+          const baseline =
+            typeof client.startingWeight === 'number' && client.startingWeight > 0
+              ? client.startingWeight
+              : asc[0].weight;
+          weightDeltaKg = Math.round((latestWeight - baseline) * 10) / 10;
+          weightDeltaPct =
+            baseline > 0 ? Math.round(((latestWeight - baseline) / baseline) * 1000) / 10 : null;
+          // Progress tile still uses change across logs when ≥2 entries
+          if (asc.length >= 2) {
+            weightDelta = Math.round((asc[asc.length - 1].weight - asc[0].weight) * 10) / 10;
+            const slice = asc.slice(-8).map((w) => w.weight);
+            const min = Math.min(...slice);
+            const max = Math.max(...slice);
+            const range = max - min || 1;
+            setWeightSparkline(slice.map((w) => 1 - (w - min) / range));
+          } else {
+            setWeightSparkline([]);
+          }
         } else {
           setWeightSparkline([]);
         }
@@ -377,7 +422,14 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
           }
         }
 
-        setDashStats({ weightDelta, strengthPct, strengthLift });
+        setDashStats({
+          latestWeight,
+          weightDeltaKg,
+          weightDeltaPct,
+          weightDelta,
+          strengthPct,
+          strengthLift,
+        });
       } catch {
         /* leave stats empty on failure */
       }
@@ -385,7 +437,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [databaseClientId, currentWeek]);
+  }, [databaseClientId, currentWeek, route, client.startingWeight, client.id]);
 
   // Supplements count for home tile status
   useEffect(() => {
@@ -903,6 +955,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         pendingSyncCount={pendingSyncCount}
         onSyncNow={handleSyncNow}
         isSyncing={isSyncing}
+        forceOffline={marketingParams?.get('offline') === '1'}
       />
 
       {/* ============ HOME DASHBOARD (hub) ============ */}
@@ -1043,27 +1096,97 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             <b>{t('home.subtitle')}</b>
           </p>
 
-          {/* Program progress — simple */}
+          {/* Program progress */}
           <div className="home-prog home-anim" style={{ animationDelay: '0.06s' }}>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <span className="text-[10.5px] uppercase tracking-widest font-bold" style={{ color: 'var(--txt-lo)' }}>
-                {t('home.programProgress')}
-              </span>
-              <span className="font-display font-bold text-[13px] tnum" style={{ color: 'var(--txt-hi)' }}>
-                {progressPercentage}%
-              </span>
-            </div>
-            <div className="home-prog-track" aria-hidden="true">
+            <div className="home-prog-glow" aria-hidden="true" />
+            <div className="home-prog-row">
               <div
-                className="home-prog-fill"
-                style={{ width: `${Math.min(100, Math.max(0, progressPercentage))}%` }}
-              />
+                className="home-prog-ring"
+                style={{ ['--prog' as string]: `${Math.min(100, Math.max(0, progressPercentage))}` }}
+                aria-hidden="true"
+              >
+                <span className="home-prog-ring-val font-display font-bold tnum">{progressPercentage}%</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="text-[10.5px] uppercase tracking-widest font-bold" style={{ color: 'var(--txt-lo)' }}>
+                    {t('home.programProgress')}
+                  </span>
+                  <span className="text-[12px] font-semibold" style={{ color: 'var(--txt-mid)' }}>
+                    {t('modern.weekOf', { current: activeWeek, total: totalWeeks })}
+                    {activeWeek >= totalWeeks ? ` · ${t('home.finalWeek')}` : ''}
+                  </span>
+                </div>
+                <div className="home-prog-track" aria-hidden="true">
+                  <div
+                    className="home-prog-fill"
+                    style={{ width: `${Math.min(100, Math.max(0, progressPercentage))}%` }}
+                  />
+                </div>
+                <div className="home-prog-pips" aria-hidden="true">
+                  {(() => {
+                    const pipCount = Math.min(Math.max(totalWeeks, 1), 16);
+                    const filled = Math.max(1, Math.round((activeWeek / Math.max(totalWeeks, 1)) * pipCount));
+                    return Array.from({ length: pipCount }, (_, i) => (
+                      <span
+                        key={i}
+                        className={`home-prog-pip${i < filled ? ' is-done' : ''}${i === filled - 1 ? ' is-now' : ''}`}
+                      />
+                    ));
+                  })()}
+                </div>
+              </div>
             </div>
-            <p className="text-[12px] mt-2 font-medium" style={{ color: 'var(--txt-mid)' }}>
-              {t('modern.weekOf', { current: activeWeek, total: totalWeeks })}
-              {activeWeek >= totalWeeks ? ` · ${t('home.finalWeek')}` : ''}
-            </p>
           </div>
+
+          {/* Body weight highlight — blank until client logs; then latest vs coach starting weight */}
+          {dashStats.latestWeight != null && (
+            <button
+              type="button"
+              onClick={() => navigate('weight')}
+              className="home-weight-card home-anim"
+              style={{ animationDelay: '0.1s' }}
+              aria-label={t('home.weightHighlightAria')}
+            >
+              <div className="home-weight-glow" aria-hidden="true" />
+              <div className="home-weight-ic" aria-hidden="true">
+                <Scale className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1 text-start relative">
+                <div className="text-[10.5px] uppercase tracking-widest font-bold" style={{ color: 'var(--txt-lo)' }}>
+                  {t('home.statWeight')}
+                </div>
+                <div className="font-display font-bold text-[24px] leading-none tnum mt-1 home-weight-num" style={{ color: 'var(--txt-hi)' }}>
+                  {dashStats.latestWeight}
+                  <span className="text-[13px] font-semibold ms-1" style={{ color: 'var(--txt-mid)' }}>kg</span>
+                </div>
+                {dashStats.weightDeltaKg != null && (
+                  <div className="home-weight-chips mt-2">
+                    <span
+                      className={`home-weight-chip font-display tnum${
+                        dashStats.weightDeltaKg > 0 ? ' up' : dashStats.weightDeltaKg < 0 ? ' down' : ''
+                      }`}
+                    >
+                      {dashStats.weightDeltaKg > 0 ? '+' : ''}
+                      {dashStats.weightDeltaKg} kg
+                    </span>
+                    {dashStats.weightDeltaPct != null && (
+                      <span className="home-weight-chip muted">
+                        {dashStats.weightDeltaPct > 0 ? '+' : ''}
+                        {dashStats.weightDeltaPct}% {t('home.weightVsStart')}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              {weightSparkline.length >= 2 && (
+                <div className="home-weight-spark shrink-0" aria-hidden="true">
+                  <WeightSparkline points={weightSparkline} variant="weight" />
+                </div>
+              )}
+              <ChevronRight className="home-weight-chevron w-[18px] h-[18px] shrink-0" />
+            </button>
+          )}
 
           {/* Current week — no day pointer */}
           <div className="home-hero home-anim" style={{ animationDelay: '0.12s' }}>
@@ -1432,9 +1555,9 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   );
 };
 
-function WeightSparkline({ points }: { points: number[] }) {
-  const w = 88;
-  const h = 44;
+function WeightSparkline({ points, variant = 'progress' }: { points: number[]; variant?: 'progress' | 'weight' }) {
+  const w = variant === 'weight' ? 72 : 88;
+  const h = variant === 'weight' ? 36 : 44;
   const pts = points.length >= 2
     ? points
     : [0.78, 0.68, 0.72, 0.5, 0.45, 0.32, 0.22, 0.12];
@@ -1444,17 +1567,24 @@ function WeightSparkline({ points }: { points: number[] }) {
   const areaD = `${lineD} L${2 + (pts.length - 1) * step},${h} L2,${h} Z`;
   const lastX = 2 + (pts.length - 1) * step;
   const lastY = toY(pts[pts.length - 1]);
+  const stroke = variant === 'weight' ? 'var(--red)' : '#5b8cff';
+  const gradId = variant === 'weight' ? 'homeSparkWeight' : 'homeSparkGrad';
   return (
-    <svg className="shrink-0 w-[88px] h-[44px]" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
+    <svg
+      className={`shrink-0 ${variant === 'weight' ? 'w-[72px] h-[36px]' : 'w-[88px] h-[44px]'}`}
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
       <defs>
-        <linearGradient id="homeSparkGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="rgba(91,140,255,.35)" />
-          <stop offset="1" stopColor="rgba(91,140,255,0)" />
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={variant === 'weight' ? 'rgba(255,45,85,.32)' : 'rgba(91,140,255,.35)'} />
+          <stop offset="1" stopColor={variant === 'weight' ? 'rgba(255,45,85,0)' : 'rgba(91,140,255,0)'} />
         </linearGradient>
       </defs>
-      <path d={areaD} fill="url(#homeSparkGrad)" />
-      <path d={lineD} fill="none" stroke="#5b8cff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r="3" fill="#5b8cff" />
+      <path d={areaD} fill={`url(#${gradId})`} />
+      <path d={lineD} fill="none" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={lastX} cy={lastY} r="3" fill={stroke} className={variant === 'weight' ? 'home-weight-dot' : undefined} />
     </svg>
   );
 }

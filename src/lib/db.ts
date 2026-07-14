@@ -67,6 +67,7 @@ export async function dbAddClient(payload: {
   is_active?: boolean;
   favorites?: any;
   weight_log?: any;
+  starting_weight?: number | null;
 }): Promise<DBResult<any>> {
   if (!isSupabaseReady || !supabase) return { data: null };
   const { data, error } = await supabase.from('clients').insert({
@@ -78,7 +79,11 @@ export async function dbAddClient(payload: {
     start_date: payload.start_date || new Date().toISOString().split('T')[0],
     is_active: payload.is_active !== false,
     favorites: payload.favorites || [],
-    weight_log: payload.weight_log || []
+    weight_log: payload.weight_log || [],
+    starting_weight:
+      typeof payload.starting_weight === 'number' && Number.isFinite(payload.starting_weight)
+        ? payload.starting_weight
+        : null,
   }).select('*').single();
   return { data, error };
 }
@@ -91,6 +96,7 @@ export async function dbUpdateClient(id: string, updates: {
   phone?: string;
   start_date?: string;
   is_active?: boolean;
+  starting_weight?: number | null;
 }): Promise<DBResult<any>> {
   if (!isSupabaseReady || !supabase) return { data: null };
   const { data, error } = await supabase.from('clients').update(updates).eq('id', id).select('*').maybeSingle();
@@ -638,6 +644,10 @@ export async function uploadWeeklyPhoto(
 }
 
 export async function dbGetClientPhotos(clientId: string): Promise<DBResult<WeeklyPhoto[]>> {
+  if (import.meta.env.DEV && clientId === 'marketing-demo') {
+    const { marketingDemoPhotos } = await import('../data/marketingDemoData');
+    return { data: marketingDemoPhotos as WeeklyPhoto[], error: null };
+  }
   if (!isSupabaseReady || !supabase) return { data: [] };
   
   const { data, error } = await supabase

@@ -210,6 +210,7 @@ export function buildDuplicatedClient(
     isActive: true,
     favorites: [],
     weightLog: [],
+    startingWeight: source.startingWeight,
     nutritionPlan: buildDuplicatedNutritionPlan(
       source.nutritionPlan,
       newClientId,

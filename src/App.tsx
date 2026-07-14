@@ -46,6 +46,7 @@ import {
   getInitialAuthState,
   extractClientIdFromShareParam,
 } from './lib/sessionRestore';
+import { getMarketingDemoClient } from './data/marketingDemoClient';
 
 function App() {
   const initialAuth = getInitialAuthState();
@@ -138,6 +139,10 @@ function App() {
           isActive: row.is_active !== false,
           favorites: row.favorites || [],
           weightLog: row.weight_log || [],
+          startingWeight:
+            row.starting_weight != null && Number.isFinite(Number(row.starting_weight))
+              ? Number(row.starting_weight)
+              : undefined,
           workoutAssignment,
           nutritionPlan: nutritionPlan || undefined,
           cardioPlan: cardioPlan || undefined,
@@ -370,6 +375,10 @@ function App() {
               isActive: row.is_active !== false,
               favorites: row.favorites || [],
               weightLog: row.weight_log || [],
+              startingWeight:
+                row.starting_weight != null && Number.isFinite(Number(row.starting_weight))
+                  ? Number(row.starting_weight)
+                  : undefined,
               workoutAssignment
             };
           }));
@@ -397,7 +406,11 @@ function App() {
               startDate: new Date(row.start_date || new Date()),
               isActive: row.is_active !== false,
               favorites: row.favorites || [],
-              weightLog: row.weight_log || []
+              weightLog: row.weight_log || [],
+              startingWeight:
+                row.starting_weight != null && Number.isFinite(Number(row.starting_weight))
+                  ? Number(row.starting_weight)
+                  : undefined,
             }));
             setAppState(prev => ({ ...prev, clients }));
           }
@@ -495,10 +508,18 @@ function App() {
         start_date: client.startDate.toISOString().split('T')[0],
         is_active: client.isActive,
         favorites: client.favorites,
-        weight_log: client.weightLog
+        weight_log: client.weightLog,
+        starting_weight: client.startingWeight ?? null,
       });
       if (data) {
-        const mapped: Client = { ...client, id: data.id };
+        const mapped: Client = {
+          ...client,
+          id: data.id,
+          startingWeight:
+            data.starting_weight != null && Number.isFinite(Number(data.starting_weight))
+              ? Number(data.starting_weight)
+              : client.startingWeight,
+        };
         setAppState(prev => ({ ...prev, clients: [...prev.clients, mapped] }));
       }
     } else {
@@ -510,7 +531,15 @@ function App() {
 
   const handleUpdateClient = async (clientId: string, updates: Partial<Client>) => {
     if (isSupabaseReady) {
-      if (updates.name) await dbUpdateClient(clientId, { full_name: updates.name });
+      const dbUpdates: Parameters<typeof dbUpdateClient>[1] = {};
+      if (updates.name) dbUpdates.full_name = updates.name;
+      if (updates.startingWeight !== undefined) {
+        dbUpdates.starting_weight =
+          typeof updates.startingWeight === 'number' && Number.isFinite(updates.startingWeight)
+            ? updates.startingWeight
+            : null;
+      }
+      if (Object.keys(dbUpdates).length > 0) await dbUpdateClient(clientId, dbUpdates);
     }
     const updatedClients = appState.clients.map(client => client.id === clientId ? { ...client, ...updates } : client);
     setAppState(prev => ({ ...prev, clients: updatedClients }));
@@ -558,6 +587,7 @@ function App() {
         is_active: duplicatedClient.isActive,
         favorites: duplicatedClient.favorites,
         weight_log: duplicatedClient.weightLog,
+        starting_weight: duplicatedClient.startingWeight ?? null,
       });
 
       if (error || !data) {
@@ -1120,6 +1150,43 @@ function App() {
   };
 
   // Wrap everything with ToastProvider
+  // DEV marketing screenshots: http://localhost:5173/?marketing=1&screen=workout
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('marketing') === '1') {
+      const screen = (params.get('screen') || 'home') as
+        | 'home'
+        | 'progressHub'
+        | 'nutrition'
+        | 'supplements'
+        | 'workout'
+        | 'cardio'
+        | 'progress'
+        | 'weight'
+        | 'photos'
+        | 'performance';
+      const themeParam = params.get('theme') === 'light' ? 'light' : 'dark';
+      const langParam = params.get('lang');
+      try {
+        localStorage.setItem('ub_welcome_seen_marketing-demo', '1');
+        localStorage.setItem('ub_guide_seen_marketing-demo', '1');
+        localStorage.setItem('client_interface_theme', themeParam);
+        if (langParam) localStorage.setItem('client_ui_locale', langParam);
+      } catch {
+        /* ignore */
+      }
+      return (
+        <ToastProvider>
+          <ClientLocaleProvider>
+            <Suspense fallback={<ModernLoadingScreen message="Loading…" />}>
+              <ModernClientInterface client={getMarketingDemoClient()} isDark={themeParam === 'dark'} initialRoute={screen} />
+            </Suspense>
+          </ClientLocaleProvider>
+        </ToastProvider>
+      );
+    }
+  }
+
   return (
     <ToastProvider>
       {/* Show loading while checking authentication */}

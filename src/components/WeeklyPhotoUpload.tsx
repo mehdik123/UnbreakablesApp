@@ -25,9 +25,14 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
   const [isWeekDropdownOpen, setIsWeekDropdownOpen] = useState(false);
   
   // Comparison states
-  const [showComparison, setShowComparison] = useState(false);
+  const marketingCompare =
+    import.meta.env.DEV &&
+    clientId === 'marketing-demo' &&
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('focus') === 'compare';
+  const [showComparison, setShowComparison] = useState(marketingCompare);
   const [compareWeek1, setCompareWeek1] = useState<number>(1);
-  const [compareWeek2, setCompareWeek2] = useState<number>(currentWeek);
+  const [compareWeek2, setCompareWeek2] = useState<number>(marketingCompare ? 3 : currentWeek);
   
   const fileInputRefs = {
     front: useRef<HTMLInputElement>(null),

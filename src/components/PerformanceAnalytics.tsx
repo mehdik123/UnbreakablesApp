@@ -165,15 +165,34 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
     return () => { cancelled = true; };
   }, []);
 
+  // Fallback: if the exercises table is unavailable, derive muscle groups from the
+  // assignment itself so analytics still renders (matches the Progress charts behaviour).
+  const groupsFromAssignment = useMemo((): string[] => {
+    const groups = new Set<string>();
+    const collect = (days: any[]) => {
+      (days || []).forEach((day) => {
+        (day?.exercises || []).forEach((ex: any) => {
+          const g = (ex?.exercise?.muscleGroup || ex?.muscleGroup || '').toString().trim();
+          if (g) groups.add(g.charAt(0).toUpperCase() + g.slice(1).toLowerCase());
+        });
+      });
+    };
+    collect(workoutAssignment?.program?.days);
+    (workoutAssignment?.weeks || []).forEach((w: any) => collect(w?.days));
+    return [...groups].filter((g) => g !== 'Arms');
+  }, [workoutAssignment]);
+
   // Derive analytics from assignment using shared weekly volume (no async, no reload every second)
   const muscleGroups = useMemo((): MuscleGroupData[] => {
-    if (!workoutAssignment?.program || availableMuscleGroups.length === 0) return [];
-    const volumeData = computeVolumeFromAssignment(workoutAssignment, availableMuscleGroups);
+    if (!workoutAssignment?.program) return [];
+    const groups = availableMuscleGroups.length > 0 ? availableMuscleGroups : groupsFromAssignment;
+    if (groups.length === 0) return [];
+    const volumeData = computeVolumeFromAssignment(workoutAssignment, groups);
     // Same as charts: latest deployed week, not a stale assignment.currentWeek (often stuck at 1)
     const currentWeekNumber = getLatestDeployedWeekNumber(workoutAssignment);
     const result: MuscleGroupData[] = [];
 
-    availableMuscleGroups.forEach((muscleGroup) => {
+    groups.forEach((muscleGroup) => {
       const weeklyVolumes = volumeData.map((week) => (week[muscleGroup] as number) || 0);
       const currentWeekIndex = volumeData.findIndex((w) => w.week === currentWeekNumber);
       const previousWeekIndex = volumeData.findIndex((w) => w.week === currentWeekNumber - 1);
@@ -253,7 +272,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
 
     result.sort((a, b) => a.name.localeCompare(b.name));
     return result;
-  }, [workoutAssignment, availableMuscleGroups]);
+  }, [workoutAssignment, availableMuscleGroups, groupsFromAssignment]);
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {

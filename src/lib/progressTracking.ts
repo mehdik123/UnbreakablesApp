@@ -68,7 +68,12 @@ export async function logClientWeight(params: {
 }
 
 export async function getClientWeightLogs(clientId: string, limit?: number): Promise<WeightEntry[]> {
-  
+  if (import.meta.env.DEV && clientId === 'marketing-demo') {
+    const { marketingDemoWeightLogs } = await import('../data/marketingDemoData');
+    const sorted = [...marketingDemoWeightLogs].sort((a, b) => b.date.getTime() - a.date.getTime());
+    return limit ? sorted.slice(0, limit) : sorted;
+  }
+
   if (!supabase) throw new Error('Supabase not initialized');
   
   let query = supabase
@@ -617,6 +622,10 @@ export async function saveBodyMeasurement(params: {
  * Get all body measurements for a client
  */
 export async function getClientBodyMeasurements(clientId: string): Promise<BodyMeasurement[]> {
+  if (import.meta.env.DEV && clientId === 'marketing-demo') {
+    const { marketingDemoMeasurements } = await import('../data/marketingDemoData');
+    return marketingDemoMeasurements;
+  }
   if (!supabase) throw new Error('Supabase not initialized');
 
   const { data, error } = await supabase
@@ -637,6 +646,10 @@ export async function getBodyMeasurementByWeek(
   clientId: string,
   weekNumber: number
 ): Promise<BodyMeasurement | null> {
+  if (import.meta.env.DEV && clientId === 'marketing-demo') {
+    const { getMarketingDemoMeasurementByWeek } = await import('../data/marketingDemoData');
+    return getMarketingDemoMeasurementByWeek(weekNumber);
+  }
   if (!supabase) throw new Error('Supabase not initialized');
 
   const { data, error } = await supabase

@@ -6,28 +6,38 @@ interface OfflineBannerProps {
   pendingSyncCount?: number;
   onSyncNow?: () => void;
   isSyncing?: boolean;
+  /** DEV marketing: force offline banner for screenshots */
+  forceOffline?: boolean;
 }
 
 export const OfflineBanner: React.FC<OfflineBannerProps> = ({
   pendingSyncCount = 0,
   onSyncNow,
   isSyncing = false,
+  forceOffline = false,
 }) => {
   const isOnline = useOnlineStatus();
+  const showOffline = forceOffline || !isOnline;
+  const showPending = !showOffline && isOnline && pendingSyncCount > 0;
 
-  if (isOnline && pendingSyncCount === 0) return null;
+  if (!showOffline && !showPending) return null;
 
   return (
     <div
       className="sticky top-0 z-50 px-3 py-2 text-sm flex items-center justify-center gap-2 border-b"
       style={{
-        background: isOnline ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-        borderColor: isOnline ? 'rgba(245, 158, 11, 0.35)' : 'rgba(239, 68, 68, 0.35)',
-        color: isOnline ? '#fbbf24' : '#fca5a5',
+        background: showOffline ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+        borderColor: showOffline ? 'rgba(239, 68, 68, 0.35)' : 'rgba(245, 158, 11, 0.35)',
+        color: showOffline ? '#fca5a5' : '#fbbf24',
       }}
       role="status"
     >
-      {isOnline ? (
+      {showOffline ? (
+        <>
+          <WifiOff className="w-4 h-4 shrink-0" />
+          <span>Offline mode — your workout is saved on this device</span>
+        </>
+      ) : (
         <>
           <CloudOff className="w-4 h-4 shrink-0" />
           <span>
@@ -47,11 +57,6 @@ export const OfflineBanner: React.FC<OfflineBannerProps> = ({
               Sync now
             </button>
           )}
-        </>
-      ) : (
-        <>
-          <WifiOff className="w-4 h-4 shrink-0" />
-          <span>Offline mode — your workout is saved on this device</span>
         </>
       )}
     </div>
