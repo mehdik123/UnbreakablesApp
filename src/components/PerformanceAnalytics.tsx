@@ -58,7 +58,6 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
       'Traps': ['/assets/muscles/Back2.png'],
       'Trapezius': ['/assets/muscles/Back2.png'],
       'Shoulders': ['/assets/muscles/Shoulders.png'],
-      'Arms': ['/assets/muscles/Biceps.png', '/assets/muscles/Triceps.png'],
       'Biceps': ['/assets/muscles/Biceps.png'],
       'Triceps': ['/assets/muscles/Triceps.png'],
       'Forearms': ['/assets/muscles/Forearms.png'],
@@ -157,7 +156,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
               .filter((g: string) => g && g.trim() !== '')
               .map((g: string) => g.trim().charAt(0).toUpperCase() + g.trim().slice(1).toLowerCase())
           )
-        ];
+        ].filter((g) => g !== 'Arms'); // Arms = biceps+triceps; those groups already appear separately
         setAvailableMuscleGroups(normalized);
       } finally {
         if (!cancelled) setIsLoading(false);
