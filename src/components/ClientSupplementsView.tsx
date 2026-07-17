@@ -101,33 +101,6 @@ export const ClientSupplementsView: React.FC<ClientSupplementsViewProps> = ({ cl
               </div>
             </div>
           </div>
-
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
-            <div className="supp-hydro-split">
-              <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--txt-lo)' }}>
-                {t('supp.morning')}
-              </div>
-              <div className="font-saira font-bold text-[15px] tnum mt-0.5" style={{ color: 'var(--txt-hi)' }}>
-                {((hydration.target_water_ml * 0.3) / 1000).toFixed(1)}L
-              </div>
-            </div>
-            <div className="supp-hydro-split">
-              <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--txt-lo)' }}>
-                {t('supp.duringDay')}
-              </div>
-              <div className="font-saira font-bold text-[15px] tnum mt-0.5" style={{ color: 'var(--txt-hi)' }}>
-                {((hydration.target_water_ml * 0.5) / 1000).toFixed(1)}L
-              </div>
-            </div>
-            <div className="supp-hydro-split">
-              <div className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--txt-lo)' }}>
-                {t('supp.evening')}
-              </div>
-              <div className="font-saira font-bold text-[15px] tnum mt-0.5" style={{ color: 'var(--txt-hi)' }}>
-                {((hydration.target_water_ml * 0.2) / 1000).toFixed(1)}L
-              </div>
-            </div>
-          </div>
         </div>
       )}
 

@@ -1589,4 +1589,302 @@
       width: 0%;
     }
   }
+
+  /* ---- Client chrome: tabs, segment, profile (match home / workout) ---- */
+  .client-tabbar {
+    position: fixed;
+    bottom: 0;
+    inset-inline: 0;
+    z-index: 40;
+    padding-top: 0.5rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    background:
+      linear-gradient(180deg, transparent, rgba(255, 45, 85, 0.04) 40%),
+      rgba(16, 18, 24, 0.92);
+    border-top: 1px solid var(--hair);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 -12px 40px -24px rgba(255, 45, 85, 0.35);
+  }
+  .theme-light .client-tabbar {
+    background:
+      linear-gradient(180deg, transparent, rgba(255, 45, 85, 0.03) 40%),
+      rgba(255, 255, 255, 0.94);
+    box-shadow: 0 -12px 36px -22px rgba(15, 23, 42, 0.18);
+  }
+  .client-tabbar-inner {
+    max-width: 48rem;
+    margin-inline: auto;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    padding-inline: 0.25rem;
+  }
+  .client-tabbar-btn {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    min-height: 48px;
+    min-width: 3rem;
+    padding: 0.4rem 0.35rem;
+    border-radius: 14px;
+    color: var(--txt-lo);
+    transition: color 0.2s var(--ease), transform 0.2s var(--spring), background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .client-tabbar-btn:active {
+    transform: scale(0.94);
+  }
+  .client-tabbar-btn.is-active {
+    color: var(--red);
+  }
+  .client-tabbar-btn.is-active::before {
+    content: '';
+    position: absolute;
+    top: 0.2rem;
+    width: 1.1rem;
+    height: 3px;
+    border-radius: 99px;
+    background: var(--grad-red);
+    box-shadow: 0 0 10px rgba(255, 45, 85, 0.55);
+  }
+  .client-tabbar-btn .tab-ic {
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: transparent;
+    transition: background 0.2s, box-shadow 0.2s;
+  }
+  .client-tabbar-btn.is-active .tab-ic {
+    background: rgba(255, 45, 85, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(255, 45, 85, 0.22);
+  }
+  .client-tabbar-btn .tab-label {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1;
+  }
+
+  .client-seg-bar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    padding: 0.65rem 0.75rem 0.7rem;
+    background: linear-gradient(180deg, var(--bg) 70%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .client-seg {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.3rem;
+    border-radius: 16px;
+    background:
+      radial-gradient(120% 120% at 0% 0%, rgba(255, 45, 85, 0.1), transparent 55%),
+      var(--surface-1);
+    border: 1px solid var(--hair);
+    box-shadow: 0 10px 28px -20px rgba(255, 45, 85, 0.3);
+  }
+  .client-seg-btn {
+    flex: 1;
+    min-height: 44px;
+    border-radius: 12px;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    font-family: var(--font-saira, inherit);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--txt-mid);
+    transition: transform 0.2s var(--spring), color 0.2s, background 0.2s, box-shadow 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .client-seg-btn:active {
+    transform: scale(0.97);
+  }
+  .client-seg-btn.is-active {
+    color: #fff;
+    background: var(--grad-red);
+    box-shadow: 0 8px 22px -8px rgba(255, 45, 85, 0.65);
+  }
+
+  .profile-shell {
+    max-width: 48rem;
+    margin-inline: auto;
+    padding: 0 1rem 6.5rem;
+  }
+  .profile-hero {
+    position: relative;
+    overflow: hidden;
+    margin-top: 1.1rem;
+    margin-bottom: 1rem;
+    padding: 1.15rem 1rem;
+    border-radius: var(--r-lg);
+    background:
+      radial-gradient(120% 120% at 0% 0%, rgba(255, 45, 85, 0.16), transparent 55%),
+      linear-gradient(135deg, var(--surface-2), var(--surface-1));
+    border: 1px solid rgba(255, 45, 85, 0.18);
+    box-shadow: 0 14px 36px -22px rgba(255, 45, 85, 0.35);
+  }
+  .profile-hero-glow {
+    pointer-events: none;
+    position: absolute;
+    inset: -40% -20% auto auto;
+    width: 55%;
+    height: 90%;
+    background: radial-gradient(circle, rgba(255, 45, 85, 0.2), transparent 70%);
+    opacity: 0.75;
+  }
+  .profile-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--r-lg);
+    padding: 1rem;
+    background: var(--surface-1);
+    border: 1px solid var(--hair);
+    margin-bottom: 0.75rem;
+    transition: border-color 0.25s, transform 0.2s var(--spring);
+  }
+  .profile-card::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(120% 90% at 0 0, rgba(255, 45, 85, 0.08), transparent 60%);
+    opacity: 0.85;
+  }
+  .profile-card > * {
+    position: relative;
+    z-index: 1;
+  }
+  .profile-card-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--txt-lo);
+  }
+  .profile-card-label .pc-ic {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: var(--grad-red);
+    box-shadow: 0 6px 16px -6px rgba(255, 45, 85, 0.55);
+  }
+  .profile-chip-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .profile-chip {
+    flex: 1;
+    min-height: 48px;
+    border-radius: 14px;
+    padding: 0.5rem 0.4rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--txt-mid);
+    background: var(--glass);
+    border: 1px solid var(--hair);
+    transition: transform 0.2s var(--spring), border-color 0.2s, background 0.2s, color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .profile-chip:active {
+    transform: scale(0.96);
+  }
+  .profile-chip.is-active {
+    color: var(--txt-hi);
+    background: rgba(255, 45, 85, 0.1);
+    border-color: rgba(255, 45, 85, 0.45);
+    box-shadow: 0 0 0 1px rgba(255, 45, 85, 0.12);
+  }
+  .profile-chip .chip-code {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 800;
+    color: var(--red);
+    margin-bottom: 0.1rem;
+  }
+  .profile-row-btn {
+    width: 100%;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: 14px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-align: start;
+    color: var(--txt-hi);
+    background: var(--glass);
+    border: 1px solid var(--hair);
+    transition: transform 0.2s var(--spring), border-color 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .profile-row-btn + .profile-row-btn {
+    margin-top: 0.5rem;
+  }
+  .profile-row-btn:active {
+    transform: scale(0.98);
+  }
+  .profile-row-btn .row-ic {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    color: #fff;
+    background: var(--grad-red);
+  }
+  .profile-logout {
+    width: 100%;
+    min-height: 52px;
+    margin-top: 0.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 16px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #fff;
+    background: var(--grad-red);
+    box-shadow: 0 10px 28px -10px rgba(255, 45, 85, 0.65);
+    transition: transform 0.2s var(--spring), filter 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .profile-logout:active {
+    transform: scale(0.97);
+    filter: brightness(1.05);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .client-tabbar-btn:active,
+    .client-seg-btn:active,
+    .profile-chip:active,
+    .profile-row-btn:active,
+    .profile-logout:active {
+      transform: none;
+    }
+  }
 }

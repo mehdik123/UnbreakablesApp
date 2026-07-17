@@ -15,12 +15,13 @@ import {
   HelpCircle,
   BookOpen,
   Languages,
-  Check,
   HeartPulse,
-  Bell,
   ArrowUpRight,
   Play,
   BadgeCheck,
+  Home,
+  User,
+  LogOut,
 } from 'lucide-react';
 import { ClientWelcomeTour } from './ClientWelcomeTour';
 import { ClientHelpGuide } from './ClientHelpGuide';
@@ -42,6 +43,7 @@ import {
   loadClientOfflineSnapshot,
   saveClientOfflineSnapshot,
 } from '../lib/offlineStore';
+import { authService } from '../lib/authService';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 import { 
   WorkoutDaySkeleton, 
@@ -50,6 +52,34 @@ import {
   PhotoGridSkeleton,
   AnalyticsSkeleton
 } from './LoadingSkeletons';
+
+type Route =
+  | 'home'
+  | 'progressHub'
+  | 'nutrition'
+  | 'supplements'
+  | 'workout'
+  | 'cardio'
+  | 'progress'
+  | 'weight'
+  | 'photos'
+  | 'performance'
+  | 'profile';
+
+type BottomTab = 'home' | 'train' | 'nutrition' | 'progress' | 'profile';
+
+const TRAIN_ROUTES: Route[] = ['workout', 'cardio'];
+const NUTRITION_ROUTES: Route[] = ['nutrition', 'supplements'];
+const PROGRESS_DETAIL_ROUTES: Route[] = ['progress', 'performance', 'weight', 'photos'];
+
+function tabForRoute(r: Route): BottomTab {
+  if (r === 'home') return 'home';
+  if (TRAIN_ROUTES.includes(r)) return 'train';
+  if (NUTRITION_ROUTES.includes(r)) return 'nutrition';
+  if (r === 'progressHub' || PROGRESS_DETAIL_ROUTES.includes(r)) return 'progress';
+  if (r === 'profile') return 'profile';
+  return 'home';
+}
 
 // Lazy load heavy components
 const ClientNutritionView = lazy(() => import('./ClientNutritionView').then(module => ({ default: module.ClientNutritionView })));
@@ -67,7 +97,9 @@ interface ModernClientInterfaceProps {
   client: Client;
   isDark: boolean;
   /** DEV/marketing only — open a specific client section immediately */
-  initialRoute?: 'home' | 'progressHub' | 'nutrition' | 'supplements' | 'workout' | 'cardio' | 'progress' | 'weight' | 'photos' | 'performance';
+  initialRoute?: Route;
+  /** Clears session and returns to client login */
+  onLogout?: () => void;
 }
 
 // Loading component for Suspense
@@ -79,13 +111,23 @@ const LoadingSpinner = () => (
 
 export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   client,
-  isDark,
+  isDark: _isDarkProp,
   initialRoute = 'home',
+  onLogout,
 }) => {
-  type Route = 'home' | 'progressHub' | 'nutrition' | 'supplements' | 'workout' | 'cardio' | 'progress' | 'weight' | 'photos' | 'performance';
-  const [route, setRoute] = useState<Route>(initialRoute);
+  const [route, setRoute] = useState<Route>(() => {
+    if (client.id === 'marketing-demo' && typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('openLang') === '1') return 'profile';
+    }
+    return initialRoute;
+  });
   const activeTab = route;
-  const SECTION_ROUTES: Route[] = ['nutrition', 'supplements', 'workout', 'cardio', 'progress', 'weight', 'photos', 'performance'];
+  const activeBottomTab = tabForRoute(route);
+  const isTrainTab = TRAIN_ROUTES.includes(route);
+  const isNutritionTab = NUTRITION_ROUTES.includes(route);
+  const isProgressDetail = PROGRESS_DETAIL_ROUTES.includes(route);
+  const isSpoke = isTrainTab || isNutritionTab || isProgressDetail;
   const [useDarkTheme, setUseDarkTheme] = useState<boolean>(() => {
     const saved = localStorage.getItem('client_interface_theme');
     // Default to dark mode when no preference exists
@@ -148,42 +190,8 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     client.id === 'marketing-demo' && typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search)
       : null;
-  const [langMenuOpen, setLangMenuOpen] = useState(
-    () => marketingParams?.get('openLang') === '1',
-  );
-  const langMenuRef = useRef<HTMLDivElement | null>(null);
-  const [notifMenuOpen, setNotifMenuOpen] = useState(false);
-  const notifMenuRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!langMenuOpen) return;
-    const onDown = (e: MouseEvent | TouchEvent) => {
-      if (langMenuRef.current && !langMenuRef.current.contains(e.target as Node)) {
-        setLangMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('touchstart', onDown);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('touchstart', onDown);
-    };
-  }, [langMenuOpen]);
-  useEffect(() => {
-    if (!notifMenuOpen) return;
-    const onDown = (e: MouseEvent | TouchEvent) => {
-      if (notifMenuRef.current && !notifMenuRef.current.contains(e.target as Node)) {
-        setNotifMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('touchstart', onDown);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('touchstart', onDown);
-    };
-  }, [notifMenuOpen]);
 
-  // First-run welcome tour (shown once per client, re-openable via the bell menu)
+  // First-run welcome tour (shown once per client, re-openable via Profile)
   const welcomeKey = `ub_welcome_seen_${client.id}`;
   const guideKey = `ub_guide_seen_${client.id}`;
   const [showWelcome, setShowWelcome] = useState(false);
@@ -250,15 +258,34 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
   }, []);
 
-  // Back returns to the relevant hub: progress leaves go to the progress hub, everything else to home
+  // Back only for progress detail spokes → progress hub (tabs handle tab roots)
   const goBack = useCallback(() => {
-    setRoute((prev) => {
-      if (prev === 'progressHub') return 'home';
-      if (prev === 'progress' || prev === 'performance' || prev === 'weight' || prev === 'photos') return 'progressHub';
-      return 'home';
-    });
+    setRoute('progressHub');
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
   }, []);
+
+  const selectBottomTab = useCallback(
+    (tab: BottomTab) => {
+      if (tab === 'home') {
+        navigate('home');
+        return;
+      }
+      if (tab === 'train') {
+        navigate(TRAIN_ROUTES.includes(route) ? route : 'workout');
+        return;
+      }
+      if (tab === 'nutrition') {
+        navigate(NUTRITION_ROUTES.includes(route) ? route : 'nutrition');
+        return;
+      }
+      if (tab === 'progress') {
+        navigate('progressHub');
+        return;
+      }
+      navigate('profile');
+    },
+    [navigate, route],
+  );
 
   // Resolve database client UUID from client name
   useEffect(() => {
@@ -726,13 +753,6 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     return WeekProgressionManager.getWeekStatus(week);
   };
 
-  // Workout header ring geometry (r=19 → circumference ≈ 119.38)
-  const HEADER_RING_C = 2 * Math.PI * 19;
-  const programTitle =
-    (assignmentForWeeks?.program as any)?.name ||
-    (client.workoutAssignment?.program as any)?.name ||
-    t('modern.yourProgram');
-
   const totalWeeks = client.numberOfWeeks || 12;
 
   // Latest week coach deployed (no day-pointer logic on home)
@@ -742,6 +762,9 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   );
 
   const progressPercentage = Math.round((activeWeek / totalWeeks) * 100);
+
+  const lastSavedWeek = (effectiveWorkoutAssignment ?? client.workoutAssignment)?.lastSavedWeek;
+  const canContinue = typeof lastSavedWeek === 'number' && lastSavedWeek >= 1;
 
   const nutritionDailyKcal = useMemo(() => {
     if (!nutritionPlan?.mealSlots?.length) return null;
@@ -785,7 +808,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     status: string;
     wide?: boolean;
   }[] = [
-    { route: 'workout', title: t('nav.workouts'), desc: t('home.workoutDesc'), Icon: Dumbbell, accent: 'red', status: t('modern.weekOf', { current: activeWeek, total: totalWeeks }) },
+    { route: 'workout', title: t('nav.workout'), desc: t('home.workoutDesc'), Icon: Dumbbell, accent: 'red', status: t('modern.weekOf', { current: activeWeek, total: totalWeeks }) },
     { route: 'cardio', title: t('nav.cardio'), desc: t('home.cardioDesc'), Icon: HeartPulse, accent: 'orange', status: cardioSummary },
     { route: 'nutrition', title: t('nav.nutrition'), desc: t('home.nutritionDesc'), Icon: Utensils, accent: 'green', status: nutritionStatus },
     { route: 'supplements', title: t('nav.supplements'), desc: t('home.supplementsDesc'), Icon: Pill, accent: 'violet', status: supplementsStatus },
@@ -793,133 +816,63 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   ];
 
   const hubCards = [
-    { route: 'progress' as Route, title: t('home.chartsTitle'), desc: t('home.chartsDesc'), Icon: Activity, grad: 'from-blue-500 to-indigo-500' },
-    { route: 'performance' as Route, title: t('nav.analytics'), desc: t('home.analyticsDesc'), Icon: BarChart3, grad: 'from-violet-500 to-fuchsia-500' },
-    { route: 'weight' as Route, title: t('nav.weight'), desc: t('home.weightDesc'), Icon: Scale, grad: 'from-pink-500 to-rose-500' },
-    { route: 'photos' as Route, title: t('nav.photos'), desc: t('home.photosDesc'), Icon: Camera, grad: 'from-indigo-500 to-cyan-500' },
+    { route: 'progress' as Route, title: t('nav.whatYouTrain'), desc: t('home.chartsDesc'), Icon: Activity, grad: 'from-blue-500 to-indigo-500' },
+    { route: 'performance' as Route, title: t('nav.gettingStronger'), desc: t('home.analyticsDesc'), Icon: BarChart3, grad: 'from-violet-500 to-fuchsia-500' },
+    { route: 'weight' as Route, title: t('nav.bodyWeight'), desc: t('home.weightDesc'), Icon: Scale, grad: 'from-pink-500 to-rose-500' },
+    { route: 'photos' as Route, title: t('nav.progressPhotos'), desc: t('home.photosDesc'), Icon: Camera, grad: 'from-indigo-500 to-cyan-500' },
   ];
 
   const sectionTitles: Record<string, string> = {
-    workout: t('nav.workouts'),
+    workout: t('nav.workout'),
     cardio: t('nav.cardio'),
-    nutrition: t('nav.nutrition'),
-    supplements: t('nav.supplements'),
-    progress: t('home.chartsTitle'),
-    performance: t('nav.analytics'),
-    weight: t('nav.weight'),
-    photos: t('nav.photos'),
+    nutrition: t('nav.meals'),
+    supplements: t('nav.suppsWater'),
+    progress: t('nav.whatYouTrain'),
+    performance: t('nav.gettingStronger'),
+    weight: t('nav.bodyWeight'),
+    photos: t('nav.progressPhotos'),
   };
 
-  const isSection = SECTION_ROUTES.includes(route);
-
-  const ringStroke = 'var(--hair-strong)';
-
-  // Small reusable header toggles (language + theme)
   const LANGS: { code: 'en' | 'fr' | 'ar'; short: string; labelKey: string }[] = [
     { code: 'en', short: 'EN', labelKey: 'modern.langEnglish' },
     { code: 'fr', short: 'FR', labelKey: 'modern.langFrench' },
     { code: 'ar', short: 'AR', labelKey: 'modern.langArabic' },
   ];
-  const currentLang = LANGS.find((l) => l.code === locale) ?? LANGS[0];
-  const HeaderToggles = (
-    <div className="flex items-center gap-2 shrink-0">
-      <div className="relative" ref={langMenuRef}>
-        <button
-          type="button"
-          onClick={() => setLangMenuOpen((v) => !v)}
-          className="h-[38px] px-2.5 rounded-xl flex items-center gap-1.5 text-[11px] font-bold transition-transform duration-150 active:scale-90"
-          style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
-          aria-label={t('modern.language')}
-          aria-haspopup="listbox"
-          aria-expanded={langMenuOpen}
-        >
-          <Languages className="w-4 h-4" />
-          {currentLang.short}
-        </button>
-        {langMenuOpen && (
-          <div
-            role="listbox"
-            className="absolute top-[44px] z-50 min-w-[150px] rounded-xl overflow-hidden shadow-xl"
-            style={{
-              [isRtl ? 'left' : 'right']: 0,
-              background: 'var(--surface-1)',
-              border: '1px solid var(--hair)',
-            } as React.CSSProperties}
-          >
-            <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide" style={{ color: 'var(--txt-mid)' }}>
-              {t('modern.language')}
-            </div>
-            {LANGS.map((l) => {
-              const active = l.code === locale;
-              return (
-                <button
-                  key={l.code}
-                  type="button"
-                  role="option"
-                  aria-selected={active}
-                  onClick={() => {
-                    setLocale(l.code);
-                    setLangMenuOpen(false);
-                  }}
-                  className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm transition-colors"
-                  style={{
-                    color: active ? 'var(--txt-hi)' : 'var(--txt-mid)',
-                    background: active ? 'var(--glass)' : 'transparent',
-                    fontWeight: active ? 700 : 500,
-                  }}
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold w-6 text-start" style={{ color: 'var(--red)' }}>{l.short}</span>
-                    {t(l.labelKey)}
-                  </span>
-                  {active && <Check className="w-4 h-4" style={{ color: 'var(--red)' }} />}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={() => setUseDarkTheme((prev) => !prev)}
-        className="w-[38px] h-[38px] rounded-xl flex items-center justify-center transition-transform duration-150 active:scale-90"
-        style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
-        aria-label="Toggle theme"
-      >
-        {useDarkTheme ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-      </button>
-    </div>
-  );
 
-  const ProgressRing = (
-    <div className="relative w-[46px] h-[46px] shrink-0">
-      <svg width="46" height="46" className="block -rotate-90">
-        <circle cx="23" cy="23" r="19" stroke={ringStroke} strokeWidth="4" fill="none" />
-        <circle
-          cx="23"
-          cy="23"
-          r="19"
-          stroke="url(#headerRingGrad)"
-          strokeWidth="4"
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={HEADER_RING_C}
-          strokeDashoffset={HEADER_RING_C * (1 - Math.min(100, progressPercentage) / 100)}
-          style={{ transition: 'stroke-dashoffset 1s var(--ease)' }}
-        />
-        <defs>
-          <linearGradient id="headerRingGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#ff8a5c" />
-            <stop offset="1" stopColor="#e11d48" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <div
-        className="absolute inset-0 flex items-center justify-center font-display font-bold text-[12px] tnum"
-        style={{ color: 'var(--txt-hi)' }}
-      >
-        {progressPercentage}%
-      </div>
+  const handleLogout = useCallback(() => {
+    if (!window.confirm(t('profile.logoutConfirm'))) return;
+    authService.logout();
+    if (onLogout) {
+      onLogout();
+      return;
+    }
+    // Fallback: hard navigate back to the same client link (shows login)
+    const params = new URLSearchParams(window.location.search);
+    const clientShare = params.get('client');
+    window.location.replace(clientShare ? `?client=${encodeURIComponent(clientShare)}` : window.location.pathname);
+  }, [t, onLogout]);
+
+  const SegmentedControl = ({
+    options,
+  }: {
+    options: { route: Route; label: string }[];
+  }) => (
+    <div className="client-seg" role="tablist">
+      {options.map((opt) => {
+        const active = route === opt.route;
+        return (
+          <button
+            key={opt.route}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            onClick={() => navigate(opt.route)}
+            className={`client-seg-btn${active ? ' is-active' : ''}`}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
     </div>
   );
 
@@ -960,8 +913,8 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
       {/* ============ HOME DASHBOARD (hub) ============ */}
       {route === 'home' && (
-        <div className="relative z-10 max-w-3xl mx-auto px-4 pb-16">
-          {/* Header — avatar, name, language, notifications menu */}
+        <div className="relative z-10 max-w-3xl mx-auto px-4 pb-24">
+          {/* Header — avatar + welcome + name only */}
           <div className="home-header">
             <div className="home-avatar-ring">
               <div
@@ -978,117 +931,6 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               <div className="font-saira text-[22px] leading-none truncate" style={{ color: 'var(--txt-hi)' }}>
                 {client.name.split(' ')[0]}
               </div>
-            </div>
-            <div className="relative shrink-0" ref={langMenuRef}>
-              <button
-                type="button"
-                onClick={() => setLangMenuOpen((v) => !v)}
-                className="h-[38px] px-[11px] rounded-xl flex items-center gap-1.5 text-[12px] font-bold transition-transform duration-150 active:scale-90"
-                style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
-                aria-label={t('modern.language')}
-                aria-haspopup="listbox"
-                aria-expanded={langMenuOpen}
-              >
-                <Languages className="w-3.5 h-3.5" />
-                {currentLang.short}
-              </button>
-              {langMenuOpen && (
-                <div
-                  role="listbox"
-                  className="absolute top-[44px] z-50 min-w-[150px] rounded-xl overflow-hidden shadow-xl"
-                  style={{
-                    [isRtl ? 'left' : 'right']: 0,
-                    background: 'var(--surface-1)',
-                    border: '1px solid var(--hair)',
-                  } as React.CSSProperties}
-                >
-                  <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-wide" style={{ color: 'var(--txt-mid)' }}>
-                    {t('modern.language')}
-                  </div>
-                  {LANGS.map((l) => {
-                    const active = l.code === locale;
-                    return (
-                      <button
-                        key={l.code}
-                        type="button"
-                        role="option"
-                        aria-selected={active}
-                        onClick={() => {
-                          setLocale(l.code);
-                          setLangMenuOpen(false);
-                        }}
-                        className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm transition-colors"
-                        style={{
-                          color: active ? 'var(--txt-hi)' : 'var(--txt-mid)',
-                          background: active ? 'var(--glass)' : 'transparent',
-                          fontWeight: active ? 700 : 500,
-                        }}
-                      >
-                        <span className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold w-6 text-start" style={{ color: 'var(--red)' }}>{l.short}</span>
-                          {t(l.labelKey)}
-                        </span>
-                        {active && <Check className="w-4 h-4" style={{ color: 'var(--red)' }} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            <div className="relative shrink-0" ref={notifMenuRef}>
-              <button
-                type="button"
-                onClick={() => setNotifMenuOpen((v) => !v)}
-                className="w-[38px] h-[38px] rounded-xl flex items-center justify-center transition-transform duration-150 active:scale-90 relative"
-                style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
-                aria-label={t('home.notifications')}
-              >
-                <Bell className="w-[18px] h-[18px]" />
-                <span
-                  className="absolute top-2 end-2.5 w-[7px] h-[7px] rounded-full"
-                  style={{ background: 'var(--red)', boxShadow: '0 0 0 2px var(--bg)' }}
-                />
-              </button>
-              {notifMenuOpen && (
-                <div
-                  className="absolute top-[44px] z-50 min-w-[200px] rounded-xl overflow-hidden shadow-xl py-1"
-                  style={{
-                    [isRtl ? 'left' : 'right']: 0,
-                    background: 'var(--surface-1)',
-                    border: '1px solid var(--hair)',
-                  } as React.CSSProperties}
-                >
-                  <button
-                    type="button"
-                    onClick={() => { setShowHelpGuide(true); setNotifMenuOpen(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-start"
-                    style={{ color: 'var(--txt-hi)' }}
-                  >
-                    <BookOpen className="w-4 h-4" style={{ color: 'var(--red)' }} />
-                    {t('home.fullGuide')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setShowWelcome(true); setNotifMenuOpen(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-start"
-                    style={{ color: 'var(--txt-hi)' }}
-                  >
-                    <HelpCircle className="w-4 h-4" style={{ color: 'var(--red)' }} />
-                    {t('home.helpTour')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUseDarkTheme((p) => !p)}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-start"
-                    style={{ color: 'var(--txt-hi)' }}
-                  >
-                    {useDarkTheme ? <Sun className="w-4 h-4" style={{ color: 'var(--amber)' }} /> : <Moon className="w-4 h-4" style={{ color: 'var(--blue)' }} />}
-                    {t('home.themeToggle')}
-                  </button>
-                  <div className="my-1 h-px" style={{ background: 'var(--hair)' }} />
-                  <p className="px-3 py-2 text-[12px]" style={{ color: 'var(--txt-lo)' }}>{t('home.noNotifications')}</p>
-                </div>
-              )}
             </div>
           </div>
 
@@ -1205,11 +1047,11 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               type="button"
               className="home-start-btn relative"
               onClick={() => {
-                jumpToActiveTrainingWeek(activeWeek);
+                jumpToActiveTrainingWeek(canContinue ? (lastSavedWeek as number) : activeWeek);
                 navigate('workout');
               }}
             >
-              {t('home.openWorkouts')}
+              {canContinue ? t('home.continueLeftOff') : t('home.startWorkout')}
               <Play className="w-[18px] h-[18px] fill-current" />
             </button>
           </div>
@@ -1285,27 +1127,22 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
       {/* ============ PROGRESS SUB-HUB ============ */}
       {route === 'progressHub' && (
-        <div className="relative z-10 max-w-3xl mx-auto px-4 pb-16">
-          <div className="flex items-center gap-3 pt-5 pb-3">
-            <button
-              type="button"
-              onClick={goBack}
-              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 active:scale-90 transition-transform"
-              style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-            <div className="min-w-0">
-              <div className="font-display font-semibold text-[20px] leading-tight" style={{ color: 'var(--txt-hi)' }}>{t('nav.progress')}</div>
-              <div className="text-[12px]" style={{ color: 'var(--txt-mid)' }}>{t('home.progressHubSubtitle')}</div>
+        <div className="relative z-10 max-w-3xl mx-auto px-4 pb-24">
+          <div className="pt-5 pb-3">
+            <div className="font-display font-semibold text-[20px] leading-tight" style={{ color: 'var(--txt-hi)' }}>
+              {t('progress.headline')}
+            </div>
+            <div className="text-[12px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>
+              {t('home.progressHubSubtitle')}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             {hubCards.map((card) => (
               <button
                 key={card.route}
+                type="button"
                 onClick={() => navigate(card.route)}
-                className="text-left rounded-2xl p-4 transition-transform active:scale-95"
+                className="text-left rounded-2xl p-4 transition-transform active:scale-95 touch-manipulation"
                 style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
               >
                 <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-3 bg-gradient-to-br ${card.grad}`}>
@@ -1319,147 +1156,176 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         </div>
       )}
 
-      {/* ============ SECTION VIEW (spoke) ============ */}
-      {isSection && (
-      <>
-      {/* Compact header */}
-      {activeTab === 'workout' ? (
-        /* ---- Premium workout header (token-styled, always dark to match the workout page) ---- */
-        <div
-          className="client-compact-header workout-shell relative z-10 sticky top-0 backdrop-blur-xl"
-          style={{ borderBottom: '1px solid var(--hair)' }}
-        >
-          <div className="max-w-7xl mx-auto px-3 md:px-6 py-2.5 md:py-3.5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <button
-                  type="button"
-                  onClick={goBack}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 active:scale-90 transition-transform"
-                  style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
-                  aria-label="Back to home"
+      {/* ============ PROFILE ============ */}
+      {route === 'profile' && (
+        <div className="profile-shell relative z-10">
+          <div className="profile-hero">
+            <div className="profile-hero-glow" aria-hidden="true" />
+            <div className="relative flex items-center gap-3">
+              <div className="home-avatar-ring">
+                <div
+                  className="w-full h-full rounded-[12px] flex items-center justify-center overflow-hidden"
+                  style={{ background: '#ffffff' }}
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                </button>
-                <div className="w-[50px] h-[50px] shrink-0 rounded-md p-[2px] bg-grad-coral shadow-red">
-                  <div
-                    className="w-full h-full rounded-[14px] flex items-center justify-center overflow-hidden"
-                    style={{ background: '#ffffff' }}
-                  >
-                    <img src="/brand-logo.png" alt="" className="w-[74%] h-[74%] object-contain" />
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[12px] font-medium" style={{ color: 'var(--txt-mid)' }}>
-                    {t('modern.welcomeBackShort')}
-                  </div>
-                  <div
-                    className="font-display font-semibold text-[19px] leading-tight truncate"
-                    style={{ color: 'var(--txt-hi)' }}
-                  >
-                    {client.name.split(' ')[0]}
-                  </div>
+                  <img src="/brand-logo.png" alt="" className="w-[74%] h-[74%] object-contain" />
                 </div>
               </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="relative w-[46px] h-[46px] shrink-0">
-                  <svg width="46" height="46" className="block -rotate-90">
-                    <circle cx="23" cy="23" r="19" stroke="var(--hair-strong)" strokeWidth="4" fill="none" />
-                    <circle
-                      cx="23"
-                      cy="23"
-                      r="19"
-                      stroke="url(#headerRingGrad)"
-                      strokeWidth="4"
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeDasharray={HEADER_RING_C}
-                      strokeDashoffset={HEADER_RING_C * (1 - Math.min(100, progressPercentage) / 100)}
-                      style={{ transition: 'stroke-dashoffset 1s var(--ease)' }}
-                    />
-                    <defs>
-                      <linearGradient id="headerRingGrad" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0" stopColor="#ff8a5c" />
-                        <stop offset="1" stopColor="#e11d48" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <div
-                    className="absolute inset-0 flex items-center justify-center font-display font-bold text-[12px] tnum"
-                    style={{ color: 'var(--txt-hi)' }}
-                  >
-                    {progressPercentage}%
-                  </div>
+              <div className="min-w-0">
+                <div className="text-[11px] uppercase tracking-widest font-bold" style={{ color: 'var(--txt-lo)' }}>
+                  {t('profile.title')}
                 </div>
-              </div>
-            </div>
-
-            {/* Program card */}
-            <div
-              className="mt-3 rounded-md px-4 py-3"
-              style={{
-                background: 'linear-gradient(135deg, rgba(255,45,85,.13), rgba(255,45,85,.03))',
-                border: '1px solid rgba(255,45,85,.18)',
-              }}
-            >
-              <div className="text-[13px] font-semibold truncate" style={{ color: 'var(--txt-hi)' }}>
-                {programTitle}
-              </div>
-              <div className="text-[11.5px] mt-0.5 truncate" style={{ color: 'var(--txt-mid)' }}>
-                {t('modern.weekOf', { current: currentWeek, total: client.numberOfWeeks || 12 })} · {t('modern.onTrack')}
-              </div>
-              <div className="wk-pbar mt-2.5">
-                <i style={{ width: `${Math.max(4, Math.min(100, progressPercentage))}%` }} />
+                <div className="font-saira text-[26px] leading-none truncate mt-1" style={{ color: 'var(--txt-hi)' }}>
+                  {client.name.split(' ')[0]}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <div
-          className={`client-compact-header relative z-10 sticky top-0 backdrop-blur-xl ${
-            useDarkTheme ? '' : 'bg-white/95 border-b border-slate-200'
-          }`}
-          style={useDarkTheme ? { background: 'rgba(16,18,24,.92)', borderBottom: '1px solid var(--hair)' } : undefined}
-        >
-          <div className="max-w-7xl mx-auto px-3 md:px-6 py-2.5 md:py-4">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+
+          <div>
+            <section className="profile-card">
+              <div className="profile-card-label">
+                <span className="pc-ic"><Languages className="w-3.5 h-3.5" /></span>
+                {t('profile.language')}
+              </div>
+              <div className="profile-chip-row">
+                {LANGS.map((l) => {
+                  const active = l.code === locale;
+                  return (
+                    <button
+                      key={l.code}
+                      type="button"
+                      onClick={() => setLocale(l.code)}
+                      className={`profile-chip${active ? ' is-active' : ''}`}
+                    >
+                      <span className="chip-code">{l.short}</span>
+                      {t(l.labelKey)}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="profile-card">
+              <div className="profile-card-label">
+                <span className="pc-ic">{useDarkTheme ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}</span>
+                {t('profile.theme')}
+              </div>
+              <div className="profile-chip-row">
                 <button
                   type="button"
-                  onClick={goBack}
-                  className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center active:scale-90 transition-transform"
-                  style={useDarkTheme ? { background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' } : { background: '#f1f5f9', color: '#475569' }}
-                  aria-label="Back"
+                  onClick={() => setUseDarkTheme(true)}
+                  className={`profile-chip flex items-center justify-center gap-2${useDarkTheme ? ' is-active' : ''}`}
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <Moon className="w-4 h-4" />
+                  {t('profile.themeDark')}
                 </button>
-                <div className="min-w-0">
-                  <h1
-                    className="client-compact-title font-display font-semibold truncate"
-                    style={{ color: useDarkTheme ? 'var(--txt-hi)' : '#0f172a' }}
-                  >
-                    {sectionTitles[route]}
-                  </h1>
-                  <p
-                    className="client-compact-subtitle truncate"
-                    style={{ color: useDarkTheme ? 'var(--txt-mid)' : '#64748b' }}
-                  >
-                    {t('modern.weekOf', { current: currentWeek, total: client.numberOfWeeks || 12 })} · {progressPercentage}%
-                  </p>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setUseDarkTheme(false)}
+                  className={`profile-chip flex items-center justify-center gap-2${!useDarkTheme ? ' is-active' : ''}`}
+                >
+                  <Sun className="w-4 h-4" />
+                  {t('profile.themeLight')}
+                </button>
               </div>
-            </div>
+            </section>
 
-            <div className="wk-pbar mt-2.5">
-              <i style={{ width: `${Math.max(4, Math.min(100, progressPercentage))}%` }} />
+            <section className="profile-card">
+              <div className="profile-card-label">
+                <span className="pc-ic"><HelpCircle className="w-3.5 h-3.5" /></span>
+                {t('profile.help')}
+              </div>
+              <button type="button" onClick={() => setShowHelpGuide(true)} className="profile-row-btn">
+                <span className="row-ic"><BookOpen className="w-4 h-4" /></span>
+                {t('profile.fullGuide')}
+              </button>
+              <button type="button" onClick={() => setShowWelcome(true)} className="profile-row-btn">
+                <span className="row-ic"><HelpCircle className="w-4 h-4" /></span>
+                {t('profile.help')}
+              </button>
+            </section>
+
+            <section className="profile-card">
+              <div className="profile-card-label">
+                <span className="pc-ic"><User className="w-3.5 h-3.5" /></span>
+                {t('profile.notifications')}
+              </div>
+              <p className="text-[13px] leading-relaxed" style={{ color: 'var(--txt-mid)' }}>
+                {t('profile.noNotifications')}
+              </p>
+            </section>
+
+            <button type="button" onClick={handleLogout} className="profile-logout">
+              <LogOut className="w-4 h-4" />
+              {t('profile.logout')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ============ SECTION VIEW (spoke) ============ */}
+      {isSpoke && (
+      <>
+      {/* Train: Workout | Cardio segment */}
+      {isTrainTab && (
+        <div className="client-seg-bar relative z-10">
+          <div className="max-w-7xl mx-auto px-1 md:px-3">
+            <SegmentedControl
+              options={[
+                { route: 'workout', label: t('nav.workout') },
+                { route: 'cardio', label: t('nav.cardio') },
+              ]}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Nutrition: Meals | Supplements segment */}
+      {isNutritionTab && (
+        <div className="client-seg-bar relative z-10">
+          <div className="max-w-7xl mx-auto px-1 md:px-3">
+            <SegmentedControl
+              options={[
+                { route: 'nutrition', label: t('nav.meals') },
+                { route: 'supplements', label: t('nav.suppsWater') },
+              ]}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Progress details: back → progressHub */}
+      {isProgressDetail && (
+        <div
+          className="client-compact-header relative z-10 sticky top-0 backdrop-blur-xl"
+          style={{ background: useDarkTheme ? 'rgba(16,18,24,.92)' : 'rgba(255,255,255,.95)', borderBottom: '1px solid var(--hair)' }}
+        >
+          <div className="max-w-7xl mx-auto px-3 md:px-6 py-2.5 md:py-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <button
+                type="button"
+                onClick={goBack}
+                className="w-11 h-11 shrink-0 rounded-xl flex items-center justify-center active:scale-90 transition-transform touch-manipulation"
+                style={{ background: 'var(--glass)', border: '1px solid var(--hair)', color: 'var(--txt-mid)' }}
+                aria-label="Back"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <div className="min-w-0">
+                <h1
+                  className="client-compact-title font-saira font-semibold truncate"
+                  style={{ color: 'var(--txt-hi)' }}
+                >
+                  {sectionTitles[route]}
+                </h1>
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {/* Content Area */}
-      <div className="client-content-area relative z-10 max-w-7xl mx-auto px-3 sm:px-6 pb-12">
+      <div className="client-content-area relative z-10 max-w-7xl mx-auto px-3 sm:px-6 pb-24">
         <Suspense fallback={
           activeTab === 'nutrition' ? <NutritionPlanSkeleton /> :
           activeTab === 'supplements' ? <NutritionPlanSkeleton /> :
@@ -1485,7 +1351,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             <ClientWorkoutView
               client={client}
               currentWeek={currentWeek}
-              isDark={isDark}
+              isDark={useDarkTheme}
               onWeekChange={handleClientWeekChange}
               onAssignmentUpdated={(a) => {
                 // Use saved assignment directly so Progress charts and coach view see client's volume edits
@@ -1496,15 +1362,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             />
           ) : activeTab === 'cardio' ? (
             <ErrorBoundary>
-              <ClientCardioView client={client} isDark={isDark} />
+              <ClientCardioView client={client} isDark={useDarkTheme} />
             </ErrorBoundary>
           ) : activeTab === 'progress' ? (
-            <IndependentMuscleGroupCharts client={clientForCharts} isDark={isDark} />
+            <IndependentMuscleGroupCharts client={clientForCharts} isDark={useDarkTheme} />
           ) : activeTab === 'performance' ? (
             <PerformanceAnalytics
               clientId={databaseClientId || client.id}
               clientName={client.name}
-              isDark={isDark}
+              isDark={useDarkTheme}
               workoutAssignment={clientForCharts.workoutAssignment ?? effectiveWorkoutAssignment ?? client.workoutAssignment}
             />
           ) : activeTab === 'weight' ? (
@@ -1512,7 +1378,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               client={client}
               currentWeek={currentWeek}
               maxWeeks={client.numberOfWeeks}
-              isDark={isDark}
+              isDark={useDarkTheme}
             />
           ) : activeTab === 'photos' ? (
             <div className="photos-shell px-1">
@@ -1522,7 +1388,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-saira font-semibold text-[18px] truncate" style={{ color: 'var(--txt-hi)' }}>
-                    {t('nav.photos')}
+                    {t('nav.progressPhotos')}
                   </div>
                   <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>
                     {t('home.photosDesc')}
@@ -1551,6 +1417,37 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
 
       </>
       )}
+
+      {/* ============ BOTTOM TAB NAV ============ */}
+      <nav className="client-tabbar" aria-label="Main">
+        <div className="client-tabbar-inner">
+          {(
+            [
+              { id: 'home' as BottomTab, label: t('nav.home'), Icon: Home },
+              { id: 'train' as BottomTab, label: t('nav.train'), Icon: Dumbbell },
+              { id: 'nutrition' as BottomTab, label: t('nav.nutrition'), Icon: Utensils },
+              { id: 'progress' as BottomTab, label: t('nav.progress'), Icon: TrendingUp },
+              { id: 'profile' as BottomTab, label: t('nav.profile'), Icon: User },
+            ]
+          ).map(({ id, label, Icon }) => {
+            const active = activeBottomTab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => selectBottomTab(id)}
+                className={`client-tabbar-btn${active ? ' is-active' : ''}`}
+                aria-current={active ? 'page' : undefined}
+              >
+                <span className="tab-ic">
+                  <Icon className="w-[1.15rem] h-[1.15rem]" strokeWidth={active ? 2.5 : 2} />
+                </span>
+                <span className="tab-label">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 };

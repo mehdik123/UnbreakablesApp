@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
+import React, { useState, useEffect, memo, useCallback, useRef } from 'react';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { 
   Dumbbell, 
@@ -65,6 +65,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 }) => {
   const [currentDay, setCurrentDay] = useState(0);
   const [weekStripOpen, setWeekStripOpen] = useState(false);
+  const [dayStripOpen, setDayStripOpen] = useState(false);
   const [completedExercises, setCompletedExercises] = useState<{ [exerciseId: string]: boolean }>({});
   const [exerciseData, setExerciseData] = useState<{ [exerciseId: string]: { [setIndex: number]: { reps: number; weight: number } } }>({});
   const [dropsetData, setDropsetData] = useState<{ [exerciseId: string]: { [dropsetIndex: number]: { [roundIndex: number]: { reps: number; weight: number } } } }>({});
@@ -78,6 +79,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const [localAssignment, setLocalAssignment] = useState<ClientWorkoutAssignment | null>(client.workoutAssignment || null);
   const [exerciseSaveState, setExerciseSaveState] = useState<{ [exerciseId: string]: 'saving' | 'saved' }>({});
   const [activeVideoExerciseId, setActiveVideoExerciseId] = useState<string | null>(null);
+  const dayResumeDoneRef = useRef(false);
 
   // Marketing screenshots: scroll so the requested block is in frame (form demo by default, or sets)
   useEffect(() => {
@@ -352,6 +354,87 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     }
     setCompletedExercises(next);
   }, [currentWeek, localAssignment?.weeks, client.workoutAssignment?.weeks]);
+
+  // D1 — Resume last saved day when assignment loads for the current week
+  useEffect(() => {
+    if (dayResumeDoneRef.current) return;
+    const assignment = localAssignment || client.workoutAssignment;
+    if (!assignment) return;
+    const lastWeek = assignment.lastSavedWeek;
+    const lastDay = assignment.lastSavedDay;
+    if (lastWeek == null || lastDay == null || lastWeek !== currentWeek) return;
+
+    const weekData = assignment.weeks?.find((w: any) => w.weekNumber === currentWeek);
+    const daysLen =
+      (weekData?.days && Array.isArray(weekData.days) && weekData.days.length) ||
+      (assignment.program?.days && Array.isArray(assignment.program.days) && assignment.program.days.length) ||
+      (workoutProgram?.days && Array.isArray(workoutProgram.days) && workoutProgram.days.length) ||
+      0;
+    const idx = lastDay - 1;
+    if (idx >= 0 && idx < daysLen) {
+      setCurrentDay(idx);
+      dayResumeDoneRef.current = true;
+    }
+  }, [localAssignment, client.workoutAssignment, currentWeek, workoutProgram]);
+
+  // D2 — Prefill empty sets from previous week same day (only when no local edit yet)
+  useEffect(() => {
+    const assignment = localAssignment || client.workoutAssignment;
+    if (!assignment?.weeks || currentWeek <= 1) return;
+    const prevWeek = assignment.weeks.find((w: any) => w.weekNumber === currentWeek - 1);
+    const currWeekData = assignment.weeks.find((w: any) => w.weekNumber === currentWeek);
+    const prevDay = prevWeek?.days?.[currentDay];
+    const currDay = currWeekData?.days?.[currentDay];
+    if (!prevDay?.exercises || !currDay?.exercises) return;
+
+    const isEmptyNum = (v: unknown) =>
+      v == null || v === '' || v === 0 || (Array.isArray(v) && (v.length === 0 || v.every((x) => !x)));
+
+    setExerciseData((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      (currDay.exercises as any[]).forEach((ex: any) => {
+        if (!ex?.id) return;
+        const name = (ex.exercise?.name || ex.name || '').toString().trim().toLowerCase();
+        const prevEx = (prevDay.exercises as any[]).find((pe: any) => {
+          if (pe.id && pe.id === ex.id) return true;
+          const pn = (pe.exercise?.name || pe.name || '').toString().trim().toLowerCase();
+          return !!name && pn === name;
+        });
+        if (!prevEx?.sets) return;
+
+        const setMap: { [setIndex: number]: { reps: number; weight: number } } = {
+          ...(next[ex.id] || {}),
+        };
+        let exerciseChanged = false;
+
+        (ex.sets || []).forEach((set: any, setIndex: number) => {
+          if (set?.isDropset) return;
+          if (prev[ex.id]?.[setIndex]) return; // client already edited this set
+          if (!isEmptyNum(set.reps) || !isEmptyNum(set.weight)) return;
+
+          const prevSet = prevEx.sets[setIndex];
+          if (!prevSet) return;
+          const prevReps = Array.isArray(prevSet.reps)
+            ? Number(prevSet.reps[0]) || 0
+            : Number(prevSet.reps) || 0;
+          const prevWeight = Array.isArray(prevSet.weight)
+            ? Number(prevSet.weight[0]) || 0
+            : Number(prevSet.weight) || 0;
+          if (!prevReps && !prevWeight) return;
+
+          setMap[setIndex] = { reps: prevReps, weight: prevWeight };
+          exerciseChanged = true;
+          changed = true;
+        });
+
+        if (exerciseChanged) next[ex.id] = setMap;
+      });
+
+      return changed ? next : prev;
+    });
+  }, [currentWeek, currentDay, localAssignment?.weeks, client.workoutAssignment?.weeks]);
 
   // Merge week-specific data into the program for display. Prefer week's days when present so we never show empty after save.
   const getCurrentWeekProgram = (): WorkoutProgram => {
@@ -660,6 +743,38 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         }
       }
     }));
+  };
+
+  const isHumanReadableSupersetName = (name: unknown): name is string => {
+    if (typeof name !== 'string' || !name.trim()) return false;
+    const s = name.trim();
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)) return false;
+    if (/^[0-9a-f]{16,}$/i.test(s)) return false;
+    if (/\s/.test(s) && /[a-zA-Z]/.test(s)) return true;
+    return s.length > 2 && /[a-zA-Z]/.test(s) && !/^[a-z0-9_-]{8,}$/i.test(s);
+  };
+
+  /** First working set reps/weight from previous week, same day, matching exercise */
+  const getLastSessionStats = (exercise: any): { reps: number; weight: number } | null => {
+    const assignment = localAssignment || client.workoutAssignment;
+    if (!assignment?.weeks || currentWeek <= 1) return null;
+    const prevWeek = assignment.weeks.find((w: any) => w.weekNumber === currentWeek - 1);
+    const prevDay = prevWeek?.days?.[currentDay];
+    if (!prevDay?.exercises) return null;
+    const name = (exercise.exercise?.name || exercise.name || '').toString().trim().toLowerCase();
+    const prevEx = (prevDay.exercises as any[]).find((pe: any) => {
+      if (pe.id && pe.id === exercise.id) return true;
+      const pn = (pe.exercise?.name || pe.name || '').toString().trim().toLowerCase();
+      return !!name && pn === name;
+    });
+    if (!prevEx?.sets?.length) return null;
+    for (const set of prevEx.sets) {
+      if (set?.isDropset) continue;
+      const reps = Array.isArray(set.reps) ? Number(set.reps[0]) || 0 : Number(set.reps) || 0;
+      const weight = Array.isArray(set.weight) ? Number(set.weight[0]) || 0 : Number(set.weight) || 0;
+      if (reps || weight) return { reps, weight };
+    }
+    return null;
   };
 
   // Save client edits to workout assignment (called when user clicks Save)
@@ -1074,13 +1189,33 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           </div>
         )}
 
-        {/* Day Navigation - token-styled cards */}
+        {/* Day Navigation - collapsed by default (same pattern as week strip) */}
         <div>
-          <div className="workout-seclabel">
-            <span>{t('workout.selectDay')}</span>
-            <span className="line" />
-          </div>
+          <button
+            type="button"
+            onClick={() => setDayStripOpen((o) => !o)}
+            className="workout-week-toggle"
+            aria-expanded={dayStripOpen}
+            style={{ minHeight: 44 }}
+          >
+            <span className="flex flex-col items-start gap-0.5 min-w-0">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--txt-lo)' }}>
+                {t('workout.changeWeekDay')}
+              </span>
+              <span className="font-saira font-semibold text-[14px] truncate" style={{ color: 'var(--txt-hi)' }}>
+                {currentDayData
+                  ? `${currentDayData.name} · ${t('workout.nExercises', { count: currentDayData.exercises.length })}`
+                  : t('workout.selectDay')}
+              </span>
+            </span>
+            <ChevronDown
+              className={`w-4 h-4 shrink-0 transition-transform duration-200 ${dayStripOpen ? 'rotate-180' : ''}`}
+              style={{ color: 'var(--txt-lo)' }}
+            />
+          </button>
 
+          {dayStripOpen && (
+          <div className="mt-2">
           {/* Horizontal Scrolling Days */}
           <div className="relative">
             <div
@@ -1115,7 +1250,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                       key={day.id}
                       type="button"
                       data-scroll-item
-                      onClick={() => setCurrentDay(index)}
+                      onClick={() => {
+                        setCurrentDay(index);
+                        setDayStripOpen(false);
+                      }}
                       disabled={!isDayUnlocked}
                       className={`group relative flex-shrink-0 w-[118px] sm:w-[132px] text-left p-2.5 sm:p-3 rounded-[14px] transition-all duration-200 active:scale-[0.97] ${
                         isCurrentDay ? 'shadow-glow-red' : ''
@@ -1195,6 +1333,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
               </svg>
             </button>
           </div>
+          </div>
+          )}
 
           {!isDayUnlocked && (
             <div className="workout-locked-banner">
@@ -1261,6 +1401,11 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                   : [];
                 const isSuperset = ssGroup.length >= 2;
                 const ssPos = isSuperset ? ssGroup.findIndex((e: any) => e.id === exercise.id) : -1;
+                const lastSession = getLastSessionStats(exercise);
+                const rawSsName = (exercise as any).supersetName || exercise.superset;
+                const ssLabel = isHumanReadableSupersetName(rawSsName)
+                  ? `${t('workout.superset')} · ${rawSsName}`
+                  : t('workout.superset');
                 return (
                 <div
                   key={exercise.id}
@@ -1298,11 +1443,16 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                         {exercise.superset && (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 text-white inline-flex items-center gap-1" style={{ background: 'linear-gradient(135deg,#3b82f6,#06b6d4)' }}>
                             <Zap className="w-2.5 h-2.5" />
-                            {exercise.supersetName || exercise.superset}
+                            {ssLabel}
                             {isSuperset && <span className="opacity-80">· {ssPos + 1}/{ssGroup.length}</span>}
                           </span>
                         )}
                       </div>
+                      {lastSession && (
+                        <p className="text-[12px] mt-1" style={{ color: 'var(--txt-lo)' }}>
+                          {t('workout.lastTime', { reps: lastSession.reps, weight: lastSession.weight })}
+                        </p>
+                      )}
 
                       <div className="flex flex-wrap gap-1.5 mt-2.5">
                         <span

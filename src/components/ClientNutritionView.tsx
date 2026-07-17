@@ -36,6 +36,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
   const [favoriteMeals, setFavoriteMeals] = useState<string[]>([]);
   const [showIngredients, setShowIngredients] = useState<{ [mealId: string]: boolean }>({});
   const [showInstructions, setShowInstructions] = useState<{ [mealId: string]: boolean }>({});
+  const [showMacros, setShowMacros] = useState(false);
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [currentMealIndex, setCurrentMealIndex] = useState<{ [slotId: string]: number }>({});
   const [activeMealModal, setActiveMealModal] = useState<{ slotId: string; mealIndex: number } | null>(null);
@@ -327,15 +328,31 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
             <div>
               <div className="text-[12px]" style={{ color: 'var(--txt-mid)' }}>{t('nut.dailyCalories')}</div>
               <div className="nut-hero-stat mt-1">{Math.round(dailyTotals.calories)}</div>
-            </div>
-            <div className="text-right text-[12px]" style={{ color: 'var(--txt-lo)' }}>
-              <div>{t('nut.remaining', { n: Math.max(0, Math.round(dailyTotals.calories) - 825) })}</div>
-              <div className="mt-1">{t('nut.consumedGoal', { consumed: 825, goal: Math.round(dailyTotals.calories) })}</div>
+              <div className="text-[12px] mt-1" style={{ color: 'var(--txt-lo)' }}>
+                {t('nut.dailyTargetOnly')}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="nut-macro-grid">
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowMacros((o) => !o)}
+            className="workout-week-toggle w-full"
+            aria-expanded={showMacros}
+            style={{ minHeight: 44 }}
+          >
+            <span className="font-saira font-semibold text-[14px]" style={{ color: 'var(--txt-hi)' }}>
+              {showMacros ? t('nut.hideMacros') : t('nut.showMacros')}
+            </span>
+            <ChevronRight
+              className={`w-4 h-4 shrink-0 transition-transform duration-200 ${showMacros ? 'rotate-90' : ''}`}
+              style={{ color: 'var(--txt-lo)' }}
+            />
+          </button>
+          {showMacros && (
+        <div className="nut-macro-grid mt-2">
           <div className="nut-macro-tile">
             <div className="flex items-center justify-between">
               <div>
@@ -376,6 +393,8 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
               <Zap className="w-5 h-5 nut-macro-fat" />
             </div>
           </div>
+        </div>
+          )}
         </div>
 
         <div className="pt-1">

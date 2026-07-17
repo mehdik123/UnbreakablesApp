@@ -7,6 +7,7 @@ import {
   BarChart3,
   Target,
   ChevronRight,
+  ChevronDown,
   ArrowUp,
   ArrowDown
 } from 'lucide-react';
@@ -46,6 +47,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
   const { t } = useClientLocale();
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showNumbers, setShowNumbers] = useState(false);
   const [imageErrors, setImageErrors] = useState<{ [key: string]: boolean }>({});
 
   // Muscle group image mapping (using anatomically accurate diagrams)
@@ -312,6 +314,22 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
   }
 
   const improvingCount = muscleGroups.filter(m => m.trend === 'increasing').length;
+  const decliningCount = muscleGroups.filter(m => m.trend === 'decreasing').length;
+  const totalMuscles = muscleGroups.length;
+  const analyticsVerdictKey =
+    totalMuscles === 0
+      ? 'progress.verdictEmpty'
+      : improvingCount > decliningCount && improvingCount >= Math.ceil(totalMuscles / 2)
+      ? 'progress.verdictUp'
+      : decliningCount > improvingCount && decliningCount >= Math.ceil(totalMuscles / 2)
+      ? 'progress.verdictDown'
+      : improvingCount === 0 && decliningCount === 0 && totalMuscles > 0
+      ? 'progress.verdictFlat'
+      : improvingCount === decliningCount
+      ? 'progress.verdictFlat'
+      : improvingCount > decliningCount
+      ? 'progress.verdictUp'
+      : 'progress.verdictDown';
 
   return (
     <div className="an-shell py-2">
@@ -322,10 +340,10 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
           </div>
           <div className="min-w-0 flex-1">
             <div className="font-saira font-semibold text-[18px] truncate" style={{ color: 'var(--txt-hi)' }}>
-              {t('nav.analytics')}
+              {t('nav.gettingStronger')}
             </div>
             <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>
-              {t('home.analyticsDesc')}
+              {t(analyticsVerdictKey)}
             </div>
           </div>
           <div className="text-center shrink-0">
@@ -338,7 +356,25 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
           </div>
         </div>
 
-        <div className="workout-seclabel">
+        <button
+          type="button"
+          onClick={() => setShowNumbers((o) => !o)}
+          className="workout-week-toggle w-full mt-3"
+          aria-expanded={showNumbers}
+          style={{ minHeight: 44 }}
+        >
+          <span className="font-saira font-semibold text-[14px]" style={{ color: 'var(--txt-hi)' }}>
+            {showNumbers ? t('home.hideNumbers') : t('home.seeTheNumbers')}
+          </span>
+          <ChevronDown
+            className={`w-4 h-4 shrink-0 transition-transform duration-200 ${showNumbers ? 'rotate-180' : ''}`}
+            style={{ color: 'var(--txt-lo)' }}
+          />
+        </button>
+
+        {showNumbers && (
+        <>
+        <div className="workout-seclabel mt-4">
           <span>{t('an.title')}</span>
           <span className="line" />
         </div>
@@ -592,6 +628,8 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
             </div>
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );

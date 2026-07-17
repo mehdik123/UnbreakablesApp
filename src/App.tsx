@@ -1149,6 +1149,18 @@ function App() {
     setSessionRestored(true);
   };
 
+  const handleClientLogout = () => {
+    authService.logout();
+    setIsAuthenticated(false);
+    setAuthType('none');
+    setSessionRestored(false);
+    setAppState((prev) => ({
+      ...prev,
+      selectedClient: null,
+      currentView: 'clients',
+    }));
+  };
+
   // Wrap everything with ToastProvider
   // DEV marketing screenshots: http://localhost:5173/?marketing=1&screen=workout
   if (import.meta.env.DEV && typeof window !== 'undefined') {
@@ -1206,7 +1218,11 @@ function App() {
             const uuidMatch = clientShareId.match(uuidPattern);
             const extractedClientId = uuidMatch ? uuidMatch[1] : clientShareId;
             
-            return <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />;
+            return (
+              <ClientLocaleProvider>
+                <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />
+              </ClientLocaleProvider>
+            );
           } else {
             return <CoachLogin onLoginSuccess={handleCoachLoginSuccess} />;
           }
@@ -1220,7 +1236,11 @@ function App() {
         // Protect client views
         if (isClientLink && authType !== 'client') {
           const extractedClientId = extractClientIdFromShareParam(clientShareId);
-          return <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />;
+          return (
+            <ClientLocaleProvider>
+              <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />
+            </ClientLocaleProvider>
+          );
         }
 
         if (
@@ -1295,6 +1315,7 @@ function App() {
             <ModernClientInterface
               client={appState.selectedClient}
               isDark={appState.isDark}
+              onLogout={handleClientLogout}
             />
           </ClientLocaleProvider>
         )}

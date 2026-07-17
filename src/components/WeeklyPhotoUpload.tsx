@@ -290,6 +290,12 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
         </div>
       </div>
 
+      {weekPhotos.length === 0 && (
+        <p className="text-[12.5px] leading-relaxed mb-2" style={{ color: 'var(--txt-mid)' }}>
+          {t('photo.emptyHint')}
+        </p>
+      )}
+
       {/* Compact Upload Grid */}
       <div className="grid grid-cols-3 gap-2">
         {photoTypes.map(({ type, label }) => {

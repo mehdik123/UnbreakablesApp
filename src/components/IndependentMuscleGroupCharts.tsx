@@ -55,6 +55,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
   const { t } = useClientLocale();
   const [loading, setLoading] = useState(true);
   const [expandedCharts, setExpandedCharts] = useState<{ [muscleGroup: string]: boolean }>({});
+  const [showNumbers, setShowNumbers] = useState(false);
   const [workoutExercises, setWorkoutExercises] = useState<{ [muscleGroup: string]: Exercise[] }>({});
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
   const [imageErrors, setImageErrors] = useState<{ [key: string]: boolean }>({});
@@ -170,6 +171,19 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
 
   const totalExercises = Object.values(workoutExercises).reduce((sum, exercises) => sum + exercises.length, 0);
 
+  const progressVerdictKey = useMemo(() => {
+    if (!chartData.length || availableMuscleGroups.length === 0) return 'progress.verdictEmpty';
+    const weekTotals = chartData.map((week) =>
+      availableMuscleGroups.reduce((sum, mg) => sum + ((week[mg] as number) || 0), 0)
+    );
+    const first = weekTotals[0] || 0;
+    const last = weekTotals[weekTotals.length - 1] || 0;
+    if (first === 0 && last === 0) return 'progress.verdictEmpty';
+    if (last > first) return 'progress.verdictUp';
+    if (last < first) return 'progress.verdictDown';
+    return 'progress.verdictFlat';
+  }, [chartData, availableMuscleGroups]);
+
   return (
     <div className="ch-shell py-2">
       <div className="max-w-7xl mx-auto px-1">
@@ -179,10 +193,10 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
           </div>
           <div className="min-w-0 flex-1">
             <div className="font-saira font-semibold text-[18px] truncate" style={{ color: 'var(--txt-hi)' }}>
-              {t('nav.progress')}
+              {t('nav.whatYouTrain')}
             </div>
             <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>
-              {t('home.progressDesc')}
+              {t(progressVerdictKey)}
             </div>
           </div>
           <div className="text-center shrink-0">
@@ -195,7 +209,25 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
           </div>
         </div>
 
-        <div className="workout-seclabel">
+        <button
+          type="button"
+          onClick={() => setShowNumbers((o) => !o)}
+          className="workout-week-toggle w-full mt-3"
+          aria-expanded={showNumbers}
+          style={{ minHeight: 44 }}
+        >
+          <span className="font-saira font-semibold text-[14px]" style={{ color: 'var(--txt-hi)' }}>
+            {showNumbers ? t('home.hideNumbers') : t('home.seeTheNumbers')}
+          </span>
+          <ChevronDown
+            className={`w-4 h-4 shrink-0 transition-transform duration-200 ${showNumbers ? 'rotate-180' : ''}`}
+            style={{ color: 'var(--txt-lo)' }}
+          />
+        </button>
+
+        {showNumbers && (
+        <>
+        <div className="workout-seclabel mt-4">
           <span>{t('ch.title')}</span>
           <span className="line" />
         </div>
@@ -674,6 +706,8 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
             </div>
           </div>
         </div>
+        </>
+        )}
       </div>
     </div>
   );
