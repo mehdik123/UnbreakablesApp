@@ -2086,6 +2086,447 @@
     filter: brightness(1.05);
   }
 
+
+  /* ── Coach nutrition meal plan cards ── */
+  .coach-meal-list {
+    width: 100%;
+  }
+
+  .coach-meal-card {
+    width: 100%;
+    border-radius: var(--r-lg);
+    border: 1px solid var(--hair);
+    background: var(--surface-1);
+    padding: 1rem 1.1rem 1.15rem;
+    box-shadow: 0 8px 28px -18px rgba(0, 0, 0, 0.45);
+  }
+
+  @media (min-width: 768px) {
+    .coach-meal-card {
+      padding: 1.15rem 1.35rem 1.25rem;
+    }
+  }
+
+  .coach-meal-card-top {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  @media (min-width: 768px) {
+    .coach-meal-card-top {
+      flex-direction: row;
+      align-items: stretch;
+      gap: 1.25rem;
+    }
+  }
+
+  .coach-meal-card-main {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .coach-meal-headline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 900px) {
+    .coach-meal-headline {
+      flex-wrap: nowrap;
+    }
+  }
+
+  .coach-meal-card-media {
+    position: relative;
+    width: 100%;
+    height: 9.5rem;
+    border-radius: var(--r-md);
+    overflow: hidden;
+    border: 1px solid var(--hair);
+    flex-shrink: 0;
+    background: var(--surface-2);
+  }
+
+  @media (min-width: 768px) {
+    .coach-meal-card-media {
+      width: 9.5rem;
+      height: 9.5rem;
+    }
+  }
+
+  .coach-meal-card-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .coach-meal-photo-btn {
+    position: absolute;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 650;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(8px);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .coach-meal-title {
+    font-size: 1.05rem;
+    font-weight: 750;
+    color: var(--txt-hi);
+    line-height: 1.25;
+    cursor: text;
+    margin: 0 0 0.4rem;
+  }
+
+  @media (min-width: 768px) {
+    .coach-meal-title {
+      font-size: 1.2rem;
+    }
+  }
+
+  .coach-meal-name-input {
+    width: 100%;
+    min-height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--hair-strong);
+    background: var(--surface-2);
+    color: var(--txt-hi);
+    padding: 0.5rem 0.75rem;
+    font-size: 16px;
+    font-weight: 650;
+  }
+
+  .coach-meal-slot-tag {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0.15rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--green);
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.28);
+  }
+
+  .coach-meal-macros {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.85rem;
+  }
+
+  @media (min-width: 900px) {
+    .coach-meal-macros {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 0;
+      min-width: 17rem;
+    }
+  }
+
+  .coach-macro {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--hair);
+  }
+
+  .coach-macro .lbl {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--txt-lo);
+    text-transform: lowercase;
+  }
+
+  .coach-macro--muted {
+    opacity: 0.92;
+  }
+
+  .coach-meal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.9rem;
+  }
+
+  .coach-act {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 650;
+    border: 1px solid var(--hair);
+    background: var(--surface-2);
+    color: var(--txt-hi);
+    transition: transform 0.15s var(--spring), border-color 0.15s, background 0.15s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .coach-act:active {
+    transform: scale(0.97);
+  }
+
+  .coach-act--sm {
+    min-height: 36px;
+    padding: 0.35rem 0.65rem;
+  }
+
+  .coach-act--green {
+    color: var(--green);
+    border-color: rgba(52, 211, 153, 0.35);
+    background: rgba(52, 211, 153, 0.1);
+  }
+
+  .coach-act--blue {
+    color: var(--blue);
+    border-color: rgba(96, 165, 250, 0.35);
+    background: rgba(96, 165, 250, 0.1);
+  }
+
+  .coach-act--amber {
+    color: var(--orange);
+    border-color: rgba(251, 146, 60, 0.35);
+    background: rgba(251, 146, 60, 0.1);
+  }
+
+  .coach-act--red {
+    color: var(--red);
+    border-color: rgba(255, 45, 85, 0.35);
+    background: rgba(255, 45, 85, 0.1);
+  }
+
+  .coach-meal-section {
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--hair);
+  }
+
+  .coach-meal-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .coach-section-toggle {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.35rem 0.15rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--txt-hi);
+    background: transparent;
+    border: none;
+    touch-action: manipulation;
+  }
+
+  .coach-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--txt-mid);
+    background: var(--surface-2);
+    border: 1px solid var(--hair);
+  }
+
+  .coach-ing-table {
+    margin-top: 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .coach-ing-head {
+    display: none;
+  }
+
+  @media (min-width: 768px) {
+    .coach-ing-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) 5.5rem 7rem 3.5rem 2.5rem;
+      gap: 0.5rem;
+      padding: 0 0.35rem 0.25rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--txt-lo);
+    }
+  }
+
+  .coach-ing-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.45rem 0.55rem;
+    align-items: center;
+    padding: 0.65rem 0.7rem;
+    border-radius: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--hair);
+  }
+
+  @media (min-width: 768px) {
+    .coach-ing-row {
+      grid-template-columns: minmax(0, 1.6fr) 5.5rem 7rem 3.5rem 2.5rem;
+    }
+  }
+
+  .coach-ing-name {
+    text-align: start;
+    font-size: 0.9rem;
+    font-weight: 650;
+    color: var(--txt-hi);
+    background: transparent;
+    border: none;
+    padding: 0;
+    min-height: 32px;
+    touch-action: manipulation;
+  }
+
+  .coach-ing-name:hover,
+  .coach-ing-name:focus-visible {
+    color: var(--blue);
+  }
+
+  .coach-ing-meta {
+    font-size: 0.72rem;
+    color: var(--txt-mid);
+  }
+
+  @media (max-width: 767px) {
+    .coach-ing-meta {
+      grid-column: 1 / -1;
+      order: 3;
+    }
+    .coach-ing-kcal {
+      display: none;
+    }
+  }
+
+  .coach-ing-portion {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.45rem;
+    border-radius: 10px;
+    background: var(--surface-1);
+    border: 1px solid var(--hair-strong);
+    color: var(--txt-mid);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .coach-ing-input {
+    width: 4.25rem;
+    min-height: 36px;
+    border: none;
+    background: transparent;
+    color: var(--txt-hi);
+    font-size: 16px;
+    font-weight: 750;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .coach-ing-input:focus {
+    outline: none;
+  }
+
+  .coach-ing-kcal {
+    font-size: 0.85rem;
+    font-weight: 750;
+    color: var(--txt-hi);
+    text-align: end;
+  }
+
+  .coach-ing-del {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    color: var(--red);
+    background: rgba(255, 45, 85, 0.08);
+    border: 1px solid rgba(255, 45, 85, 0.22);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .coach-ing-empty {
+    padding: 0.85rem 0.35rem;
+    font-size: 0.85rem;
+    color: var(--txt-mid);
+  }
+
+  .coach-cook-area {
+    width: 100%;
+    margin-top: 0.65rem;
+    min-height: 96px;
+    border-radius: 14px;
+    border: 1px solid var(--hair);
+    background: var(--surface-2);
+    color: var(--txt-hi);
+    padding: 0.75rem 0.85rem;
+    font-size: 16px;
+    line-height: 1.45;
+    resize: vertical;
+  }
+
+  .coach-cook-area:focus {
+    outline: none;
+    border-color: rgba(168, 85, 247, 0.45);
+    box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.15);
+  }
+
+  .coach-icon-ok,
+  .coach-icon-cancel {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    border: 1px solid var(--hair);
+    background: var(--surface-2);
+    touch-action: manipulation;
+  }
+
+  .coach-icon-ok { color: var(--green); }
+  .coach-icon-cancel { color: var(--txt-mid); }
+
+
   @media (prefers-reduced-motion: reduce) {
     .client-tabbar-btn:active,
     .client-seg-btn:active,

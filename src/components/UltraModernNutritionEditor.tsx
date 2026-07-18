@@ -46,12 +46,20 @@ import {
 import { MealCard } from './MealCard';
 import { NutritionSummary } from './NutritionSummary';
 import { IngredientEditor } from './IngredientEditor';
-import { Client, NutritionPlan, SelectedMeal, Meal, Food, SlotMealOverride } from '../types';
+import { CoachMealPlanCard } from './CoachMealPlanCard';
+import { Client, NutritionPlan, SelectedMeal, Meal, Food } from '../types';
 import { calculateTotalNutrition, calculateMealNutrition } from '../utils/nutritionCalculator';
 import { getEffectiveSelectedMeal } from '../utils/mealSlotOverrides';
 import { exportToPDF } from '../utils/pdfExport';
-import { dbUpsertNutritionPlan, dbGetNutritionPlan, dbListMeals } from '../lib/db';
-import { supabase } from '../lib/supabaseClient';
+import {
+  dbUpsertNutritionPlan,
+  dbGetNutritionPlan,
+  dbListMeals,
+  dbAddMeal,
+  dbAddMealItem,
+  dbListIngredients,
+  dbAddIngredient,
+} from '../lib/db';
 
 interface NutritionTemplate {
   id: string;
@@ -157,16 +165,12 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   const [showSaveMealModal, setShowSaveMealModal] = useState(false);
   const [mealToSave, setMealToSave] = useState<{slotId: string; meal: SelectedMeal} | null>(null);
   const [saveMealName, setSaveMealName] = useState('');
-  const [saveMealCategory, setSaveMealCategory] = useState('Main Course');
+  const [saveMealInstructions, setSaveMealInstructions] = useState('');
   const [isSavingMeal, setIsSavingMeal] = useState(false);
   
   // Meal name editing states
   const [editingMealName, setEditingMealName] = useState<string | null>(null);
   const [tempMealName, setTempMealName] = useState('');
-
-  // Slot override (Customize for client) modal
-  const [editingSlotOverride, setEditingSlotOverride] = useState<{ slotId: string; selectedMeal: SelectedMeal } | null>(null);
-  const [slotOverrideDraft, setSlotOverrideDraft] = useState<SlotMealOverride>({});
 
   // Load database meals and existing nutrition plan
   useEffect(() => {
@@ -439,45 +443,6 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
         ? { ...slot, selectedMeals: slot.selectedMeals.filter(m => m.id !== mealId) }
         : slot
     ));
-  };
-
-  const openSlotOverrideModal = (slotId: string, selectedMeal: SelectedMeal) => {
-    setEditingSlotOverride({ slotId, selectedMeal });
-    setSlotOverrideDraft({
-      excludedIngredientNames: selectedMeal.slotOverride?.excludedIngredientNames ?? [],
-      nameOverride: selectedMeal.slotOverride?.nameOverride ?? '',
-      instructionsOverride: selectedMeal.slotOverride?.instructionsOverride ?? '',
-      imageOverride: selectedMeal.slotOverride?.imageOverride ?? ''
-    });
-  };
-
-  const saveSlotOverride = () => {
-    if (!editingSlotOverride) return;
-    const { slotId, selectedMeal } = editingSlotOverride;
-    setMealSlots(prev => prev.map(slot =>
-      slot.id === slotId
-        ? {
-            ...slot,
-            selectedMeals: slot.selectedMeals.map(m =>
-              m.id === selectedMeal.id
-                ? {
-                    ...m,
-                    slotOverride: {
-                      excludedIngredientNames: slotOverrideDraft.excludedIngredientNames?.length
-                        ? slotOverrideDraft.excludedIngredientNames
-                        : undefined,
-                      nameOverride: slotOverrideDraft.nameOverride?.trim() || undefined,
-                      instructionsOverride: slotOverrideDraft.instructionsOverride?.trim() || undefined,
-                      imageOverride: slotOverrideDraft.imageOverride?.trim() || undefined
-                    }
-                  }
-                : m
-            )
-          }
-        : slot
-    ));
-    setEditingSlotOverride(null);
-    setSlotOverrideDraft({});
   };
 
   const handleQuantityChange = (slotId: string, mealId: string, quantity: number) => {
@@ -1082,444 +1047,101 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
     setTempMealName('');
   };
 
-  // Open save meal modal
+  // Open save-as-new-meal modal (never overwrites the original library meal)
   const openSaveMealModal = (slotId: string, meal: SelectedMeal) => {
     setMealToSave({ slotId, meal });
-    setSaveMealName(meal.meal.name);
-    setSaveMealCategory(meal.meal.category || 'Main Course');
+    setSaveMealName(meal.meal.name || '');
+    setSaveMealInstructions(meal.meal.cookingInstructions || '');
     setShowSaveMealModal(true);
   };
 
-  // Save meal to database
+  // Always INSERT a brand-new meal into the library from the client's current plan copy
   const handleSaveMealToDatabase = async () => {
     if (!mealToSave || !saveMealName.trim()) {
-      alert('Please enter a meal name');
-      return;
-    }
-
-    if (!supabase) {
-      alert('Database connection not available');
+      alert('Please enter a name for the new meal');
       return;
     }
 
     setIsSavingMeal(true);
     try {
       const { meal } = mealToSave;
-      
-      // Calculate nutrition
-      const nutrition = meal.meal.ingredients.reduce((total, ingredient) => ({
-        calories: total.calories + (ingredient.food.kcal * ingredient.quantity / 100),
-        protein: total.protein + (ingredient.food.protein * ingredient.quantity / 100),
-        carbs: total.carbs + (ingredient.food.carbs * ingredient.quantity / 100),
-        fat: total.fat + (ingredient.food.fat * ingredient.quantity / 100)
-      }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+      const ingredients = meal.meal.ingredients || [];
 
-      // 1. Create the meal
-      const { data: mealData, error: mealError } = await supabase
-        .from('meals')
-        .insert({
-          name: saveMealName,
-          image: meal.meal.image,
-          category: saveMealCategory,
-          cuisine_type: meal.meal.cuisine || null,
-          difficulty_level: meal.meal.difficulty || 'Easy',
-          prep_time_minutes: parseInt(meal.meal.prepTime?.replace(/\D/g, '') || '15'),
-          cook_time_minutes: 0,
-          servings: 1,
-          calories_per_serving: Math.round(nutrition.calories),
-          protein_per_serving: Math.round(nutrition.protein),
-          carbs_per_serving: Math.round(nutrition.carbs),
-          fat_per_serving: Math.round(nutrition.fat),
-          description: meal.meal.cookingInstructions || '',
-          is_active: true
-        })
-        .select()
-        .single();
+      const nutrition = ingredients.reduce(
+        (total, ingredient) => ({
+          calories: total.calories + (ingredient.food.kcal * ingredient.quantity) / 100,
+          protein: total.protein + (ingredient.food.protein * ingredient.quantity) / 100,
+          carbs: total.carbs + (ingredient.food.carbs * ingredient.quantity) / 100,
+          fat: total.fat + (ingredient.food.fat * ingredient.quantity) / 100,
+        }),
+        { calories: 0, protein: 0, carbs: 0, fat: 0 }
+      );
 
-      if (mealError) throw mealError;
+      // 1) Create NEW meal row only (insert — never update an existing meal id)
+      const mealResult = await dbAddMeal({
+        name: saveMealName.trim(),
+        image: meal.meal.image || undefined,
+        cooking_instructions: saveMealInstructions.trim() || undefined,
+        is_template: true,
+        kcal_target: Math.round(nutrition.calories) || undefined,
+      });
 
-      // 2. Get or create ingredients and link them to the meal
-      for (const ingredient of meal.meal.ingredients) {
-        // Check if ingredient exists
-        let { data: existingIngredient, error: searchError } = await supabase
-          .from('ingredients')
-          .select('id')
-          .ilike('name', ingredient.food.name)
-          .single();
-
-        let ingredientId: string;
-
-        if (existingIngredient) {
-          ingredientId = existingIngredient.id;
-        } else {
-          // Create new ingredient
-          const { data: newIngredient, error: createError } = await supabase
-            .from('ingredients')
-            .insert({
-              name: ingredient.food.name,
-              category: 'Other',
-              kcal: ingredient.food.kcal,
-              protein: ingredient.food.protein,
-              carbs: ingredient.food.carbs,
-              fat: ingredient.food.fat
-            })
-            .select()
-            .single();
-
-          if (createError) {
-            console.error('Error creating ingredient:', createError);
-            continue;
-          }
-          ingredientId = newIngredient.id;
-        }
-
-        // 3. Create meal_items entry
-        await supabase
-          .from('meal_items')
-          .insert({
-            meal_id: mealData.id,
-            ingredient_id: ingredientId,
-            quantity_g: ingredient.quantity
-          });
+      if (mealResult.error || !mealResult.data) {
+        throw mealResult.error || new Error('Failed to create meal');
       }
 
-      console.log('✅ Meal saved to database:', mealData);
-      alert('Meal saved successfully!');
-      
-      // Reload meals
+      const newMealId = mealResult.data.id as string;
+
+      // 2) Link ingredients (reuse existing ingredient rows by name, or create missing ones)
+      const ingredientsResult = await dbListIngredients();
+      const existingIngredients = ingredientsResult.data || [];
+
+      for (const ingredient of ingredients) {
+        const foodName = (ingredient.food?.name || '').trim();
+        if (!foodName) continue;
+
+        let match = existingIngredients.find(
+          (ing: any) => (ing.name || '').trim().toLowerCase() === foodName.toLowerCase()
+        );
+
+        if (!match) {
+          const created = await dbAddIngredient({
+            name: foodName,
+            kcal: ingredient.food.kcal || 0,
+            protein: ingredient.food.protein || 0,
+            fat: ingredient.food.fat || 0,
+            carbs: ingredient.food.carbs || 0,
+          });
+          if (created.error || !created.data) {
+            console.error('Error creating ingredient:', foodName, created.error);
+            continue;
+          }
+          match = created.data;
+          existingIngredients.push(created.data);
+        }
+
+        const itemResult = await dbAddMealItem(newMealId, match.id, ingredient.quantity);
+        if (itemResult.error) {
+          console.error('Error linking ingredient:', foodName, itemResult.error);
+        }
+      }
+
+      alert(`Saved as new meal: “${saveMealName.trim()}”. The original library meal was not changed.`);
+
       await loadDbMeals();
-      
-      // Close modal
+
       setShowSaveMealModal(false);
       setMealToSave(null);
       setSaveMealName('');
+      setSaveMealInstructions('');
     } catch (err) {
       console.error('❌ Error saving meal:', err);
-      alert('Failed to save meal. Please try again.');
+      alert('Failed to save the new meal. Please try again.');
     } finally {
       setIsSavingMeal(false);
     }
   };
 
-  // Mobile meal card renderer
-  const renderMobileMealCard = (selectedMeal: SelectedMeal, nutrition: any, isIngredientsExpanded: boolean, isInstructionsExpanded: boolean, slotId: string) => {
-    return (
-      <>
-        {/* Meal Image - Ultra Modern for Mobile */}
-        <div className="w-full h-40 rounded-2xl overflow-hidden mb-4 shadow-2xl border-2 border-slate-600/30 group relative">
-          <img 
-            src={selectedMeal.meal.image} 
-            alt={selectedMeal.meal.name} 
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
-          
-          {/* Image Upload Button - Hidden file input */}
-          <input
-            type="file"
-            accept="image/*"
-            ref={(el) => fileInputRefs.current[`${slotId}-${selectedMeal.id}`] = el}
-            onChange={(e) => handleImageUpload(slotId, selectedMeal.id, e)}
-            className="hidden"
-          />
-          
-          {/* Camera Icon Button Overlay - Always visible on mobile, hover on desktop */}
-          <button
-            onClick={() => fileInputRefs.current[`${slotId}-${selectedMeal.id}`]?.click()}
-            className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-slate-900/80 backdrop-blur-sm text-white hover:bg-blue-600 transition-all duration-200 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 border border-slate-600/50 hover:border-blue-500/50 active:scale-95 md:hover:scale-110"
-            title="Change Image"
-          >
-            <Camera className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Meal Info - Redesigned for Better Mobile Layout */}
-        <div className="space-y-3 mb-4">
-          {/* Title Row - Editable */}
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30 flex-shrink-0">
-              <Crown className="w-5 h-5 text-white" />
-            </div>
-            {editingMealName === selectedMeal.id ? (
-              <div className="flex-1 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={tempMealName}
-                  onChange={(e) => setTempMealName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleMealNameSave(slotId, selectedMeal.id);
-                    if (e.key === 'Escape') handleMealNameCancel();
-                  }}
-                  className="flex-1 px-3 py-2 rounded-lg bg-slate-900/80 text-white text-base font-bold border border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  autoFocus
-                />
-                <button
-                  onClick={() => handleMealNameSave(slotId, selectedMeal.id)}
-                  className="p-2 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={handleMealNameCancel}
-                  className="p-2 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <h4 
-                onClick={() => handleMealNameEdit(selectedMeal.id, selectedMeal.meal.name)}
-                className="text-lg font-bold text-white flex-1 line-clamp-2 leading-tight cursor-pointer hover:text-blue-400 transition-colors"
-                title="Click to edit meal name"
-              >
-                {selectedMeal.meal.name}
-              </h4>
-            )}
-          </div>
-          
-          {/* Category and Actions Row */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-700/50 border border-slate-600/50">
-              <Activity className="w-3 h-3 text-blue-400 flex-shrink-0" />
-              <p className="text-slate-300 capitalize text-sm font-medium">{selectedMeal.meal.category}</p>
-            </div>
-            
-            {/* Action Buttons - Horizontal Layout */}
-            <div className="flex items-center gap-1 flex-shrink-0">
-              {editingIngredients.has(selectedMeal.id) ? (
-                <>
-                  <button
-                    onClick={() => saveIngredientChanges(slotId, selectedMeal.id)}
-                    className="p-2 rounded-lg text-green-400 hover:text-green-300 hover:bg-green-600/20 transition-colors duration-200"
-                    title="Save Changes"
-                  >
-                    <Save className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => stopEditingIngredients(selectedMeal.id)}
-                    className="p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-600/20 transition-colors duration-200"
-                    title="Cancel"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => openSaveMealModal(slotId, selectedMeal)}
-                    className="p-2 rounded-lg text-green-400 hover:text-green-300 hover:bg-green-600/20 transition-colors duration-200"
-                    title="Save to Database"
-                  >
-                    <Save className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => startEditingIngredients(selectedMeal.id)}
-                    className="p-2 rounded-lg text-blue-400 hover:text-blue-300 hover:bg-blue-600/20 transition-colors duration-200"
-                    title="Edit Ingredients"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleRemoveMeal(slotId, selectedMeal.id)}
-                    className="p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-600/20 transition-colors duration-200"
-                    title="Remove Meal"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Nutrition Info - Compact Mobile Design */}
-        <div className="grid grid-cols-4 gap-2 mb-4">
-          {/* Calories */}
-          <div className="bg-gradient-to-br from-orange-500/10 to-red-500/10 rounded-xl p-2 border border-orange-500/20">
-            <div className="text-center">
-              <Flame className="w-4 h-4 text-orange-400 mx-auto mb-1" />
-              <div className="text-orange-400 text-[10px] font-medium mb-0.5">Cal</div>
-              <div className="text-white text-sm font-bold">{Math.round(nutrition.calories * selectedMeal.quantity)}</div>
-            </div>
-          </div>
-          
-          {/* Protein */}
-          <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-xl p-2 border border-blue-500/20">
-            <div className="text-center">
-              <Target className="w-4 h-4 text-blue-400 mx-auto mb-1" />
-              <div className="text-blue-400 text-[10px] font-medium mb-0.5">Pro</div>
-              <div className="text-white text-sm font-bold">{Math.round(nutrition.protein * selectedMeal.quantity)}g</div>
-            </div>
-          </div>
-          
-          {/* Carbs */}
-          <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-xl p-2 border border-green-500/20">
-            <div className="text-center">
-              <TrendingUp className="w-4 h-4 text-green-400 mx-auto mb-1" />
-              <div className="text-green-400 text-[10px] font-medium mb-0.5">Carb</div>
-              <div className="text-white text-sm font-bold">{Math.round(nutrition.carbs * selectedMeal.quantity)}g</div>
-            </div>
-          </div>
-          
-          {/* Fat */}
-          <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-xl p-2 border border-purple-500/20">
-            <div className="text-center">
-              <Shield className="w-4 h-4 text-purple-400 mx-auto mb-1" />
-              <div className="text-purple-400 text-[10px] font-medium mb-0.5">Fat</div>
-              <div className="text-white text-sm font-bold">{Math.round(nutrition.fat * selectedMeal.quantity)}g</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Expandable Sections - Compact Mobile Design */}
-        <div className="space-y-3">
-          {/* Ingredients - Compact Design */}
-          <div className="bg-slate-800/50 backdrop-blur-xl rounded-xl p-3 border border-slate-600/30">
-            <div className={`flex items-center justify-between ${isIngredientsExpanded ? 'mb-2' : ''}`}>
-              <button
-                onClick={() => toggleExpanded(selectedMeal.id, 'ingredients')}
-                className="flex items-center gap-2 flex-1 text-left"
-              >
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                  <List className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <span className="text-white font-bold text-sm">Ingredients</span>
-                  <span className="text-slate-400 text-xs ml-2">({selectedMeal.meal.ingredients.length})</span>
-                </div>
-                <ChevronDown className={`w-4 h-4 text-slate-400 ml-auto transition-transform ${isIngredientsExpanded ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {isIngredientsExpanded && (
-                <div className="flex items-center gap-1.5">
-                  {/* Add Ingredient Button */}
-                  <button
-                    onClick={() => handleAddIngredient(slotId, selectedMeal.id)}
-                    className="p-2 rounded-lg bg-green-600/20 text-green-400 border border-green-500/30 hover:bg-green-600/30 transition-colors"
-                    title="Add Ingredient"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                  
-                  {/* Collapse Ingredients Button */}
-                  <button
-                    onClick={() => toggleExpanded(selectedMeal.id, 'ingredients')}
-                    className="p-2 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600/30 transition-colors"
-                    title="Done Editing"
-                  >
-                    <CheckCircle className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-            </div>
-            {isIngredientsExpanded && (
-              <div className="mt-2 space-y-1.5">
-                {/* Ultra Modern ingredient list for coaches */}
-                {selectedMeal.meal.ingredients.map((ingredient, idx) => {
-                  const key = `${selectedMeal.id}-${idx}`;
-                  const currentQuantity = editingQuantities[key] !== undefined 
-                    ? editingQuantities[key] 
-                    : ingredient.quantity;
-                  
-                  return (
-                    <div 
-                      key={`${slotId}-${selectedMeal.id}-ingredient-${idx}`} 
-                      className="group relative bg-gradient-to-r from-slate-800/60 via-slate-700/40 to-slate-800/60 backdrop-blur-sm rounded-xl p-2.5 border border-slate-600/40 hover:border-blue-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/10"
-                    >
-                      {/* Gradient overlay on hover */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/0 via-blue-500/5 to-purple-500/0 opacity-0 group-hover:opacity-100 rounded-xl transition-opacity duration-300"></div>
-                      
-                      <div className="relative flex items-center gap-2.5">
-                        {/* Number Badge */}
-                        <div className="flex-shrink-0 w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/30 flex items-center justify-center">
-                          <span className="text-blue-300 text-[10px] font-bold">{idx + 1}</span>
-                        </div>
-                        
-                        {/* Ingredient Name - Clickable */}
-                        <div 
-                          className="flex-1 min-w-0 cursor-pointer group/name" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const searchKey = `${selectedMeal.id}::${idx}`;
-                            setShowIngredientSearch(searchKey);
-                          }}
-                        >
-                          <span className="text-white font-semibold text-sm block truncate group-hover/name:text-blue-400 transition-colors">{ingredient.food.name}</span>
-                        </div>
-                        
-                        {/* Quantity Input - Modern Style */}
-                        <div className="flex items-center gap-1.5 bg-slate-900/60 rounded-lg px-2 py-1 border border-slate-600/50 group-hover:border-blue-500/30 transition-colors">
-                          <input
-                            type="number"
-                            value={currentQuantity}
-                            onChange={(e) => handleIngredientQuantityChange(selectedMeal.id, idx, parseFloat(e.target.value) || 0, slotId)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-11 bg-transparent text-white text-xs font-bold text-center focus:outline-none"
-                            min="0"
-                          />
-                          <span className="text-slate-400 text-[10px] font-medium">g</span>
-                        </div>
-                        
-                        {/* Remove Button - Modern Style */}
-                        <button
-                          onClick={() => handleRemoveIngredient(slotId, selectedMeal.id, idx)}
-                          className="flex-shrink-0 w-7 h-7 rounded-lg bg-gradient-to-br from-red-600/20 to-red-700/20 hover:from-red-600/30 hover:to-red-700/30 text-red-400 hover:text-red-300 border border-red-500/30 hover:border-red-500/50 transition-all duration-200 flex items-center justify-center hover:scale-105"
-                          title="Remove"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Cooking Instructions - Editable */}
-          <div className="bg-slate-800/50 backdrop-blur-xl rounded-xl p-3 border border-slate-600/30">
-            <button
-              onClick={() => toggleExpanded(selectedMeal.id, 'instructions')}
-              className={`flex items-center gap-2 w-full text-left ${isInstructionsExpanded ? 'mb-2' : ''}`}
-            >
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
-                <ChefHat className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-white font-bold text-sm">Cooking Instructions</span>
-              <ChevronDown className={`w-4 h-4 text-slate-400 ml-auto transition-transform ${isInstructionsExpanded ? 'rotate-180' : ''}`} />
-            </button>
-            
-            {isInstructionsExpanded && (
-              <div className="mt-2">
-                <textarea
-                  value={selectedMeal.meal.cookingInstructions || ''}
-                  onChange={(e) => {
-                    // Update cooking instructions
-                    setMealSlots(prev => prev.map(mealSlot =>
-                      mealSlot.id === slotId ? {
-                        ...mealSlot,
-                        selectedMeals: mealSlot.selectedMeals.map(meal =>
-                          meal.id === selectedMeal.id ? {
-                            ...meal,
-                            meal: {
-                              ...meal.meal,
-                              cookingInstructions: e.target.value
-                            }
-                          } : meal
-                        )
-                      } : mealSlot
-                    ));
-                  }}
-                  placeholder="Enter cooking instructions..."
-                  className="w-full min-h-[100px] bg-slate-900/60 border border-slate-600/50 rounded-lg p-3 text-white text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all resize-none"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      </>
-    );
-  };
 
   return (
     <div className="min-h-screen">
@@ -1661,7 +1283,9 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                       </span>
                     </h3>
                     <p className="text-slate-400 text-xs sm:text-sm mt-1">
-                      {slot.selectedMeals?.length === 0 ? 'Tap to add delicious meals' : 'Looking great! Add more or edit existing'}
+                      {slot.selectedMeals?.length === 0
+                        ? 'Add a meal to this slot'
+                        : 'Edit portions below · changes autosave'}
                     </p>
                   </div>
                 </div>
@@ -1693,392 +1317,93 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                   </div>
                 </div>
               ) : (
-                <div className="relative">
-                  {/* Mobile: Horizontal scroll, Desktop: Grid */}
-                  <div className="flex overflow-x-auto space-x-4 pb-4 md:hidden scrollbar-hide mobile-scroll px-2">
-                    {/* Swipe indicator for mobile */}
-                    {slot.selectedMeals.length > 1 && (
-                      <div className="absolute top-2 right-2 z-10 bg-slate-800/80 backdrop-blur-sm rounded-full px-3 py-1 text-xs text-slate-300">
-                        ← Swipe →
-                      </div>
-                    )}
-                    {slot.selectedMeals.map((selectedMeal, mealIndex) => {
-                      const nutrition = selectedMeal.meal.ingredients.reduce((total, ingredient) => ({
-                        calories: total.calories + (ingredient.food.kcal * ingredient.quantity / 100),
-                        protein: total.protein + (ingredient.food.protein * ingredient.quantity / 100),
-                        carbs: total.carbs + (ingredient.food.carbs * ingredient.quantity / 100),
-                        fat: total.fat + (ingredient.food.fat * ingredient.quantity / 100)
-                      }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
-
-                      // For coaches, check if set contains COACH_EDIT_MODE or specific meal ID
-                      const isIngredientsExpanded = expandedIngredients.has('COACH_EDIT_MODE') || expandedIngredients.has(selectedMeal.id);
-                      const isInstructionsExpanded = expandedInstructions.has(selectedMeal.id);
-
-                      return (
-                        <div key={`${slot.id}-${selectedMeal.id}-mobile-${mealIndex}`} className={`flex-shrink-0 w-80 bg-gradient-to-br from-slate-800/60 via-slate-700/50 to-slate-800/60 backdrop-blur-xl rounded-3xl p-6 border border-slate-600/40 hover:border-blue-500/40 transition-all duration-300 shadow-2xl hover:shadow-3xl hover:shadow-blue-500/10 ${mealIndex === 0 ? 'ml-2' : ''} ${mealIndex === slot.selectedMeals.length - 1 ? 'mr-2' : ''}`}>
-                          {/* Mobile Meal Card Content */}
-                          {renderMobileMealCard(selectedMeal, nutrition, isIngredientsExpanded, isInstructionsExpanded, slot.id)}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  
-                  {/* Desktop: Grid layout */}
-                  <div className="hidden md:grid md:grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-6">
-                    {slot.selectedMeals.map((selectedMeal, mealIdx) => {
+                <div className="coach-meal-list space-y-4">
+                  {slot.selectedMeals.map((selectedMeal, mealIdx) => {
                     const effectiveMeal = getEffectiveSelectedMeal(selectedMeal);
                     const nutrition = calculateMealNutrition(selectedMeal);
-                    const nutritionForDisplay = { calories: nutrition.kcal, protein: nutrition.protein, carbs: nutrition.carbs, fat: nutrition.fat };
-
-                    const isIngredientsExpanded = expandedIngredients.has(selectedMeal.id);
+                    const nutritionForDisplay = {
+                      calories: nutrition.kcal,
+                      protein: nutrition.protein,
+                      carbs: nutrition.carbs,
+                      fat: nutrition.fat,
+                    };
+                    const isIngredientsExpanded =
+                      expandedIngredients.has('COACH_EDIT_MODE') ||
+                      expandedIngredients.has(selectedMeal.id);
                     const isInstructionsExpanded = expandedInstructions.has(selectedMeal.id);
+                    const inputKey = `${slot.id}-${selectedMeal.id}-${mealIdx}`;
 
                     return (
-                      <div key={`${slot.id}-${selectedMeal.id}-desktop-${mealIdx}`} className="bg-gradient-to-br from-slate-800/60 via-slate-700/50 to-slate-800/60 backdrop-blur-xl rounded-3xl p-6 border border-slate-600/40 hover:border-blue-500/40 transition-all duration-300 shadow-2xl hover:shadow-3xl hover:shadow-blue-500/10 hover:scale-[1.02]">
-                        {/* Meal Image - Ultra Modern */}
-                        <div className="w-full h-40 sm:h-48 rounded-2xl overflow-hidden mb-5 shadow-2xl border-2 border-slate-600/30 group relative">
-                          <img 
-                            src={effectiveMeal.meal.image} 
-                            alt={effectiveMeal.meal.name} 
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent"></div>
-                          
-                          {/* Image Upload Button - Hidden file input */}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            ref={(el) => fileInputRefs.current[`${slot.id}-${selectedMeal.id}-desktop`] = el}
-                            onChange={(e) => handleImageUpload(slot.id, selectedMeal.id, e)}
-                            className="hidden"
-                          />
-                          
-                          {/* Camera Icon Button Overlay - Always visible on mobile, hover on desktop */}
-                          <button
-                            onClick={() => fileInputRefs.current[`${slot.id}-${selectedMeal.id}-desktop`]?.click()}
-                            className="absolute top-3 right-3 w-10 h-10 rounded-xl bg-slate-900/80 backdrop-blur-sm text-white hover:bg-blue-600 transition-all duration-200 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 border border-slate-600/50 hover:border-blue-500/50 active:scale-95 md:hover:scale-110 shadow-lg"
-                            title="Change Image"
-                          >
-                            <Camera className="w-5 h-5" />
-                          </button>
-                        </div>
-
-                        {/* Meal Info - Ultra Modern Desktop */}
-                        <div className="mb-5">
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30 flex-shrink-0">
-                              <Crown className="w-5 h-5 text-white" />
-                            </div>
-                            {editingMealName === selectedMeal.id ? (
-                              <div className="flex-1 flex items-center gap-2">
-                                <input
-                                  type="text"
-                                  value={tempMealName}
-                                  onChange={(e) => setTempMealName(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleMealNameSave(slot.id, selectedMeal.id);
-                                    if (e.key === 'Escape') handleMealNameCancel();
-                                  }}
-                                  className="flex-1 px-3 py-2 rounded-lg bg-slate-900/80 text-white text-lg font-bold border border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  autoFocus
-                                />
-                                <button
-                                  onClick={() => handleMealNameSave(slot.id, selectedMeal.id)}
-                                  className="p-2 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30"
-                                >
-                                  <CheckCircle className="w-5 h-5" />
-                                </button>
-                                <button
-                                  onClick={handleMealNameCancel}
-                                  className="p-2 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30"
-                                >
-                                  <X className="w-5 h-5" />
-                                </button>
-                              </div>
-                            ) : (
-                              <h4 
-                                onClick={() => handleMealNameEdit(selectedMeal.id, effectiveMeal.meal.name)}
-                                className="text-xl font-bold text-white flex-1 line-clamp-2 leading-tight cursor-pointer hover:text-blue-400 transition-colors"
-                                title="Click to edit meal name"
-                              >
-                                {effectiveMeal.meal.name}
-                              </h4>
-                            )}
-                          </div>
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-700/50 border border-slate-600/50">
-                              <Activity className="w-3 h-3 text-blue-400" />
-                              <p className="text-slate-300 capitalize text-sm font-medium">{selectedMeal.meal.category}</p>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              {editingIngredients.has(selectedMeal.id) ? (
-                                <div className="flex items-center gap-2 bg-slate-700/50 rounded-xl p-1 border border-slate-600/50">
-                                  <button
-                                    onClick={() => saveIngredientChanges(slot.id, selectedMeal.id)}
-                                    className="p-2.5 rounded-lg text-green-400 hover:text-green-300 hover:bg-green-600/20 transition-all duration-200 hover:scale-110"
-                                    title="Save Changes"
-                                  >
-                                    <Save className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => stopEditingIngredients(selectedMeal.id)}
-                                    className="p-2.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-600/20 transition-all duration-200 hover:scale-110"
-                                    title="Cancel"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => openSaveMealModal(slot.id, selectedMeal)}
-                                    className="p-2.5 rounded-xl text-slate-300 hover:text-green-400 hover:bg-green-600/20 border border-slate-600/50 hover:border-green-500/50 transition-all duration-200 hover:scale-110"
-                                    title="Save to Database"
-                                  >
-                                    <Save className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => startEditingIngredients(selectedMeal.id)}
-                                    className="p-2.5 rounded-xl text-slate-300 hover:text-blue-400 hover:bg-blue-600/20 border border-slate-600/50 hover:border-blue-500/50 transition-all duration-200 hover:scale-110"
-                                    title="Edit Ingredients"
-                                  >
-                                    <Edit3 className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => openSlotOverrideModal(slot.id, selectedMeal)}
-                                    className="p-2.5 rounded-xl text-slate-300 hover:text-amber-400 hover:bg-amber-600/20 border border-slate-600/50 hover:border-amber-500/50 transition-all duration-200 hover:scale-110"
-                                    title="Customize for client (exclude ingredients, override name/instructions/image)"
-                                  >
-                                    <User className="w-4 h-4" />
-                                  </button>
-                                </>
-                              )}
-                              <button
-                                onClick={() => handleRemoveMeal(slot.id, selectedMeal.id)}
-                                className="p-2.5 rounded-xl text-slate-300 hover:text-red-400 hover:bg-red-600/20 border border-slate-600/50 hover:border-red-500/50 transition-all duration-200 hover:scale-110"
-                                title="Remove Meal"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Nutrition Info - Ultra Modern Cards */}
-                        <div className="grid grid-cols-2 gap-3 mb-5">
-                          <div className="relative group bg-gradient-to-br from-orange-500/10 to-red-500/10 rounded-2xl p-4 border border-orange-500/20 hover:border-orange-500/40 transition-all duration-300 overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                            <div className="relative text-center">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center mx-auto mb-2 shadow-lg shadow-orange-500/30">
-                                <Flame className="w-4 h-4 text-white" />
-                              </div>
-                              <p className="text-slate-400 text-xs mb-1 font-medium">Calories</p>
-                              <p className="text-2xl font-bold text-white">{Math.round(nutritionForDisplay.calories * selectedMeal.quantity)}</p>
-                            </div>
-                          </div>
-                          <div className="relative group bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-2xl p-4 border border-blue-500/20 hover:border-blue-500/40 transition-all duration-300 overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                            <div className="relative text-center">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center mx-auto mb-2 shadow-lg shadow-blue-500/30">
-                                <Target className="w-4 h-4 text-white" />
-                              </div>
-                              <p className="text-slate-400 text-xs mb-1 font-medium">Protein</p>
-                              <p className="text-2xl font-bold text-white">{Math.round(nutritionForDisplay.protein * selectedMeal.quantity)}g</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Ingredients Section - Ultra Modern */}
-                        <div className="mb-5">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/30">
-                                <List className="w-5 h-5 text-white" />
-                              </div>
-                              <div>
-                                <h5 className="text-white font-bold text-base">Ingredients</h5>
-                                <p className="text-slate-400 text-xs">Edit portions below</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleAddIngredient(slot.id, selectedMeal.id)}
-                                className="p-2 rounded-lg text-green-400 hover:text-green-300 hover:bg-green-600/20 transition-colors duration-200"
-                                title="Add Ingredient"
-                              >
-                                <Plus className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => toggleExpanded(selectedMeal.id, 'ingredients')}
-                                className="flex items-center space-x-2 px-3 py-2 rounded-lg bg-slate-600/50 hover:bg-slate-600 text-slate-300 hover:text-white transition-all duration-200"
-                              >
-                                <span className="text-sm font-medium">
-                                  {isIngredientsExpanded ? 'Hide Ingredients' : 'Show Ingredients'}
-                                </span>
-                                <ChevronDown className={`w-4 h-4 transition-transform ${isIngredientsExpanded ? 'rotate-180' : ''}`} />
-                              </button>
-                            </div>
-                          </div>
-                          
-                          {isIngredientsExpanded && (
-                            <div className="space-y-3">
-                              {(selectedMeal.meal.ingredients || []).map((ingredient, idx) => {
-                                // Always in edit mode for coaches
-                                const isEditing = true;
-                                const key = `${selectedMeal.id}-${idx}`;
-                                const currentQuantity = ingredient.quantity; // Use the actual updated quantity from mealSlots
-                                const ingredientCalories = Math.round((ingredient.food.kcal * currentQuantity / 100) * selectedMeal.quantity);
-                                
-                                return (
-                                  <div key={`${slot.id}-${selectedMeal.id}-ingredient-${idx}`} className="relative group">
-                                    {/* Modern Glass Morphism Card */}
-                                    <div className="bg-gradient-to-br from-slate-800/60 via-slate-700/50 to-slate-800/60 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-slate-600/40 hover:border-blue-500/40 transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-blue-500/10 hover:scale-[1.02]">
-                                      {/* Animated Background Gradient */}
-                                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-transparent to-purple-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                                      
-                                      <div className="relative">
-                                        <div className="flex items-start justify-between gap-4">
-                                          {/* Ingredient Name & Info Section */}
-                                          <div className="flex-1 min-w-0">
-                                            <div onClick={(e) => {
-                                              e.stopPropagation();
-                                              // Use a separator that won't conflict with mealId format
-                                              const searchKey = `${selectedMeal.id}::${idx}`;
-                                              console.log('📝 Opening ingredient search for:', { mealId: selectedMeal.id, idx, slotId: slot.id, searchKey });
-                                              setShowIngredientSearch(searchKey);
-                                            }} className="cursor-pointer">
-                                              <div className="flex items-center gap-3 mb-3">
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300">
-                                                  <Sparkles className="w-4 h-4 text-white" />
-                                                </div>
-                                                <div>
-                                                  <h4 className="text-white font-bold text-base sm:text-lg group-hover:text-blue-400 transition-colors">{ingredient.food.name}</h4>
-                                                  <p className="text-slate-400 text-xs">Ingredient #{idx + 1}</p>
-                                                </div>
-                                              </div>
-                                              
-                                              {/* Simplified Calorie Tag */}
-                                              <div className="flex items-center gap-2">
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-300 text-xs font-medium">
-                                                  <Flame className="w-3 h-3" />
-                                                  {ingredient.food.kcal} kcal/100g
-                                                </span>
-                                              </div>
-                                            </div>
-                                          </div>
-                                          
-                                          {/* Portion Control Section */}
-                                          <div className="flex items-start gap-3 flex-shrink-0">
-                                            <div className="text-right">
-                                              <p className="text-slate-400 text-xs mb-1">Total Calories</p>
-                                              <div className="flex items-center gap-1.5">
-                                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg shadow-red-500/30">
-                                                  <span className="text-white font-bold text-sm">{ingredientCalories}</span>
-                                                </div>
-                                                <span className="text-red-400 font-bold text-sm">cal</span>
-                                              </div>
-                                            </div>
-                                            
-                                            {/* Portion Input */}
-                                            {isEditing && (
-                                              <div className="flex flex-col items-center gap-1">
-                                                <p className="text-slate-400 text-xs mb-1">Portion (g)</p>
-                                                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                                                  <input
-                                                    type="number"
-                                                    value={currentQuantity}
-                                                    onChange={(e) => handleIngredientQuantityChange(selectedMeal.id, idx, parseFloat(e.target.value) || 0, slot.id)}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    onFocus={(e) => e.stopPropagation()}
-                                                    className="w-20 sm:w-24 px-3 py-2 rounded-xl bg-slate-900/80 text-white text-sm sm:text-base text-center border border-slate-600/50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-slate-400 transition-all backdrop-blur-sm font-bold"
-                                                    min="0"
-                                                    step="0.1"
-                                                  />
-                                                  <span className="text-slate-400 text-xs sm:text-sm font-medium">g</span>
-                                                </div>
-                                              </div>
-                                            )}
-                                            
-                                            {/* Remove Button */}
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleRemoveIngredient(slot.id, selectedMeal.id, idx);
-                                              }}
-                                              className="mt-7 p-2.5 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-600/20 transition-all duration-200 flex-shrink-0 hover:scale-110 border border-red-500/20 hover:border-red-500/40"
-                                              title="Remove Ingredient"
-                                            >
-                                              <Trash2 className="w-4 h-4" />
-                                            </button>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Cooking Instructions Section - Ultra Modern Design */}
-                        <div className="mt-6">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                                <BookOpen className="w-5 h-5 text-white" />
-                              </div>
-                              <div>
-                                <h5 className="text-white font-bold text-base">Cooking Instructions</h5>
-                                <p className="text-slate-400 text-xs">Follow these steps</p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => toggleExpanded(selectedMeal.id, 'instructions')}
-                              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600/50 text-slate-300 hover:text-white transition-all duration-200 hover:border-purple-500/50"
-                            >
-                              <span className="text-sm font-medium">
-                                {isInstructionsExpanded ? 'Hide' : 'Show'}
-                              </span>
-                              <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isInstructionsExpanded ? 'rotate-180' : ''}`} />
-                            </button>
-                          </div>
-                          
-                          {isInstructionsExpanded && (
-                            <div className="bg-gradient-to-br from-slate-800/60 via-slate-700/50 to-slate-800/60 backdrop-blur-xl rounded-2xl p-5 border border-slate-600/40 hover:border-purple-500/40 transition-all duration-300 shadow-lg">
-                              <textarea
-                                value={selectedMeal.meal.cookingInstructions || ''}
-                                onChange={(e) => {
-                                  // Update cooking instructions
-                                  setMealSlots(prev => prev.map(mealSlot =>
-                                    mealSlot.id === slot.id ? {
-                                      ...mealSlot,
-                                      selectedMeals: mealSlot.selectedMeals.map(meal =>
-                                        meal.id === selectedMeal.id ? {
-                                          ...meal,
-                                          meal: {
-                                            ...meal.meal,
-                                            cookingInstructions: e.target.value
+                      <CoachMealPlanCard
+                        key={`${slot.id}-${selectedMeal.id}-${mealIdx}`}
+                        selectedMeal={selectedMeal}
+                        slotId={slot.id}
+                        mealName={effectiveMeal.meal.name}
+                        category={slot.name}
+                        imageUrl={effectiveMeal.meal.image || ''}
+                        nutrition={nutritionForDisplay}
+                        isIngredientsExpanded={isIngredientsExpanded}
+                        isInstructionsExpanded={isInstructionsExpanded}
+                        editingMealName={editingMealName === selectedMeal.id}
+                        tempMealName={tempMealName}
+                        setTempMealName={setTempMealName}
+                        onMealNameEdit={() => handleMealNameEdit(selectedMeal.id, effectiveMeal.meal.name)}
+                        onMealNameSave={() => handleMealNameSave(slot.id, selectedMeal.id)}
+                        onMealNameCancel={handleMealNameCancel}
+                        onSaveToLibrary={() => openSaveMealModal(slot.id, selectedMeal)}
+                        onEditPortions={() => {
+                          startEditingIngredients(selectedMeal.id);
+                          setExpandedIngredients((prev) => {
+                            if (prev.has('COACH_EDIT_MODE') || prev.has(selectedMeal.id)) return prev;
+                            const next = new Set(prev);
+                            next.add(selectedMeal.id);
+                            return next;
+                          });
+                        }}
+                        onRemoveMeal={() => handleRemoveMeal(slot.id, selectedMeal.id)}
+                        onToggleIngredients={() => toggleExpanded(selectedMeal.id, 'ingredients')}
+                        onToggleInstructions={() => toggleExpanded(selectedMeal.id, 'instructions')}
+                        onAddIngredient={() => handleAddIngredient(slot.id, selectedMeal.id)}
+                        onIngredientNameClick={(idx) => {
+                          setShowIngredientSearch(`${selectedMeal.id}::${idx}`);
+                        }}
+                        onIngredientQuantityChange={(idx, qty) =>
+                          handleIngredientQuantityChange(selectedMeal.id, idx, qty, slot.id)
+                        }
+                        onRemoveIngredient={(idx) =>
+                          handleRemoveIngredient(slot.id, selectedMeal.id, idx)
+                        }
+                        onInstructionsChange={(value) => {
+                          setMealSlots((prev) =>
+                            prev.map((mealSlot) =>
+                              mealSlot.id === slot.id
+                                ? {
+                                    ...mealSlot,
+                                    selectedMeals: mealSlot.selectedMeals.map((meal) =>
+                                      meal.id === selectedMeal.id
+                                        ? {
+                                            ...meal,
+                                            meal: {
+                                              ...meal.meal,
+                                              cookingInstructions: value,
+                                            },
                                           }
-                                        } : meal
-                                      )
-                                    } : mealSlot
-                                  ));
-                                }}
-                                onBlur={() => {
-                                  // Auto-save will be triggered automatically by the mealSlots useEffect
-                                  console.log('📝 Cooking instructions updated, auto-save will trigger after debounce');
-                                }}
-                                className="w-full min-h-[120px] bg-slate-900/40 border border-slate-600/30 rounded-xl p-4 text-white text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500/50 transition-all backdrop-blur-sm"
-                                placeholder="Enter cooking instructions..."
-                              />
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                                        : meal
+                                    ),
+                                  }
+                                : mealSlot
+                            )
+                          );
+                        }}
+                        onImageUpload={(e) => handleImageUpload(slot.id, selectedMeal.id, e)}
+                        onPhotoClick={() => fileInputRefs.current[inputKey]?.click()}
+                        fileInputRef={(el) => {
+                          fileInputRefs.current[inputKey] = el;
+                        }}
+                        inputKey={inputKey}
+                      />
                     );
                   })}
-                  </div>
                 </div>
               )}
             </div>
@@ -2469,7 +1794,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
         </div>
       )}
 
-      {/* Save Meal Modal */}
+      {/* Save as NEW meal modal — never overwrites the original library meal */}
       {showSaveMealModal && mealToSave && (
         <div 
           className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
@@ -2477,16 +1802,25 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
             if (e.target === e.currentTarget) {
               setShowSaveMealModal(false);
               setMealToSave(null);
+              setSaveMealName('');
+              setSaveMealInstructions('');
             }
           }}
         >
-          <div className="w-full max-w-2xl bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
-              <h2 className="text-2xl font-bold text-white">Save Meal to Database</h2>
+          <div className="w-full max-w-lg bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-slate-700/50">
+              <div>
+                <h2 className="text-xl font-bold text-white">Save as new meal</h2>
+                <p className="text-slate-400 text-sm mt-1">
+                  Creates a new library meal. The original stays unchanged.
+                </p>
+              </div>
               <button
                 onClick={() => {
                   setShowSaveMealModal(false);
                   setMealToSave(null);
+                  setSaveMealName('');
+                  setSaveMealInstructions('');
                 }}
                 className="p-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
               >
@@ -2494,18 +1828,18 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
               </button>
             </div>
             
-            <div className="p-6 space-y-6">
-              {/* Meal Preview */}
+            <div className="p-5 space-y-5">
               <div className="bg-slate-700/30 rounded-xl p-4 border border-slate-600/50">
                 <div className="flex items-center gap-4">
                   <img 
                     src={mealToSave.meal.meal.image} 
                     alt={mealToSave.meal.meal.name}
-                    className="w-24 h-24 rounded-lg object-cover"
+                    className="w-20 h-20 rounded-lg object-cover"
                   />
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-white mb-2">{mealToSave.meal.meal.name}</h3>
-                    <div className="flex gap-4 text-sm text-slate-300">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-slate-400 mb-1">Based on this client’s current meal</p>
+                    <h3 className="text-base font-bold text-white truncate">{mealToSave.meal.meal.name}</h3>
+                    <div className="flex gap-3 text-sm text-slate-300 mt-1">
                       <span>{mealToSave.meal.meal.ingredients.length} ingredients</span>
                       <span>{Math.round(mealToSave.meal.meal.ingredients.reduce((total, ing) => 
                         total + (ing.food.kcal * ing.quantity / 100), 0))} kcal</span>
@@ -2514,48 +1848,42 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                 </div>
               </div>
 
-              {/* Meal Name Input */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Meal Name *
+                  New meal name *
                 </label>
                 <input
                   type="text"
                   value={saveMealName}
                   onChange={(e) => setSaveMealName(e.target.value)}
-                  placeholder="Enter meal name"
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  placeholder="e.g. Oatmeal bowl 500 kcal"
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  style={{ fontSize: 16 }}
+                  autoFocus
                 />
               </div>
 
-              {/* Category Selector */}
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Category
+                  Cooking instructions <span className="text-slate-500 font-normal">(optional)</span>
                 </label>
-                <select
-                  value={saveMealCategory}
-                  onChange={(e) => setSaveMealCategory(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                >
-                  <option value="Main Course">Main Course</option>
-                  <option value="Breakfast">Breakfast</option>
-                  <option value="Lunch">Lunch</option>
-                  <option value="Dinner">Dinner</option>
-                  <option value="Snack">Snack</option>
-                  <option value="Dessert">Dessert</option>
-                  <option value="Salad">Salad</option>
-                  <option value="Soup">Soup</option>
-                  <option value="Appetizer">Appetizer</option>
-                </select>
+                <textarea
+                  value={saveMealInstructions}
+                  onChange={(e) => setSaveMealInstructions(e.target.value)}
+                  placeholder="Update steps if ingredients changed…"
+                  rows={4}
+                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all resize-y"
+                  style={{ fontSize: 16 }}
+                />
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-1">
                 <button
                   onClick={() => {
                     setShowSaveMealModal(false);
                     setMealToSave(null);
+                    setSaveMealName('');
+                    setSaveMealInstructions('');
                   }}
                   className="flex-1 px-6 py-3 rounded-xl bg-slate-700 text-white hover:bg-slate-600 font-medium transition-all duration-200"
                   disabled={isSavingMeal}
@@ -2570,12 +1898,12 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                   {isSavingMeal ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Saving...</span>
+                      <span>Saving…</span>
                     </>
                   ) : (
                     <>
                       <Save className="w-5 h-5" />
-                      <span>Save to Database</span>
+                      <span>Save as new meal</span>
                     </>
                   )}
                 </button>
@@ -2584,103 +1912,6 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
           </div>
         </div>
       )}
-
-        {/* Customize for client (slot override) modal */}
-        {editingSlotOverride && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-800 rounded-2xl border border-slate-700 max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col">
-              <div className="p-6 border-b border-slate-700">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-white">Customize for client</h3>
-                  <button
-                    onClick={() => { setEditingSlotOverride(null); setSlotOverrideDraft({}); }}
-                    className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-                <p className="text-slate-400 text-sm mt-1">Exclude ingredients, override name/instructions/image for this slot only.</p>
-              </div>
-              <div className="p-6 overflow-y-auto flex-1 space-y-4">
-                {/* Exclude ingredients */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Exclude ingredients (nutrition recalculated without these)</label>
-                  <div className="space-y-2">
-                    {(editingSlotOverride.selectedMeal.meal.ingredients || []).map((ing) => {
-                      const name = ing.food?.name ?? '';
-                      const excluded = (slotOverrideDraft.excludedIngredientNames ?? []).some(n => n.trim().toLowerCase() === name.trim().toLowerCase());
-                      return (
-                        <label key={name} className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={excluded}
-                            onChange={() => {
-                              const current = slotOverrideDraft.excludedIngredientNames ?? [];
-                              const next = excluded
-                                ? current.filter(n => n.trim().toLowerCase() !== name.trim().toLowerCase())
-                                : [...current, name];
-                              setSlotOverrideDraft(prev => ({ ...prev, excludedIngredientNames: next.length ? next : undefined }));
-                            }}
-                            className="rounded border-slate-500 bg-slate-700 text-amber-500 focus:ring-amber-500"
-                          />
-                          <span className="text-white">{name}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-                {/* Name override */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Override name (optional)</label>
-                  <input
-                    type="text"
-                    value={slotOverrideDraft.nameOverride ?? ''}
-                    onChange={(e) => setSlotOverrideDraft(prev => ({ ...prev, nameOverride: e.target.value }))}
-                    placeholder={editingSlotOverride.selectedMeal.meal.name}
-                    className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-                {/* Instructions override */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Override cooking instructions (optional)</label>
-                  <textarea
-                    value={slotOverrideDraft.instructionsOverride ?? ''}
-                    onChange={(e) => setSlotOverrideDraft(prev => ({ ...prev, instructionsOverride: e.target.value }))}
-                    placeholder="Client-specific instructions"
-                    rows={3}
-                    className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
-                  />
-                </div>
-                {/* Image override */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Override image URL (optional)</label>
-                  <input
-                    type="text"
-                    value={slotOverrideDraft.imageOverride ?? ''}
-                    onChange={(e) => setSlotOverrideDraft(prev => ({ ...prev, imageOverride: e.target.value }))}
-                    placeholder="https://..."
-                    className="w-full px-4 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-              </div>
-              <div className="p-6 border-t border-slate-700 flex gap-3">
-                <button
-                  onClick={() => { setEditingSlotOverride(null); setSlotOverrideDraft({}); }}
-                  className="flex-1 py-2.5 rounded-xl bg-slate-700 text-white hover:bg-slate-600 font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveSlotOverride}
-                  className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-medium flex items-center justify-center gap-2"
-                >
-                  <CheckCircle className="w-5 h-5" />
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
     </div>
   );
 };
