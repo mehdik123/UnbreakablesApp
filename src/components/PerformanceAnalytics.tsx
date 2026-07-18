@@ -47,7 +47,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
   const { t } = useClientLocale();
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [showNumbers, setShowNumbers] = useState(false);
+  const [showNumbers, setShowNumbers] = useState(true);
   const [imageErrors, setImageErrors] = useState<{ [key: string]: boolean }>({});
 
   // Muscle group image mapping (using anatomically accurate diagrams)

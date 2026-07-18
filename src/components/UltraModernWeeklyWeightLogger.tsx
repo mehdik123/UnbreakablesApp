@@ -3,13 +3,14 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Scale,
-  Ruler
+  Ruler,
+  Plus,
+  Check
 } from 'lucide-react';
 import { WeightEntry, Client } from '../types';
 import { logClientWeight, getClientWeightLogs, deleteClientWeight } from '../lib/progressTracking';
 import { UltraModernWeightChart } from './UltraModernWeightChart';
 import { WeightStatsGrid } from './WeightStatsCards';
-import { WeeklyWeightOverview } from './WeeklyWeightOverview';
 import { BodyMeasurementsTab } from './BodyMeasurementsTab';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 
@@ -36,6 +37,11 @@ function formatLocalDate(date: Date): string {
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
   const day = `${date.getDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function dayNumberFromKey(dayKey: string): number {
+  const n = Number(dayKey.replace('day', ''));
+  return Number.isFinite(n) && n >= 1 ? n : 1;
 }
 
 export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLoggerProps> = ({
@@ -318,149 +324,200 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
         </div>
         <div className="min-w-0 flex-1">
           <div className="font-saira font-semibold text-[18px] truncate" style={{ color: 'var(--txt-hi)' }}>
-            {t('nav.weight')}
+            {t('nav.bodyWeight')}
           </div>
           <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>
-            {t('home.weightDesc')}
+            {t('wt.logHint')}
           </div>
         </div>
         <div className="text-center shrink-0">
           <div className="font-saira font-bold text-[24px] leading-none tnum" style={{ color: 'var(--red)' }}>
-            {getCurrentWeight() > 0 ? getCurrentWeight().toFixed(1) : '—'}
+            {getCurrentWeight() > 0 ? getCurrentWeight().toFixed(1) : '··'}
           </div>
           <div className="text-[10px] uppercase tracking-[0.08em] mt-1" style={{ color: 'var(--txt-lo)' }}>
-            kg
+            {t('wt.kg')}
           </div>
         </div>
       </div>
 
       <div className="wt-panel">
-        <div className="wt-tabs">
-          <div className="wt-tab-group">
-            <button
-              type="button"
-              onClick={() => setActiveTab('weight')}
-              className={`wt-tab ${activeTab === 'weight' ? 'wt-tab--active' : ''}`}
-            >
-              <Scale className="w-4 h-4" />
-              <span>{t('wt.weight')}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('measurements')}
-              className={`wt-tab ${activeTab === 'measurements' ? 'wt-tab--active' : ''}`}
-            >
-              <Ruler className="w-4 h-4" />
-              <span>{t('wt.measurements')}</span>
-            </button>
-          </div>
+        <div className="wt-tab-group">
+          <button
+            type="button"
+            onClick={() => setActiveTab('weight')}
+            className={`wt-tab ${activeTab === 'weight' ? 'wt-tab--active' : ''}`}
+          >
+            <Scale className="w-4 h-4" />
+            <span>{t('wt.weight')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('measurements')}
+            className={`wt-tab ${activeTab === 'measurements' ? 'wt-tab--active' : ''}`}
+          >
+            <Ruler className="w-4 h-4" />
+            <span>{t('wt.measurements')}</span>
+          </button>
+        </div>
 
-          <div className="wt-week-nav">
-            <button
-              type="button"
-              onClick={() => setSelectedWeek(Math.max(1, selectedWeek - 1))}
-              disabled={selectedWeek <= 1}
-              className="wt-week-btn"
-              aria-label="Previous week"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <div className="wt-week-pill">
-              {selectedWeek} / {maxWeeks}
+        <div className="wt-week-hero mt-3 mb-0">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedWeek(Math.max(1, selectedWeek - 1));
+              setEditingCell(null);
+              setTempValue('');
+            }}
+            disabled={selectedWeek <= 1}
+            className="wt-week-btn wt-week-btn--lg"
+            aria-label={t('wt.prevWeek')}
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="min-w-0 text-center flex-1">
+            <div className="font-saira text-[22px] leading-none" style={{ color: 'var(--txt-hi)' }}>
+              {t('wt.weekTitle', { n: selectedWeek })}
             </div>
-            <button
-              type="button"
-              onClick={() => setSelectedWeek(Math.min(maxWeeks, selectedWeek + 1))}
-              disabled={selectedWeek >= maxWeeks}
-              className="wt-week-btn"
-              aria-label="Next week"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+            <div className="text-[12px] mt-1.5 font-semibold tnum" style={{ color: 'var(--txt-mid)' }}>
+              {t('wt.weekOf', { current: selectedWeek, total: maxWeeks })}
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedWeek(Math.min(maxWeeks, selectedWeek + 1));
+              setEditingCell(null);
+              setTempValue('');
+            }}
+            disabled={selectedWeek >= maxWeeks}
+            className="wt-week-btn wt-week-btn--lg"
+            aria-label={t('wt.nextWeek')}
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
       {activeTab === 'weight' ? (
         <div className="space-y-4">
           <div className="wt-panel relative overflow-hidden">
-          <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-saira font-semibold text-[18px]" style={{ color: 'var(--txt-hi)' }}>{t('wt.thisWeek')}</h3>
-                <p className="text-[12.5px] mt-0.5" style={{ color: 'var(--txt-mid)' }}>
-                  {editingCell ? t('wt.editingCell', { week: editingCell.week, day: editingCell.day }) : t('wt.clickToLog')}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {isLoading && (
-                  <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--red)', borderTopColor: 'transparent' }} />
-                )}
-                <div className="w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: 'var(--red)' }} />
-              </div>
-            </div>
+            <p className="text-[12.5px] text-center mb-3" style={{ color: 'var(--txt-mid)' }}>
+              {editingCell
+                ? t('wt.loggingDay', {
+                    n: dayNumberFromKey(editingCell.day),
+                    week: editingCell.week,
+                  })
+                : Object.keys(getCurrentWeekData()).length === 0
+                ? t('wt.emptyWeekHint')
+                : t('wt.clickToLog')}
+            </p>
 
-            <div className="grid grid-cols-7 gap-2">
+            {isLoading && (
+              <div className="flex justify-center mb-2">
+                <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--red)', borderTopColor: 'transparent' }} />
+              </div>
+            )}
+
+            <div className="wt-day-grid">
               {DAYS_OF_WEEK.map((day, dayIndex) => {
                 const dayData = getCurrentWeekData()[day.key];
                 const weight = dayData?.weight;
                 const hasWeight = weight !== undefined;
                 const isEditing = editingCell?.week === selectedWeek && editingCell?.day === day.key;
-                
+                const isSuggested =
+                  !editingCell &&
+                  !hasWeight &&
+                  DAYS_OF_WEEK.findIndex((d) => getCurrentWeekData()[d.key]?.weight === undefined) === dayIndex;
+
                 return (
-                  <div
+                  <button
                     key={day.key}
-                    className={`wt-day-cell relative ${hasWeight ? 'wt-day-cell--filled' : ''}`}
+                    type="button"
+                    className={`wt-day-cell${hasWeight ? ' wt-day-cell--filled' : ' wt-day-cell--empty'}${isEditing ? ' wt-day-cell--editing' : ''}${isSuggested ? ' wt-day-cell--suggested' : ''}`}
                     onClick={() => handleCellClick(selectedWeek, day.key)}
                   >
-                    {isEditing ? (
-                      <input
-                        type="number"
-                        step="0.1"
-                        inputMode="decimal"
-                        value={tempValue}
-                        onChange={(e) => setTempValue(e.target.value)}
-                        className="wt-day-input touch-target"
-                        placeholder="kg"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') handleCellSave();
-                          if (e.key === 'Escape') handleCellCancel();
-                        }}
-                        onBlur={handleCellSave}
-                      />
+                    <span className="wt-day-label">{t('wt.day', { n: dayIndex + 1 })}</span>
+                    {hasWeight ? (
+                      <>
+                        <span className="wt-day-weight font-display tnum">{weight.toFixed(1)}</span>
+                        <span className="wt-day-unit">{t('wt.kg')}</span>
+                        <span className="wt-day-badge">
+                          <Check className="w-3 h-3" />
+                          {t('wt.logged')}
+                        </span>
+                      </>
                     ) : (
-                      <div className="text-center">
-                        <div className="text-[10px] font-semibold mb-1 uppercase tracking-wide" style={{ color: hasWeight ? 'var(--txt-hi)' : 'var(--txt-lo)' }}>
-                          {t('wt.day', { n: dayIndex + 1 })}
-                        </div>
-                        <div className="text-[12px] font-bold tnum" style={{ color: hasWeight ? 'var(--red)' : 'var(--txt-lo)' }}>
-                          {hasWeight ? `${weight.toFixed(1)}` : '--'}
-                        </div>
-                      </div>
+                      <>
+                        <span className="wt-day-plus" aria-hidden="true">
+                          <Plus className="w-5 h-5" />
+                        </span>
+                        <span className="wt-day-cta">{t('wt.tapToLog')}</span>
+                      </>
                     )}
-                    
-                    {hasWeight && !isEditing && (
-                      <button
-                        type="button"
+                    {hasWeight && (
+                      <span
+                        role="button"
+                        tabIndex={0}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleWeightDelete(selectedWeek, day.key);
                         }}
-                        className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                        style={{ background: 'var(--red)' }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleWeightDelete(selectedWeek, day.key);
+                          }
+                        }}
+                        className="wt-day-delete"
                         title={t('wt.deleteWeight')}
+                        aria-label={t('wt.deleteWeight')}
                       >
                         ×
-                      </button>
+                      </span>
                     )}
-                    {hasWeight && isEditing && (
-                      <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full animate-pulse" style={{ background: 'var(--red)' }} />
-                    )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
+
+            {editingCell && editingCell.week === selectedWeek && (
+              <div className="wt-log-composer">
+                <div className="text-[12px] font-semibold mb-2" style={{ color: 'var(--txt-mid)' }}>
+                  {t('wt.loggingDay', {
+                    n: dayNumberFromKey(editingCell.day),
+                    week: editingCell.week,
+                  })}
+                </div>
+                <div className="wt-log-row">
+                  <div className="wt-log-input-wrap">
+                    <input
+                      type="number"
+                      step="0.1"
+                      inputMode="decimal"
+                      value={tempValue}
+                      onChange={(e) => setTempValue(e.target.value)}
+                      className="wt-log-input"
+                      placeholder="0.0"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleCellSave();
+                        if (e.key === 'Escape') handleCellCancel();
+                      }}
+                    />
+                    <span className="wt-log-suffix">{t('wt.kg')}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCellSave}
+                    className="wt-log-save"
+                    disabled={isLoading || !tempValue}
+                  >
+                    {t('wt.saveWeight')}
+                  </button>
+                </div>
+              </div>
+            )}
             
             {saveError && (
               <div className="wt-error">
@@ -468,7 +525,6 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
               </div>
             )}
           </div>
-        </div>
 
         {/* Stats Cards */}
         <WeightStatsGrid

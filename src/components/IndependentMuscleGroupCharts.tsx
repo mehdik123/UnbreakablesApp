@@ -158,17 +158,6 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
     setImageErrors(prev => ({ ...prev, [muscleGroup]: true }));
   };
 
-  if (loading) {
-    return (
-      <div className="ch-shell px-1">
-        <div className="cardio-loading" aria-busy="true">
-          <div className="cardio-loading-pulse" />
-          <div className="cardio-loading-pulse" style={{ height: 140 }} />
-        </div>
-      </div>
-    );
-  }
-
   const totalExercises = Object.values(workoutExercises).reduce((sum, exercises) => sum + exercises.length, 0);
 
   const progressVerdictKey = useMemo(() => {
@@ -183,6 +172,17 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
     if (last < first) return 'progress.verdictDown';
     return 'progress.verdictFlat';
   }, [chartData, availableMuscleGroups]);
+
+  if (loading) {
+    return (
+      <div className="ch-shell px-1">
+        <div className="cardio-loading" aria-busy="true">
+          <div className="cardio-loading-pulse" />
+          <div className="cardio-loading-pulse" style={{ height: 140 }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="ch-shell py-2">

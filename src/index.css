@@ -1258,6 +1258,13 @@
   .wt-week-btn:active:not(:disabled) { transform: scale(0.92); }
   .wt-week-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+  .wt-week-btn--lg {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    flex-shrink: 0;
+  }
+
   .wt-week-pill {
     padding: 6px 12px;
     border-radius: 10px;
@@ -1269,21 +1276,221 @@
     color: var(--txt-hi);
   }
 
+  .wt-week-hero {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    margin-bottom: 0;
+    padding: 12px;
+    border-radius: 16px;
+    background:
+      radial-gradient(120% 120% at 0% 0%, rgba(255, 45, 85, 0.12), transparent 55%),
+      linear-gradient(135deg, var(--surface-2), var(--surface-1));
+    border: 1px solid rgba(255, 45, 85, 0.16);
+  }
+
+  .wt-day-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  @media (min-width: 420px) {
+    .wt-day-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 640px) {
+    .wt-day-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
   .wt-day-cell {
-    border-radius: 14px;
-    padding: 8px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 96px;
+    border-radius: 16px;
+    padding: 12px 10px;
     cursor: pointer;
     background: var(--surface-2);
     border: 1px solid var(--hair);
-    transition: transform 0.2s var(--spring), border-color 0.2s;
+    transition: transform 0.2s var(--spring), border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    text-align: center;
   }
 
   .wt-day-cell:active { transform: scale(0.97); }
 
+  .wt-day-cell--empty {
+    border-style: dashed;
+    border-color: var(--hair-strong);
+    background: rgba(255, 45, 85, 0.03);
+  }
+
+  .wt-day-cell--suggested {
+    border-color: rgba(255, 45, 85, 0.55);
+    box-shadow: 0 0 0 1px rgba(255, 45, 85, 0.12), 0 10px 24px -14px rgba(255, 45, 85, 0.45);
+    background: rgba(255, 45, 85, 0.07);
+  }
+
   .wt-day-cell--filled {
+    border-style: solid;
     border-color: rgba(255, 45, 85, 0.45);
     box-shadow: 0 8px 20px -12px rgba(255, 45, 85, 0.45);
+    background:
+      radial-gradient(120% 100% at 50% 0%, rgba(255, 45, 85, 0.12), transparent 70%),
+      var(--surface-2);
   }
+
+  .wt-day-cell--editing {
+    border-style: solid;
+    border-color: var(--red);
+    box-shadow: 0 0 0 2px rgba(255, 45, 85, 0.2);
+  }
+
+  .wt-day-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--txt-lo);
+  }
+
+  .wt-day-weight {
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--txt-hi);
+  }
+
+  .wt-day-unit {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--txt-mid);
+  }
+
+  .wt-day-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 2px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--emerald);
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.28);
+  }
+
+  .wt-day-plus {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    color: var(--red);
+    background: rgba(255, 45, 85, 0.12);
+    border: 1px solid rgba(255, 45, 85, 0.28);
+  }
+
+  .wt-day-cta {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--red);
+  }
+
+  .wt-day-delete {
+    position: absolute;
+    top: 6px;
+    inset-inline-end: 6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    color: #fff;
+    background: var(--red);
+    box-shadow: 0 4px 12px -4px rgba(255, 45, 85, 0.6);
+  }
+
+  .wt-log-composer {
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 16px;
+    background:
+      radial-gradient(120% 120% at 0% 0%, rgba(255, 45, 85, 0.14), transparent 55%),
+      var(--surface-2);
+    border: 1px solid rgba(255, 45, 85, 0.22);
+  }
+
+  .wt-log-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .wt-log-input-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 52px;
+    padding: 0 14px;
+    border-radius: 14px;
+    background: var(--surface-1);
+    border: 1px solid var(--hair-strong);
+  }
+
+  .wt-log-input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--txt-hi);
+    outline: none;
+  }
+
+  .wt-log-suffix {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--txt-mid);
+  }
+
+  .wt-log-save {
+    flex-shrink: 0;
+    min-height: 52px;
+    min-width: 96px;
+    padding: 0 18px;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--grad-red);
+    box-shadow: 0 10px 24px -10px rgba(255, 45, 85, 0.65);
+    transition: transform 0.2s var(--spring), opacity 0.2s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .wt-log-save:active:not(:disabled) { transform: scale(0.97); }
+  .wt-log-save:disabled { opacity: 0.45; }
 
   .wt-day-input {
     width: 100%;
@@ -1473,6 +1680,7 @@
     .wt-tab:active { transform: none; }
     .wt-week-btn:active:not(:disabled) { transform: none; }
     .wt-day-cell:active { transform: none; }
+    .wt-log-save:active:not(:disabled) { transform: none; }
   }
 
   .tnum {
