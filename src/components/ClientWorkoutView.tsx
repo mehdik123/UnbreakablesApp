@@ -1521,7 +1521,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                             </div>
 
                             {/* Reps stepper */}
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 basis-0">
                               <div className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.1em] sm:tracking-[0.12em] mb-1 sm:mb-1.5 pl-0.5 flex items-center gap-1" style={{ color: 'var(--txt-lo)' }}>
                                 {set.isDropset ? t('workout.dropset') : t('workout.reps')}
                               </div>
@@ -1565,8 +1565,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                               </div>
                             </div>
 
-                            {/* Weight stepper */}
-                            <div className="flex-1 min-w-0">
+                            {/* Weight stepper — wider value field so decimals like 137.5 stay visible */}
+                            <div className="flex-[1.2] min-w-0 basis-0">
                               <div className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.1em] sm:tracking-[0.12em] mb-1 sm:mb-1.5 pl-0.5" style={{ color: 'var(--txt-lo)' }}>
                                 {t('workout.weight')}
                               </div>
@@ -1591,14 +1591,14 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                     <span className="text-[9px] sm:text-[10px] font-medium ml-0.5" style={{ color: 'var(--txt-lo)' }}>{t('workout.kg')}</span>
                                   </div>
                                 ) : (
-                                  <div className="flex-1 min-w-0 flex items-baseline justify-center px-0.5">
+                                  <div className="flex-1 min-w-0 flex items-baseline justify-center gap-0.5 px-0.5">
                                     <input
                                       type="number"
                                       min={0}
                                       step={0.5}
                                       inputMode="decimal"
                                       placeholder="0"
-                                      className="w-[30px] sm:w-[40px] max-w-full bg-transparent text-center font-display font-bold text-[14px] sm:text-[16px] tnum
+                                      className="wk-weight-input bg-transparent text-center font-display font-bold text-[13px] sm:text-[15px] tnum
                                         focus:outline-none focus:ring-0
                                         [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                       style={{ color: 'var(--txt-hi)' }}

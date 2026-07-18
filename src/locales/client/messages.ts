@@ -516,6 +516,8 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'login.failed': 'Login failed',
     'login.error': 'Something went wrong. Please try again.',
     'login.signingIn': 'Signing in…',
+    'login.help': 'Need help? Contact Mehdi.',
+    'login.secureNote': 'Your credentials were provided by Mehdi with your program link.',
   },
   ar: {
     'modern.welcomeBack': 'مرحبًا بعودتك، {name}!',
@@ -1030,6 +1032,8 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'login.failed': 'فشل تسجيل الدخول',
     'login.error': 'حدث خطأ ما. حاول مرة أخرى.',
     'login.signingIn': 'جارٍ تسجيل الدخول…',
+    'login.help': 'تحتاج مساعدة؟ تواصل مع مهدي.',
+    'login.secureNote': 'بيانات الدخول أرسلها لك مهدي مع رابط برنامجك.',
   },
   fr: {
     'modern.welcomeBack': 'Bon retour, {name} !',
@@ -1545,5 +1549,7 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'login.failed': 'Échec de la connexion',
     'login.error': 'Une erreur s\'est produite. Réessaie.',
     'login.signingIn': 'Connexion…',
+    'login.help': 'Besoin d’aide ? Contacte Mehdi.',
+    'login.secureNote': 'Tes identifiants t’ont été envoyés par Mehdi avec ton lien de programme.',
   },
 };
