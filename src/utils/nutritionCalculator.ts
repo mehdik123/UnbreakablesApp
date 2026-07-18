@@ -88,6 +88,45 @@ export const calculateMealSlotNutrition = (selectedMeals: SelectedMeal[]) => {
   );
 };
 
+/**
+ * Active meal for a slot = the one shown in front for the client.
+ * Defaults to index 0 (first breakfast / first lunch / …).
+ * When the client swaps, pass their current index so totals follow the swap.
+ */
+export const getActiveMealForSlot = (
+  selectedMeals: SelectedMeal[] | undefined,
+  activeIndex = 0
+): SelectedMeal | undefined => {
+  if (!selectedMeals?.length) return undefined;
+  const idx = Math.min(Math.max(0, activeIndex), selectedMeals.length - 1);
+  return selectedMeals[idx];
+};
+
+export type MealSlotForNutrition = {
+  id?: string;
+  selectedMeals?: SelectedMeal[];
+};
+
+/** Plan totals from one active meal per slot (not the sum of all alternatives). */
+export const calculatePlanSlotsNutrition = (
+  mealSlots: MealSlotForNutrition[] | undefined,
+  activeIndexBySlotId?: Record<string, number>
+): NutritionSummary => {
+  if (!mealSlots?.length) {
+    return { totalKcal: 0, totalProtein: 0, totalFat: 0, totalCarbs: 0 };
+  }
+
+  const activeMeals = mealSlots
+    .map((slot) => {
+      const slotKey = slot.id ?? '';
+      const index = activeIndexBySlotId?.[slotKey] ?? 0;
+      return getActiveMealForSlot(slot.selectedMeals, index);
+    })
+    .filter((meal): meal is SelectedMeal => Boolean(meal));
+
+  return calculateTotalNutrition(activeMeals);
+};
+
 export const calculateTotalNutrition = (selectedMeals: SelectedMeal[]): NutritionSummary => {
   if (!selectedMeals || !Array.isArray(selectedMeals)) {
     return { totalKcal: 0, totalProtein: 0, totalFat: 0, totalCarbs: 0 };

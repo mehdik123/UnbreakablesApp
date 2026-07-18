@@ -48,7 +48,7 @@ import { NutritionSummary } from './NutritionSummary';
 import { IngredientEditor } from './IngredientEditor';
 import { CoachMealPlanCard } from './CoachMealPlanCard';
 import { Client, NutritionPlan, SelectedMeal, Meal, Food } from '../types';
-import { calculateTotalNutrition, calculateMealNutrition } from '../utils/nutritionCalculator';
+import { calculateMealNutrition, calculatePlanSlotsNutrition } from '../utils/nutritionCalculator';
 import { getEffectiveSelectedMeal } from '../utils/mealSlotOverrides';
 import { exportToPDF } from '../utils/pdfExport';
 import {
@@ -192,9 +192,8 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
     
     setIsSaving(true);
     try {
-      // Calculate nutrition on the fly
-      const allMeals = mealSlots.flatMap(slot => slot.selectedMeals || []);
-      const nutrition = calculateTotalNutrition(allMeals);
+      // Totals = first (front) meal per slot only — alternatives are swaps, not extras
+      const nutrition = calculatePlanSlotsNutrition(mealSlots);
       const calculatedNutrition = {
         calories: nutrition.totalKcal,
         protein: nutrition.totalProtein,
@@ -362,8 +361,8 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
 
   // Calculate total nutrition
   const totalNutrition = useMemo(() => {
-    const allMeals = mealSlots.flatMap(slot => slot.selectedMeals || []);
-    const nutrition = calculateTotalNutrition(allMeals);
+    // Coach preview matches client: only the first meal in each slot counts
+    const nutrition = calculatePlanSlotsNutrition(mealSlots);
     return {
       calories: nutrition.totalKcal,
       protein: nutrition.totalProtein,
@@ -1265,6 +1264,9 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
             </div>
           </div>
         </div>
+        <p className="text-slate-500 text-xs sm:text-sm -mt-3 sm:-mt-4 mb-6 sm:mb-8">
+          Daily totals count the first meal in each slot only (what the client sees first). Alternatives are swaps, not extra calories.
+        </p>
 
         {/* Meal Slots */}
         <div className="space-y-6 lg:space-y-8 mb-8">

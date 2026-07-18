@@ -217,15 +217,14 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
 
     return displayNutritionPlan.mealSlots.reduce(
       (acc, slot) => {
-        // Get the currently selected meal index for this slot
+        // Get the currently selected meal index for this slot (swap updates this)
         const selectedIndex = currentMealIndex[slot.id] || 0;
         const selectedMeal = slot.selectedMeals[selectedIndex];
         
         if (selectedMeal) {
-          const meal = selectedMeal.meal;
           const quantity = selectedMeal.quantity;
           
-          // Calculate macros for this specific meal
+          // Calculate macros for this specific active meal only
           const ingredients = getDisplayIngredients(selectedMeal);
           const calories = ingredients.reduce((total, ingredient) => 
             total + (ingredient.food.kcal * ingredient.quantity * quantity / 100), 0
