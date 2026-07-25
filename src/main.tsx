@@ -1,20 +1,15 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { registerSW } from 'virtual:pwa-register';
 import App from './App.tsx';
+import { PwaUpdatePrompt } from './components/PwaUpdatePrompt.tsx';
+import { registerPwaUpdates } from './lib/pwaUpdate.ts';
 import './index.css';
 
-registerSW({
-  onNeedRefresh() {
-    window.dispatchEvent(new CustomEvent('pwa-need-refresh'));
-  },
-  onOfflineReady() {
-    window.dispatchEvent(new CustomEvent('pwa-offline-ready'));
-  },
-});
+registerPwaUpdates();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <PwaUpdatePrompt />
   </StrictMode>
 );
