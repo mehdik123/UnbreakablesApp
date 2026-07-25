@@ -137,9 +137,7 @@ export const CoachLogin: React.FC<CoachLoginProps> = ({ onLoginSuccess }) => {
           {/* Help Text */}
           <div className="mt-6 text-center">
             
-            <p className="text-slate-500 text-xs mt-2">
-              Change credentials in environment variables
-            </p>
+            
           </div>
         </div>
 
