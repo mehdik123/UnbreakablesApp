@@ -33,7 +33,7 @@ import { foods as defaultFoods } from './data/foods';
 import { meals as defaultMeals } from './data/meals';
 import { exercises as defaultExercises } from './data/exercises';
 import { supabase, isSupabaseReady } from './lib/supabaseClient';
-import { dbListClients, dbListClientsWithWorkoutAssignments, dbGetClientWithWorkoutAssignment, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment, dbUpsertNutritionPlan, dbGetNutritionPlan, dbGetCardioPlan } from './lib/db';
+import { dbListClients, dbListClientsWithWorkoutAssignments, dbGetClientWithWorkoutAssignment, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment, dbUpsertNutritionPlan, dbGetNutritionPlan, dbGetCardioPlan, dbListWorkoutPrograms } from './lib/db';
 import {
   buildClientFromSnapshot,
   isAppOnline,
@@ -41,12 +41,16 @@ import {
   saveClientOfflineSnapshot,
 } from './lib/offlineStore';
 import { buildDuplicatedClient, DuplicateClientOptions } from './utils/duplicateClientProgram';
+import { createEmptyNutritionPlan } from './utils/nutritionMealSlots';
+import { mapDbProgramToWorkoutProgram } from './utils/mapWorkoutProgram';
+import { createInitialWeek } from './utils/weekCreation';
 import { authService } from './lib/authService';
 import {
   getInitialAuthState,
   extractClientIdFromShareParam,
 } from './lib/sessionRestore';
 import { getMarketingDemoClient } from './data/marketingDemoClient';
+import type { NewClientSetupOptions } from './components/UnbreakableSteamClientsManager';
 
 function App() {
   const initialAuth = getInitialAuthState();
@@ -497,7 +501,67 @@ function App() {
   }, []);
 
   // Client Management Functions
-  const handleAddClient = async (client: Client) => {
+  const handleAddClient = async (client: Client, setup?: NewClientSetupOptions) => {
+    const mealsPerDay = Math.min(6, Math.max(2, setup?.mealsPerDay ?? 3));
+
+    const seedClientPlans = async (mapped: Client): Promise<Client> => {
+      const nutritionPlan = createEmptyNutritionPlan(
+        mapped.id,
+        mapped.name,
+        mealsPerDay
+      );
+      const planWithTimestamp = {
+        ...nutritionPlan,
+        assignedAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+      };
+
+      if (isSupabaseReady) {
+        await dbUpsertNutritionPlan(mapped.id, planWithTimestamp);
+      }
+      localStorage.setItem(
+        `nutrition_plan_${mapped.id}`,
+        JSON.stringify(planWithTimestamp)
+      );
+
+      let workoutAssignment = mapped.workoutAssignment;
+      if (setup?.workoutProgramId && isSupabaseReady) {
+        try {
+          const { data: programs } = await dbListWorkoutPrograms();
+          const raw = (programs || []).find(
+            (p: any) => p.id === setup.workoutProgramId
+          );
+          if (raw) {
+            const program = mapDbProgramToWorkoutProgram(raw);
+            const week1 = createInitialWeek(program);
+            workoutAssignment = {
+              id: Date.now().toString(),
+              clientId: mapped.id,
+              clientName: mapped.name || 'Unknown Client',
+              program: { ...program, days: week1.days },
+              startDate: new Date(),
+              duration: mapped.numberOfWeeks,
+              currentWeek: 1,
+              currentDay: 1,
+              weeks: [week1],
+              progressionRules: [],
+              isActive: true,
+            };
+            // Persist via existing assign path (DB + enrich). State is fixed below.
+            await handleAssignWorkoutPlan(mapped.id, workoutAssignment);
+          }
+        } catch (err) {
+          console.error('Failed to assign workout template on client create:', err);
+        }
+      }
+
+      return {
+        ...mapped,
+        nutritionPlan: planWithTimestamp as NutritionPlan,
+        workoutAssignment,
+      };
+    };
+
     if (isSupabaseReady) {
       const { data } = await dbAddClient({ 
         full_name: client.name,
@@ -520,12 +584,21 @@ function App() {
               ? Number(data.starting_weight)
               : client.startingWeight,
         };
-        setAppState(prev => ({ ...prev, clients: [...prev.clients, mapped] }));
+        const seeded = await seedClientPlans(mapped);
+        setAppState(prev => {
+          const withoutDup = prev.clients.filter(c => c.id !== seeded.id);
+          const next = [...withoutDup, seeded];
+          localStorage.setItem('clients', JSON.stringify(next));
+          return { ...prev, clients: next };
+        });
       }
     } else {
-      const newClients = [...appState.clients, client];
-      setAppState(prev => ({ ...prev, clients: newClients }));
-      localStorage.setItem('clients', JSON.stringify(newClients));
+      const seeded = await seedClientPlans(client);
+      setAppState(prev => {
+        const newClients = [...prev.clients, seeded];
+        localStorage.setItem('clients', JSON.stringify(newClients));
+        return { ...prev, clients: newClients };
+      });
     }
   };
 

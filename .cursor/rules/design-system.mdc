@@ -1,0 +1,50 @@
+---
+description: Unbreakables visual language. Always follow these tokens for any UI work in this repo.
+globs:
+alwaysApply: true
+---
+
+# Design system (always on)
+
+**Source of truth:** `src/index.css` (`:root` + `.theme-light` overrides).  
+**Reference only:** `app-starter/globals.css` (kit sample — do not replace `index.css` with it).
+
+Never invent or hardcode colors, radii, or motion curves. Use CSS variables from `src/index.css`.
+
+## Token map (use these names in this project)
+
+| Kit / generic | This project |
+|---------------|--------------|
+| `--text` / body text | `var(--txt-hi)` |
+| muted text | `var(--txt-mid)`, `var(--txt-lo)` |
+| borders | `var(--hair)`, `var(--hair-strong)` |
+| glass surfaces | `var(--glass)`, `var(--glass-hi)` |
+| brand gradient | `var(--grad-red)`, `var(--grad-coral)` |
+| primary red | `var(--red)` |
+| accent colors | `var(--orange)`, `var(--green)`, `var(--violet)`, `var(--blue)` |
+| card radius | `var(--r-lg)`, `var(--r-md)`, `var(--r-sm)` |
+| motion | `var(--ease)`, `var(--spring)` |
+
+## Surfaces
+- Background: `var(--bg)`; cards/panels: `var(--surface-1)` → `var(--surface-3)`.
+- Client shell: `.workout-shell` (dark) or `.theme-light` (light mode on client).
+- Light mode: parent has `.theme-light` — tokens auto-switch; test both themes.
+
+## Typography
+- **Display / hero / tile titles:** `.font-saira` (Saira Condensed italic 800) — see home dashboard.
+- **Stats / numbers:** `.font-display` + `.tnum` (Space Grotesk, tabular-nums).
+- **Body / UI:** Inter (default).
+
+## Gradients (restrained)
+- `--grad-red` / `--grad-coral`: primary CTAs, hero, active accents only — not large backgrounds except the home hero pattern.
+- Per-area tile accents: red (workout), orange (cardio), green (nutrition), violet (supplements), blue (progress) — see `ModernClientInterface.tsx` home grid.
+
+## Elevation
+- Prefer `var(--hair)` borders + soft colored shadows (`.shadow-red`, `.shadow-soft`) over heavy black drop shadows.
+- Home patterns: `.home-tile`, `.home-hero`, `.home-qstat` in `index.css`.
+
+## Do / Don't
+- DO match existing screens (home dashboard, workout page) before inventing new patterns.
+- DO keep 44–48px minimum touch targets.
+- DON'T replace `src/index.css` or merge `app-starter/globals.css` without explicit user approval.
+- DON'T redesign coach + client + all tabs in one pass.

@@ -1,0 +1,77 @@
+---
+description: Non-negotiable safety rules for Unbreakables. Protect backend, data, and existing features on every change.
+globs:
+alwaysApply: true
+---
+
+# Project guardrails (always on)
+
+This is a **production fitness app** (Supabase, coach + client flows). Skills and design rules must **never** override these.
+
+## Design baseline (rollback point)
+
+Last known-good UI + features before kit-wide styling:
+
+- **Commit:** `ef02368` — `feat(client): redesign home dashboard with hero, accent tiles, and coach note`
+- **Branch:** `v0V1`
+- **Tokens / styles:** `src/index.css` (not `app-starter/globals.css`)
+
+To revert all **code** to that snapshot:
+
+```bash
+git checkout ef02368 -- src/
+```
+
+To revert the **entire repo** to that commit (destructive — only if user asks):
+
+```bash
+git reset --hard ef02368
+```
+
+Kit files (`.cursor/`, `app-starter/`) are local guidance only until committed.
+
+## Backend & feature safety (highest priority)
+
+### Never change without explicit user request
+
+- Supabase schema, migrations, RLS policies
+- `src/lib/db.ts`, `src/lib/supabaseClient.ts`, auth/session logic
+- API shapes, `plan_json`, `cardio_plan_json`, `program_json`, workout assignment persistence
+- Auto-progression, bulk progression, week creation algorithms
+- Route handlers, `navigate()` targets, hub-and-spoke routes in `ModernClientInterface.tsx`
+- Props, state, hooks, `useEffect` data loaders, save handlers, `onSave*` / `dbUpsert*` / `dbGet*`
+- i18n keys in use (only add keys; do not remove or rename existing ones)
+
+### Design-only work (default for skills)
+
+When applying premium-motion, screen-scaffold, fitness-dataviz, etc.:
+
+1. **Presentation only** — CSS, class names, layout wrappers, copy labels
+2. **Preserve** every `onClick`, `onSave`, `navigate`, `setState`, API call, and conditional that gates features
+3. **One screen or one component per task** unless user approves a broader scope
+4. **Build must pass** (`npm run build`) before considering the task done
+5. **No new npm dependencies** unless user approves
+
+### If unsure
+
+- Do not refactor “while here”
+- Do not rename components, props, or routes
+- Ask or stop — do not guess on data flow
+
+## Phased rollout (skills)
+
+| Order | Scope | Allowed |
+|-------|--------|---------|
+| 0 | Rules only (this file + token alignment) | Yes — no UI |
+| 1 | Single client screen pilot | Design-only, user picks screen |
+| 2 | Remaining client sections | After user approves pilot |
+| 3 | Coach interface | After client stable |
+| 4 | performance-60fps / pwa-shell | Audit first, minimal diffs |
+
+**Do not** run `CURSOR-KICKOFF-PROMPT.md` as a full app rebuild.
+
+## Reference implementations (match these)
+
+- Client home: `src/components/ModernClientInterface.tsx` (`route === 'home'`)
+- Tokens: `src/index.css` (`:root`, `.theme-light`, `.home-*`, `.workout-shell`)
+- Client workout: `ClientWorkoutView.tsx` (preserve save-per-exercise, week/day logic)

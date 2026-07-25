@@ -1,0 +1,165 @@
+/* =========================================================================
+   HYBRID ATHLETE — DESIGN TOKENS
+   Single source of truth for the whole app. Never hardcode a color, radius,
+   or spacing value in a component: reference a token from here.
+
+   Fonts: add these to index.html <head> for best performance (faster than @import):
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Saira+Condensed:ital,wght@1,600;1,700;1,800&display=swap" rel="stylesheet">
+   ========================================================================= */
+
+:root {
+  /* ---- Surfaces (layered dark, lightest layer sits on top) ---- */
+  --bg:            #0A0A0B;   /* app base, behind everything */
+  --surface-1:     #131316;   /* page sections */
+  --surface-2:     #1B1B1F;   /* cards */
+  --surface-3:     #242429;   /* elevated cards, inputs */
+  --surface-4:     #2D2D33;   /* sheets, popovers, active states */
+
+  /* ---- Hairline borders (dark UI reads premium with 1px translucent lines) ---- */
+  --border:        rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* ---- Brand: crimson to coral ---- */
+  --crimson:       #E11D48;
+  --coral:         #FF6A4D;
+  --gradient-brand: linear-gradient(135deg, #E11D48 0%, #FF6A4D 100%);
+  --gradient-brand-soft: linear-gradient(135deg, rgba(225,29,72,0.16) 0%, rgba(255,106,77,0.16) 100%);
+
+  /* ---- Text ---- */
+  --text:          #F5F5F6;   /* primary, near-white (never pure #FFF on dark) */
+  --text-2:        #A2A2AC;   /* secondary */
+  --text-3:        #6E6E78;   /* muted, captions */
+  --text-on-brand: #FFFFFF;
+
+  /* ---- Semantic ---- */
+  --success:       #22C55E;
+  --warning:       #F5A524;
+  --danger:        #F0324B;
+  --info:          #3B82F6;
+
+  /* ---- Phase accents (map to the 12-week program phases) ---- */
+  --phase-1:       #22D3EE;   /* Foundation  */
+  --phase-2:       #FF6A4D;   /* Build (ties to brand coral) */
+  --phase-3:       #E11D48;   /* Peak  (brand crimson) */
+
+  /* ---- Typography ---- */
+  --font-display:  'Saira Condensed', system-ui, sans-serif;  /* italic display headings */
+  --font-body:     'Inter', system-ui, sans-serif;            /* body / UI */
+  --font-stat:     'Space Grotesk', ui-monospace, sans-serif; /* numbers, stats, timers */
+
+  --text-display:  clamp(2.25rem, 8vw, 3.25rem);
+  --text-h1:       clamp(1.75rem, 5vw, 2.25rem);
+  --text-h2:       clamp(1.375rem, 4vw, 1.625rem);
+  --text-h3:       1.125rem;
+  --text-body:     1rem;
+  --text-sm:       0.875rem;
+  --text-xs:       0.75rem;
+
+  /* ---- Spacing (8pt grid, 4 is the half-step) ---- */
+  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;  --space-4: 16px;
+  --space-5: 20px;  --space-6: 24px;  --space-8: 32px;  --space-10: 40px;
+  --space-12: 48px; --space-16: 64px; --space-20: 80px;
+
+  /* ---- Radius ---- */
+  --radius-sm: 8px;   --radius-md: 12px;  --radius-lg: 16px;
+  --radius-xl: 20px;  --radius-2xl: 28px; --radius-full: 999px;
+
+  /* ---- Elevation as GLOW (dark UI: use soft glows, not hard drop shadows) ---- */
+  --glow-sm:    0 2px 8px rgba(0, 0, 0, 0.40);
+  --glow-md:    0 8px 24px rgba(0, 0, 0, 0.45);
+  --glow-lg:    0 16px 48px rgba(0, 0, 0, 0.55);
+  --glow-brand: 0 8px 28px rgba(225, 29, 72, 0.30);
+  --highlight-top: inset 0 1px 0 rgba(255, 255, 255, 0.06); /* glassy card top edge */
+
+  /* ---- Motion (spring lives in JS; these are the CSS approximations) ---- */
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 150ms;
+  --dur-base: 240ms;
+  --dur-slow: 360ms;
+
+  /* ---- Z-index scale ---- */
+  --z-nav: 100; --z-sheet: 200; --z-toast: 300; --z-modal: 400;
+
+  /* ---- Safe-area shorthands (set viewport-fit=cover in the meta tag) ---- */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+}
+
+/* ---- Base reset + element defaults ---- */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100dvh; /* use dvh, never vh, on mobile */
+  overscroll-behavior-y: none;
+}
+
+h1, h2, .display {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.02;
+}
+
+.stat, [data-stat] {
+  font-family: var(--font-stat);
+  font-variant-numeric: tabular-nums; /* numbers stay aligned when they change */
+  letter-spacing: -0.02em;
+}
+
+/* ---- Reusable primitives ---- */
+
+/* Gradient text for hero numbers / accents */
+.text-gradient {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Canonical card */
+.card {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glow-sm), var(--highlight-top);
+}
+
+/* Primary action surface */
+.btn-primary {
+  background: var(--gradient-brand);
+  color: var(--text-on-brand);
+  border: none;
+  border-radius: var(--radius-full);
+  min-height: 48px;              /* touch target */
+  padding: 0 var(--space-6);
+  font-weight: 600;
+  box-shadow: var(--glow-brand);
+}
+
+/* Safe-area helpers */
+.pad-safe-top    { padding-top: var(--safe-top); }
+.pad-safe-bottom { padding-bottom: var(--safe-bottom); }
+
+/* Respect reduced motion globally */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

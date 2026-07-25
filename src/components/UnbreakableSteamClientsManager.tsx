@@ -44,6 +44,13 @@ import {
   BulkPlanEntry,
   ProgressionMode,
 } from '../utils/bulkProgression';
+import { dbListWorkoutPrograms } from '../lib/db';
+import { getMealSlotNames } from '../utils/nutritionMealSlots';
+
+export type NewClientSetupOptions = {
+  mealsPerDay: number;
+  workoutProgramId?: string;
+};
 
 // Animated Counter Component
 const AnimatedCounter: React.FC<{ value: number; duration?: number }> = ({ value, duration = 2000 }) => {
@@ -97,7 +104,7 @@ const FloatingParticles: React.FC = () => {
 interface UnbreakableSteamClientsManagerProps {
   isDark: boolean;
   clients: Client[];
-  onAddClient: (client: Client) => void;
+  onAddClient: (client: Client, setup?: NewClientSetupOptions) => void | Promise<void>;
   onUpdateClient: (clientId: string, updates: Partial<Client>) => void;
   onDeleteClient: (clientId: string) => void;
   onArchiveClient: (clientId: string) => void;
@@ -141,6 +148,11 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
     isActive: true,
     startingWeight: '' as string,
   });
+  const [mealsPerDay, setMealsPerDay] = useState(3);
+  const [workoutProgramId, setWorkoutProgramId] = useState('');
+  const [workoutTemplates, setWorkoutTemplates] = useState<{ id: string; name: string }[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [isAddingClient, setIsAddingClient] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number } | null>(null);
   const [credentialsManagerClient, setCredentialsManagerClient] = useState<Client | null>(null);
@@ -188,6 +200,32 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
     }, 1000);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!showAddModal) return;
+    let cancelled = false;
+    const loadTemplates = async () => {
+      setLoadingTemplates(true);
+      try {
+        const { data } = await dbListWorkoutPrograms();
+        if (cancelled) return;
+        setWorkoutTemplates(
+          (data || []).map((p: any) => ({
+            id: p.id,
+            name: p.name || p.program_json?.name || 'Untitled template',
+          }))
+        );
+      } catch {
+        if (!cancelled) setWorkoutTemplates([]);
+      } finally {
+        if (!cancelled) setLoadingTemplates(false);
+      }
+    };
+    loadTemplates();
+    return () => {
+      cancelled = true;
+    };
+  }, [showAddModal]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -266,8 +304,9 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
     }
   };
 
-  const handleAddClient = (e: React.FormEvent) => {
+  const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isAddingClient) return;
     const parsedStart =
       newClient.startingWeight.trim() === ''
         ? undefined
@@ -286,18 +325,29 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
       nutritionPlan: undefined,
       workoutAssignment: undefined
     };
-    onAddClient(client);
-    setShowAddModal(false);
-    setNewClient({
-      name: '',
-      email: '',
-      phone: '',
-      goal: 'maintenance',
-      numberOfWeeks: 12,
-      startDate: new Date(),
-      isActive: true,
-      startingWeight: '',
-    });
+    const setup: NewClientSetupOptions = {
+      mealsPerDay,
+      workoutProgramId: workoutProgramId || undefined,
+    };
+    setIsAddingClient(true);
+    try {
+      await onAddClient(client, setup);
+      setShowAddModal(false);
+      setNewClient({
+        name: '',
+        email: '',
+        phone: '',
+        goal: 'maintenance',
+        numberOfWeeks: 12,
+        startDate: new Date(),
+        isActive: true,
+        startingWeight: '',
+      });
+      setMealsPerDay(3);
+      setWorkoutProgramId('');
+    } finally {
+      setIsAddingClient(false);
+    }
   };
 
   // ---- Bulk selection helpers ----
@@ -917,7 +967,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                 </button>
               </div>
 
-              <form onSubmit={handleAddClient} className="p-6 space-y-4 max-h-96 overflow-y-auto">
+              <form onSubmit={handleAddClient} className="p-6 space-y-4 max-h-[min(70vh,32rem)] overflow-y-auto">
                 <div>
                   <label className="block text-sm font-semibold text-slate-300 mb-2">Name</label>
                   <input
@@ -999,12 +1049,64 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                   </p>
                 </div>
 
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
+                    Meals per day
+                  </label>
+                  <select
+                    value={mealsPerDay}
+                    onChange={(e) => setMealsPerDay(Number(e.target.value))}
+                    className="w-full px-4 py-3 rounded-lg border border-slate-600 bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-300"
+                  >
+                    <option value={2}>2 meals — Breakfast, Dinner</option>
+                    <option value={3}>3 meals — Breakfast, Lunch, Dinner</option>
+                    <option value={4}>4 — 3 meals + Evening Snack</option>
+                    <option value={5}>5 — 3 meals + Morning &amp; Evening Snack</option>
+                    <option value={6}>6 — 3 meals + 3 snacks</option>
+                  </select>
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    Diet slots: {getMealSlotNames(mealsPerDay).join(', ')}. You pick the meals after create.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
+                    Workout template
+                  </label>
+                  <select
+                    value={workoutProgramId}
+                    onChange={(e) => setWorkoutProgramId(e.target.value)}
+                    disabled={loadingTemplates}
+                    className="w-full px-4 py-3 rounded-lg border border-slate-600 bg-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-300 disabled:opacity-60"
+                  >
+                    <option value="">
+                      {loadingTemplates ? 'Loading templates…' : 'None — assign later'}
+                    </option>
+                    {workoutTemplates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    Optional. Assigns Week 1 from the selected template (same as the workout editor).
+                  </p>
+                </div>
+
                 <div className="sticky bottom-0 bg-slate-800/95 backdrop-blur-sm pt-4">
                   <button
                     type="submit"
-                    className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                    disabled={isAddingClient}
+                    className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-60 disabled:hover:scale-100 flex items-center justify-center gap-2"
                   >
-                    Add Client
+                    {isAddingClient ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Creating…
+                      </>
+                    ) : (
+                      'Add Client'
+                    )}
                   </button>
                 </div>
               </form>

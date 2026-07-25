@@ -1,0 +1,33 @@
+---
+description: Non-negotiable mobile interaction, accessibility, and responsiveness standards for every screen and component.
+globs:
+alwaysApply: true
+---
+
+# Interaction standards (always on)
+
+This is a mobile-first PWA. Every component must satisfy these before it is considered done.
+
+## Touch and ergonomics
+- Minimum interactive target 44px, prefer 48px. Add hit-slop padding to small icons.
+- Design for the thumb: place primary actions in the lower half of the screen; keep destructive actions away from easy reach.
+- Never gate meaning or actions behind `:hover`. Hover can enhance on desktop, but touch users must get everything without it.
+- Remove the blue tap flash (`-webkit-tap-highlight-color: transparent` — already in `src/index.css` `@layer base`). Give an intentional pressed state instead (scale + optional haptic).
+- Set `touch-action: manipulation` on tappable elements to kill the 300ms double-tap delay.
+
+## Layout and responsiveness
+- Height uses `100dvh`, never `100vh` (avoids the mobile URL-bar jump). Know `svh/lvh/dvh`.
+- Honor safe areas: the app must set `<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">` and pad against `--safe-top/bottom/left/right`. Fixed headers and bottom nav especially.
+- Fluid type with `clamp()` (already in tokens). Test at 360px width first, then scale up.
+- Nothing horizontally scrolls unless it is an intentional carousel.
+
+## Motion accessibility
+- Always check `prefers-reduced-motion`. When true, replace movement/parallax/confetti with a simple opacity or scale change. Home animations use `.home-anim` / `.home-hero-pip` in `src/index.css` with a reduced-motion block — follow that pattern.
+
+## Focus and inputs
+- Visible `:focus-visible` ring on all interactive elements for keyboard and switch-control users.
+- Inputs use `font-size: 16px` minimum to stop iOS auto-zoom on focus.
+- Keep focused inputs visible when the keyboard opens (see the mobile-native-feel skill for the visualViewport pattern).
+
+## Contrast
+- Body text must meet WCAG AA (4.5:1) on its surface. Verify `var(--red)` / `var(--coral)` on dark for any text use; if it fails, use as accent shape, not body text.
