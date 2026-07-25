@@ -61,6 +61,8 @@ import {
   dbAddIngredient,
 } from '../lib/db';
 import { mealMatchesSearch, matchesSearchQuery } from '../utils/mealSearch';
+import { isPlausibleFood } from '../utils/csvParser';
+import { foods as staticFoods } from '../data/foods';
 
 interface NutritionTemplate {
   id: string;
@@ -156,7 +158,10 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   const [expandedInstructions, setExpandedInstructions] = useState<Set<string>>(new Set());
   const [editingIngredients, setEditingIngredients] = useState<Set<string>>(new Set(['COACH_EDIT_MODE']));
   const [editingQuantities, setEditingQuantities] = useState<{[key: string]: number}>({});
-  const [showIngredientSearch, setShowIngredientSearch] = useState<string | null>(null);
+  const [showIngredientSearch, setShowIngredientSearch] = useState<{
+    mealId: string;
+    ingredientIndex: number;
+  } | null>(null);
   const [ingredientSearchTerm, setIngredientSearchTerm] = useState('');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -294,22 +299,28 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   };
 
   const loadIngredientCatalog = async () => {
+    const seedCatalog = (list: Food[]) =>
+      (list || []).filter(isPlausibleFood);
+
     try {
       const result = await dbListIngredients();
       const fromDb: Food[] = (result.data || [])
-        .filter((row: any) => row?.name)
+        .filter((row: any) => isPlausibleFood(row))
         .map((row: any) => ({
-          name: String(row.name),
+          name: String(row.name).trim(),
           kcal: Number(row.kcal) || 0,
           protein: Number(row.protein) || 0,
           fat: Number(row.fat) || 0,
           carbs: Number(row.carbs) || 0,
         }));
 
-      // Merge DB ingredients with CSV/static foods (DB wins on duplicate names)
+      // static → props CSV → DB (DB wins on duplicate names). Never keep Vercel 404 junk.
       const byName = new Map<string, Food>();
-      for (const food of foods || []) {
-        if (food?.name) byName.set(food.name.trim().toLowerCase(), food);
+      for (const food of seedCatalog(staticFoods)) {
+        byName.set(food.name.trim().toLowerCase(), food);
+      }
+      for (const food of seedCatalog(foods || [])) {
+        byName.set(food.name.trim().toLowerCase(), food);
       }
       for (const food of fromDb) {
         byName.set(food.name.trim().toLowerCase(), food);
@@ -317,7 +328,8 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
       setIngredientCatalog(Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name)));
     } catch (error) {
       console.error('Failed to load ingredient catalog:', error);
-      setIngredientCatalog(foods || []);
+      const fallback = seedCatalog(foods?.length ? foods : staticFoods);
+      setIngredientCatalog(fallback);
     }
   };
 
@@ -460,7 +472,10 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   }, [dbMeals, mealSelectorSearch]);
 
   const filteredIngredientCatalog = useMemo(() => {
-    const catalog = ingredientCatalog.length > 0 ? ingredientCatalog : foods || [];
+    const catalog =
+      ingredientCatalog.length > 0
+        ? ingredientCatalog
+        : (foods || staticFoods).filter(isPlausibleFood);
     const q = ingredientSearchTerm.trim();
     if (!q) return catalog.slice(0, 80);
     return catalog.filter((food) => matchesSearchQuery(food.name, q)).slice(0, 120);
@@ -895,7 +910,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
       next.add(mealId);
       return next;
     });
-    setShowIngredientSearch(`${mealId}::${newIndex}`);
+    setShowIngredientSearch({ mealId, ingredientIndex: newIndex });
     setIngredientSearchTerm('');
 
     setTimeout(() => {
@@ -1436,11 +1451,14 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                         onToggleInstructions={() => toggleExpanded(selectedMeal.id, 'instructions')}
                         onAddIngredient={() => handleAddIngredient(slot.id, selectedMeal.id)}
                         onIngredientNameClick={(idx) => {
-                          setShowIngredientSearch(`${selectedMeal.id}::${idx}`);
-                        }}
-                        onIngredientQuantityChange={(idx, qty) =>
-                          handleIngredientQuantityChange(selectedMeal.id, idx, qty, slot.id)
-                        }
+                          setShowIngredientSearch({
+                            mealId: selectedMeal.id,
+                            ingredientIndex: idx,
+                          });
+                          }}
+                          onIngredientQuantityChange={(idx, qty) =>
+                            handleIngredientQuantityChange(selectedMeal.id, idx, qty, slot.id)
+                          }
                         onRemoveIngredient={(idx) =>
                           handleRemoveIngredient(slot.id, selectedMeal.id, idx)
                         }
@@ -1840,17 +1858,9 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                         key={`food-search-${foodIdx}-${food.name}`}
                         type="button"
                         onClick={() => {
-                          const parts = showIngredientSearch.split('::');
-                          if (parts.length !== 2) {
-                            console.error('❌ Invalid ingredient search format:', showIngredientSearch);
-                            return;
-                          }
-
-                          const mealId = parts[0];
-                          const ingredientIndex = parseInt(parts[1], 10);
-
-                          if (isNaN(ingredientIndex)) {
-                            console.error('❌ Invalid ingredient index:', parts[1]);
+                          const { mealId, ingredientIndex } = showIngredientSearch;
+                          if (!mealId || Number.isNaN(ingredientIndex) || ingredientIndex < 0) {
+                            console.error('❌ Invalid ingredient search target:', showIngredientSearch);
                             return;
                           }
 

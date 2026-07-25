@@ -190,7 +190,9 @@ function App() {
     const loadDatabase = async () => {
       try {
         const realFoods = await loadFoodDatabase();
-        if (realFoods.length > 0) {
+        // Only replace static foods when CSV parse produced a real catalog
+        // (avoids Vercel 404 bodies becoming "NOT_FOUND" / "cdg1::…" ingredients)
+        if (realFoods.length >= 10) {
           setFoods(realFoods);
         }
       } catch (error) {
