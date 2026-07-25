@@ -1,5 +1,24 @@
 import { WorkoutProgram } from '../types';
 
+/** Muscle groups excluded from Progress / Analytics volume charts. */
+const VOLUME_CHART_EXCLUDED = new Set([
+  'traps',
+  'trapezius',
+  'cardio',
+  'arms',
+]);
+
+/**
+ * Drop traps / cardio / arms from volume-chart group lists.
+ * Does not change volume calculation or workout assignment data.
+ */
+export function filterVolumeChartMuscleGroups(groups: string[]): string[] {
+  return groups.filter((g) => {
+    const key = String(g || '').trim().toLowerCase();
+    return key.length > 0 && !VOLUME_CHART_EXCLUDED.has(key);
+  });
+}
+
 /**
  * Calculates the weekly training volume for each muscle group based on the workout program
  * @param program - The client's workout program containing days, exercises, and sets

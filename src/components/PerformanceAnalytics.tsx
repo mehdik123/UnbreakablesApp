@@ -12,7 +12,7 @@ import {
   ArrowDown
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
-import { computeVolumeFromAssignment } from '../utils/volumeCalculator';
+import { computeVolumeFromAssignment, filterVolumeChartMuscleGroups } from '../utils/volumeCalculator';
 import { getLatestDeployedWeekNumber } from '../utils/weekCreation';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 
@@ -158,8 +158,8 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
               .filter((g: string) => g && g.trim() !== '')
               .map((g: string) => g.trim().charAt(0).toUpperCase() + g.trim().slice(1).toLowerCase())
           )
-        ].filter((g) => g !== 'Arms'); // Arms = biceps+triceps; those groups already appear separately
-        setAvailableMuscleGroups(normalized);
+        ];
+        setAvailableMuscleGroups(filterVolumeChartMuscleGroups(normalized));
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -181,7 +181,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
     };
     collect(workoutAssignment?.program?.days);
     (workoutAssignment?.weeks || []).forEach((w: any) => collect(w?.days));
-    return [...groups].filter((g) => g !== 'Arms');
+    return filterVolumeChartMuscleGroups([...groups]);
   }, [workoutAssignment]);
 
   // Derive analytics from assignment using shared weekly volume (no async, no reload every second)

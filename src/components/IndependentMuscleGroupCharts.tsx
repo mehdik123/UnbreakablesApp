@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Area, Area
 import { Activity, TrendingUp, Dumbbell, ChevronDown, ChevronUp, Target, Zap } from 'lucide-react';
 import { Client, ClientWorkoutAssignment, Exercise } from '../types';
 import { supabase } from '../lib/supabaseClient';
-import { computeVolumeFromAssignment, MuscleVolumeData } from '../utils/volumeCalculator';
+import { computeVolumeFromAssignment, filterVolumeChartMuscleGroups, MuscleVolumeData } from '../utils/volumeCalculator';
 import { formatChartVolume } from '../utils/youtube';
 import { getLatestDeployedWeekNumber } from '../utils/weekCreation';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
@@ -69,7 +69,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
         if (cancelled || error) return;
         const raw = data?.map(item => item.muscle_group) || [];
         const normalized = [...new Set(raw.filter(Boolean).map((g: string) => g.trim().charAt(0).toUpperCase() + g.trim().slice(1).toLowerCase()))];
-        setAvailableMuscleGroups(normalized);
+        setAvailableMuscleGroups(filterVolumeChartMuscleGroups(normalized));
       } finally {
         if (!cancelled) setLoading(false);
       }
