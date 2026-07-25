@@ -20,6 +20,7 @@ import {
 import { Client, NutritionPlan, Meal, Ingredient, SelectedMeal } from '../types';
 import { exportEnhancedNutritionPDF } from '../utils/enhancedPdfExport';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
+import { getEffectiveSelectedMeal } from '../utils/mealSlotOverrides';
 
 interface ClientNutritionViewProps {
   client: Client;
@@ -179,10 +180,10 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
   };
 
   const getDisplayIngredients = (selectedMeal: SelectedMeal): Ingredient[] => {
-    if (selectedMeal.customIngredients && selectedMeal.customIngredients.length > 0) {
-      return selectedMeal.customIngredients;
+    if (selectedMeal.slotOverride) {
+      return getEffectiveSelectedMeal(selectedMeal).meal.ingredients;
     }
-    return selectedMeal.meal.ingredients;
+    return selectedMeal.meal.ingredients || [];
   };
 
   const getMealName = (selectedMeal: SelectedMeal): string => {

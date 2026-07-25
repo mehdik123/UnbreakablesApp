@@ -14,6 +14,7 @@ import {
   List,
 } from 'lucide-react';
 import { dbListMeals, dbListIngredients, dbAddMeal, dbUpdateMeal, dbDeleteMeal, dbAddMealItem, dbDeleteMealItem } from '../lib/db';
+import { mealMatchesSearch } from '../utils/mealSearch';
 
 interface DBMeal {
   id: string;
@@ -91,13 +92,17 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
     setLoading(false);
   };
 
-  // Filter and search meals
+  // Filter and search meals — match full typed name (all tokens) against meal or ingredients
   const filteredMeals = useMemo(() => {
-    return meals.filter(meal => {
-      const matchesSearch = meal.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (meal.meal_items || []).some(item => item.ingredients.name.toLowerCase().includes(searchTerm.toLowerCase()));
-      return matchesSearch;
-    });
+    const q = searchTerm.trim();
+    if (!q) return meals;
+    return meals.filter((meal) =>
+      mealMatchesSearch(
+        meal.name || '',
+        q,
+        (meal.meal_items || []).map((item) => item.ingredients?.name)
+      )
+    );
   }, [meals, searchTerm]);
 
 
@@ -387,6 +392,7 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
+                  style={{ fontSize: 16 }}
                 />
               </div>
             </div>

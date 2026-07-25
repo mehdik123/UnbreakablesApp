@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, Search, Plus, X, Clock, Flame, Heart, Zap, Sun, Moon } from 'lucide-react';
 import { Meal } from '../types';
+import { matchesSearchQuery } from '../utils/mealSearch';
 
 interface MealSelectorProps {
   meals: Meal[];
@@ -15,7 +16,7 @@ export const MealSelector: React.FC<MealSelectorProps> = ({ meals, onMealSelect 
   const categories = ['all', 'breakfast', 'lunch', 'dinner', 'snack'];
 
   const filteredMeals = meals.filter(meal => {
-    const matchesSearch = meal.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = matchesSearchQuery(meal.name, searchTerm);
     const matchesCategory = selectedCategory === 'all' || meal.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });

@@ -49,7 +49,11 @@ export const calculateMealNutrition = (selectedMeal: SelectedMeal) => {
     return { kcal: 0, protein: 0, fat: 0, carbs: 0 };
   }
   const effective = getEffectiveSelectedMeal(selectedMeal);
-  const ingredients = effective.customIngredients ?? effective.meal.ingredients;
+  // Prefer live meal.ingredients (coach edits). Only use customIngredients when
+  // a slotOverride is active (client-facing exclusions).
+  const ingredients = selectedMeal.slotOverride
+    ? (effective.customIngredients ?? effective.meal.ingredients)
+    : (effective.meal.ingredients ?? effective.customIngredients);
   
   if (!ingredients || !Array.isArray(ingredients)) {
     return { kcal: 0, protein: 0, fat: 0, carbs: 0 };
