@@ -187,7 +187,9 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
   // Derive analytics from assignment using shared weekly volume (no async, no reload every second)
   const muscleGroups = useMemo((): MuscleGroupData[] => {
     if (!workoutAssignment?.program) return [];
-    const groups = availableMuscleGroups.length > 0 ? availableMuscleGroups : groupsFromAssignment;
+    const groups = filterVolumeChartMuscleGroups(
+      availableMuscleGroups.length > 0 ? availableMuscleGroups : groupsFromAssignment
+    );
     if (groups.length === 0) return [];
     const volumeData = computeVolumeFromAssignment(workoutAssignment, groups);
     // Same as charts: latest deployed week, not a stale assignment.currentWeek (often stuck at 1)

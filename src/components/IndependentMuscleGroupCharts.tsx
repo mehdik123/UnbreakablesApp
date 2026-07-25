@@ -3,7 +3,7 @@ import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Area, Area
 import { Activity, TrendingUp, Dumbbell, ChevronDown, ChevronUp, Target, Zap } from 'lucide-react';
 import { Client, ClientWorkoutAssignment, Exercise } from '../types';
 import { supabase } from '../lib/supabaseClient';
-import { computeVolumeFromAssignment, filterVolumeChartMuscleGroups, MuscleVolumeData } from '../utils/volumeCalculator';
+import { computeVolumeFromAssignment, filterVolumeChartMuscleGroups, isExcludedVolumeChartMuscleGroup, MuscleVolumeData } from '../utils/volumeCalculator';
 import { formatChartVolume } from '../utils/youtube';
 import { getLatestDeployedWeekNumber } from '../utils/weekCreation';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
@@ -77,10 +77,16 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
     return () => { cancelled = true; };
   }, []);
 
+  // Belt-and-suspenders: never render traps / cardio / arms charts even if a stale list sneaks in
+  const muscleGroups = useMemo(
+    () => filterVolumeChartMuscleGroups(availableMuscleGroups),
+    [availableMuscleGroups]
+  );
+
   // Static chart data: derived from assignment + muscle groups. Recomputes only when they change; no loading spinner.
   const chartData = useMemo(
-    () => computeVolumeFromAssignment(client.workoutAssignment ?? null, availableMuscleGroups),
-    [client.workoutAssignment, availableMuscleGroups]
+    () => computeVolumeFromAssignment(client.workoutAssignment ?? null, muscleGroups),
+    [client.workoutAssignment, muscleGroups]
   );
 
   // Latest deployed week (not a stale assignment.currentWeek that can stay at 1 after week 2 is added)
@@ -94,9 +100,6 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
     return weekDays.length > 0 ? weekDays : programDays;
   }, [client.workoutAssignment, currentWeek]);
 
-  // Extract exercises by muscle group from current week's days (so volume and details use client-saved data)
-  const muscleGroups = useMemo(() => availableMuscleGroups, [availableMuscleGroups]);
-
   useEffect(() => {
     if (displayDaysForCurrentWeek.length === 0) return;
     const byGroup: { [muscleGroup: string]: Exercise[] } = {};
@@ -105,6 +108,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
         const mg = workoutExercise.exercise?.muscleGroup;
         if (!mg) return;
         const norm = mg.charAt(0).toUpperCase() + mg.slice(1).toLowerCase();
+        if (isExcludedVolumeChartMuscleGroup(norm)) return;
         if (!byGroup[norm]) byGroup[norm] = [];
         if (!byGroup[norm].some((ex: any) => ex.id === workoutExercise.exercise?.id)) {
           byGroup[norm].push(workoutExercise.exercise);
@@ -122,7 +126,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
   };
 
   const getMuscleGroupColor = (muscleGroup: string) => {
-    const index = availableMuscleGroups.indexOf(muscleGroup);
+    const index = muscleGroups.indexOf(muscleGroup);
     return COLORS[index % COLORS.length];
   };
 
@@ -161,9 +165,9 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
   const totalExercises = Object.values(workoutExercises).reduce((sum, exercises) => sum + exercises.length, 0);
 
   const progressVerdictKey = useMemo(() => {
-    if (!chartData.length || availableMuscleGroups.length === 0) return 'progress.verdictEmpty';
+    if (!chartData.length || muscleGroups.length === 0) return 'progress.verdictEmpty';
     const weekTotals = chartData.map((week) =>
-      availableMuscleGroups.reduce((sum, mg) => sum + ((week[mg] as number) || 0), 0)
+      muscleGroups.reduce((sum, mg) => sum + ((week[mg] as number) || 0), 0)
     );
     const first = weekTotals[0] || 0;
     const last = weekTotals[weekTotals.length - 1] || 0;
@@ -171,7 +175,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
     if (last > first) return 'progress.verdictUp';
     if (last < first) return 'progress.verdictDown';
     return 'progress.verdictFlat';
-  }, [chartData, availableMuscleGroups]);
+  }, [chartData, muscleGroups]);
 
   if (loading) {
     return (
@@ -201,7 +205,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
           </div>
           <div className="text-center shrink-0">
             <div className="font-saira font-bold text-[24px] leading-none tnum" style={{ color: 'var(--blue)' }}>
-              {availableMuscleGroups.length}
+              {muscleGroups.length}
             </div>
             <div className="text-[10px] uppercase tracking-[0.08em] mt-1 text-lo">
               {t('ch.muscleGroupsAvailable')}
@@ -234,7 +238,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
 
         {/* Muscle Group Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {availableMuscleGroups.map((muscleGroup, index) => {
+          {muscleGroups.map((muscleGroup, index) => {
             const color = getMuscleGroupColor(muscleGroup);
             const isExpanded = expandedCharts[muscleGroup];
             const exercises = workoutExercises[muscleGroup] || [];
@@ -691,7 +695,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="wt-stat-tile text-center">
-              <div className="wt-stat-val">{availableMuscleGroups.length}</div>
+              <div className="wt-stat-val">{muscleGroups.length}</div>
               <div className="text-mid text-sm mt-1">{t('ch.muscleGroupsAvailable')}</div>
             </div>
             

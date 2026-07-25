@@ -12,13 +12,11 @@ import {
   Zap,
   TrendingUp,
   Sparkles,
-  Download,
   ChevronRight,
   ChevronLeft,
   Clock
 } from 'lucide-react';
 import { Client, NutritionPlan, Meal, Ingredient, SelectedMeal } from '../types';
-import { exportEnhancedNutritionPDF } from '../utils/enhancedPdfExport';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 import { getEffectiveSelectedMeal } from '../utils/mealSlotOverrides';
 
@@ -252,18 +250,6 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
     );
   }, [displayNutritionPlan, currentMealIndex]);
 
-  // Handle PDF export
-  const handleExportPDF = async () => {
-    if (!displayNutritionPlan) return;
-
-    // Use the currently calculated totals (based on selected meals only)
-    await exportEnhancedNutritionPDF({
-      clientName: client.name,
-      mealSlots: displayNutritionPlan.mealSlots,
-      totalNutrition: dailyTotals
-    });
-  };
-
   // If no nutrition plan is available, show empty state
   if (!displayNutritionPlan) {
     return (
@@ -307,7 +293,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
       <div className="max-w-md mx-auto px-1 pt-1 space-y-4">
         <div className="nut-hero">
           <div className="nut-hero-glow" />
-          <div className="relative flex items-start justify-between gap-3">
+          <div className="relative flex items-start gap-3">
             <div className="min-w-0">
               <div className="text-[12.5px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--txt-lo)' }}>
                 {t('nav.nutrition')}
@@ -319,10 +305,6 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                 {t('home.nutritionSummary', { meals: mealSlotCount, kcal: Math.round(dailyTotals.calories) })}
               </div>
             </div>
-            <button type="button" onClick={handleExportPDF} className="nut-export-btn shrink-0">
-              <Download className="w-4 h-4" />
-              {t('nut.export')}
-            </button>
           </div>
           <div className="relative mt-3 flex items-end justify-between gap-3">
             <div>

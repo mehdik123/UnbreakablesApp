@@ -1,22 +1,35 @@
 import { WorkoutProgram } from '../types';
 
 /** Muscle groups excluded from Progress / Analytics volume charts. */
-const VOLUME_CHART_EXCLUDED = new Set([
+const VOLUME_CHART_EXCLUDED_EXACT = new Set([
   'traps',
   'trapezius',
   'cardio',
   'arms',
+  'arm',
 ]);
+
+/**
+ * True when this label should not appear as its own volume chart
+ * (traps / cardio / arms — including compound labels like "Arms & Shoulders").
+ */
+export function isExcludedVolumeChartMuscleGroup(group: string): boolean {
+  const key = String(group || '').trim().toLowerCase();
+  if (!key) return true;
+  if (VOLUME_CHART_EXCLUDED_EXACT.has(key)) return true;
+  // Compound / alternate labels from the exercises table
+  if (/\btraps?\b|\btrapezius\b/.test(key)) return true;
+  if (/\bcardio\b/.test(key)) return true;
+  if (/\barms?\b/.test(key)) return true;
+  return false;
+}
 
 /**
  * Drop traps / cardio / arms from volume-chart group lists.
  * Does not change volume calculation or workout assignment data.
  */
 export function filterVolumeChartMuscleGroups(groups: string[]): string[] {
-  return groups.filter((g) => {
-    const key = String(g || '').trim().toLowerCase();
-    return key.length > 0 && !VOLUME_CHART_EXCLUDED.has(key);
-  });
+  return groups.filter((g) => !isExcludedVolumeChartMuscleGroup(g));
 }
 
 /**
