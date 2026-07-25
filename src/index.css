@@ -690,6 +690,476 @@
   .coach-hub-btn:active { transform: none; }
 }
 
+/* ---- Coach client plan shell (design-only chrome) ---- */
+.coach-plan {
+  min-height: 100dvh;
+}
+
+/* Generic 44px hit target for coach icon buttons */
+.coach-touch {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.coach-touch:active { transform: scale(0.96); }
+.coach-touch:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+.coach-plan-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: rgba(16, 18, 24, 0.94);
+  border-bottom: 1px solid var(--hair);
+  padding-top: env(safe-area-inset-top);
+}
+.coach-plan-headrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 56px;
+  padding: 0.5rem 0;
+}
+@media (min-width: 640px) {
+  .coach-plan-headrow { min-height: 64px; padding: 0; }
+}
+.coach-plan-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+@media (min-width: 640px) {
+  .coach-plan-actions { gap: 0.35rem; }
+}
+/* Client meta (goal + weeks) stays on one line, never pushes the header tall */
+.coach-plan-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* Tabs: static on phones (no sticky collision with a taller header),
+   sticky under the 64px header from sm+ so laptop behavior is unchanged. */
+.coach-plan-tabs {
+  position: static;
+  z-index: 40;
+  margin-bottom: 1.25rem;
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  border: 1px solid var(--hair);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+@media (min-width: 640px) {
+  .coach-plan-tabs {
+    position: sticky;
+    top: 4rem;
+  }
+}
+.coach-plan-tabrow {
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+  padding: 0.4rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+}
+.coach-plan-tabrow::-webkit-scrollbar { display: none; }
+@media (min-width: 640px) {
+  .coach-plan-tabrow {
+    justify-content: space-around;
+    padding: 0.5rem 0.75rem;
+    overflow-x: visible;
+  }
+}
+.coach-plan-tab {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 68px;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--r-md);
+  color: var(--txt-lo);
+  scroll-snap-align: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.18s var(--ease), background 0.18s var(--ease);
+}
+@media (min-width: 640px) {
+  .coach-plan-tab { min-width: 82px; padding: 0.5rem 1rem; }
+}
+.coach-plan-tab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--tab-accent, var(--red));
+  opacity: 0;
+  transition: opacity 0.18s var(--ease);
+  pointer-events: none;
+}
+.coach-plan-tab:hover { color: var(--txt-mid); }
+.coach-plan-tab:active { transform: scale(0.97); }
+.coach-plan-tab:focus-visible {
+  outline: 2px solid var(--tab-accent, var(--red));
+  outline-offset: 2px;
+}
+.coach-plan-tab.is-active {
+  color: var(--tab-accent, var(--red));
+}
+.coach-plan-tab.is-active::before { opacity: 0.16; }
+.coach-plan-tab-ic {
+  width: 1.25rem;
+  height: 1.25rem;
+  position: relative;
+}
+@media (min-width: 640px) {
+  .coach-plan-tab-ic { width: 1.4rem; height: 1.4rem; }
+}
+.coach-plan-tab-label {
+  position: relative;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+@media (min-width: 640px) {
+  .coach-plan-tab-label { font-size: 0.75rem; }
+}
+.coach-plan-tab-underline {
+  position: absolute;
+  bottom: 0.15rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1.75rem;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--tab-accent, var(--red));
+}
+@media (prefers-reduced-motion: reduce) {
+  .coach-plan-tab:active,
+  .coach-touch:active { transform: none; }
+}
+
+/* ---- Nested coach editors (nutrition / workout) ---- */
+/* These render inside the plan shell, so they must not create a second
+   full-page scroll context or a second sticky bar. */
+.coach-editor {
+  min-height: 0;
+}
+.coach-editor-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  margin-bottom: 1rem;
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  border: 1px solid var(--hair);
+}
+@media (min-width: 640px) {
+  .coach-editor-head {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    gap: 1rem;
+  }
+}
+.coach-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 2px;
+}
+.coach-editor-actions::-webkit-scrollbar { display: none; }
+@media (min-width: 640px) {
+  .coach-editor-actions { overflow-x: visible; flex-wrap: wrap; justify-content: flex-end; }
+}
+.coach-editor-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 0.85rem;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--hair);
+  color: var(--txt-mid);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.18s var(--ease), color 0.18s var(--ease);
+}
+.coach-editor-btn:hover { background: var(--surface-3); color: var(--txt-hi); }
+.coach-editor-btn:active { transform: scale(0.97); }
+.coach-editor-btn--primary {
+  background: var(--grad-red);
+  border-color: transparent;
+  color: #fff;
+}
+.coach-editor-btn--primary:hover { background: var(--grad-red); color: #fff; filter: brightness(1.06); }
+
+/* Stat tiles above the meal slots */
+.coach-stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  border: 1px solid var(--hair);
+}
+@media (min-width: 640px) {
+  .coach-stat { padding: 1.1rem; border-radius: var(--r-lg); }
+}
+.coach-stat-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--txt-lo);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+@media (min-width: 640px) {
+  .coach-stat-label { font-size: 0.75rem; }
+}
+.coach-stat-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--txt-hi);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+@media (min-width: 640px) {
+  .coach-stat-value { font-size: 1.75rem; }
+}
+.coach-stat-ic {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  color: var(--stat-accent, var(--red));
+}
+@media (min-width: 640px) {
+  .coach-stat-ic { width: 2.75rem; height: 2.75rem; border-radius: var(--r-md); }
+}
+
+/* Slot panels */
+.coach-slot {
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  border: 1px solid var(--hair);
+  padding: 1rem;
+}
+@media (min-width: 640px) {
+  .coach-slot { padding: 1.5rem; }
+}
+@media (min-width: 1024px) {
+  .coach-slot { padding: 2rem; }
+}
+.coach-slot-badge {
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: #fff;
+  background: var(--grad-red);
+  box-shadow: 0 8px 20px rgba(255, 45, 85, 0.22);
+}
+@media (min-width: 640px) {
+  .coach-slot-badge { width: 3rem; height: 3rem; font-size: 1.15rem; }
+}
+/* ---- Database selector cards ---- */
+.coach-db-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 1rem;
+  border-radius: var(--r-lg);
+  background: var(--surface-1);
+  border: 1px solid var(--hair);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease), transform 0.18s var(--spring);
+}
+@media (min-width: 640px) {
+  .coach-db-card { padding: 1.35rem; }
+}
+.coach-db-card:hover {
+  border-color: var(--hair-strong);
+  background: var(--surface-2);
+}
+.coach-db-card:active { transform: scale(0.99); }
+.coach-db-card:focus-visible {
+  outline: 2px solid var(--card-accent, var(--red));
+  outline-offset: 2px;
+}
+.coach-db-icon {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--card-accent, var(--red));
+  background: var(--surface-2);
+  border: 1px solid var(--hair);
+}
+.coach-db-go {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--card-accent, var(--red));
+  background: var(--surface-2);
+  border: 1px solid var(--hair);
+}
+.coach-db-chip {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--txt-lo);
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--hair);
+}
+@media (prefers-reduced-motion: reduce) {
+  .coach-db-card:active { transform: none; }
+}
+
+/* Small ± steppers in the workout editor.
+   Desktop density is unchanged; touch devices get a physically larger button. */
+.coach-step-btn {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--hair);
+  color: var(--step-accent, var(--txt-mid));
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.coach-step-btn:hover { background: var(--surface-3); color: var(--txt-hi); }
+.coach-step-btn:active { transform: scale(0.94); }
+@media (pointer: coarse) {
+  .coach-step-btn { width: 2.25rem; height: 2.25rem; }
+}
+.coach-set-panel {
+  flex: 1 1 0%;
+  min-width: 0;
+  border-radius: var(--r-sm);
+  padding: 0.5rem;
+  background: var(--surface-2);
+  border: 1px solid var(--hair);
+}
+.coach-set-panel-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--panel-accent, var(--txt-lo));
+}
+@media (prefers-reduced-motion: reduce) {
+  .coach-step-btn:active { transform: none; }
+}
+
+/* Coach modals: sheet-style on phones, centered dialog on laptop */
+.coach-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  background: rgba(8, 9, 12, 0.74);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+@media (min-width: 640px) {
+  .coach-modal { align-items: center; padding: 1rem; }
+}
+.coach-modal-panel {
+  width: 100%;
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-1);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.45);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@media (min-width: 640px) {
+  .coach-modal-panel {
+    border-radius: var(--r-lg);
+    max-height: 85vh;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+    padding-bottom: 0;
+  }
+}
+.coach-modal input[type='text'],
+.coach-modal input[type='search'],
+.coach-modal input[type='number'],
+.coach-modal input[type='url'],
+.coach-modal select,
+.coach-modal textarea {
+  font-size: 16px;
+}
+.coach-modal input[type='text'],
+.coach-modal input[type='search'],
+.coach-modal select {
+  min-height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach-editor-btn:active { transform: none; }
+}
+
 @layer base {
   * {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;

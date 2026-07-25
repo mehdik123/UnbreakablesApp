@@ -1234,148 +1234,133 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
 
 
   return (
-    <div className="min-h-screen">
-      {/* Header - Mobile Optimized */}
-      <div className="sticky top-0 z-50 backdrop-blur-xl" style={{ background: 'rgba(16,18,24,.92)', borderBottom: '1px solid var(--hair)' }}>
-        <div className="w-full px-3 sm:px-4 lg:px-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-0 sm:h-16 space-y-3 sm:space-y-0">
-            <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
-              <button
-                onClick={onBack}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors duration-200"
-              >
-                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-              
-              <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg">
-                  <Utensils className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+    <div className="coach-editor">
+      {/* Header - nested in the plan shell, so it stays inline (no second sticky bar) */}
+      <div className="w-full max-w-[1600px] mx-auto px-0 sm:px-4 lg:px-8 xl:px-12 pt-1">
+        <div className="coach-editor-head">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={onBack}
+              className="coach-touch rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200 sm:hidden"
+              title="Back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-lg shrink-0" style={{ background: 'var(--grad-red)' }}>
+              <Utensils className="w-5 h-5 text-white" />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <h2 className="text-base sm:text-xl font-bold font-display text-[color:var(--txt-hi)] truncate">
+                Nutrition Plan Builder
+              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] sm:text-xs font-medium ${getGoalColor(client.goal)}`}>
+                  {getGoalIcon(client.goal)}
+                  <span className="capitalize">{client.goal}</span>
                 </div>
-                
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-lg sm:text-2xl font-bold font-display text-white truncate">
-                    Nutrition Plan Builder
-                  </h1>
-                  <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3">
-                    <div className={`inline-flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium ${getGoalColor(client.goal)}`}>
-                      {getGoalIcon(client.goal)}
-                      <span className="capitalize">{client.goal}</span>
-                    </div>
-                    <div className="flex items-center space-x-1 sm:space-x-2 text-slate-400 text-xs sm:text-sm">
-                      <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span>{client.numberOfWeeks} weeks</span>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-1 text-[color:var(--txt-lo)] text-[11px] sm:text-xs">
+                  <Calendar className="w-3 h-3" />
+                  <span>{client.numberOfWeeks} weeks</span>
                 </div>
               </div>
             </div>
-            
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          </div>
+
+          <div className="coach-editor-actions">
+            <button
+              onClick={() => setShowMealCountSelector(true)}
+              className="coach-editor-btn"
+            >
+              <Settings className="w-4 h-4" />
+              <span>{mealsPerDay} Meals/Day</span>
+            </button>
+            <button
+              onClick={() => setShowTemplates(true)}
+              className="coach-editor-btn"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span>Templates</span>
+            </button>
+            {/* Assignment Button - Only show when meals are selected */}
+            {mealSlots.some(slot => slot.selectedMeals && slot.selectedMeals.length > 0) && (
               <button
-                onClick={() => setShowMealCountSelector(true)}
-                className="inline-flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-lg text-slate-300 bg-slate-800 hover:bg-slate-700 font-medium transition-colors duration-200 text-xs sm:text-sm"
+                onClick={handleAssignToClient}
+                className="coach-editor-btn coach-editor-btn--primary"
               >
-                <Settings className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">{mealsPerDay} Meals/Day</span>
-                <span className="sm:hidden">{mealsPerDay}M</span>
+                <Target className="w-4 h-4" />
+                <span>Assign</span>
               </button>
-              <button
-                onClick={() => setShowTemplates(true)}
-                className="inline-flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-lg text-slate-300 bg-slate-800 hover:bg-slate-700 font-medium transition-colors duration-200 text-xs sm:text-sm"
-              >
-                <BookOpen className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Templates</span>
-                <span className="sm:hidden">T</span>
-              </button>
-              {/* Assignment Button - Only show when meals are selected */}
-              {mealSlots.some(slot => slot.selectedMeals && slot.selectedMeals.length > 0) && (
-                <button
-                  onClick={handleAssignToClient}
-                  className="inline-flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-medium transition-colors duration-200 text-xs sm:text-sm"
-                >
-                  <Target className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:inline">Assign to Client</span>
-                  <span className="sm:hidden">Assign</span>
-                </button>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* Main Content - Fully Responsive */}
-      <div className="w-full max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-8 xl:px-12 py-4 sm:py-8">
+      <div className="w-full max-w-[1600px] mx-auto px-0 sm:px-4 lg:px-8 xl:px-12 py-2 sm:py-4">
         {/* Quick Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-700/50 p-3 sm:p-6 shadow-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-xs sm:text-sm font-medium">Total Calories</p>
-                <p className="text-lg sm:text-3xl font-bold text-white">{Math.round(totalNutrition.calories || 0)}</p>
-              </div>
-              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
-                <Zap className="w-4 h-4 sm:w-6 sm:h-6 text-red-400" />
-              </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 lg:gap-6 mb-4 sm:mb-6">
+          <div className="coach-stat" style={{ ['--stat-accent' as string]: 'var(--red)' } as React.CSSProperties}>
+            <div className="min-w-0">
+              <p className="coach-stat-label">Calories</p>
+              <p className="coach-stat-value">{Math.round(totalNutrition.calories || 0)}</p>
+            </div>
+            <div className="coach-stat-ic">
+              <Zap className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
 
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-700/50 p-3 sm:p-6 shadow-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-xs sm:text-sm font-medium">Protein</p>
-                <p className="text-lg sm:text-3xl font-bold text-white">{Math.round(totalNutrition.protein || 0)}g</p>
-              </div>
-              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                <Target className="w-4 h-4 sm:w-6 sm:h-6 text-emerald-400" />
-              </div>
+          <div className="coach-stat" style={{ ['--stat-accent' as string]: 'var(--green)' } as React.CSSProperties}>
+            <div className="min-w-0">
+              <p className="coach-stat-label">Protein</p>
+              <p className="coach-stat-value">{Math.round(totalNutrition.protein || 0)}g</p>
+            </div>
+            <div className="coach-stat-ic">
+              <Target className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
 
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-700/50 p-3 sm:p-6 shadow-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-xs sm:text-sm font-medium">Fat</p>
-                <p className="text-lg sm:text-3xl font-bold text-white">{Math.round(totalNutrition.fat || 0)}g</p>
-              </div>
-              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl bg-orange-500/20 flex items-center justify-center">
-                <Heart className="w-4 h-4 sm:w-6 sm:h-6 text-orange-400" />
-              </div>
+          <div className="coach-stat" style={{ ['--stat-accent' as string]: 'var(--orange)' } as React.CSSProperties}>
+            <div className="min-w-0">
+              <p className="coach-stat-label">Fat</p>
+              <p className="coach-stat-value">{Math.round(totalNutrition.fat || 0)}g</p>
+            </div>
+            <div className="coach-stat-ic">
+              <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
 
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-slate-700/50 p-3 sm:p-6 shadow-xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-xs sm:text-sm font-medium">Carbs</p>
-                <p className="text-lg sm:text-3xl font-bold text-white">{Math.round(totalNutrition.carbs || 0)}g</p>
-              </div>
-              <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                <Activity className="w-4 h-4 sm:w-6 sm:h-6 text-purple-400" />
-              </div>
+          <div className="coach-stat" style={{ ['--stat-accent' as string]: 'var(--blue)' } as React.CSSProperties}>
+            <div className="min-w-0">
+              <p className="coach-stat-label">Carbs</p>
+              <p className="coach-stat-value">{Math.round(totalNutrition.carbs || 0)}g</p>
+            </div>
+            <div className="coach-stat-ic">
+              <Activity className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
         </div>
-        <p className="text-slate-500 text-xs sm:text-sm -mt-3 sm:-mt-4 mb-6 sm:mb-8">
+        <p className="text-[color:var(--txt-lo)] text-xs sm:text-sm -mt-1 mb-5 sm:mb-6">
           Daily totals count the first meal in each slot only (what the client sees first). Alternatives are swaps, not extra calories.
         </p>
 
         {/* Meal Slots */}
-        <div className="space-y-6 lg:space-y-8 mb-8">
+        <div className="space-y-4 sm:space-y-6 lg:space-y-8 mb-8">
           {mealSlots.map((slot, index) => (
-            <div key={slot.id} className="bg-slate-800/30 backdrop-blur-sm rounded-2xl lg:rounded-3xl border border-slate-700/50 p-4 sm:p-6 lg:p-8 shadow-xl">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-                <div className="flex items-center gap-3 sm:gap-4 flex-1">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-2xl bg-gradient-to-br from-red-500 via-orange-500 to-red-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-2xl shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300 hover:scale-110 flex-shrink-0">
+            <div key={slot.id} className="coach-slot">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-4">
+                <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                  <div className="coach-slot-badge">
                     {index + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white flex items-center gap-2 flex-wrap">
+                    <h3 className="text-lg sm:text-2xl font-bold font-display text-[color:var(--txt-hi)] flex items-center gap-2 flex-wrap">
                       <span className="truncate">{slot.name}</span>
-                      <span className="px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-red-500/20 border border-red-500/30 text-red-300 text-xs font-bold flex-shrink-0">
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--red)' }}>
                         {slot.selectedMeals?.length || 0} {slot.selectedMeals?.length === 1 ? 'meal' : 'meals'}
                       </span>
                     </h3>
-                    <p className="text-slate-400 text-xs sm:text-sm mt-1">
+                    <p className="text-[color:var(--txt-lo)] text-xs sm:text-sm mt-0.5">
                       {slot.selectedMeals?.length === 0
                         ? 'Add a meal to this slot'
                         : 'Edit portions below · changes autosave'}
@@ -1387,7 +1372,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                     setSelectedSlot(slot.id);
                     setShowMealSelector(true);
                   }}
-                  className="inline-flex items-center gap-2.5 px-5 sm:px-6 py-2.5 sm:py-3 rounded-2xl bg-gradient-to-r from-red-600 to-red-500 text-white hover:from-red-700 hover:to-red-600 font-semibold transition-all duration-300 shadow-xl hover:shadow-2xl hover:shadow-red-500/30 hover:scale-105 active:scale-95"
+                  className="coach-editor-btn coach-editor-btn--primary justify-center w-full sm:w-auto"
                 >
                   <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span className="text-sm sm:text-base">Add Meal</span>
@@ -1395,19 +1380,12 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
               </div>
 
               {(!slot.selectedMeals || slot.selectedMeals.length === 0) ? (
-                <div className="text-center py-16 relative overflow-hidden">
-                  {/* Animated Background Pattern */}
-                  <div className="absolute inset-0 opacity-10">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 via-transparent to-purple-500/20 animate-pulse"></div>
+                <div className="text-center py-10 sm:py-14">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                    <Utensils className="w-7 h-7 sm:w-9 sm:h-9 text-[color:var(--txt-lo)]" />
                   </div>
-                  
-                  <div className="relative">
-                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-slate-700/60 to-slate-800/60 backdrop-blur-xl border border-slate-600/40 flex items-center justify-center mx-auto mb-6 shadow-2xl group-hover:scale-110 transition-all duration-300">
-                      <Utensils className="w-12 h-12 text-slate-300 group-hover:text-red-400 transition-colors" />
-                    </div>
-                    <p className="text-xl font-bold text-white mb-2">No meals added yet</p>
-                    <p className="text-sm text-slate-400">Click "Add Meal" above to get started</p>
-                  </div>
+                  <p className="text-base sm:text-lg font-bold text-[color:var(--txt-hi)] mb-1">No meals added yet</p>
+                  <p className="text-sm text-[color:var(--txt-lo)]">Tap “Add Meal” to get started</p>
                 </div>
               ) : (
                 <div className="coach-meal-list space-y-4">
@@ -1509,10 +1487,10 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-center space-x-6">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center sm:justify-center gap-3 pb-2">
           <button
             onClick={() => setShowSaveTemplate(true)}
-            className="inline-flex items-center space-x-3 px-8 py-4 rounded-xl text-slate-300 bg-slate-800/50 hover:bg-slate-700/50 font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="coach-editor-btn justify-center sm:px-6"
           >
             <BookOpen className="w-5 h-5" />
             <span>Save as Template</span>
@@ -1520,7 +1498,8 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
           <button
             onClick={handleExportPDF}
             disabled={isLoading}
-            className="inline-flex items-center space-x-3 px-8 py-4 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 font-medium transition-all duration-200 disabled:opacity-50 shadow-lg hover:shadow-xl"
+            className="coach-editor-btn justify-center sm:px-6 disabled:opacity-50"
+            style={{ background: 'var(--green)', borderColor: 'transparent', color: '#08130f' }}
           >
             <Download className="w-5 h-5" />
             <span>{isLoading ? 'Exporting...' : 'Export PDF'}</span>
@@ -1531,7 +1510,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
       {/* Meal Selector Modal */}
       {showMealSelector && (
         <div 
-          className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          className="coach-modal z-50"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowMealSelector(false);
@@ -1540,46 +1519,46 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
             }
           }}
         >
-          <div className="w-full max-w-6xl bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 max-h-[85vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between p-6 border-b border-slate-700/50 gap-3">
-              <h2 className="text-2xl font-bold text-white">Select Meals</h2>
+          <div className="coach-modal-panel max-w-6xl">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[color:var(--hair)] gap-3">
+              <h2 className="text-lg sm:text-2xl font-bold font-display text-[color:var(--txt-hi)]">Select Meals</h2>
               <button
                 onClick={() => {
                   setShowMealSelector(false);
                   setSelectedSlot(null);
                   setMealSelectorSearch('');
                 }}
-                className="p-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200 min-h-[44px] min-w-[44px]"
+                className="coach-touch rounded-xl text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="px-6 pt-4 pb-2">
+            <div className="px-4 sm:px-6 pt-4 pb-2">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[color:var(--txt-lo)] pointer-events-none" />
                 <input
                   type="search"
                   value={mealSelectorSearch}
                   onChange={(e) => setMealSelectorSearch(e.target.value)}
                   placeholder="Search meals by full name or ingredient…"
-                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-600 bg-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  style={{ fontSize: 16 }}
+                  className="w-full pl-12 pr-4 py-3 rounded-xl text-[color:var(--txt-hi)] placeholder-[color:var(--txt-lo)] focus:outline-none focus:ring-2 focus:ring-[color:var(--red)]"
+                  style={{ fontSize: 16, background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                   autoFocus
                 />
               </div>
-              <p className="mt-2 text-xs text-slate-400">
+              <p className="mt-2 text-xs text-[color:var(--txt-lo)]">
                 {filteredDbMeals.length} meal{filteredDbMeals.length === 1 ? '' : 's'}
                 {mealSelectorSearch.trim() ? ' matching your search' : ' in library'}
               </p>
             </div>
-            <div className="p-6 overflow-y-auto flex-1 min-h-0">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0">
               {filteredDbMeals.length === 0 && (
-                <div className="text-center py-12 text-slate-400">
-                  <p className="text-lg font-medium text-white mb-2">No meals found</p>
+                <div className="text-center py-12 text-[color:var(--txt-lo)]">
+                  <p className="text-lg font-medium text-[color:var(--txt-hi)] mb-2">No meals found</p>
                   <p className="text-sm">Try a shorter name or different spelling.</p>
                 </div>
               )}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {filteredDbMeals.map((dbMeal) => {
                   try {
                     // Calculate nutrition from DB meal structure
@@ -1598,41 +1577,42 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                       <button
                         key={dbMeal.id}
                         onClick={() => handleMealSelect(dbMeal)}
-                        className="text-left p-6 rounded-2xl bg-slate-700/30 backdrop-blur-sm border border-slate-600/50 hover:bg-slate-600/40 transition-all duration-200 shadow-lg hover:shadow-xl group"
+                        className="text-left p-4 sm:p-5 rounded-2xl transition-all duration-200 group"
+                        style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                       >
-                        <div className="w-full h-40 rounded-xl overflow-hidden mb-4 shadow-lg">
+                        <div className="w-full h-28 sm:h-36 rounded-xl overflow-hidden mb-3">
                           <img 
                             src={dbMeal.image || '/api/placeholder/300/200'} 
                             alt={dbMeal.name} 
+                            loading="lazy"
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                           />
                         </div>
-                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-red-400 transition-colors duration-200">{dbMeal.name}</h3>
-                        <p className="text-slate-400 capitalize mb-4">{dbMeal.category}</p>
+                        <h3 className="text-base font-bold text-[color:var(--txt-hi)] mb-1 group-hover:text-[color:var(--red)] transition-colors duration-200">{dbMeal.name}</h3>
+                        <p className="text-[color:var(--txt-lo)] text-xs capitalize mb-3">{dbMeal.category}</p>
                         
                         {/* Nutrition Info */}
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                          <div className="text-center p-2 rounded-lg bg-slate-600/30">
-                            <p className="text-slate-400 text-xs">Calories</p>
-                            <p className="text-sm font-bold text-white">{Math.round(nutrition.calories)}</p>
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          <div className="text-center p-2 rounded-lg" style={{ background: 'var(--surface-3)' }}>
+                            <p className="text-[color:var(--txt-lo)] text-[11px]">Calories</p>
+                            <p className="text-sm font-bold text-[color:var(--txt-hi)] tnum">{Math.round(nutrition.calories)}</p>
                           </div>
-                          <div className="text-center p-2 rounded-lg bg-slate-600/30">
-                            <p className="text-slate-400 text-xs">Protein</p>
-                            <p className="text-sm font-bold text-white">{Math.round(nutrition.protein)}g</p>
+                          <div className="text-center p-2 rounded-lg" style={{ background: 'var(--surface-3)' }}>
+                            <p className="text-[color:var(--txt-lo)] text-[11px]">Protein</p>
+                            <p className="text-sm font-bold text-[color:var(--txt-hi)] tnum">{Math.round(nutrition.protein)}g</p>
                           </div>
                         </div>
 
                         {/* Ingredients Preview */}
-                        <div className="mb-4">
-                          <p className="text-slate-400 text-sm mb-2">Ingredients:</p>
+                        <div className="mb-3">
                           <div className="flex flex-wrap gap-1">
                             {(dbMeal.meal_items || []).slice(0, 2).map((item: any, idx: number) => (
-                              <span key={`${dbMeal.id}-ingredient-${idx}-${item.ingredients?.name || idx}`} className="px-2 py-1 rounded-full bg-slate-600/50 text-slate-300 text-xs">
+                              <span key={`${dbMeal.id}-ingredient-${idx}-${item.ingredients?.name || idx}`} className="px-2 py-1 rounded-full text-[color:var(--txt-mid)] text-[11px]" style={{ background: 'var(--surface-3)' }}>
                                 {item.ingredients?.name || '—'}
                               </span>
                             ))}
                             {(dbMeal.meal_items || []).length > 2 && (
-                              <span className="px-2 py-1 rounded-full bg-slate-600/50 text-slate-300 text-xs">
+                              <span className="px-2 py-1 rounded-full text-[color:var(--txt-mid)] text-[11px]" style={{ background: 'var(--surface-3)' }}>
                                 +{(dbMeal.meal_items || []).length - 2} more
                               </span>
                             )}
@@ -1640,10 +1620,9 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                         </div>
 
                         {/* Add Button */}
-                        <div className="flex items-center justify-center">
-                          <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
-                            <Plus className="w-4 h-4 text-red-400" />
-                          </div>
+                        <div className="flex items-center justify-center gap-2 rounded-xl min-h-[40px] text-sm font-semibold text-white" style={{ background: 'var(--grad-red)' }}>
+                          <Plus className="w-4 h-4" />
+                          Add
                         </div>
                       </button>
                     );
@@ -1653,18 +1632,20 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                       <button
                         key={dbMeal.id}
                         onClick={() => handleMealSelect(dbMeal)}
-                        className="text-left p-6 rounded-2xl bg-slate-700/30 backdrop-blur-sm border border-slate-600/50 hover:bg-slate-600/40 transition-all duration-200 shadow-lg hover:shadow-xl group"
+                        className="text-left p-4 sm:p-5 rounded-2xl transition-all duration-200 group"
+                        style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                       >
-                        <div className="w-full h-40 rounded-xl overflow-hidden mb-4 shadow-lg">
+                        <div className="w-full h-28 sm:h-36 rounded-xl overflow-hidden mb-3">
                           <img 
                             src={dbMeal.image || '/api/placeholder/300/200'} 
                             alt={dbMeal.name} 
+                            loading="lazy"
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
                           />
                         </div>
-                        <h3 className="text-lg font-bold text-white mb-2 group-hover:text-red-400 transition-colors duration-200">{dbMeal.name}</h3>
-                        <p className="text-slate-400 capitalize mb-4">{dbMeal.category}</p>
-                        <div className="text-center text-slate-500 text-sm">
+                        <h3 className="text-base font-bold text-[color:var(--txt-hi)] mb-1">{dbMeal.name}</h3>
+                        <p className="text-[color:var(--txt-lo)] text-xs capitalize mb-3">{dbMeal.category}</p>
+                        <div className="text-center text-[color:var(--txt-lo)] text-sm">
                           Error calculating nutrition
                         </div>
                       </button>
@@ -1679,48 +1660,48 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
 
       {/* Templates Modal */}
       {showTemplates && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-4xl bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 max-h-[80vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
-              <h2 className="text-2xl font-bold text-white">Nutrition Templates</h2>
+        <div className="coach-modal z-50">
+          <div className="coach-modal-panel max-w-4xl">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[color:var(--hair)]">
+              <h2 className="text-lg sm:text-2xl font-bold font-display text-[color:var(--txt-hi)]">Nutrition Templates</h2>
               <button
                 onClick={() => setShowTemplates(false)}
-                className="p-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
+                className="coach-touch rounded-xl text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0">
               {templates.length === 0 ? (
-                <div className="text-center py-12 text-slate-400">
-                  <div className="w-20 h-20 rounded-2xl bg-slate-700/50 flex items-center justify-center mx-auto mb-6">
+                <div className="text-center py-12 text-[color:var(--txt-lo)]">
+                  <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
                     <BookOpen className="w-10 h-10 opacity-50" />
                   </div>
                   <p className="text-lg font-medium">No templates saved yet</p>
                   <p className="text-sm">Create and save your first template</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {templates.map((template) => (
-                    <div key={template.id} className="bg-slate-700/30 backdrop-blur-sm rounded-2xl p-6 border border-slate-600/50 hover:bg-slate-600/40 transition-all duration-200 shadow-lg hover:shadow-xl">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <h3 className="text-lg font-bold text-white mb-1">{template.name}</h3>
-                          <p className="text-slate-400 text-sm">{template.goal} • {template.mealsPerDay} meals</p>
+                    <div key={template.id} className="rounded-2xl p-4 sm:p-5" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                      <div className="flex items-start justify-between mb-4 gap-2">
+                        <div className="min-w-0">
+                          <h3 className="text-base font-bold text-[color:var(--txt-hi)] mb-1 truncate">{template.name}</h3>
+                          <p className="text-[color:var(--txt-lo)] text-xs">{template.goal} • {template.mealsPerDay} meals</p>
                         </div>
-                        <div className={`inline-flex items-center space-x-1 px-3 py-1 rounded-lg text-xs font-medium ${getGoalColor(template.goal)}`}>
+                        <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-medium shrink-0 ${getGoalColor(template.goal)}`}>
                           {getGoalIcon(template.goal)}
                         </div>
                       </div>
-                      <div className="text-sm text-slate-400 mb-6">
+                      <div className="text-sm text-[color:var(--txt-lo)] mb-4">
                         <div className="flex justify-between">
                           <span>Calories:</span>
-                          <span className="font-bold text-white">{Math.round(template.calories)}</span>
+                          <span className="font-bold text-[color:var(--txt-hi)] tnum">{Math.round(template.calories)}</span>
                         </div>
                       </div>
                       <button
                         onClick={() => handleLoadTemplate(template)}
-                        className="w-full px-4 py-3 rounded-xl bg-red-600 text-white hover:bg-red-700 font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+                        className="coach-editor-btn coach-editor-btn--primary w-full justify-center"
                       >
                         Load Template
                       </button>
@@ -1736,39 +1717,40 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
 
       {/* Save Template Modal */}
       {showSaveTemplate && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-md bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50">
-            <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
-              <h2 className="text-xl font-semibold text-white">Save Template</h2>
+        <div className="coach-modal z-50">
+          <div className="coach-modal-panel max-w-md">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[color:var(--hair)]">
+              <h2 className="text-lg sm:text-xl font-semibold font-display text-[color:var(--txt-hi)]">Save Template</h2>
               <button
                 onClick={() => setShowSaveTemplate(false)}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
+                className="coach-touch rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <div className="mb-4">
-                <label className="block text-sm font-medium text-slate-300 mb-2">Template Name</label>
+                <label className="block text-sm font-medium text-[color:var(--txt-mid)] mb-2">Template Name</label>
                 <input
                   type="text"
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-lg border border-slate-600 bg-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors duration-200"
+                  className="w-full px-3 py-2.5 rounded-lg text-[color:var(--txt-hi)] placeholder-[color:var(--txt-lo)] focus:outline-none focus:ring-2 focus:ring-[color:var(--red)] transition-colors duration-200"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                   placeholder="Enter template name"
                 />
               </div>
-              <div className="flex space-x-3">
+              <div className="flex gap-3">
                 <button
                   onClick={() => setShowSaveTemplate(false)}
-                  className="flex-1 px-4 py-2.5 rounded-lg text-slate-300 bg-slate-700 hover:bg-slate-600 font-medium transition-colors duration-200"
+                  className="coach-editor-btn flex-1 justify-center"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveTemplate}
                   disabled={!templateName.trim()}
-                  className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 text-white hover:bg-red-700 font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="coach-editor-btn coach-editor-btn--primary flex-1 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Save Template
                 </button>
@@ -1780,20 +1762,20 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
 
       {/* Meal Count Selector Modal */}
       {showMealCountSelector && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-md bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50">
-            <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
-              <h2 className="text-xl font-semibold text-white">Select Number of Meals</h2>
+        <div className="coach-modal z-50">
+          <div className="coach-modal-panel max-w-md">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[color:var(--hair)]">
+              <h2 className="text-lg sm:text-xl font-semibold font-display text-[color:var(--txt-hi)]">Select Number of Meals</h2>
               <button
                 onClick={() => setShowMealCountSelector(false)}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
+                className="coach-touch rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-300 mb-4">How many meals per day?</label>
+            <div className="p-4 sm:p-6">
+              <div className="mb-5">
+                <label className="block text-sm font-medium text-[color:var(--txt-mid)] mb-3">How many meals per day?</label>
                 <div className="grid grid-cols-2 gap-3">
                   {[2, 3, 4, 5, 6].map((count) => (
                     <button
@@ -1802,18 +1784,14 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                         setMealsPerDay(count);
                         setShowMealCountSelector(false);
                       }}
-                      className={`px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
-                        mealsPerDay === count
-                          ? 'bg-red-600 text-white shadow-lg'
-                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                      }`}
+                      className={`coach-editor-btn justify-center ${mealsPerDay === count ? 'coach-editor-btn--primary' : ''}`}
                     >
                       {count} Meals
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="text-sm text-slate-400">
+              <div className="text-sm text-[color:var(--txt-lo)]">
                 <p>This will create {mealsPerDay} meal slots for your client's nutrition plan.</p>
               </div>
             </div>
@@ -1823,38 +1801,38 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
 
       {/* Ingredient Search Modal */}
       {showIngredientSearch && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
-          <div className="w-full max-w-2xl bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50">
-            <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
-              <div>
-                <h2 className="text-xl font-semibold text-white">Choose ingredient</h2>
-                <p className="text-sm text-slate-400 mt-1">Search the full food name from your library</p>
+        <div className="coach-modal z-[70]">
+          <div className="coach-modal-panel max-w-2xl">
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[color:var(--hair)] gap-3">
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-semibold font-display text-[color:var(--txt-hi)]">Choose ingredient</h2>
+                <p className="text-xs sm:text-sm text-[color:var(--txt-lo)] mt-0.5">Search the full food name from your library</p>
               </div>
               <button
                 onClick={() => {
                   setShowIngredientSearch(null);
                   setIngredientSearchTerm('');
                 }}
-                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200 min-h-[44px] min-w-[44px]"
+                className="coach-touch rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0">
               <div className="mb-4">
                 <input
                   type="search"
                   value={ingredientSearchTerm}
                   onChange={(e) => setIngredientSearchTerm(e.target.value)}
                   placeholder="Type the full ingredient name…"
-                  className="w-full px-4 py-3 rounded-lg border border-slate-600 bg-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                  style={{ fontSize: 16 }}
+                  className="w-full px-4 py-3 rounded-lg text-[color:var(--txt-hi)] placeholder-[color:var(--txt-lo)] focus:outline-none focus:ring-2 focus:ring-[color:var(--red)]"
+                  style={{ fontSize: 16, background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                   autoFocus
                 />
               </div>
-              <div className="max-h-96 overflow-y-auto">
+              <div>
                 {filteredIngredientCatalog.length === 0 ? (
-                  <p className="text-center text-slate-400 py-8">No ingredients match that name.</p>
+                  <p className="text-center text-[color:var(--txt-lo)] py-8">No ingredients match that name.</p>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {filteredIngredientCatalog.map((food, foodIdx) => (
@@ -1890,10 +1868,11 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                             );
                           }
                         }}
-                        className="p-4 text-left bg-slate-700/50 hover:bg-slate-600/50 rounded-lg border border-slate-600/50 hover:border-slate-500/50 transition-all duration-200 min-h-[44px]"
+                        className="p-4 text-left rounded-lg transition-all duration-200 min-h-[48px]"
+                        style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                       >
-                        <div className="font-medium text-white">{food.name}</div>
-                        <div className="text-sm text-slate-400 mt-1">
+                        <div className="font-medium text-[color:var(--txt-hi)]">{food.name}</div>
+                        <div className="text-xs sm:text-sm text-[color:var(--txt-lo)] mt-1">
                           {food.kcal} kcal · P {food.protein}g · C {food.carbs}g · F {food.fat}g / 100g
                         </div>
                       </button>
@@ -1909,7 +1888,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
       {/* Save as NEW meal modal — never overwrites the original library meal */}
       {showSaveMealModal && mealToSave && (
         <div 
-          className="fixed inset-0 bg-slate-900/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+          className="coach-modal z-[60]"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setShowSaveMealModal(false);
@@ -1919,11 +1898,11 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
             }
           }}
         >
-          <div className="w-full max-w-lg bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-slate-700/50">
-              <div>
-                <h2 className="text-xl font-bold text-white">Save as new meal</h2>
-                <p className="text-slate-400 text-sm mt-1">
+          <div className="coach-modal-panel max-w-lg">
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[color:var(--hair)] gap-3">
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-bold font-display text-[color:var(--txt-hi)]">Save as new meal</h2>
+                <p className="text-[color:var(--txt-lo)] text-xs sm:text-sm mt-0.5">
                   Creates a new library meal. The original stays unchanged.
                 </p>
               </div>
@@ -1934,24 +1913,24 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                   setSaveMealName('');
                   setSaveMealInstructions('');
                 }}
-                className="p-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
+                className="coach-touch rounded-xl text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
             
-            <div className="p-5 space-y-5">
-              <div className="bg-slate-700/30 rounded-xl p-4 border border-slate-600/50">
-                <div className="flex items-center gap-4">
+            <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 min-h-0">
+              <div className="rounded-xl p-3 sm:p-4" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                <div className="flex items-center gap-3 sm:gap-4">
                   <img 
                     src={mealToSave.meal.meal.image} 
                     alt={mealToSave.meal.meal.name}
-                    className="w-20 h-20 rounded-lg object-cover"
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-slate-400 mb-1">Based on this client’s current meal</p>
-                    <h3 className="text-base font-bold text-white truncate">{mealToSave.meal.meal.name}</h3>
-                    <div className="flex gap-3 text-sm text-slate-300 mt-1">
+                    <p className="text-[11px] font-medium text-[color:var(--txt-lo)] mb-1">Based on this client’s current meal</p>
+                    <h3 className="text-base font-bold text-[color:var(--txt-hi)] truncate">{mealToSave.meal.meal.name}</h3>
+                    <div className="flex gap-3 text-xs sm:text-sm text-[color:var(--txt-mid)] mt-1">
                       <span>{mealToSave.meal.meal.ingredients.length} ingredients</span>
                       <span>{Math.round(mealToSave.meal.meal.ingredients.reduce((total, ing) => 
                         total + (ing.food.kcal * ing.quantity / 100), 0))} kcal</span>
@@ -1961,7 +1940,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-[color:var(--txt-mid)] mb-2">
                   New meal name *
                 </label>
                 <input
@@ -1969,23 +1948,23 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                   value={saveMealName}
                   onChange={(e) => setSaveMealName(e.target.value)}
                   placeholder="e.g. Oatmeal bowl 500 kcal"
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
-                  style={{ fontSize: 16 }}
+                  className="w-full px-4 py-3 rounded-xl text-[color:var(--txt-hi)] placeholder-[color:var(--txt-lo)] focus:outline-none focus:ring-2 focus:ring-[color:var(--green)] transition-all"
+                  style={{ fontSize: 16, background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                   autoFocus
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Cooking instructions <span className="text-slate-500 font-normal">(optional)</span>
+                <label className="block text-sm font-medium text-[color:var(--txt-mid)] mb-2">
+                  Cooking instructions <span className="text-[color:var(--txt-lo)] font-normal">(optional)</span>
                 </label>
                 <textarea
                   value={saveMealInstructions}
                   onChange={(e) => setSaveMealInstructions(e.target.value)}
                   placeholder="Update steps if ingredients changed…"
                   rows={4}
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all resize-y"
-                  style={{ fontSize: 16 }}
+                  className="w-full px-4 py-3 rounded-xl text-[color:var(--txt-hi)] placeholder-[color:var(--txt-lo)] focus:outline-none focus:ring-2 focus:ring-[color:var(--green)] transition-all resize-y"
+                  style={{ fontSize: 16, background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                 />
               </div>
 
@@ -1997,7 +1976,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                     setSaveMealName('');
                     setSaveMealInstructions('');
                   }}
-                  className="flex-1 px-6 py-3 rounded-xl bg-slate-700 text-white hover:bg-slate-600 font-medium transition-all duration-200"
+                  className="coach-editor-btn flex-1 justify-center"
                   disabled={isSavingMeal}
                 >
                   Cancel
@@ -2005,7 +1984,8 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                 <button
                   onClick={handleSaveMealToDatabase}
                   disabled={isSavingMeal || !saveMealName.trim()}
-                  className="flex-1 px-6 py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="coach-editor-btn flex-1 justify-center text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: 'var(--green)', borderColor: 'transparent', color: '#08130f' }}
                 >
                   {isSavingMeal ? (
                     <>

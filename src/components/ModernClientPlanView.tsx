@@ -165,7 +165,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="coach-plan flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
             <div className="w-12 h-12 border-2 border-[color:var(--hair)] border-t-[color:var(--red)] rounded-full animate-spin"></div>
@@ -177,34 +177,35 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="coach-plan">
       {/* Header */}
-      <div className="sticky top-0 z-50 backdrop-blur-xl" style={{ background: 'rgba(16,18,24,.92)', borderBottom: '1px solid var(--hair)' }}>
+      <div className="coach-plan-header">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-3 sm:py-0 sm:h-16 space-y-3 sm:space-y-0">
-            <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
+          <div className="coach-plan-headrow">
+            <div className="flex items-center gap-1 sm:gap-3 min-w-0 flex-1">
               <button
                 onClick={onBack}
-                className="p-2 rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
+                className="coach-touch rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
+                title="Back to clients"
               >
-                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                <ArrowLeft className="w-5 h-5" />
               </button>
-              
-              <div className="flex items-center space-x-2 sm:space-x-3 flex-1 min-w-0">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shadow-lg" style={{ background: 'var(--grad-red)' }}>
-                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+
+              <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                <div className="hidden sm:flex w-10 h-10 rounded-lg items-center justify-center shadow-lg shrink-0" style={{ background: 'var(--grad-red)' }}>
+                  <User className="w-5 h-5 text-white" />
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold font-display text-[color:var(--txt-hi)] truncate">
+                  <h1 className="text-base sm:text-xl lg:text-2xl font-bold font-display text-[color:var(--txt-hi)] truncate">
                     {client.name}'s Plan
                   </h1>
-                  <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3">
-                    <div className={`inline-flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-medium ${getGoalColor(client.goal)}`}>
+                  <div className="coach-plan-meta">
+                    <div className={`inline-flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[11px] sm:text-sm font-medium ${getGoalColor(client.goal)}`}>
                       {getGoalIcon(client.goal)}
                       <span className="capitalize">{client.goal}</span>
                     </div>
-                    <div className="flex items-center space-x-1 sm:space-x-2 text-[color:var(--txt-lo)] text-xs sm:text-sm">
+                    <div className="flex items-center gap-1 text-[color:var(--txt-lo)] text-[11px] sm:text-sm">
                       <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                       <span>{client.numberOfWeeks} weeks</span>
                     </div>
@@ -212,30 +213,35 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
                 </div>
               </div>
             </div>
-            
-            <div className="flex items-center space-x-1 sm:space-x-3 w-full sm:w-auto justify-end">
+
+            <div className="coach-plan-actions">
               <button
                 onClick={() => setShowSupplementsManager(true)}
-                className="group relative p-2 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 hover:from-purple-500/20 hover:to-pink-500/20 border border-purple-500/30 hover:border-purple-500/50 transition-all duration-300"
+                className="coach-touch rounded-lg transition-colors duration-200"
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--violet)' }}
                 title="Manage Supplements & Hydration"
               >
-                <Pill className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+                <Pill className="w-5 h-5" />
               </button>
               <button
                 onClick={() => setShowStats(!showStats)}
-                className="p-2 rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
+                className="coach-touch rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
+                title="Toggle stats"
               >
-                <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
+                <BarChart3 className="w-5 h-5" />
               </button>
               <button 
                 onClick={handleShareClient}
-                className="p-2 rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
+                className="coach-touch rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
                 title="Share client link"
               >
-                <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Share2 className="w-5 h-5" />
               </button>
-              <button className="p-2 rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200">
-                <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
+              <button
+                className="coach-touch hidden sm:inline-flex rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
+                title="Settings"
+              >
+                <Settings className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -246,111 +252,31 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
 
         {/* Modern Horizontal Coach Navbar */}
-        <div className="sticky top-16 z-40 backdrop-blur-xl rounded-2xl mb-6" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
-          <div className="max-w-7xl mx-auto px-1 sm:px-6">
-            <div className="flex items-center justify-between sm:justify-around py-2 sm:py-3 overflow-x-auto no-scrollbar">
-              {[
-                { 
-                  id: 'nutrition', 
-                  label: 'Nutrition', 
-                  icon: Utensils, 
-                  gradient: 'from-green-500 to-emerald-500',
-                  activeColor: 'text-green-400',
-                  activeBg: 'bg-green-500/20'
-                },
-                { 
-                  id: 'workout', 
-                  label: 'Workout', 
-                  icon: Dumbbell, 
-                  gradient: 'from-red-500 to-orange-500',
-                  activeColor: 'text-red-400',
-                  activeBg: 'bg-red-500/20'
-                },
-                { 
-                  id: 'cardio', 
-                  label: 'Cardio', 
-                  icon: HeartPulse, 
-                  gradient: 'from-red-500 to-rose-500',
-                  activeColor: 'text-rose-400',
-                  activeBg: 'bg-rose-500/20'
-                },
-                { 
-                  id: 'progress', 
-                  label: 'Progress', 
-                  icon: Award, 
-                  gradient: 'from-blue-500 to-indigo-500',
-                  activeColor: 'text-blue-400',
-                  activeBg: 'bg-blue-500/20'
-                },
-                { 
-                  id: 'performance', 
-                  label: 'Analytics', 
-                  icon: BarChart3, 
-                  gradient: 'from-violet-500 to-fuchsia-500',
-                  activeColor: 'text-violet-400',
-                  activeBg: 'bg-violet-500/20'
-                },
-                { 
-                  id: 'weight', 
-                  label: 'Weight', 
-                  icon: Activity, 
-                  gradient: 'from-purple-500 to-pink-500',
-                  activeColor: 'text-purple-400',
-                  activeBg: 'bg-purple-500/20'
-                },
-                { 
-                  id: 'photos', 
-                  label: 'Photos', 
-                  icon: Camera, 
-                  gradient: 'from-indigo-500 to-cyan-500',
-                  activeColor: 'text-indigo-400',
-                  activeBg: 'bg-indigo-500/20'
-                }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id as any);
-                    setShowProgressTracker(false);
-                  }}
-                  className={`group relative shrink-0 min-w-[54px] flex flex-col items-center justify-center transition-all duration-300 px-2 sm:px-4 py-2 rounded-xl ${
-                    activeTab === tab.id
-                      ? `${tab.activeBg} scale-105`
-                      : 'hover:bg-[var(--surface-2)]'
-                  }`}
-                >
-                  {/* Icon */}
-                  <div className={`relative transition-all duration-300 ${
-                    activeTab === tab.id ? 'transform scale-110' : ''
-                  }`}>
-                    <tab.icon className={`w-5 h-5 sm:w-6 sm:h-6 transition-all duration-300 ${
-                      activeTab === tab.id 
-                        ? tab.activeColor 
-                        : 'text-slate-400 group-hover:text-slate-300'
-                    }`} />
-                    
-                    {/* Active indicator dot */}
-                    {activeTab === tab.id && (
-                      <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full bg-gradient-to-r ${tab.gradient} animate-pulse`} />
-                    )}
-                  </div>
-                  
-                  {/* Label */}
-                  <span className={`text-[10px] sm:text-xs font-bold mt-1 transition-all duration-300 ${
-                    activeTab === tab.id 
-                      ? tab.activeColor 
-                      : 'text-slate-400 group-hover:text-slate-300'
-                  }`}>
-                    {tab.label}
-                  </span>
-                  
-                  {/* Active underline */}
-                  {activeTab === tab.id && (
-                    <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-8 sm:w-12 h-0.5 rounded-full bg-gradient-to-r ${tab.gradient}`} />
-                  )}
-                </button>
-              ))}
-            </div>
+        <div className="coach-plan-tabs">
+          <div className="coach-plan-tabrow">
+            {[
+              { id: 'nutrition', label: 'Nutrition', icon: Utensils, accent: 'var(--green)' },
+              { id: 'workout', label: 'Workout', icon: Dumbbell, accent: 'var(--red)' },
+              { id: 'cardio', label: 'Cardio', icon: HeartPulse, accent: 'var(--orange)' },
+              { id: 'progress', label: 'Progress', icon: Award, accent: 'var(--blue)' },
+              { id: 'performance', label: 'Analytics', icon: BarChart3, accent: 'var(--violet)' },
+              { id: 'weight', label: 'Weight', icon: Activity, accent: 'var(--coral)' },
+              { id: 'photos', label: 'Photos', icon: Camera, accent: 'var(--blue)' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                  setShowProgressTracker(false);
+                }}
+                className={`coach-plan-tab${activeTab === tab.id ? ' is-active' : ''}`}
+                style={{ ['--tab-accent' as string]: tab.accent } as React.CSSProperties}
+              >
+                <tab.icon className="coach-plan-tab-ic" />
+                <span className="coach-plan-tab-label">{tab.label}</span>
+                {activeTab === tab.id && <span className="coach-plan-tab-underline" />}
+              </button>
+            ))}
           </div>
         </div>
 

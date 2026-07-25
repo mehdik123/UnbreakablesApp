@@ -27,6 +27,7 @@ interface DBMeal {
   meal_items?: Array<{
     id: string;
     quantity: number;
+    quantity_g?: number;
     ingredients: {
       name: string;
       kcal: number;
@@ -341,124 +342,113 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="coach-plan">
       {/* Header */}
-      <div className="backdrop-blur-xl sticky top-0 z-50" style={{ background: 'rgba(16,18,24,.92)', borderBottom: '1px solid var(--hair)' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+      <div className="coach-plan-header">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6">
+          <div className="coach-plan-headrow">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
               <button
                 onClick={onBack}
-                className="p-2 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white transition-all duration-200"
+                className="coach-touch rounded-xl text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-all duration-200"
+                title="Back"
               >
                 <ChevronDown className="w-5 h-5 rotate-90" />
               </button>
-              <div>
-                <h1 className="text-2xl font-bold text-white">Meal Database</h1>
-                <p className="text-slate-400 text-sm">Template meals with calculated ingredient portions (800 kcal target)</p>
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-2xl font-bold font-display text-[color:var(--txt-hi)] truncate">Meal Database</h1>
+                <p className="text-[color:var(--txt-lo)] text-[11px] sm:text-sm truncate">Template meals with calculated portions</p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
+            <div className="coach-plan-actions">
               <button
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                className="p-2 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white transition-all duration-200"
+                className="coach-touch rounded-xl text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-all duration-200"
+                title="Toggle layout"
               >
                 {viewMode === 'grid' ? <List className="w-5 h-5" /> : <Grid3X3 className="w-5 h-5" />}
               </button>
               <button
                 onClick={handleCreateMeal}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-red-500/25"
+                className="coach-editor-btn coach-editor-btn--primary"
               >
                 <Plus className="w-4 h-4" />
-                <span>Add Meal</span>
+                <span className="hidden sm:inline">Add Meal</span>
+                <span className="sm:hidden">Add</span>
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Search and Filters */}
-        <div className="mb-8">
-          <div className="flex flex-col lg:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search meals or ingredients..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
-                  style={{ fontSize: 16 }}
-                />
-              </div>
-            </div>
-
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+        {/* Search */}
+        <div className="mb-5 sm:mb-6">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--txt-lo)] w-5 h-5 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search meals or ingredients..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-12 pr-4 min-h-[48px] rounded-xl text-[color:var(--txt-hi)] placeholder-[color:var(--txt-lo)] focus:outline-none focus:ring-2 focus:ring-[color:var(--red)] transition-all duration-200"
+              style={{ fontSize: 16, background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+            />
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm font-medium">Total Meals</p>
-                <p className="text-2xl font-bold text-white">{meals.length}</p>
-              </div>
-              <div className="p-3 bg-red-600/20 rounded-xl">
-                <ChefHat className="w-6 h-6 text-red-400" />
-              </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4 mb-5 sm:mb-8">
+          <div className="coach-stat" style={{ ['--stat-accent' as string]: 'var(--red)' } as React.CSSProperties}>
+            <div className="min-w-0">
+              <p className="coach-stat-label">Total Meals</p>
+              <p className="coach-stat-value">{meals.length}</p>
+            </div>
+            <div className="coach-stat-ic">
+              <ChefHat className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
           
-          <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm font-medium">Breakfast</p>
-                <p className="text-2xl font-bold text-white">
-                  {meals.filter(m => m.category === 'breakfast').length}
-                </p>
-              </div>
-              <div className="p-3 bg-orange-600/20 rounded-xl">
-                <Utensils className="w-6 h-6 text-orange-400" />
-              </div>
+          <div className="coach-stat" style={{ ['--stat-accent' as string]: 'var(--orange)' } as React.CSSProperties}>
+            <div className="min-w-0">
+              <p className="coach-stat-label">Breakfast</p>
+              <p className="coach-stat-value">
+                {meals.filter(m => m.category === 'breakfast').length}
+              </p>
+            </div>
+            <div className="coach-stat-ic">
+              <Utensils className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
           
-          <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm font-medium">Lunch</p>
-                <p className="text-2xl font-bold text-white">
-                  {meals.filter(m => m.category === 'lunch').length}
-                </p>
-              </div>
-              <div className="p-3 bg-blue-600/20 rounded-xl">
-                <ChefHat className="w-6 h-6 text-blue-400" />
-              </div>
+          <div className="coach-stat" style={{ ['--stat-accent' as string]: 'var(--blue)' } as React.CSSProperties}>
+            <div className="min-w-0">
+              <p className="coach-stat-label">Lunch</p>
+              <p className="coach-stat-value">
+                {meals.filter(m => m.category === 'lunch').length}
+              </p>
+            </div>
+            <div className="coach-stat-ic">
+              <ChefHat className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
           
-          <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl p-6 border border-slate-700/50">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm font-medium">Dinner</p>
-                <p className="text-2xl font-bold text-white">
-                  {meals.filter(m => m.category === 'dinner').length}
-                </p>
-              </div>
-              <div className="p-3 bg-purple-600/20 rounded-xl">
-                <Clock className="w-6 h-6 text-purple-400" />
-              </div>
+          <div className="coach-stat" style={{ ['--stat-accent' as string]: 'var(--violet)' } as React.CSSProperties}>
+            <div className="min-w-0">
+              <p className="coach-stat-label">Dinner</p>
+              <p className="coach-stat-value">
+                {meals.filter(m => m.category === 'dinner').length}
+              </p>
+            </div>
+            <div className="coach-stat-ic">
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
         </div>
 
         {/* Meals Grid/List */}
-        <div className={`grid gap-6 ${
+        <div className={`grid gap-3 sm:gap-5 ${
           viewMode === 'grid' 
             ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
             : 'grid-cols-1'
@@ -468,10 +458,11 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
             return (
               <div
                 key={meal.id}
-                className="group bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 overflow-hidden hover:border-slate-600/50 transition-all duration-300 hover:shadow-2xl hover:shadow-slate-900/25"
+                className="group rounded-2xl overflow-hidden transition-all duration-300"
+                style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
               >
                 {/* Meal Image */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-36 sm:h-44 overflow-hidden">
                   <img
                     src={meal.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&h=300&fit=crop&q=80&auto=format'}
                     alt={meal.name}
@@ -487,24 +478,30 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
                   
 
-                  {/* Actions */}
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <div className="flex space-x-2">
+                  {/* Actions — always visible so touch users can reach them */}
+                  <div className="absolute top-2 right-2">
+                    <div className="flex gap-1.5">
                       <button
                         onClick={() => setViewingMeal(meal)}
-                        className="p-2 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white rounded-lg transition-all duration-200"
+                        className="coach-touch rounded-lg text-[color:var(--txt-hi)] transition-all duration-200"
+                        style={{ background: 'rgba(16,18,24,.72)', border: '1px solid var(--hair)' }}
+                        title="View meal"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleEditMeal(meal)}
-                        className="p-2 bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 hover:text-white rounded-lg transition-all duration-200"
+                        className="coach-touch rounded-lg text-[color:var(--txt-hi)] transition-all duration-200"
+                        style={{ background: 'rgba(16,18,24,.72)', border: '1px solid var(--hair)' }}
+                        title="Edit meal"
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setShowDeleteConfirm(meal.id)}
-                        className="p-2 bg-red-600/80 hover:bg-red-700/80 text-white rounded-lg transition-all duration-200"
+                        className="coach-touch rounded-lg text-white transition-all duration-200"
+                        style={{ background: 'var(--red)', border: '1px solid transparent' }}
+                        title="Delete meal"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -513,38 +510,38 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
                 </div>
 
                 {/* Meal Content */}
-                <div className="p-6">
-                        <h3 className="text-xl font-bold text-white mb-2 group-hover:text-red-400 transition-colors duration-200">
+                <div className="p-4 sm:p-5">
+                  <h3 className="text-base sm:text-lg font-bold font-display text-[color:var(--txt-hi)] mb-1">
                     {meal.name}
                   </h3>
-                  <p className="text-slate-400 capitalize mb-4">{meal.category || 'uncategorized'}</p>
+                  <p className="text-[color:var(--txt-lo)] text-xs capitalize mb-3">{meal.category || 'uncategorized'}</p>
                   
                   {/* Nutrition Info */}
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-red-400">{Math.round(nutrition.calories)}</p>
-                      <p className="text-xs text-slate-400">Calories</p>
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="text-center rounded-lg py-2" style={{ background: 'var(--surface-2)' }}>
+                      <p className="text-lg font-bold text-[color:var(--red)] tnum">{Math.round(nutrition.calories)}</p>
+                      <p className="text-[11px] text-[color:var(--txt-lo)]">Calories</p>
                     </div>
-                    <div className="text-center">
-                      <p className="text-2xl font-bold text-blue-400">{Math.round(nutrition.protein)}g</p>
-                      <p className="text-xs text-slate-400">Protein</p>
+                    <div className="text-center rounded-lg py-2" style={{ background: 'var(--surface-2)' }}>
+                      <p className="text-lg font-bold text-[color:var(--blue)] tnum">{Math.round(nutrition.protein)}g</p>
+                      <p className="text-[11px] text-[color:var(--txt-lo)]">Protein</p>
                     </div>
                   </div>
 
                   {/* Ingredients Preview */}
-                  <div className="mb-4">
-                    <p className="text-slate-400 text-sm font-medium mb-2">Ingredients:</p>
+                  <div className="mb-3">
                     <div className="flex flex-wrap gap-1">
                       {(meal.meal_items || []).slice(0, 3).map((item, idx) => (
                         <span
                           key={idx}
-                          className="px-2 py-1 bg-slate-700/50 text-slate-300 text-xs rounded-full"
+                          className="px-2 py-1 text-[color:var(--txt-mid)] text-[11px] rounded-full"
+                          style={{ background: 'var(--surface-2)' }}
                         >
                           {item.ingredients.name}
                         </span>
                       ))}
                       {(meal.meal_items || []).length > 3 && (
-                        <span className="px-2 py-1 bg-slate-700/50 text-slate-400 text-xs rounded-full">
+                        <span className="px-2 py-1 text-[color:var(--txt-lo)] text-[11px] rounded-full" style={{ background: 'var(--surface-2)' }}>
                           +{(meal.meal_items || []).length - 3} more
                         </span>
                       )}
@@ -553,12 +550,9 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
 
                   {/* Cooking Instructions Preview */}
                   {meal.cooking_instructions && (
-                    <div className="mb-4">
-                      <p className="text-slate-400 text-sm font-medium mb-1">Instructions:</p>
-                      <p className="text-slate-300 text-sm line-clamp-2">
-                        {meal.cooking_instructions}
-                      </p>
-                    </div>
+                    <p className="text-[color:var(--txt-lo)] text-xs line-clamp-2">
+                      {meal.cooking_instructions}
+                    </p>
                   )}
                 </div>
               </div>
@@ -568,12 +562,12 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
 
         {/* Empty State */}
         {filteredMeals.length === 0 && (
-          <div className="text-center py-16">
-            <div className="w-24 h-24 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <ChefHat className="w-12 h-12 text-slate-400" />
+          <div className="text-center py-14">
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+              <ChefHat className="w-9 h-9 text-[color:var(--txt-lo)]" />
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">No meals found</h3>
-            <p className="text-slate-400 mb-6">
+            <h3 className="text-lg font-bold text-[color:var(--txt-hi)] mb-1">No meals found</h3>
+            <p className="text-[color:var(--txt-lo)] mb-6">
               {searchTerm 
                 ? 'Try adjusting your search'
                 : 'No meals available in the database'
@@ -585,46 +579,46 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
 
       {/* View Meal Modal */}
       {viewingMeal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-slate-700">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-white">{viewingMeal.name}</h2>
+        <div className="coach-modal z-50">
+          <div className="coach-modal-panel max-w-2xl">
+            <div className="p-4 sm:p-6 border-b border-[color:var(--hair)]">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-lg sm:text-2xl font-bold font-display text-[color:var(--txt-hi)] truncate">{viewingMeal.name}</h2>
                 <button
                   onClick={() => setViewingMeal(null)}
-                  className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors duration-200"
+                  className="coach-touch rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            <div className="p-6">
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0">
               {/* Meal Image */}
-              <div className="mb-6">
+              <div className="mb-5">
                 <img
                   src={viewingMeal.image || '/api/placeholder/400/300'}
                   alt={viewingMeal.name}
-                  className="w-full h-48 object-cover rounded-xl"
+                  className="w-full h-40 sm:h-48 object-cover rounded-xl"
                 />
               </div>
 
               {/* Nutrition Info */}
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-white mb-4">Nutrition Information</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="mb-5">
+                <h3 className="text-base font-bold text-[color:var(--txt-hi)] mb-3">Nutrition Information</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
                   {Object.entries(calculateMealNutrition(viewingMeal.meal_items)).map(([key, value]) => (
-                    <div key={key} className="text-center p-4 bg-slate-700/50 rounded-xl">
-                      <p className="text-2xl font-bold text-red-400">{Math.round(value)}</p>
-                      <p className="text-sm text-slate-400 capitalize">{key}</p>
+                    <div key={key} className="text-center p-3 rounded-xl" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                      <p className="text-xl font-bold text-[color:var(--red)] tnum">{Math.round(value)}</p>
+                      <p className="text-xs text-[color:var(--txt-lo)] capitalize">{key}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Ingredients */}
-              <div className="mb-6">
-                <h3 className="text-lg font-bold text-white mb-4">Ingredients & Portions</h3>
+              <div className="mb-5">
+                <h3 className="text-base font-bold text-[color:var(--txt-hi)] mb-3">Ingredients & Portions</h3>
                 <div className="space-y-2">
                   {(viewingMeal.meal_items || []).map((item, index) => {
                     console.log('🔍 Ingredients & Portions - Processing item:', item);
@@ -656,24 +650,24 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
                     });
                     
                     return (
-                      <div key={index} className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
-                        <div className="flex-1">
-                          <span className="text-white font-medium">{ingredient.name || 'Unknown'}</span>
-                          <div className="text-xs text-slate-400 mt-1">
+                      <div key={index} className="flex items-center justify-between p-3 rounded-lg gap-3" style={{ background: 'var(--surface-2)' }}>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[color:var(--txt-hi)] font-medium">{ingredient.name || 'Unknown'}</span>
+                          <div className="text-xs text-[color:var(--txt-lo)] mt-1 tnum">
                             {isNaN(ingredientKcal) ? 'NaN' : Math.round(ingredientKcal)} kcal • {isNaN(ingredientProtein) ? 'NaN' : Math.round(ingredientProtein)}g protein
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className="text-slate-300 font-medium">{quantity}g</span>
-                          <div className="text-xs text-slate-400">portion</div>
+                        <div className="text-right shrink-0">
+                          <span className="text-[color:var(--txt-mid)] font-medium tnum">{quantity}g</span>
+                          <div className="text-xs text-[color:var(--txt-lo)]">portion</div>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-                <div className="mt-4 p-3 bg-red-600/10 border border-red-600/20 rounded-lg">
-                  <p className="text-red-400 text-sm font-medium">
-                    💡 These portions are calculated to achieve the target {viewingMeal.kcal_target || 800} kcal
+                <div className="mt-4 p-3 rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                  <p className="text-[color:var(--txt-mid)] text-xs sm:text-sm">
+                    These portions are calculated to achieve the target {viewingMeal.kcal_target || 800} kcal
                   </p>
                 </div>
               </div>
@@ -681,8 +675,8 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
               {/* Cooking Instructions */}
               {viewingMeal.cooking_instructions && (
                 <div>
-                  <h3 className="text-lg font-bold text-white mb-4">Cooking Instructions</h3>
-                  <p className="text-slate-300 leading-relaxed">{viewingMeal.cooking_instructions}</p>
+                  <h3 className="text-base font-bold text-[color:var(--txt-hi)] mb-2">Cooking Instructions</h3>
+                  <p className="text-[color:var(--txt-mid)] text-sm leading-relaxed">{viewingMeal.cooking_instructions}</p>
                 </div>
               )}
             </div>
@@ -692,50 +686,52 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
 
       {/* Create/Edit Meal Modal */}
       {(isCreating || editingMeal) && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-slate-700">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-white">
+        <div className="coach-modal z-50">
+          <div className="coach-modal-panel max-w-4xl">
+            <div className="p-4 sm:p-6 border-b border-[color:var(--hair)]">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-lg sm:text-2xl font-bold font-display text-[color:var(--txt-hi)]">
                   {editingMeal ? 'Edit Meal' : 'Create New Meal'}
                 </h2>
                 <button
                   onClick={resetForm}
-                  className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors duration-200"
+                  className="coach-touch rounded-lg text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-colors duration-200"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
               {/* Basic Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="block text-sm font-medium text-[color:var(--txt-mid)] mb-2">
                     Meal Name
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
+                    className="w-full px-4 py-3 rounded-xl text-[color:var(--txt-hi)] placeholder-[color:var(--txt-lo)] focus:outline-none focus:ring-2 focus:ring-[color:var(--red)] transition-all duration-200"
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                     placeholder="Enter meal name"
                   />
                 </div>
 
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="block text-sm font-medium text-[color:var(--txt-mid)] mb-2">
                     Target Calories
                   </label>
                   <input
                     type="number"
                     value={formData.kcal_target}
                     onChange={(e) => setFormData(prev => ({ ...prev, kcal_target: parseInt(e.target.value) || 800 }))}
-                    className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
+                    className="w-full px-4 py-3 rounded-xl text-[color:var(--txt-hi)] placeholder-[color:var(--txt-lo)] focus:outline-none focus:ring-2 focus:ring-[color:var(--red)] transition-all duration-200"
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                     min="100"
                     max="2000"
                     step="50"
@@ -743,69 +739,71 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label className="block text-sm font-medium text-[color:var(--txt-mid)] mb-2">
                     Template Meal
                   </label>
-                  <div className="flex items-center space-x-3 h-12">
+                  <label htmlFor="is_template" className="flex items-center gap-3 min-h-[44px] cursor-pointer">
                     <input
                       type="checkbox"
                       id="is_template"
                       checked={formData.is_template}
                       onChange={(e) => setFormData(prev => ({ ...prev, is_template: e.target.checked }))}
-                      className="w-4 h-4 text-red-600 bg-slate-700 border-slate-600 rounded focus:ring-red-500 focus:ring-2"
+                      className="w-5 h-5 accent-[color:var(--red)] rounded"
                     />
-                    <label htmlFor="is_template" className="text-slate-300 text-sm">
+                    <span className="text-[color:var(--txt-mid)] text-sm">
                       Use as template for client meal plans
-                    </label>
-                  </div>
+                    </span>
+                  </label>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-[color:var(--txt-mid)] mb-2">
                   Image URL
                 </label>
                 <input
                   type="url"
                   value={formData.image}
                   onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
-                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
+                  className="w-full px-4 py-3 rounded-xl text-[color:var(--txt-hi)] placeholder-[color:var(--txt-lo)] focus:outline-none focus:ring-2 focus:ring-[color:var(--red)] transition-all duration-200"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                   placeholder="https://example.com/image.jpg"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-[color:var(--txt-mid)] mb-2">
                   Cooking Instructions
                 </label>
                 <textarea
                   value={formData.cooking_instructions}
                   onChange={(e) => setFormData(prev => ({ ...prev, cooking_instructions: e.target.value }))}
                   rows={4}
-                  className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all duration-200"
+                  className="w-full px-4 py-3 rounded-xl text-[color:var(--txt-hi)] placeholder-[color:var(--txt-lo)] focus:outline-none focus:ring-2 focus:ring-[color:var(--red)] transition-all duration-200"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                   placeholder="Enter cooking instructions..."
                 />
               </div>
 
               {/* Ingredients */}
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <label className="block text-sm font-medium text-slate-300">
+                <div className="flex items-center justify-between mb-3 gap-3">
+                  <label className="block text-sm font-medium text-[color:var(--txt-mid)]">
                     Ingredients
                   </label>
                   <button
                     onClick={handleAddIngredient}
-                    className="flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-all duration-200"
+                    className="coach-editor-btn coach-editor-btn--primary"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Add Ingredient</span>
+                    <span>Add</span>
                   </button>
                 </div>
 
                 <div className="space-y-3">
                   {formData.selectedIngredients.map((item, index) => (
-                    <div key={index} className="flex items-center space-x-4 p-4 bg-slate-700/50 rounded-xl">
-                      <div className="flex-1">
+                    <div key={index} className="flex items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-xl" style={{ background: 'var(--surface-2)' }}>
+                      <div className="flex-1 min-w-0">
                         <select
                           value={item.ingredient.name}
                           onChange={(e) => {
@@ -814,7 +812,8 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
                               handleUpdateIngredient(index, 'ingredient', ingredient);
                             }
                           }}
-                          className="w-full px-3 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                          className="w-full px-3 min-h-[44px] rounded-lg text-[color:var(--txt-hi)] focus:outline-none focus:ring-2 focus:ring-[color:var(--red)]"
+                          style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}
                         >
                           {ingredients.map(ingredient => (
                             <option key={ingredient.id} value={ingredient.name}>
@@ -823,20 +822,22 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
                           ))}
                         </select>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center gap-1 shrink-0">
                         <input
                           type="number"
                           value={item.quantity}
                           onChange={(e) => handleUpdateIngredient(index, 'quantity', parseFloat(e.target.value) || 0)}
-                          className="w-20 px-3 py-2 bg-slate-600 border border-slate-500 rounded-lg text-white text-center focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                          className="w-16 sm:w-20 px-2 min-h-[44px] rounded-lg text-[color:var(--txt-hi)] text-center focus:outline-none focus:ring-2 focus:ring-[color:var(--red)]"
+                          style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}
                           min="0"
                           step="0.1"
                         />
-                        <span className="text-slate-400 text-sm">g</span>
+                        <span className="text-[color:var(--txt-lo)] text-sm">g</span>
                       </div>
                       <button
                         onClick={() => handleRemoveIngredient(index)}
-                        className="p-2 text-red-400 hover:text-red-300 hover:bg-red-600/20 rounded-lg transition-all duration-200"
+                        className="coach-touch rounded-lg text-[color:var(--red)] transition-all duration-200"
+                        title="Remove ingredient"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -847,9 +848,9 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
 
               {/* Nutrition Preview */}
               {formData.selectedIngredients.length > 0 && (
-                <div className="p-4 bg-slate-700/30 rounded-xl">
-                  <h4 className="text-lg font-bold text-white mb-3">Nutrition Calculator</h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                <div className="p-4 rounded-xl" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                  <h4 className="text-base font-bold text-[color:var(--txt-hi)] mb-3">Nutrition Calculator</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4">
                     {(() => {
                       const nutrition = formData.selectedIngredients.reduce((total, item) => ({
                         calories: total.calories + (item.ingredient.kcal * item.quantity / 100),
@@ -866,24 +867,24 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
                         <>
                           {Object.entries(nutrition).map(([key, value]) => (
                             <div key={key} className="text-center">
-                              <p className={`text-2xl font-bold ${key === 'calories' ? 
-                                (isCloseToTarget ? 'text-green-400' : 'text-red-400') : 'text-slate-300'}`}>
+                              <p className={`text-xl font-bold tnum ${key === 'calories' ?
+                                (isCloseToTarget ? 'text-[color:var(--green)]' : 'text-[color:var(--red)]') : 'text-[color:var(--txt-mid)]'}`}>
                                 {Math.round(value)}{key === 'calories' ? '' : 'g'}
                               </p>
-                              <p className="text-xs text-slate-400 capitalize">{key}</p>
+                              <p className="text-xs text-[color:var(--txt-lo)] capitalize">{key}</p>
                             </div>
                           ))}
                         </>
                       );
                     })()}
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-slate-600/30 rounded-lg">
-                    <span className="text-slate-300">Target vs Current:</span>
-                    <span className={`font-bold ${(() => {
+                  <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--surface-3)' }}>
+                    <span className="text-[color:var(--txt-mid)] text-sm">Target vs Current:</span>
+                    <span className={`font-bold tnum ${(() => {
                       const current = formData.selectedIngredients.reduce((total, item) => 
                         total + (item.ingredient.kcal * item.quantity / 100), 0);
                       const diff = Math.abs(current - formData.kcal_target);
-                      return diff <= 50 ? 'text-green-400' : diff <= 100 ? 'text-yellow-400' : 'text-red-400';
+                      return diff <= 50 ? 'text-[color:var(--green)]' : diff <= 100 ? 'text-[color:var(--orange)]' : 'text-[color:var(--red)]';
                     })()}`}>
                       {formData.kcal_target} kcal target
                     </span>
@@ -892,17 +893,17 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
               )}
             </div>
 
-            <div className="p-6 border-t border-slate-700 flex justify-end space-x-3">
+            <div className="p-4 sm:p-6 border-t border-[color:var(--hair)] flex justify-end gap-3">
               <button
                 onClick={resetForm}
-                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium transition-all duration-200"
+                className="coach-editor-btn flex-1 sm:flex-none justify-center sm:px-6"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveMeal}
                 disabled={!formData.name.trim() || formData.selectedIngredients.length === 0 || loading}
-                className="px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-all duration-200 flex items-center space-x-2"
+                className="coach-editor-btn coach-editor-btn--primary flex-1 sm:flex-none justify-center sm:px-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading && <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
                 <span>{editingMeal ? 'Update Meal' : 'Create Meal'}</span>
@@ -914,23 +915,23 @@ const MealDatabaseManager: React.FC<MealDatabaseManagerProps> = ({ onBack }) => 
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-800 rounded-2xl border border-slate-700 p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold text-white mb-4">Delete Meal</h3>
-            <p className="text-slate-300 mb-6">
+        <div className="coach-modal z-50">
+          <div className="coach-modal-panel max-w-md p-4 sm:p-6">
+            <h3 className="text-lg font-bold font-display text-[color:var(--txt-hi)] mb-3">Delete Meal</h3>
+            <p className="text-[color:var(--txt-mid)] text-sm mb-5">
               Are you sure you want to delete this meal? This action cannot be undone.
             </p>
-            <div className="flex justify-end space-x-3">
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(null)}
-                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-medium transition-all duration-200"
+                className="coach-editor-btn flex-1 sm:flex-none justify-center sm:px-6"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDeleteMeal(showDeleteConfirm)}
                 disabled={loading}
-                className="px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-slate-600 text-white rounded-xl font-medium transition-all duration-200 flex items-center space-x-2"
+                className="coach-editor-btn coach-editor-btn--primary flex-1 sm:flex-none justify-center sm:px-6 disabled:opacity-50"
               >
                 {loading && <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />}
                 <span>Delete</span>

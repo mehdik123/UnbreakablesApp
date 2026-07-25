@@ -1379,96 +1379,95 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     <div>
       
       {/* Header - Mobile Optimized */}
-      <div className="backdrop-blur-xl sticky top-0 z-40 rounded-t-xl" style={{ background: 'var(--surface-1)', borderBottom: '1px solid var(--hair)' }}>
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-3 sm:space-y-0">
-            <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
-              {/* Back button - Only show when not in program selection */}
-              {!showProgramSelection && (
-              <button
-                  onClick={() => {
-                    if (showModificationInterface) {
-                      setShowModificationInterface(false);
-                      setShowProgramSelection(true);
-                      setCustomWorkout({ name: '', description: '', days: [] });
-                    } else {
-                      setShowProgramSelection(true);
-                      setSelectedProgram(null);
-                      // Removed setWeeks - no longer needed
-                    }
-                  }}
-                className="p-2 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white transition-all duration-200"
-              >
-                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-              )}
-              <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Dumbbell className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-lg sm:text-2xl font-bold text-white truncate">Workout Editor</h1>
-                <p className="text-slate-400 text-xs sm:text-sm truncate">Creating workout plan for {client.name}</p>
-              </div>
-            </div>
-            
-            {/* Tab Navigation - Show when client has workout assignment - Mobile Optimized */}
-            {client.workoutAssignment && (
-              <div className="flex items-center space-x-1 bg-slate-700/30 rounded-lg p-1 w-full sm:w-auto">
-                <button
-                  onClick={() => setActiveTab('workout')}
-                  className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 ${
-                    activeTab === 'workout'
-                      ? 'bg-red-600 text-white shadow-sm'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-600/50'
-                  }`}
-                >
-                  <div className="flex items-center justify-center space-x-1 sm:space-x-2">
-                    <Dumbbell className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Workout</span>
-                    <span className="sm:hidden">W</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => setActiveTab('progression')}
-                  className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 ${
-                    activeTab === 'progression'
-                      ? 'bg-red-600 text-white shadow-sm'
-                      : 'text-slate-300 hover:text-white hover:bg-slate-600/50'
-                  }`}
-                >
-                  <div className="flex items-center justify-center space-x-1 sm:space-x-2">
-                    <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Week Progress</span>
-                    <span className="sm:hidden">P</span>
-                  </div>
-                </button>
-              </div>
-            )}
-            
-            {/* General Save - persists to Supabase, updates client interface and muscle charts */}
-            {selectedProgram && !showProgramSelection && client.workoutAssignment && (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-                <button
-                  onClick={() => handleSaveAssignment()}
-                  className="flex items-center justify-center space-x-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-green-600 hover:bg-green-500 text-white rounded-xl font-semibold transition-all duration-200 text-sm shadow-lg"
-                  title="Save to Supabase and update client view and progress charts"
-                >
-                  <Save className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>Save</span>
-                </button>
-                {hasModifications && (
-                  <span className="text-xs sm:text-sm text-amber-400 text-center sm:text-left">
-                    Unsaved changes — click Save to update client &amp; charts
-                  </span>
-                )}
-              </div>
-            )}
-            
+      <div className="coach-editor-head">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          {/* Back button - Only show when not in program selection */}
+          {!showProgramSelection && (
+          <button
+              onClick={() => {
+                if (showModificationInterface) {
+                  setShowModificationInterface(false);
+                  setShowProgramSelection(true);
+                  setCustomWorkout({ name: '', description: '', days: [] });
+                } else {
+                  setShowProgramSelection(true);
+                  setSelectedProgram(null);
+                  // Removed setWeeks - no longer needed
+                }
+              }}
+            className="coach-touch rounded-xl text-[color:var(--txt-lo)] hover:text-[color:var(--txt-hi)] hover:bg-[var(--surface-2)] transition-all duration-200"
+            title="Back to programs"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          )}
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0" style={{ background: 'var(--grad-red)' }}>
+            <Dumbbell className="w-5 h-5 text-white" />
           </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-xl font-bold font-display text-[color:var(--txt-hi)] truncate">Workout Editor</h2>
+            <p className="text-[color:var(--txt-lo)] text-[11px] sm:text-sm truncate">Plan for {client.name}</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          {/* Tab Navigation - Show when client has workout assignment - Mobile Optimized */}
+          {client.workoutAssignment && (
+            <div className="flex items-center gap-1 rounded-xl p-1 w-full sm:w-auto" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+              <button
+                onClick={() => setActiveTab('workout')}
+                className={`flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 ${
+                  activeTab === 'workout'
+                    ? 'text-white'
+                    : 'text-[color:var(--txt-mid)]'
+                }`}
+                style={activeTab === 'workout' ? { background: 'var(--grad-red)' } : undefined}
+              >
+                <div className="flex items-center justify-center gap-1.5">
+                  <Dumbbell className="w-4 h-4" />
+                  <span>Workout</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('progression')}
+                className={`flex-1 sm:flex-none min-h-[40px] px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 ${
+                  activeTab === 'progression'
+                    ? 'text-white'
+                    : 'text-[color:var(--txt-mid)]'
+                }`}
+                style={activeTab === 'progression' ? { background: 'var(--grad-red)' } : undefined}
+              >
+                <div className="flex items-center justify-center gap-1.5">
+                  <Calendar className="w-4 h-4" />
+                  <span>Weeks</span>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {/* General Save - persists to Supabase, updates client interface and muscle charts */}
+          {selectedProgram && !showProgramSelection && client.workoutAssignment && (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => handleSaveAssignment()}
+                className="coach-editor-btn justify-center w-full sm:w-auto"
+                style={{ background: 'var(--green)', borderColor: 'transparent', color: '#08130f' }}
+                title="Save to Supabase and update client view and progress charts"
+              >
+                <Save className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Save</span>
+              </button>
+              {hasModifications && (
+                <span className="text-[11px] sm:text-sm text-[color:var(--orange)] text-center sm:text-left">
+                  Unsaved changes — tap Save
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
+      <div className="max-w-7xl mx-auto px-0 sm:px-2 py-2 sm:py-4">
         
         {/* Week Progression Tab Content */}
         {activeTab === 'progression' && client.workoutAssignment ? (
@@ -2345,24 +2344,24 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 
             {/* Bulk Edit Panel for Entire Day */}
             {currentDayData?.exercises && currentDayData.exercises.length > 0 && (
-              <div className="bg-gradient-to-r from-purple-900/40 via-indigo-900/40 to-purple-900/40 backdrop-blur-xl rounded-2xl border border-purple-500/30 p-6 shadow-2xl">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="rounded-2xl p-4 sm:p-6" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
+                <div className="flex items-start sm:items-center justify-between mb-4 gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0" style={{ background: 'var(--grad-red)' }}>
                       <Zap className="w-5 h-5 text-white" />
                     </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-white">Day Bulk Actions</h3>
-                      <p className="text-xs text-purple-200/70">Apply changes to ALL exercises in this day</p>
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold font-display text-[color:var(--txt-hi)]">Day Bulk Actions</h3>
+                      <p className="text-[11px] sm:text-xs text-[color:var(--txt-lo)]">Applies to every exercise in this day</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm text-purple-200/70">Affecting</div>
-                    <div className="text-xl font-bold text-white">{currentDayData.exercises.length} exercises</div>
+                  <div className="text-right shrink-0">
+                    <div className="text-[11px] text-[color:var(--txt-lo)]">Affecting</div>
+                    <div className="text-base sm:text-xl font-bold text-[color:var(--txt-hi)] tnum">{currentDayData.exercises.length}</div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3">
                   {/* +1 Rep to All Exercises */}
                   <button
                     onClick={() => {
@@ -2515,8 +2514,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                   </button>
                 </div>
 
-                <div className="mt-4 p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
-                  <p className="text-xs text-purple-200/80 text-center">
+                <div className="mt-4 p-3 rounded-lg" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                  <p className="text-[11px] sm:text-xs text-[color:var(--txt-lo)] text-center">
                     ⚡ These actions apply to ALL {currentDayData.exercises.length} exercises in {currentDayData.name}
                   </p>
                 </div>
@@ -2712,10 +2711,11 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                               setSelectedProgram(updatedProgram);
                             }
                           }}
-                          className="group w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/30 hover:from-purple-500/40 hover:to-purple-600/50 text-purple-300 hover:text-purple-200 transition-all duration-300 flex items-center justify-center border border-purple-500/20 hover:border-purple-400/40 hover:shadow-lg hover:shadow-purple-500/20 flex-shrink-0"
+                          className="coach-step-btn"
+                          style={{ ['--step-accent' as string]: 'var(--violet)' } as React.CSSProperties}
                           title="Copy First Set to All Sets"
                         >
-                          <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5 group-hover:scale-110 transition-transform duration-200" />
+                          <Copy className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                         </button>
 
                       </div>
@@ -2755,20 +2755,22 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         <div className="flex flex-col sm:flex-row gap-3 flex-1">
                           {/* Reps Section - Client Interface Design */}
                         {set.isDropset && Array.isArray(set.reps) ? (
-                          <div className="flex-1 bg-gradient-to-r from-blue-500/10 to-blue-600/5 rounded-md p-2 border border-blue-500/20">
+                          <div className="coach-set-panel" style={{ ['--panel-accent' as string]: 'var(--blue)' } as React.CSSProperties}>
                             <div className="flex items-center justify-between mb-1.5">
-                              <h6 className="text-[10px] font-semibold text-blue-300 uppercase">Dropset · {Array.isArray(set.reps) ? set.reps.length : 0} drops</h6>
+                              <h6 className="coach-set-panel-title">Dropset · {Array.isArray(set.reps) ? set.reps.length : 0} drops</h6>
                               <div className="flex items-center gap-1">
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleRemoveDropsetDrop(exercise.id, set.id); }}
-                                  className="w-5 h-5 rounded bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:text-white flex items-center justify-center"
+                                  className="coach-step-btn"
+                                  style={{ ['--step-accent' as string]: 'var(--blue)' } as React.CSSProperties}
                                   title="Remove a drop"
                                 >
                                   <Minus className="w-3 h-3" />
                                 </button>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleAddDropsetDrop(exercise.id, set.id); }}
-                                  className="w-5 h-5 rounded bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:text-white flex items-center justify-center"
+                                  className="coach-step-btn"
+                                  style={{ ['--step-accent' as string]: 'var(--blue)' } as React.CSSProperties}
                                   title="Add a drop"
                                 >
                                   <Plus className="w-3 h-3" />
@@ -2776,23 +2778,25 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                               </div>
                             </div>
                             <div className="text-center mb-2">
-                              <span className="text-white font-bold text-lg">
+                              <span className="text-[color:var(--txt-hi)] font-bold text-base tnum">
                                 {set.reps.join('→')}
                               </span>
                             </div>
                             <div className="flex justify-center gap-1 flex-wrap">
                               {set.reps.map((rep, roundIndex) => (
-                                <div key={roundIndex} className="flex items-center gap-1 bg-blue-500/10 p-1 rounded">
+                                <div key={roundIndex} className="flex items-center gap-1 p-1 rounded" style={{ background: 'var(--surface-3)' }}>
                                   <button
                                     onClick={() => handleUpdateDropsetReps(exercise.id, set.id, roundIndex, -1)}
-                                    className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center flex-shrink-0"
+                                    className="coach-step-btn"
+                                    style={{ ['--step-accent' as string]: 'var(--blue)' } as React.CSSProperties}
                                   >
                                     <Minus className="w-3 h-3" />
                                   </button>
-                                  <span className="text-white font-bold text-sm min-w-[1.5rem] text-center">{rep}</span>
+                                  <span className="text-[color:var(--txt-hi)] font-bold text-sm min-w-[1.5rem] text-center tnum">{rep}</span>
                                   <button
                                     onClick={() => handleUpdateDropsetReps(exercise.id, set.id, roundIndex, 1)}
-                                    className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center flex-shrink-0"
+                                    className="coach-step-btn"
+                                    style={{ ['--step-accent' as string]: 'var(--blue)' } as React.CSSProperties}
                                   >
                                     <Plus className="w-3 h-3" />
                                   </button>
@@ -2801,27 +2805,29 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                             </div>
                           </div>
                         ) : (
-                          <div className="flex-1 bg-gradient-to-r from-blue-500/10 to-blue-600/5 rounded-md p-2 border border-blue-500/20">
+                          <div className="coach-set-panel" style={{ ['--panel-accent' as string]: 'var(--blue)' } as React.CSSProperties}>
                             <div className="flex items-center justify-between mb-1.5">
-                              <h6 className="text-[10px] font-semibold text-blue-300 uppercase">Reps</h6>
-                              <Target className="w-3 h-3 text-blue-400" />
+                              <h6 className="coach-set-panel-title">Reps</h6>
+                              <Target className="w-3 h-3 text-[color:var(--blue)]" />
                             </div>
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => handleUpdateReps(exercise.id, set.id, -1)}
-                                className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center flex-shrink-0"
+                                className="coach-step-btn"
+                                style={{ ['--step-accent' as string]: 'var(--blue)' } as React.CSSProperties}
                               >
                                 <Minus className="w-3 h-3" />
                               </button>
                               <div className="text-center px-1 flex-1 min-w-[30px]">
-                                <div className="text-sm font-bold text-blue-300 leading-tight">
+                                <div className="text-sm font-bold text-[color:var(--txt-hi)] leading-tight tnum">
                                   {typeof set.reps === 'number' ? set.reps : Array.isArray(set.reps) ? set.reps.join('→') : set.reps}
                                 </div>
-                                <div className="text-blue-400 text-[9px] leading-tight">reps</div>
+                                <div className="text-[color:var(--txt-lo)] text-[9px] leading-tight">reps</div>
                               </div>
                               <button
                                 onClick={() => handleUpdateReps(exercise.id, set.id, 1)}
-                                className="w-6 h-6 rounded bg-gradient-to-r from-blue-500/20 to-blue-600/10 hover:from-blue-500/30 hover:to-blue-600/20 border border-blue-500/30 text-blue-300 hover:text-white transition-all duration-200 flex items-center justify-center flex-shrink-0"
+                                className="coach-step-btn"
+                                style={{ ['--step-accent' as string]: 'var(--blue)' } as React.CSSProperties}
                               >
                                 <Plus className="w-3 h-3" />
                               </button>
@@ -2831,29 +2837,31 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         
                         {/* Weight Section - Client Interface Design */}
                         {set.isDropset && Array.isArray(set.weight) ? (
-                          <div className="flex-1 bg-gradient-to-r from-purple-500/10 to-purple-600/5 rounded-md p-2 border border-purple-500/20">
+                          <div className="coach-set-panel" style={{ ['--panel-accent' as string]: 'var(--orange)' } as React.CSSProperties}>
                             <div className="flex items-center justify-between mb-1.5">
-                              <h6 className="text-[10px] font-semibold text-purple-300 uppercase">Dropset Weight</h6>
-                              <Zap className="w-3 h-3 text-purple-400" />
+                              <h6 className="coach-set-panel-title">Dropset Weight</h6>
+                              <Zap className="w-3 h-3 text-[color:var(--orange)]" />
                             </div>
                             <div className="text-center mb-2">
-                              <span className="text-white font-bold text-lg">
+                              <span className="text-[color:var(--txt-hi)] font-bold text-base tnum">
                                 {set.weight.join('→')}kg
                               </span>
                             </div>
                             <div className="flex justify-center gap-1 flex-wrap">
                               {set.weight.map((weight, roundIndex) => (
-                                <div key={roundIndex} className="flex items-center gap-1 bg-purple-500/10 p-1 rounded">
+                                <div key={roundIndex} className="flex items-center gap-1 p-1 rounded" style={{ background: 'var(--surface-3)' }}>
                                   <button
                                     onClick={() => handleUpdateDropsetWeight(exercise.id, set.id, roundIndex, -2.5)}
-                                    className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center flex-shrink-0"
+                                    className="coach-step-btn"
+                                    style={{ ['--step-accent' as string]: 'var(--orange)' } as React.CSSProperties}
                                   >
                                     <Minus className="w-3 h-3" />
                                   </button>
-                                  <span className="text-white font-bold text-sm min-w-[2rem] text-center">{weight}kg</span>
+                                  <span className="text-[color:var(--txt-hi)] font-bold text-sm min-w-[2rem] text-center tnum">{weight}kg</span>
                                   <button
                                     onClick={() => handleUpdateDropsetWeight(exercise.id, set.id, roundIndex, 2.5)}
-                                    className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center flex-shrink-0"
+                                    className="coach-step-btn"
+                                    style={{ ['--step-accent' as string]: 'var(--orange)' } as React.CSSProperties}
                                   >
                                     <Plus className="w-3 h-3" />
                                   </button>
@@ -2862,27 +2870,29 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                             </div>
                           </div>
                         ) : (
-                          <div className="flex-1 bg-gradient-to-r from-purple-500/10 to-purple-600/5 rounded-md p-2 border border-purple-500/20">
+                          <div className="coach-set-panel" style={{ ['--panel-accent' as string]: 'var(--red)' } as React.CSSProperties}>
                             <div className="flex items-center justify-between mb-1.5">
-                              <h6 className="text-[10px] font-semibold text-purple-300 uppercase">Weight</h6>
-                              <Zap className="w-3 h-3 text-purple-400" />
+                              <h6 className="coach-set-panel-title">Weight</h6>
+                              <Zap className="w-3 h-3 text-[color:var(--red)]" />
                             </div>
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => handleUpdateWeight(exercise.id, set.id, -2.5)}
-                                className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center flex-shrink-0"
+                                className="coach-step-btn"
+                                style={{ ['--step-accent' as string]: 'var(--red)' } as React.CSSProperties}
                               >
                                 <Minus className="w-3 h-3" />
                               </button>
                               <div className="text-center px-1 flex-1 min-w-[30px]">
-                                <div className="text-sm font-bold text-purple-300 leading-tight truncate">
+                                <div className="text-sm font-bold text-[color:var(--txt-hi)] leading-tight truncate tnum">
                                   {typeof set.weight === 'number' ? `${set.weight}kg` : Array.isArray(set.weight) ? `${set.weight.join('→')}kg` : `${set.weight}kg`}
                                 </div>
-                                <div className="text-purple-400 text-[9px] leading-tight">kg</div>
+                                <div className="text-[color:var(--txt-lo)] text-[9px] leading-tight">kg</div>
                               </div>
                               <button
                                 onClick={() => handleUpdateWeight(exercise.id, set.id, 2.5)}
-                                className="w-6 h-6 rounded bg-gradient-to-r from-purple-500/20 to-purple-600/10 hover:from-purple-500/30 hover:to-purple-600/20 border border-purple-500/30 text-purple-300 hover:text-white transition-all duration-200 flex items-center justify-center flex-shrink-0"
+                                className="coach-step-btn"
+                                style={{ ['--step-accent' as string]: 'var(--red)' } as React.CSSProperties}
                               >
                                 <Plus className="w-3 h-3" />
                               </button>
