@@ -107,13 +107,16 @@ npm run dev
 4. **Access Control**: Route-level protection
 5. **Simple & Effective**: No complicated setup
 
-## 📝 Default Credentials
+## 📝 Coach Credentials
 
-**Coach Dashboard:**
-- Username: `coach`
-- Password: `coach123`
+Set in your `.env` (never commit real values):
 
-⚠️ **CHANGE THESE IMMEDIATELY IN YOUR `.env` FILE!**
+```
+VITE_COACH_USERNAME=your-username
+VITE_COACH_PASSWORD=your-secure-password
+```
+
+There are **no** default username/password fallbacks in the app. If these are missing, coach login will refuse to authenticate.
 
 ## 💡 Tips
 

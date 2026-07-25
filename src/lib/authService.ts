@@ -29,14 +29,18 @@ export interface ClientCredentials {
 
 class AuthService {
   private currentUser: AuthUser | null = null;
-  private readonly COACH_USERNAME = import.meta.env.VITE_COACH_USERNAME || 'coach';
-  private readonly COACH_PASSWORD = import.meta.env.VITE_COACH_PASSWORD || 'coach123'; // Change this!
+  private readonly COACH_USERNAME = String(import.meta.env.VITE_COACH_USERNAME || '').trim();
+  private readonly COACH_PASSWORD = String(import.meta.env.VITE_COACH_PASSWORD || '');
   private readonly AUTH_STORAGE_KEY = 'auth_user';
   private readonly AUTH_EXPIRY_KEY = 'auth_expiry';
   private readonly SESSION_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days – stay logged in across refreshes
 
   constructor() {
     this.loadAuthFromStorage();
+  }
+
+  private coachAuthConfigured(): boolean {
+    return this.COACH_USERNAME.length > 0 && this.COACH_PASSWORD.length > 0;
   }
 
   private loadAuthFromStorage() {
@@ -82,7 +86,13 @@ class AuthService {
   }
 
   async loginCoach(username: string, password: string): Promise<{ success: boolean; error?: string }> {
-    // Simple coach authentication using environment variables
+    if (!this.coachAuthConfigured()) {
+      return {
+        success: false,
+        error: 'Coach login is not configured. Set VITE_COACH_USERNAME and VITE_COACH_PASSWORD.',
+      };
+    }
+
     if (username === this.COACH_USERNAME && password === this.COACH_PASSWORD) {
       const user: AuthUser = {
         id: 'coach',
@@ -93,7 +103,7 @@ class AuthService {
       this.saveAuthToStorage(user);
       return { success: true };
     }
-    
+
     return { success: false, error: 'Invalid username or password' };
   }
 

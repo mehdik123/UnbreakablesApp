@@ -7,34 +7,28 @@ import {
   MoreVertical, 
   Target,
   TrendingUp,
-  Dumbbell,
-  Utensils,
   Eye,
   Share2,
   CheckCircle,
   X,
   Copy,
   Activity,
-  Clock,
   Flame,
   Shield,
-  ArrowUpRight,
   Grid3X3,
   List,
-  Star,
-  Crown,
   User,
   Archive,
   Key,
   LogOut,
   Database,
-  Zap,
   CheckSquare,
   Square,
   Loader2,
   Layers,
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  Zap
 } from 'lucide-react';
 import { Client, ClientWorkoutAssignment } from '../types';
 import { ClientCredentialsManager } from './ClientCredentialsManager';
@@ -80,26 +74,6 @@ const AnimatedCounter: React.FC<{ value: number; duration?: number }> = ({ value
   return <span>{count}</span>;
 };
 
-// Floating Particles Component
-const FloatingParticles: React.FC = () => {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {[...Array(20)].map((_, i) => (
-        <div
-          key={i}
-          className="absolute w-1 h-1 bg-red-500/20 rounded-full animate-pulse"
-          style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 3}s`,
-            animationDuration: `${3 + Math.random() * 4}s`
-          }}
-        />
-      ))}
-    </div>
-  );
-};
-
 
 interface UnbreakableSteamClientsManagerProps {
   isDark: boolean;
@@ -137,7 +111,6 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   const [showAddModal, setShowAddModal] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isLoading, setIsLoading] = useState(true);
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [newClient, setNewClient] = useState({
     name: '',
     email: '',
@@ -197,7 +170,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1000);
+    }, 600);
     return () => clearTimeout(timer);
   }, []);
 
@@ -245,16 +218,6 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [openDropdownId]);
-
-  // Mouse tracking for interactive effects
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePosition({ x: e.clientX, y: e.clientY });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   const getGoalColor = (goal: string) => {
     switch (goal) {
@@ -452,232 +415,149 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
     },
   };
 
+  const clientsWithPlan = clients.filter(
+    (c) => c.nutritionPlan || c.workoutAssignment
+  ).length;
+  const activeClients = clients.filter((c) => c.isActive).length;
+
+  const clientWeightLabel = (client: Client): string => {
+    const log = client.weightLog;
+    if (Array.isArray(log) && log.length > 0) {
+      const last = log[log.length - 1] as { weight?: number } | number;
+      const w =
+        typeof last === 'number'
+          ? last
+          : typeof last?.weight === 'number'
+            ? last.weight
+            : null;
+      if (w != null && Number.isFinite(w)) return `${w} kg`;
+    }
+    if (
+      typeof client.startingWeight === 'number' &&
+      Number.isFinite(client.startingWeight)
+    ) {
+      return `${client.startingWeight} kg`;
+    }
+    return '—';
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 relative overflow-hidden">
-        {/* Animated background particles */}
-        <div className="absolute inset-0">
-          {[...Array(50)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute w-2 h-2 bg-gradient-to-r from-red-500/30 to-orange-500/30 rounded-full animate-ping"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                animationDuration: `${2 + Math.random() * 2}s`
-              }}
-            />
-          ))}
-        </div>
-        
-        {/* Loading content */}
-        <div className="text-center z-10">
-          <div className="relative mb-8">
-            <div className="w-24 h-24 border-4 border-slate-700/50 border-t-red-500 rounded-full animate-spin"></div>
-            <div className="absolute inset-0 w-24 h-24 border-4 border-transparent border-t-red-400 rounded-full animate-spin opacity-70" 
-                 style={{animationDirection: 'reverse', animationDuration: '1.5s'}}></div>
-            <div className="absolute inset-2 w-20 h-20 border-4 border-transparent border-t-orange-400 rounded-full animate-spin opacity-40" 
-                 style={{animationDuration: '3s'}}></div>
+      <div className="coach-hub workout-shell">
+        <div className="coach-hub-glow" aria-hidden />
+        <div className="coach-hub-loading">
+          <img src="/brand-logo-light.png" alt="" className="coach-hub-loading-logo" />
+          <p className="font-saira text-sm tracking-widest" style={{ color: 'var(--red)' }}>
+            UNBREAKABLES
+          </p>
+          <div className="coach-hub-loading-bar" aria-hidden>
+            <span />
           </div>
-          
-          <div className="space-y-4">
-            <h2 className="text-4xl font-bold text-white animate-pulse bg-gradient-to-r from-white via-red-200 to-red-400 bg-clip-text text-transparent">
-              Initializing UNBREAKABLES TEAM
-            </h2>
-            <div className="flex items-center justify-center space-x-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{animationDelay: '0s'}}></div>
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-            </div>
-            <p className="text-slate-400 text-lg">Preparing your AI-powered dashboard</p>
-          </div>
+          <p className="text-sm">Loading clients…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 relative overflow-hidden">
-      {/* Animated background grid */}
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.03)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
-      
-      {/* Dynamic gradient overlay */}
-      <div 
-        className="absolute inset-0 bg-gradient-radial from-red-500/5 via-transparent to-transparent transition-all duration-1000"
-        style={{
-          background: `radial-gradient(600px circle at ${mousePosition.x}px ${mousePosition.y}px, rgba(239, 68, 68, 0.05), transparent)`
-        }}
-      />
-
-      <FloatingParticles />
-      {/* Header */}
-      <div className="sticky top-0 z-50 backdrop-blur-xl" style={{ background: 'rgba(16,18,24,.92)', borderBottom: '1px solid var(--hair)' }}>
-        <div className="w-full px-4 lg:px-6">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center space-x-3">
-              <img src="/brand-logo-light.png" alt="Unbreakables Team" className="w-12 h-12 object-contain shrink-0" />
-              <div>
-                <h1 className="text-2xl font-bold text-white">
-                  <span className="text-white">UNBREAKABLES</span>
-                  <span className="text-red-500 ml-2">TEAM</span>
-                </h1>
-                <p className="text-xs text-slate-400">AI-Powered Coaching Platform</p>
-              </div>
+    <div className="coach-hub workout-shell">
+      <div className="coach-hub-glow" aria-hidden />
+      <div className="coach-hub-inner">
+      <header className="coach-hub-header">
+        <div className="coach-hub-header-row">
+          <div className="coach-hub-brand">
+            <img src="/brand-logo-light.png" alt="Unbreakables" className="coach-hub-logo" />
+            <div className="min-w-0">
+              <h1 className="coach-hub-brand-title font-saira">
+                UNBREAKABLES<span>TEAM</span>
+              </h1>
+              <p className="coach-hub-brand-sub">Coach dashboard</p>
             </div>
-
-            {/* Search and Actions - Mobile Optimized */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search clients..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200"
-                />
-              </div>
-              <button
-                onClick={onNavigateToMealDatabase}
-                className="flex items-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold transition-all duration-300 shadow-lg hover:shadow-indigo-500/30 hover:scale-105"
-              >
-                <Database className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="text-sm sm:text-base">Database Manager</span>
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-medium transition-all duration-200"
-                title="Logout"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm">Logout</span>
-              </button>
+          </div>
+          <div className="coach-hub-actions">
+            <div className="coach-hub-search">
+              <Search className="coach-hub-search-ic" aria-hidden />
+              <input
+                type="search"
+                placeholder="Search clients…"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="coach-hub-search-input"
+                aria-label="Search clients"
+              />
             </div>
+            <button
+              type="button"
+              onClick={onNavigateToMealDatabase}
+              className="coach-hub-btn coach-hub-btn-primary"
+            >
+              <Database className="w-4 h-4" />
+              <span className="hidden sm:inline">Database</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="coach-hub-btn coach-hub-btn-ghost"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Logout</span>
+            </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Main Content */}
-      <div className="w-full px-3 sm:px-4 lg:px-6 py-4 sm:py-8 relative">
-        {/* Welcome Section - Mobile Optimized */}
-        <div className="mb-6">
-          <div className="flex items-center space-x-2 sm:space-x-3 mb-2">
-            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center">
-              <Star className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-            </div>
-            <h1 className="text-2xl sm:text-4xl font-bold font-display text-white">Welcome back, Mehdi!</h1>
-            <div className="text-2xl sm:text-3xl">👋</div>
-          </div>
-          <p className="text-slate-400 text-sm sm:text-xl">Here's what's happening with your coaching business today.</p>
+      <div className="coach-hub-main">
+        <div className="coach-hub-welcome home-anim">
+          <h1 className="font-saira">Welcome back</h1>
+          <p>Manage clients, plans, and programs from one place.</p>
         </div>
 
-        {/* Stats Cards - Enhanced Design */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {/* Mobile: Show only 2 cards, Desktop: Show all 4 */}
-          <div className="group bg-[var(--surface-1)] backdrop-blur-sm rounded-xl p-4 border border-[color:var(--hair)] hover:border-blue-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-                  <p className="text-slate-300 text-xs font-semibold uppercase tracking-wide">Total Clients</p>
-                </div>
-                <p className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                  <AnimatedCounter value={clients.length} />
-                </p>
-                <div className="flex items-center space-x-2">
-                  <div className="flex items-center bg-emerald-500/20 rounded-full px-2 py-1">
-                    <ArrowUpRight className="w-3 h-3 text-emerald-400 mr-1" />
-                    <span className="text-xs text-emerald-300 font-semibold">+2 this month</span>
-                  </div>
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg group-hover:shadow-blue-500/30 transition-all duration-300">
-                <Users className="w-6 h-6 text-white" />
-              </div>
+        <div className="coach-hub-stats home-anim" style={{ animationDelay: '40ms' }}>
+          <div className="coach-hub-stat">
+            <div className="coach-hub-stat-label">
+              <span className="coach-hub-stat-dot" style={{ background: 'var(--blue)' }} />
+              Total clients
             </div>
+            <p className="coach-hub-stat-value font-display tnum">
+              <AnimatedCounter value={clients.length} duration={900} />
+            </p>
           </div>
-
-          <div className="group bg-[var(--surface-1)] backdrop-blur-sm rounded-xl p-4 border border-[color:var(--hair)] hover:border-purple-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/20">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></div>
-                  <p className="text-slate-300 text-xs font-semibold uppercase tracking-wide">Active Programs</p>
-                </div>
-                <p className="text-2xl sm:text-3xl font-bold text-white mb-2">{clients.filter(c => c.nutritionPlan || c.workoutAssignment).length}</p>
-                <div className="flex items-center space-x-2">
-                  <div className="flex items-center bg-emerald-500/20 rounded-full px-2 py-1">
-                    <Activity className="w-3 h-3 text-emerald-400 mr-1" />
-                    <span className="text-xs text-emerald-300 font-semibold">94% success</span>
-                  </div>
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg group-hover:shadow-purple-500/30 transition-all duration-300">
-                <Dumbbell className="w-6 h-6 text-white" />
-              </div>
+          <div className="coach-hub-stat">
+            <div className="coach-hub-stat-label">
+              <span className="coach-hub-stat-dot" style={{ background: 'var(--green)' }} />
+              Active
             </div>
+            <p className="coach-hub-stat-value font-display tnum">
+              <AnimatedCounter value={activeClients} duration={900} />
+            </p>
+            <p className="coach-hub-stat-hint">Marked active</p>
           </div>
-
-          {/* Hidden on mobile, visible on desktop */}
-          <div className="hidden lg:block group bg-[var(--surface-1)] backdrop-blur-sm rounded-xl p-4 border border-[color:var(--hair)] hover:border-orange-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-orange-500/20">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div>
-                  <p className="text-slate-300 text-xs font-semibold uppercase tracking-wide">Pending Check-ins</p>
-                </div>
-                <p className="text-2xl font-bold text-white mb-2">3</p>
-                <div className="flex items-center space-x-2">
-                  <div className="flex items-center bg-orange-500/20 rounded-full px-2 py-1">
-                    <Clock className="w-3 h-3 text-orange-400 mr-1" />
-                    <span className="text-xs text-orange-300 font-semibold">Need review</span>
-                  </div>
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg group-hover:shadow-orange-500/30 transition-all duration-300">
-                <CheckCircle className="w-6 h-6 text-white" />
-              </div>
+          <div className="coach-hub-stat">
+            <div className="coach-hub-stat-label">
+              <span className="coach-hub-stat-dot" style={{ background: 'var(--orange)' }} />
+              With a plan
             </div>
-          </div>
-
-          <div className="hidden lg:block group bg-[var(--surface-1)] backdrop-blur-sm rounded-xl p-4 border border-[color:var(--hair)] hover:border-yellow-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-yellow-500/20">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
-                  <p className="text-slate-300 text-xs font-semibold uppercase tracking-wide">Client Satisfaction</p>
-                </div>
-                <p className="text-2xl font-bold text-white mb-2">4.8/5</p>
-                <div className="flex items-center space-x-1">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="w-3 h-3 text-yellow-400" />
-                  ))}
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center shadow-lg group-hover:shadow-yellow-500/30 transition-all duration-300">
-                <Crown className="w-6 h-6 text-white" />
-              </div>
-            </div>
+            <p className="coach-hub-stat-value font-display tnum">
+              <AnimatedCounter value={clientsWithPlan} duration={900} />
+            </p>
+            <p className="coach-hub-stat-hint">Nutrition or workout</p>
           </div>
         </div>
 
-
-        {/* Clients Section - Mobile Optimized */}
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6">
             <div className="mb-3 sm:mb-0">
-              <h2 className="text-2xl sm:text-3xl font-bold font-display text-white">Clients</h2>
-              <p className="text-slate-400 text-sm sm:text-lg">Manage your clients and their plans from a single dashboard</p>
+              <h2 className="text-2xl sm:text-3xl font-bold font-saira italic text-white">Clients</h2>
+              <p className="text-slate-400 text-sm sm:text-base">Open a client to edit nutrition and workouts</p>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-3">
               <button
                 onClick={toggleSelectionMode}
-                className={`flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 rounded-xl font-semibold transition-all duration-200 border ${
+                className={`flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 min-h-[44px] rounded-xl font-semibold transition-all duration-200 border ${
                   selectionMode
                     ? 'bg-red-500/15 text-red-300 border-red-500/40'
-                    : 'text-slate-300 border-[color:var(--hair)] hover:bg-slate-800'
+                    : 'text-slate-300 border-[color:var(--hair)] hover:bg-[var(--surface-2)]'
                 }`}
                 title="Select multiple clients"
               >
@@ -686,17 +566,17 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               </button>
               <button
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                className="p-2 sm:p-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors duration-200"
+                className="p-2 sm:p-3 min-h-[44px] min-w-[44px] rounded-lg text-slate-400 hover:text-white hover:bg-[var(--surface-2)] transition-colors duration-200"
                 title={viewMode === 'grid' ? 'Switch to List View' : 'Switch to Grid View'}
               >
                 {viewMode === 'grid' ? <List className="w-5 h-5 sm:w-6 sm:h-6" /> : <Grid3X3 className="w-5 h-5 sm:w-6 sm:h-6" />}
               </button>
               <button
                 onClick={() => setShowAddModal(true)}
-                className="flex items-center space-x-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-red-500/30 hover:scale-105"
+                className="coach-hub-btn coach-hub-btn-primary"
               >
-                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="text-sm sm:text-base">Add Client</span>
+                <Plus className="w-4 h-4" />
+                <span className="text-sm">Add Client</span>
               </button>
             </div>
           </div>
@@ -773,12 +653,17 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                           </div>
                         </td>
                         <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
-                          <div className="text-lg text-white">75.2 kg</div>
-                          <div className="text-sm text-emerald-400">(-3.5)</div>
+                          <div className="text-lg text-white font-display tnum">{clientWeightLabel(client)}</div>
                         </td>
                         <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-500/20 text-red-400 border border-red-500/30">
-                            Active
+                          <span
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${
+                              client.isActive
+                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                : 'bg-slate-500/15 text-slate-400 border-slate-500/30'
+                            }`}
+                          >
+                            {client.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </td>
                         <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
@@ -820,7 +705,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                             </button>
                             <button 
                               onClick={(e) => handleDropdownClick(e, client.id)}
-                              className="p-3 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors duration-200"
+                              className="p-3 min-h-[44px] min-w-[44px] rounded-lg bg-[var(--red)] hover:brightness-110 text-white transition-colors duration-200"
                               title="More options"
                             >
                               <MoreVertical className="w-5 h-5" />
@@ -921,7 +806,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     </button>
                     <button 
                       onClick={(e) => handleDropdownClick(e, client.id)}
-                      className="p-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white transition-colors duration-200"
+                      className="p-2 min-h-[44px] min-w-[44px] rounded-lg bg-[var(--red)] hover:brightness-110 text-white transition-colors duration-200"
                       title="More options"
                     >
                       <MoreVertical className="w-3 h-3" />
@@ -1118,10 +1003,12 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
       {/* Portal Dropdown Menu */}
       {openDropdownId && dropdownPosition && createPortal(
         <div 
-          className="dropdown-menu fixed w-56 bg-slate-800 rounded-lg shadow-2xl border-2 border-blue-500 z-[10000]"
+          className="dropdown-menu fixed w-56 rounded-lg shadow-2xl z-[10000]"
           style={{
             top: `${dropdownPosition.top}px`,
-            left: `${dropdownPosition.left}px`
+            left: `${dropdownPosition.left}px`,
+            background: 'var(--surface-2)',
+            border: '1px solid var(--hair-strong)',
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -1463,6 +1350,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
           />
         </>
       )}
+      </div>
     </div>
   );
 };

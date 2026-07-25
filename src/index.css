@@ -435,6 +435,261 @@
   .client-login-eye:active { transform: none; }
 }
 
+/* ---- Coach hub (clients dashboard) ---- */
+.coach-hub {
+  min-height: 100dvh;
+  color: var(--txt-hi);
+  position: relative;
+  overflow-x: hidden;
+}
+.coach-hub-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(720px 400px at 8% -6%, rgba(255, 45, 85, 0.12), transparent 55%),
+    radial-gradient(560px 380px at 96% 4%, rgba(91, 140, 255, 0.08), transparent 50%);
+}
+.coach-hub-inner {
+  position: relative;
+  z-index: 1;
+}
+.coach-hub-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: rgba(16, 18, 24, 0.92);
+  border-bottom: 1px solid var(--hair);
+  padding-top: env(safe-area-inset-top);
+}
+.coach-hub-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  min-height: 4rem;
+  padding: 0.65rem 1rem;
+}
+@media (min-width: 1024px) {
+  .coach-hub-header-row { padding-left: 1.5rem; padding-right: 1.5rem; }
+}
+.coach-hub-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.coach-hub-logo {
+  width: 2.75rem;
+  height: 2.75rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.coach-hub-brand-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  margin: 0;
+  color: var(--txt-hi);
+}
+.coach-hub-brand-title span {
+  color: var(--red);
+  margin-left: 0.35rem;
+  font-style: italic;
+}
+.coach-hub-brand-sub {
+  margin: 0.15rem 0 0;
+  font-size: 0.7rem;
+  color: var(--txt-lo);
+}
+.coach-hub-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.coach-hub-search {
+  position: relative;
+  flex: 1 1 10rem;
+  max-width: 18rem;
+}
+.coach-hub-search-ic {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1rem;
+  height: 1rem;
+  color: var(--txt-lo);
+  pointer-events: none;
+}
+.coach-hub-search-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.55rem 0.85rem 0.55rem 2.5rem;
+  border-radius: var(--r-md);
+  border: 1px solid var(--hair);
+  background: var(--surface-1);
+  color: var(--txt-hi);
+  font-size: 16px;
+  outline: none;
+  touch-action: manipulation;
+}
+.coach-hub-search-input:focus {
+  border-color: rgba(255, 45, 85, 0.45);
+  box-shadow: 0 0 0 3px rgba(255, 45, 85, 0.15);
+}
+.coach-hub-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0.55rem 1rem;
+  border-radius: var(--r-md);
+  font-weight: 600;
+  font-size: 0.875rem;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s var(--spring), filter 0.15s var(--ease), background 0.15s var(--ease);
+}
+.coach-hub-btn:active { transform: scale(0.97); }
+.coach-hub-btn:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+.coach-hub-btn-primary {
+  background: var(--grad-red);
+  color: #fff;
+  border: none;
+  box-shadow: 0 10px 28px -14px rgba(255, 45, 85, 0.55);
+}
+.coach-hub-btn-ghost {
+  background: var(--surface-1);
+  color: var(--txt-mid);
+  border: 1px solid var(--hair);
+}
+.coach-hub-btn-ghost:hover { color: var(--txt-hi); border-color: var(--hair-strong); }
+.coach-hub-main {
+  padding: 1rem 0.75rem 2rem;
+  max-width: 90rem;
+  margin: 0 auto;
+}
+@media (min-width: 640px) {
+  .coach-hub-main { padding: 1.5rem 1rem 2.5rem; }
+}
+@media (min-width: 1024px) {
+  .coach-hub-main { padding: 1.75rem 1.5rem 3rem; }
+}
+.coach-hub-welcome {
+  margin-bottom: 1.25rem;
+}
+.coach-hub-welcome h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  color: var(--txt-hi);
+}
+.coach-hub-welcome p {
+  margin: 0.35rem 0 0;
+  font-size: 0.9375rem;
+  color: var(--txt-mid);
+}
+.coach-hub-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 1.5rem;
+}
+@media (min-width: 768px) {
+  .coach-hub-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
+}
+.coach-hub-stat {
+  background: var(--surface-1);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-md);
+  padding: 0.9rem 1rem;
+}
+.coach-hub-stat-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--txt-lo);
+  margin-bottom: 0.35rem;
+}
+.coach-hub-stat-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.coach-hub-stat-value {
+  font-size: clamp(1.5rem, 4vw, 1.85rem);
+  font-weight: 700;
+  color: var(--txt-hi);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.coach-hub-stat-hint {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--txt-lo);
+}
+.coach-hub-loading {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  color: var(--txt-mid);
+}
+.coach-hub-loading-logo {
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 28px rgba(255, 45, 85, 0.3));
+}
+.coach-hub-loading-bar {
+  width: 8rem;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.coach-hub-loading-bar > span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--grad-red);
+  animation: coach-hub-load 1.1s var(--ease) infinite;
+}
+@keyframes coach-hub-load {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(280%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .coach-hub-loading-bar > span { animation: none; width: 70%; }
+  .coach-hub-btn:active { transform: none; }
+}
+
 @layer base {
   * {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;

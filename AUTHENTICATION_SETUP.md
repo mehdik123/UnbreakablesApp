@@ -42,13 +42,11 @@ The script creates:
 - Row Level Security (RLS) policies
 - Auto-update triggers
 
-### Step 3: Default Coach Credentials
+### Step 3: Coach Credentials
 
-**Default Login:**
-- Username: `coach`
-- Password: `coach123`
+Set `VITE_COACH_USERNAME` and `VITE_COACH_PASSWORD` in your `.env` / hosting env. There are **no** hardcoded defaults — if either is missing, coach login will not work.
 
-⚠️ **IMPORTANT**: Change these credentials immediately by updating your `.env` file!
+Never commit real credentials. See `.env.example` for the variable names only.
 
 ## 🎯 How to Use
 

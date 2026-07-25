@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, User, Eye, EyeOff } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, Shield } from 'lucide-react';
 import { authService } from '../lib/authService';
 
 interface CoachLoginProps {
@@ -20,13 +20,13 @@ export const CoachLogin: React.FC<CoachLoginProps> = ({ onLoginSuccess }) => {
 
     try {
       const result = await authService.loginCoach(username, password);
-      
+
       if (result.success) {
         onLoginSuccess();
       } else {
         setError(result.error || 'Login failed');
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -34,137 +34,89 @@ export const CoachLogin: React.FC<CoachLoginProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      {/* Animated background effects */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-4000"></div>
-      </div>
+    <div className="client-login-shell workout-shell">
+      <div className="client-login-glow" aria-hidden />
 
-      <div className="relative w-full max-w-md">
-        {/* Logo and Title */}
-        <div className="text-center mb-8">
-          <img src="/brand-logo-light.png" alt="Unbreakables" className="w-28 h-28 object-contain mx-auto mb-4 drop-shadow-2xl" />
-          <h1 className="text-4xl font-bold text-white mb-2">
-            UnbreakableSteam
-          </h1>
-          <p className="text-slate-400 text-lg">Coach Dashboard</p>
-        </div>
+      <div className="client-login-inner">
+        <header className="client-login-brand home-anim">
+          <img
+            src="/brand-logo-light.png"
+            alt="Unbreakables"
+            className="client-login-logo"
+          />
+          <p className="client-login-eyebrow font-saira">UNBREAKABLES</p>
+          <h1 className="client-login-title font-saira">Coach sign in</h1>
+          <p className="client-login-sub">Access your coaching dashboard</p>
+        </header>
 
-        {/* Login Card */}
-        <div className="bg-white/10 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Username Field */}
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-slate-200 mb-2">
-                Username
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-slate-400" />
-                </div>
+        <div className="client-login-card home-anim" style={{ animationDelay: '60ms' }}>
+          <form onSubmit={handleSubmit} className="client-login-form">
+            <label className="client-login-field" htmlFor="coach-username">
+              <span className="client-login-label">Username</span>
+              <div className="client-login-input-wrap">
+                <User className="client-login-ic" aria-hidden />
                 <input
                   type="text"
-                  id="username"
+                  id="coach-username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="block w-full pl-12 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="Enter your username"
+                  className="client-login-input"
+                  placeholder="Username"
                   required
                   autoComplete="username"
                 />
               </div>
-            </div>
+            </label>
 
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-200 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-400" />
-                </div>
+            <label className="client-login-field" htmlFor="coach-password">
+              <span className="client-login-label">Password</span>
+              <div className="client-login-input-wrap">
+                <Lock className="client-login-ic" aria-hidden />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  id="password"
+                  id="coach-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-12 pr-12 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="Enter your password"
+                  className="client-login-input client-login-input--pwd"
+                  placeholder="Password"
                   required
                   autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-white transition-colors"
+                  className="client-login-eye"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
-            </div>
+            </label>
 
-            {/* Error Message */}
             {error && (
-              <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4">
-                <p className="text-red-200 text-sm text-center">{error}</p>
+              <div className="client-login-error" role="alert">
+                {error}
               </div>
             )}
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold py-3 px-6 rounded-xl hover:from-blue-600 hover:to-cyan-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg"
-            >
+            <button type="submit" disabled={loading} className="client-login-submit">
               {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                <>
+                  <span className="client-login-spinner" aria-hidden />
                   Signing in...
-                </div>
+                </>
               ) : (
                 'Sign In'
               )}
             </button>
           </form>
-
-          {/* Help Text */}
-          <div className="mt-6 text-center">
-            
-            
-          </div>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-slate-500 text-sm mt-8">
-          © 2024 UnbreakableSteam. All rights reserved.
-        </p>
+        <div className="client-login-note home-anim" style={{ animationDelay: '120ms' }}>
+          <Shield className="w-4 h-4 shrink-0" style={{ color: 'var(--red)' }} aria-hidden />
+          <p>Coach access only. Keep your credentials private.</p>
+        </div>
       </div>
-
-      <style>{`
-        @keyframes blob {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-      `}</style>
     </div>
   );
 };
-
-
