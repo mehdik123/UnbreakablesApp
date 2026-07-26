@@ -5,14 +5,28 @@ import {
   isAppOnline,
 } from './offlineStore';
 
-// Simple password hashing (in production, use bcrypt or similar)
+// Simple reversible encoding used by this app's client credentials.
+// (Not production-grade hashing — kept for compatibility with existing rows.)
+const PASSWORD_SALT = 'coaching_salt';
+
 const hashPassword = (password: string): string => {
-  // Basic implementation - in production, use a proper hashing library
-  return btoa(password + 'coaching_salt'); // Base64 encoding for demo
+  return btoa(password + PASSWORD_SALT);
 };
 
 const verifyPassword = (password: string, hash: string): boolean => {
   return hashPassword(password) === hash;
+};
+
+/** Reveal plaintext from existing password_hash rows (btoa(password + salt)). */
+const revealPasswordFromHash = (hash: string): string | null => {
+  if (!hash) return null;
+  try {
+    const decoded = atob(hash);
+    if (!decoded.endsWith(PASSWORD_SALT)) return null;
+    return decoded.slice(0, -PASSWORD_SALT.length);
+  } catch {
+    return null;
+  }
 };
 
 export interface AuthUser {
@@ -246,25 +260,31 @@ class AuthService {
       return { success: false, error: 'Database not configured' };
     }
 
+    const cleanUsername = username.trim();
+    const cleanPassword = password.trim();
+    if (!cleanUsername || !cleanPassword) {
+      return { success: false, error: 'Username and password are required' };
+    }
+
     try {
       // Check if username already exists
       const { data: existing } = await supabase
         .from('client_credentials')
         .select('id')
-        .eq('username', username)
-        .single();
+        .eq('username', cleanUsername)
+        .maybeSingle();
 
       if (existing) {
         return { success: false, error: 'Username already exists' };
       }
 
-      // Create credentials
+      const passwordHash = hashPassword(cleanPassword);
       const { error } = await supabase
         .from('client_credentials')
         .insert({
           client_id: clientId,
-          username: username,
-          password_hash: hashPassword(password),
+          username: cleanUsername,
+          password_hash: passwordHash,
           is_active: true
         });
 
@@ -273,6 +293,7 @@ class AuthService {
         return { success: false, error: 'Failed to create credentials' };
       }
 
+      saveCachedClientLogin(clientId, cleanUsername, passwordHash);
       return { success: true };
     } catch (error) {
       console.error('Create credentials error:', error);
@@ -286,43 +307,103 @@ class AuthService {
     try {
       const { data, error } = await supabase
         .from('client_credentials')
-        .select('username')
+        .select('username, password_hash')
         .eq('client_id', clientId)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
       if (error || !data) return null;
 
-      return { username: data.username, password: '••••••••' };
+      const revealed = revealPasswordFromHash(data.password_hash);
+      return {
+        username: data.username,
+        // Return the real password so the coach can review / share it.
+        // Falls back to empty if an unexpected hash format is stored.
+        password: revealed ?? '',
+      };
     } catch (error) {
       console.error('Error fetching credentials:', error);
       return null;
     }
   }
 
-  async updateClientPassword(clientId: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+  /**
+   * Update username and/or password for an existing client login.
+   * Username must stay unique across all clients.
+   */
+  async updateClientCredentials(
+    clientId: string,
+    updates: { username?: string; password?: string }
+  ): Promise<{ success: boolean; error?: string }> {
     if (!supabase) {
       return { success: false, error: 'Database not configured' };
     }
 
+    const nextUsername = updates.username?.trim();
+    const nextPassword = updates.password?.trim();
+
+    if (!nextUsername && !nextPassword) {
+      return { success: false, error: 'Nothing to update' };
+    }
+
     try {
+      const { data: current, error: currentError } = await supabase
+        .from('client_credentials')
+        .select('id, username, password_hash')
+        .eq('client_id', clientId)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (currentError || !current) {
+        return { success: false, error: 'Credentials not found for this client' };
+      }
+
+      const payload: { username?: string; password_hash?: string; updated_at: string } = {
+        updated_at: new Date().toISOString(),
+      };
+
+      if (nextUsername && nextUsername !== current.username) {
+        const { data: taken } = await supabase
+          .from('client_credentials')
+          .select('id')
+          .eq('username', nextUsername)
+          .neq('id', current.id)
+          .maybeSingle();
+
+        if (taken) {
+          return { success: false, error: 'Username already exists' };
+        }
+        payload.username = nextUsername;
+      }
+
+      if (nextPassword) {
+        payload.password_hash = hashPassword(nextPassword);
+      }
+
       const { error } = await supabase
         .from('client_credentials')
-        .update({ 
-          password_hash: hashPassword(newPassword),
-          updated_at: new Date().toISOString()
-        })
-        .eq('client_id', clientId);
+        .update(payload)
+        .eq('id', current.id);
 
       if (error) {
-        return { success: false, error: 'Failed to update password' };
+        console.error('Update credentials error:', error);
+        return { success: false, error: 'Failed to update credentials' };
       }
+
+      const savedUsername = payload.username || current.username;
+      const savedHash = payload.password_hash || current.password_hash;
+      saveCachedClientLogin(clientId, savedUsername, savedHash);
 
       return { success: true };
     } catch (error) {
-      console.error('Update password error:', error);
-      return { success: false, error: 'Failed to update password' };
+      console.error('Update credentials error:', error);
+      return { success: false, error: 'Failed to update credentials' };
     }
+  }
+
+  /** @deprecated Prefer updateClientCredentials — kept for compatibility */
+  async updateClientPassword(clientId: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    return this.updateClientCredentials(clientId, { password: newPassword });
   }
 }
 
