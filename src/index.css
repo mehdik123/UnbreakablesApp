@@ -1103,6 +1103,47 @@
   letter-spacing: 0.04em;
   color: var(--panel-accent, var(--txt-lo));
 }
+
+/* Editable set value (coach can type reps / weight directly) */
+.coach-set-input {
+  width: 100%;
+  min-width: 2.75rem;
+  padding: 0.15rem 0.25rem;
+  text-align: center;
+  font-size: 16px; /* prevent iOS zoom on focus */
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--txt-hi);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  font-variant-numeric: tabular-nums;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.coach-set-input:hover { border-color: var(--hair); }
+.coach-set-input:focus,
+.coach-set-input:focus-visible {
+  outline: none;
+  background: var(--surface-3);
+  border-color: var(--panel-accent, var(--red));
+}
+.coach-set-input--drop {
+  width: 3.25rem;
+  min-width: 3.25rem;
+}
+/* Hide native number spinners so the field reads as a clean tappable value */
+.coach-set-input::-webkit-outer-spin-button,
+.coach-set-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.coach-set-input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .coach-step-btn:active { transform: none; }
 }

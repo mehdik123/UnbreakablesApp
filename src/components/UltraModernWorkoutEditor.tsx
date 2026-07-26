@@ -1211,6 +1211,94 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     }
   };
 
+  // ---- Direct (typed) value setters — mirror the +/- handlers but take an absolute value ----
+  const clampReps = (value: number) => Math.max(1, Math.round(value));
+  const clampWeight = (value: number) => Math.max(0, Math.round(value * 100) / 100);
+
+  const setRegularSetField = (
+    exerciseId: string,
+    setId: string,
+    field: 'reps' | 'weight',
+    value: number
+  ) => {
+    if (!selectedProgram?.days?.[currentDay]?.exercises) return;
+    const currentExercise = selectedProgram.days[currentDay].exercises.find(ex => ex.id === exerciseId);
+    const currentSet = currentExercise?.sets?.find(set => set.id === setId);
+    if (!currentSet || currentSet.isDropset) return;
+
+    const nextValue = field === 'reps' ? clampReps(value) : clampWeight(value);
+    const updatedProgram = {
+      ...selectedProgram,
+      days: selectedProgram.days.map((day, dayIndex) =>
+        dayIndex === currentDay
+          ? {
+              ...day,
+              exercises: (day.exercises || []).map(exercise =>
+                exercise.id === exerciseId
+                  ? {
+                      ...exercise,
+                      sets: (exercise.sets || []).map(set =>
+                        set.id === setId ? { ...set, [field]: nextValue } : set
+                      )
+                    }
+                  : exercise
+              )
+            }
+          : day
+      )
+    };
+    setSelectedProgram(updatedProgram);
+  };
+
+  const handleSetReps = (exerciseId: string, setId: string, value: number) =>
+    setRegularSetField(exerciseId, setId, 'reps', value);
+
+  const handleSetWeight = (exerciseId: string, setId: string, value: number) =>
+    setRegularSetField(exerciseId, setId, 'weight', value);
+
+  const setDropsetField = (
+    exerciseId: string,
+    setId: string,
+    roundIndex: number,
+    field: 'reps' | 'weight',
+    value: number
+  ) => {
+    if (!selectedProgram) return;
+    const nextValue = field === 'reps' ? clampReps(value) : clampWeight(value);
+    const updatedProgram = {
+      ...selectedProgram,
+      days: selectedProgram.days.map((day, dayIndex) =>
+        dayIndex === currentDay
+          ? {
+              ...day,
+              exercises: day.exercises.map(exercise =>
+                exercise.id === exerciseId
+                  ? {
+                      ...exercise,
+                      sets: exercise.sets.map(set => {
+                        if (set.id !== setId || !set.isDropset || !Array.isArray(set[field])) return set;
+                        const arr = set[field] as number[];
+                        return {
+                          ...set,
+                          [field]: arr.map((v, index) => (index === roundIndex ? nextValue : v))
+                        };
+                      })
+                    }
+                  : exercise
+              )
+            }
+          : day
+      )
+    };
+    setSelectedProgram(updatedProgram);
+  };
+
+  const handleSetDropsetReps = (exerciseId: string, setId: string, roundIndex: number, value: number) =>
+    setDropsetField(exerciseId, setId, roundIndex, 'reps', value);
+
+  const handleSetDropsetWeight = (exerciseId: string, setId: string, roundIndex: number, value: number) =>
+    setDropsetField(exerciseId, setId, roundIndex, 'weight', value);
+
 
   const handleSaveAssignment = async (programOverride?: WorkoutProgram) => {
     const programRef = programOverride || selectedProgram;
@@ -2792,7 +2880,17 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                   >
                                     <Minus className="w-3 h-3" />
                                   </button>
-                                  <span className="text-[color:var(--txt-hi)] font-bold text-sm min-w-[1.5rem] text-center tnum">{rep}</span>
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={1}
+                                    step={1}
+                                    value={typeof rep === 'number' ? rep : ''}
+                                    onChange={(e) => handleSetDropsetReps(exercise.id, set.id, roundIndex, parseFloat(e.target.value) || 0)}
+                                    onFocus={(e) => e.currentTarget.select()}
+                                    className="coach-set-input coach-set-input--drop"
+                                    aria-label={`Drop ${roundIndex + 1} reps`}
+                                  />
                                   <button
                                     onClick={() => handleUpdateDropsetReps(exercise.id, set.id, roundIndex, 1)}
                                     className="coach-step-btn"
@@ -2819,9 +2917,17 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                 <Minus className="w-3 h-3" />
                               </button>
                               <div className="text-center px-1 flex-1 min-w-[30px]">
-                                <div className="text-sm font-bold text-[color:var(--txt-hi)] leading-tight tnum">
-                                  {typeof set.reps === 'number' ? set.reps : Array.isArray(set.reps) ? set.reps.join('→') : set.reps}
-                                </div>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={1}
+                                  step={1}
+                                  value={typeof set.reps === 'number' ? set.reps : ''}
+                                  onChange={(e) => handleSetReps(exercise.id, set.id, parseFloat(e.target.value) || 0)}
+                                  onFocus={(e) => e.currentTarget.select()}
+                                  className="coach-set-input"
+                                  aria-label={`Set ${setIndex + 1} reps`}
+                                />
                                 <div className="text-[color:var(--txt-lo)] text-[9px] leading-tight">reps</div>
                               </div>
                               <button
@@ -2857,7 +2963,20 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                   >
                                     <Minus className="w-3 h-3" />
                                   </button>
-                                  <span className="text-[color:var(--txt-hi)] font-bold text-sm min-w-[2rem] text-center tnum">{weight}kg</span>
+                                  <div className="flex items-center gap-0.5">
+                                    <input
+                                      type="number"
+                                      inputMode="decimal"
+                                      min={0}
+                                      step={2.5}
+                                      value={typeof weight === 'number' ? weight : ''}
+                                      onChange={(e) => handleSetDropsetWeight(exercise.id, set.id, roundIndex, parseFloat(e.target.value) || 0)}
+                                      onFocus={(e) => e.currentTarget.select()}
+                                      className="coach-set-input coach-set-input--drop"
+                                      aria-label={`Drop ${roundIndex + 1} weight in kg`}
+                                    />
+                                    <span className="text-[color:var(--txt-lo)] text-[9px]">kg</span>
+                                  </div>
                                   <button
                                     onClick={() => handleUpdateDropsetWeight(exercise.id, set.id, roundIndex, 2.5)}
                                     className="coach-step-btn"
@@ -2884,9 +3003,17 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                 <Minus className="w-3 h-3" />
                               </button>
                               <div className="text-center px-1 flex-1 min-w-[30px]">
-                                <div className="text-sm font-bold text-[color:var(--txt-hi)] leading-tight truncate tnum">
-                                  {typeof set.weight === 'number' ? `${set.weight}kg` : Array.isArray(set.weight) ? `${set.weight.join('→')}kg` : `${set.weight}kg`}
-                                </div>
+                                <input
+                                  type="number"
+                                  inputMode="decimal"
+                                  min={0}
+                                  step={2.5}
+                                  value={typeof set.weight === 'number' ? set.weight : ''}
+                                  onChange={(e) => handleSetWeight(exercise.id, set.id, parseFloat(e.target.value) || 0)}
+                                  onFocus={(e) => e.currentTarget.select()}
+                                  className="coach-set-input"
+                                  aria-label={`Set ${setIndex + 1} weight in kg`}
+                                />
                                 <div className="text-[color:var(--txt-lo)] text-[9px] leading-tight">kg</div>
                               </div>
                               <button

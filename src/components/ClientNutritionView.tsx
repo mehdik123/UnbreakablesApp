@@ -36,7 +36,6 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
   const [favoriteMeals, setFavoriteMeals] = useState<string[]>([]);
   const [showIngredients, setShowIngredients] = useState<{ [mealId: string]: boolean }>({});
   const [showInstructions, setShowInstructions] = useState<{ [mealId: string]: boolean }>({});
-  const [showMacros, setShowMacros] = useState(true);
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [currentMealIndex, setCurrentMealIndex] = useState<{ [slotId: string]: number }>({});
   const [activeMealModal, setActiveMealModal] = useState<{ slotId: string; mealIndex: number } | null>(null);
@@ -319,22 +318,10 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
         </div>
 
         <div>
-          <button
-            type="button"
-            onClick={() => setShowMacros((o) => !o)}
-            className="workout-week-toggle w-full"
-            aria-expanded={showMacros}
-            style={{ minHeight: 44 }}
-          >
-            <span className="font-saira font-semibold text-[14px]" style={{ color: 'var(--txt-hi)' }}>
-              {showMacros ? t('nut.hideMacros') : t('nut.showMacros')}
-            </span>
-            <ChevronRight
-              className={`w-4 h-4 shrink-0 transition-transform duration-200 ${showMacros ? 'rotate-90' : ''}`}
-              style={{ color: 'var(--txt-lo)' }}
-            />
-          </button>
-          {showMacros && (
+          <div className="workout-seclabel mb-2">
+            <span>{t('nut.macrosTitle')}</span>
+            <span className="line" />
+          </div>
         <div className="nut-macro-grid mt-2">
           <div className="nut-macro-tile">
             <div className="flex items-center justify-between">
@@ -377,7 +364,6 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
             </div>
           </div>
         </div>
-          )}
         </div>
 
         <div className="pt-1">

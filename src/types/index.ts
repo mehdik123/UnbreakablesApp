@@ -88,8 +88,25 @@ export interface CardioItem {
   rounds?: number;
 }
 
+/** Small abs block paired with cardio (from exercise DB / Core). */
+export interface CardioAbsExercise {
+  id: string;
+  exerciseId?: string;
+  name: string;
+  videoUrl?: string;
+  muscleGroup?: string;
+  sets: number;
+  reps: number;
+  weight: number;
+  restSec?: number;
+}
+
 export interface CardioPlan {
   items: CardioItem[];
+  /** Optional abs mini-workout alongside cardio */
+  absExercises?: CardioAbsExercise[];
+  /** Coach note for the whole cardio & abs block (e.g. before cardio / after workout) */
+  notes?: string;
 }
 
 export interface CardioTemplateData {

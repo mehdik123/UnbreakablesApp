@@ -1,4 +1,4 @@
-import { CardioItem, CardioModality, CardioPlan, CardioTemplateData } from '../types';
+import { CardioAbsExercise, CardioItem, CardioModality, CardioPlan, CardioTemplateData } from '../types';
 
 export interface CardioModalityMeta {
   id: CardioModality;
@@ -65,11 +65,39 @@ export function itemFromTemplate(data: CardioTemplateData): CardioItem {
   return { id: newId(), ...data };
 }
 
+function normalizeAbsExercises(raw: unknown): CardioAbsExercise[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((row) => {
+      if (!row || typeof row !== 'object') return null;
+      const r = row as Record<string, unknown>;
+      const name = String(r.name || '').trim();
+      if (!name) return null;
+      return {
+        id: String(r.id || newId()),
+        exerciseId: r.exerciseId != null ? String(r.exerciseId) : undefined,
+        name,
+        videoUrl: r.videoUrl ? String(r.videoUrl) : undefined,
+        muscleGroup: r.muscleGroup ? String(r.muscleGroup) : undefined,
+        sets: Math.max(1, Number(r.sets) || 3),
+        reps: Math.max(1, Number(r.reps) || 12),
+        weight: Math.max(0, Number(r.weight) || 0),
+        restSec: r.restSec != null ? Math.max(0, Number(r.restSec) || 0) : undefined,
+      } satisfies CardioAbsExercise;
+    })
+    .filter((x): x is CardioAbsExercise => x != null);
+}
+
 /** Migrate legacy week-based cardio_plan_json to the new shape. */
 export function normalizeCardioPlan(data: unknown): CardioPlan {
-  if (!data || typeof data !== 'object') return { items: [] };
+  if (!data || typeof data !== 'object') return { items: [], absExercises: [], notes: '' };
   const d = data as Record<string, unknown>;
-  if (Array.isArray(d.items)) return { items: d.items as CardioItem[] };
+  const absExercises = normalizeAbsExercises(d.absExercises);
+  const notes = typeof d.notes === 'string' ? d.notes : '';
+
+  if (Array.isArray(d.items)) {
+    return { items: d.items as CardioItem[], absExercises, notes };
+  }
 
   const weeks = d.weeks as { weekNumber?: number; sessions?: Record<string, unknown>[] }[] | undefined;
   if (Array.isArray(weeks) && weeks.length) {
@@ -89,9 +117,9 @@ export function normalizeCardioPlan(data: unknown): CardioPlan {
       restSec: (s.intervals as { restSec?: number })?.restSec,
       rounds: (s.intervals as { rounds?: number })?.rounds,
     }));
-    return { items };
+    return { items, absExercises, notes };
   }
-  return { items: [] };
+  return { items: [], absExercises, notes };
 }
 
 export function modalityShowsDistance(modality: CardioModality): boolean {

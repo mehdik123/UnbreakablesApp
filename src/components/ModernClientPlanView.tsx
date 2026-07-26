@@ -257,7 +257,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
             {[
               { id: 'nutrition', label: 'Nutrition', icon: Utensils, accent: 'var(--green)' },
               { id: 'workout', label: 'Workout', icon: Dumbbell, accent: 'var(--red)' },
-              { id: 'cardio', label: 'Cardio', icon: HeartPulse, accent: 'var(--orange)' },
+              { id: 'cardio', label: 'Cardio & Abs', icon: HeartPulse, accent: 'var(--orange)' },
               { id: 'progress', label: 'Progress', icon: Award, accent: 'var(--blue)' },
               { id: 'performance', label: 'Analytics', icon: BarChart3, accent: 'var(--violet)' },
               { id: 'weight', label: 'Weight', icon: Activity, accent: 'var(--coral)' },

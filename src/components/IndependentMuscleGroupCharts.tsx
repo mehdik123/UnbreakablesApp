@@ -55,7 +55,6 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
   const { t } = useClientLocale();
   const [loading, setLoading] = useState(true);
   const [expandedCharts, setExpandedCharts] = useState<{ [muscleGroup: string]: boolean }>({});
-  const [showNumbers, setShowNumbers] = useState(true);
   const [workoutExercises, setWorkoutExercises] = useState<{ [muscleGroup: string]: Exercise[] }>({});
   const [availableMuscleGroups, setAvailableMuscleGroups] = useState<string[]>([]);
   const [imageErrors, setImageErrors] = useState<{ [key: string]: boolean }>({});
@@ -213,24 +212,6 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowNumbers((o) => !o)}
-          className="workout-week-toggle w-full mt-3"
-          aria-expanded={showNumbers}
-          style={{ minHeight: 44 }}
-        >
-          <span className="font-saira font-semibold text-[14px]" style={{ color: 'var(--txt-hi)' }}>
-            {showNumbers ? t('home.hideNumbers') : t('home.seeTheNumbers')}
-          </span>
-          <ChevronDown
-            className={`w-4 h-4 shrink-0 transition-transform duration-200 ${showNumbers ? 'rotate-180' : ''}`}
-            style={{ color: 'var(--txt-lo)' }}
-          />
-        </button>
-
-        {showNumbers && (
-        <>
         <div className="workout-seclabel mt-4">
           <span>{t('ch.title')}</span>
           <span className="line" />
@@ -710,8 +691,6 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
             </div>
           </div>
         </div>
-        </>
-        )}
       </div>
     </div>
   );
