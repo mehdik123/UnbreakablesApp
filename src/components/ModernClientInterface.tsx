@@ -207,9 +207,9 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const closeWelcome = useCallback(() => {
     setShowWelcome(false);
     try {
-      const wasFirst = !localStorage.getItem(welcomeKey);
       localStorage.setItem(welcomeKey, '1');
-      if (wasFirst && !localStorage.getItem(guideKey)) setShowHelpGuide(true);
+      // First-run is step-by-step tour only — do not auto-open the help sheet (no YouTube).
+      localStorage.setItem(guideKey, '1');
     } catch {
       /* ignore storage errors */
     }

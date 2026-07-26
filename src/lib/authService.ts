@@ -33,7 +33,7 @@ class AuthService {
   private readonly COACH_PASSWORD = String(import.meta.env.VITE_COACH_PASSWORD || '');
   private readonly AUTH_STORAGE_KEY = 'auth_user';
   private readonly AUTH_EXPIRY_KEY = 'auth_expiry';
-  private readonly SESSION_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days – stay logged in across refreshes
+  private readonly SESSION_DURATION = 365 * 24 * 60 * 60 * 1000; // 1 year – coach reloads often
 
   constructor() {
     this.loadAuthFromStorage();
@@ -46,24 +46,40 @@ class AuthService {
   private loadAuthFromStorage() {
     try {
       const storedUser = localStorage.getItem(this.AUTH_STORAGE_KEY);
+      if (!storedUser) {
+        this.currentUser = null;
+        return;
+      }
+
+      const parsed = JSON.parse(storedUser) as AuthUser;
+      if (!parsed?.type || (parsed.type !== 'coach' && parsed.type !== 'client')) {
+        this.currentUser = null;
+        return;
+      }
+
       const expiry = localStorage.getItem(this.AUTH_EXPIRY_KEY);
-
-      if (!storedUser) return;
-
       const expiryTime = expiry ? parseInt(expiry, 10) : null;
       const now = Date.now();
-      // Restore session if not expired; if no expiry stored, restore anyway (e.g. old sessions) so refresh doesn't log out
-      if (expiryTime === null || !Number.isFinite(expiryTime) || now < expiryTime) {
-        this.currentUser = JSON.parse(storedUser);
-        // Refresh expiry if missing or invalid so next time we have a valid one
-        if (!expiryTime || !Number.isFinite(expiryTime)) {
-          localStorage.setItem(this.AUTH_EXPIRY_KEY, (now + this.SESSION_DURATION).toString());
-        }
-      } else {
+
+      // Coach sessions: never force-logout on reload when storage still has a valid user.
+      // Only clear when expiry is clearly in the past (and finite).
+      const clearlyExpired =
+        expiryTime !== null && Number.isFinite(expiryTime) && now >= expiryTime;
+
+      if (clearlyExpired && parsed.type !== 'coach') {
         this.logout();
+        return;
+      }
+
+      // Expired coach session: extend instead of kicking out (reload shouldn't cost a login)
+      this.currentUser = parsed;
+      if (clearlyExpired || expiryTime === null || !Number.isFinite(expiryTime)) {
+        localStorage.setItem(this.AUTH_EXPIRY_KEY, (now + this.SESSION_DURATION).toString());
       }
     } catch (error) {
       console.error('Error loading auth from storage:', error);
+      // Do not wipe storage on parse glitches — leave currentUser null for this tick only
+      this.currentUser = null;
     }
   }
 
@@ -208,18 +224,13 @@ class AuthService {
   }
 
   getCurrentUser(): AuthUser | null {
-    // Re-read from storage so refresh always sees persisted session
-    if (!this.currentUser) {
-      this.loadAuthFromStorage();
-    }
+    // Always re-read from storage so a full page reload restores the session
+    this.loadAuthFromStorage();
     return this.currentUser;
   }
 
   isAuthenticated(): boolean {
-    if (!this.currentUser) {
-      this.loadAuthFromStorage();
-    }
-    return this.currentUser !== null;
+    return this.getCurrentUser() !== null;
   }
 
   isCoach(): boolean {

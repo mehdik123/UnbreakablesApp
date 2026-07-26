@@ -16,6 +16,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { SelectedMeal } from '../types';
+import { formatPortionAnnotation } from '../utils/portionAnnotations';
 
 export type CoachMealPlanCardProps = {
   selectedMeal: SelectedMeal;
@@ -213,6 +214,7 @@ export const CoachMealPlanCard: React.FC<CoachMealPlanCardProps> = ({
             {ingredients.map((ingredient, idx) => {
               const grams = ingredient.quantity;
               const lineKcal = Math.round((ingredient.food.kcal * grams) / 100 * qty);
+              const portionNote = formatPortionAnnotation(ingredient.food.name, grams);
               return (
                 <div key={`${selectedMeal.id}-ing-${idx}`} className="coach-ing-row">
                   <button
@@ -221,7 +223,10 @@ export const CoachMealPlanCard: React.FC<CoachMealPlanCardProps> = ({
                     onClick={() => onIngredientNameClick(idx)}
                     title="Tap to replace this food"
                   >
-                    {ingredient.food.name}
+                    <span className="coach-ing-name-text">{ingredient.food.name}</span>
+                    {portionNote && (
+                      <span className="coach-ing-portion-note">{portionNote}</span>
+                    )}
                   </button>
                   <span className="coach-ing-meta tnum">{ingredient.food.kcal} kcal</span>
                   <div className="coach-ing-portion" onClick={(e) => e.stopPropagation()}>

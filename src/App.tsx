@@ -71,15 +71,25 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [clientViewData, setClientViewData] = useState<any>(null);
 
-  // Sync auth from storage on mount (handles refresh without login flash)
+  // Sync auth from storage on mount + when restoring from bfcache
   useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    if (currentUser) {
-      authService.touchSession();
-      setIsAuthenticated(true);
-      setAuthType(currentUser.type);
-    }
-    setIsCheckingAuth(false);
+    const syncAuth = () => {
+      const currentUser = authService.getCurrentUser();
+      if (currentUser) {
+        authService.touchSession();
+        setIsAuthenticated(true);
+        setAuthType(currentUser.type);
+      } else {
+        setIsAuthenticated(false);
+        setAuthType('none');
+      }
+      setIsCheckingAuth(false);
+    };
+
+    syncAuth();
+    const onPageShow = () => syncAuth();
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
   }, []);
 
   const openClientInterface = async (clientId: string) => {

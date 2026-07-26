@@ -19,6 +19,7 @@ import {
 import { Client, NutritionPlan, Meal, Ingredient, SelectedMeal } from '../types';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 import { getEffectiveSelectedMeal } from '../utils/mealSlotOverrides';
+import { formatIngredientQuantityLabel } from '../utils/portionAnnotations';
 
 interface ClientNutritionViewProps {
   client: Client;
@@ -35,7 +36,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
   const [favoriteMeals, setFavoriteMeals] = useState<string[]>([]);
   const [showIngredients, setShowIngredients] = useState<{ [mealId: string]: boolean }>({});
   const [showInstructions, setShowInstructions] = useState<{ [mealId: string]: boolean }>({});
-  const [showMacros, setShowMacros] = useState(false);
+  const [showMacros, setShowMacros] = useState(true);
   const [nutritionPlan, setNutritionPlan] = useState<NutritionPlan | null>(null);
   const [currentMealIndex, setCurrentMealIndex] = useState<{ [slotId: string]: number }>({});
   const [activeMealModal, setActiveMealModal] = useState<{ slotId: string; mealIndex: number } | null>(null);
@@ -521,7 +522,9 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                                 <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--red)' }} />
                                 <span className="truncate">{ingredient.food.name}</span>
                               </span>
-                              <span className="font-display tnum font-semibold shrink-0" style={{ color: txtMid }}>{ingredient.quantity}g</span>
+                              <span className="font-display tnum font-semibold shrink-0 text-end ms-2" style={{ color: txtMid }}>
+                                {formatIngredientQuantityLabel(ingredient.food.name, ingredient.quantity)}
+                              </span>
                             </div>
                           ))}
                         </div>
@@ -726,7 +729,9 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--red)' }} />
                                   <span className="truncate">{ingredient.food.name}</span>
                                 </span>
-                                <span className="font-display tnum font-semibold shrink-0" style={{ color: txtMid }}>{ingredient.quantity}g</span>
+                                <span className="font-display tnum font-semibold shrink-0 text-end ms-2" style={{ color: txtMid }}>
+                                {formatIngredientQuantityLabel(ingredient.food.name, ingredient.quantity)}
+                              </span>
                               </div>
                             ))}
                           </div>

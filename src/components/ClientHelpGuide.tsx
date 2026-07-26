@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import {
   X,
-  PlayCircle,
   ChevronDown,
   Sparkles,
   BookOpen,
 } from 'lucide-react';
 import { CLIENT_GUIDE_SECTIONS } from '../data/clientGuideFaq';
-import { CLIENT_GUIDE_VIDEO_URL, toYoutubeEmbedUrl } from '../config/clientGuide';
 
 interface ClientHelpGuideProps {
   isRtl: boolean;
@@ -23,7 +21,6 @@ export const ClientHelpGuide: React.FC<ClientHelpGuideProps> = ({
   onReplayTour,
 }) => {
   const [openFaq, setOpenFaq] = useState<string | null>(null);
-  const embedUrl = toYoutubeEmbedUrl(CLIENT_GUIDE_VIDEO_URL);
 
   const toggleFaq = (id: string) => {
     setOpenFaq((prev) => (prev === id ? null : id));
@@ -65,42 +62,6 @@ export const ClientHelpGuide: React.FC<ClientHelpGuideProps> = ({
       </header>
 
       <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-8 space-y-5 max-w-2xl mx-auto w-full">
-        {/* Video */}
-        <section
-          className="rounded-2xl overflow-hidden"
-          style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
-        >
-          <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--hair)' }}>
-            <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--txt-hi)' }}>
-              <PlayCircle className="w-4 h-4" style={{ color: 'var(--red)' }} />
-              {t('guide.videoTitle')}
-            </h3>
-          </div>
-          {embedUrl ? (
-            <div className="relative w-full aspect-video bg-black">
-              <iframe
-                title={t('guide.videoTitle')}
-                src={`${embedUrl}?rel=0`}
-                className="absolute inset-0 w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          ) : (
-            <div className="px-4 py-6 text-center">
-              <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3"
-                style={{ background: 'rgba(255,45,85,.12)' }}
-              >
-                <PlayCircle className="w-7 h-7" style={{ color: 'var(--red)' }} />
-              </div>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--txt-mid)' }}>
-                {t('guide.videoMissing')}
-              </p>
-            </div>
-          )}
-        </section>
-
         {onReplayTour && (
           <button
             type="button"
@@ -116,7 +77,6 @@ export const ClientHelpGuide: React.FC<ClientHelpGuideProps> = ({
           </button>
         )}
 
-        {/* FAQ by section */}
         {CLIENT_GUIDE_SECTIONS.map((section) => (
           <section key={section.id}>
             <h3
