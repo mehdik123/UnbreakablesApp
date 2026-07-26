@@ -362,7 +362,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
         </div>
 
         {/* Performance Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 mb-5 sm:mb-8">
           {muscleGroups.map((muscle) => (
             <div
               key={muscle.name}
@@ -377,7 +377,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
               {/* Animated Gradient Overlay */}
               <div className="absolute inset-0 bg-gradient-to-tr from-[#ff2d55]/0 via-transparent to-[#ff6a55]/0 group-hover:from-[#ff2d55]/10 group-hover:to-[#ff6a55]/10 transition-all duration-700"></div>
 
-              <div className="relative p-6">
+              <div className="relative p-3 sm:p-6">
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -393,7 +393,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                 </div>
 
                 {/* Enhanced Muscle Illustration */}
-                <div className="mb-4 flex justify-center h-48 relative">
+                <div className="mb-3 sm:mb-4 flex justify-center h-28 sm:h-48 relative">
                   <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-900/20 to-transparent rounded-xl"></div>
                   <div className="relative z-10 w-full h-full flex items-center justify-center transform hover:scale-105 transition-transform duration-500">
                     {getMuscleIllustration(muscle.name, muscle.trend)}
@@ -581,7 +581,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                 <TrendingUp className="w-5 h-5" style={{ color: 'var(--emerald)' }} />
                 <span className="font-bold text-sm" style={{ color: 'var(--emerald)' }}>{t('an.improving')}</span>
               </div>
-              <p className="text-3xl font-black font-saira tnum" style={{ color: 'var(--txt-hi)' }}>
+              <p className="text-xl sm:text-3xl font-black font-saira tnum" style={{ color: 'var(--txt-hi)' }}>
                 {muscleGroups.filter(m => m.trend === 'increasing').length}
               </p>
               <p className="text-mid text-sm">{t('an.muscleGroupsLabel')}</p>
@@ -592,7 +592,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                 <Minus className="w-5 h-5" style={{ color: 'var(--blue)' }} />
                 <span className="font-bold text-sm" style={{ color: 'var(--blue)' }}>{t('an.stable')}</span>
               </div>
-              <p className="text-3xl font-black font-saira tnum" style={{ color: 'var(--txt-hi)' }}>
+              <p className="text-xl sm:text-3xl font-black font-saira tnum" style={{ color: 'var(--txt-hi)' }}>
                 {muscleGroups.filter(m => m.trend === 'stable').length}
               </p>
               <p className="text-mid text-sm">{t('an.muscleGroupsLabel')}</p>
@@ -603,7 +603,7 @@ export const PerformanceAnalytics: React.FC<PerformanceAnalyticsProps> = ({
                 <TrendingDown className="w-5 h-5" style={{ color: 'var(--red)' }} />
                 <span className="font-bold text-sm" style={{ color: 'var(--red)' }}>{t('an.declining')}</span>
               </div>
-              <p className="text-3xl font-black font-saira tnum" style={{ color: 'var(--txt-hi)' }}>
+              <p className="text-xl sm:text-3xl font-black font-saira tnum" style={{ color: 'var(--txt-hi)' }}>
                 {muscleGroups.filter(m => m.trend === 'decreasing').length}
               </p>
               <p className="text-mid text-sm">{t('an.muscleGroupsLabel')}</p>

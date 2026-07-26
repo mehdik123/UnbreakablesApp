@@ -122,25 +122,38 @@ export const ClientCredentialsManager: React.FC<ClientCredentialsManagerProps> =
     username.trim() !== savedUsername || password.trim() !== savedPassword;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[10000]">
-      <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-700">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-              <Shield className="w-6 h-6 text-white" />
+    <div className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4">
+      <div
+        className="w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl p-4 sm:p-5"
+        style={{
+          background: 'var(--surface-1)',
+          border: '1px solid var(--hair)',
+          maxHeight: '92dvh',
+          overflowY: 'auto',
+          paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))',
+        }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: 'linear-gradient(135deg, #3b82f6, #06b6d4)' }}
+            >
+              <Shield className="w-4 h-4 text-white" />
             </div>
-            <div>
-              <h2 className="text-xl font-bold text-white">Client Credentials</h2>
-              <p className="text-sm text-slate-400">{clientName}</p>
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold truncate" style={{ color: 'var(--txt-hi)' }}>Client Credentials</h2>
+              <p className="text-[11px] truncate" style={{ color: 'var(--txt-mid)' }}>{clientName}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+            style={{ background: 'var(--surface-2)' }}
             aria-label="Close"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" style={{ color: 'var(--txt-mid)' }} />
           </button>
         </div>
 

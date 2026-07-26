@@ -218,7 +218,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
         </div>
 
         {/* Muscle Group Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
           {muscleGroups.map((muscleGroup, index) => {
             const color = getMuscleGroupColor(muscleGroup);
             const isExpanded = expandedCharts[muscleGroup];
@@ -278,12 +278,12 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
               <div key={muscleGroup} className="ch-muscle-card group">
                 <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-40 pointer-events-none" style={{ background: 'rgba(255,45,85,.08)' }} />
                 
-                <div className="relative z-10 p-4 sm:p-6">
+                <div className="relative z-10 p-3 sm:p-6">
                   {/* Header */}
                   <div className="flex flex-wrap items-start justify-between gap-3 mb-4 sm:mb-6">
                     <div className="flex items-center gap-3 min-w-0">
                       <div 
-                        className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-2xl border relative overflow-hidden"
+                        className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-2xl border relative overflow-hidden"
                         style={{ 
                           background: `linear-gradient(135deg, ${color}20, ${color}10)`,
                           borderColor: `${color}30`
@@ -314,7 +314,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                         )}
                       </div>
                       <div>
-                        <h3 className="text-xl font-saira font-semibold capitalize mb-1" style={{ color: 'var(--txt-hi)' }}>{muscleGroup}</h3>
+                        <h3 className="text-base sm:text-xl font-saira font-semibold capitalize mb-0.5 sm:mb-1" style={{ color: 'var(--txt-hi)' }}>{muscleGroup}</h3>
                         <div className="flex items-center space-x-2">
                           <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--red)' }} />
                           <p className="text-mid text-sm">
@@ -333,7 +333,7 @@ export const IndependentMuscleGroupCharts: React.FC<IndependentMuscleGroupCharts
                   </div>
 
                   {/* Chart */}
-                  <div className="h-40 sm:h-48 mb-4 -mx-1">
+                  <div className="h-28 sm:h-48 mb-3 sm:mb-4 -mx-1">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart
                         data={seriesData}

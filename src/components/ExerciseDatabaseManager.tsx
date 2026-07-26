@@ -238,37 +238,40 @@ export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = (
   );
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-[100dvh]" style={{ background: 'var(--bg)' }}>
       {/* Header */}
       <div className="backdrop-blur-xl sticky top-0 z-50" style={{ background: 'rgba(16,18,24,.92)', borderBottom: '1px solid var(--hair)' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
               <button
                 onClick={onBack}
-                className="p-2 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white transition-all duration-200"
+                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: 'var(--surface-2)', color: 'var(--txt-mid)' }}
               >
                 <X className="w-5 h-5" />
               </button>
-              <div>
-                <h1 className="text-2xl font-bold text-white">Exercise Database</h1>
-                <p className="text-slate-400 text-sm">Manage your exercise library with {exercisesList.length} exercises</p>
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-xl font-bold truncate" style={{ color: 'var(--txt-hi)' }}>Exercise Database</h1>
+                <p className="text-[11px] sm:text-sm truncate" style={{ color: 'var(--txt-lo)' }}>{exercisesList.length} exercises</p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                className="p-2 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white transition-all duration-200"
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: 'var(--surface-2)', color: 'var(--txt-mid)' }}
               >
-                {viewMode === 'grid' ? <List className="w-5 h-5" /> : <Grid3X3 className="w-5 h-5" />}
+                {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid3X3 className="w-4 h-4" />}
               </button>
               <button
                 onClick={() => setShowAddModal(true)}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-red-500/25"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold"
+                style={{ background: 'var(--grad-red)', minHeight: 40 }}
               >
                 <Plus className="w-4 h-4" />
-                <span>Add Exercise</span>
+                <span className="hidden xs:inline sm:inline">Add</span>
               </button>
             </div>
           </div>
@@ -334,11 +337,11 @@ export const ExerciseDatabaseManager: React.FC<ExerciseDatabaseManagerProps> = (
               <p className="text-slate-400">Try adjusting your filters or add a new exercise</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
               {filteredExercises.map(exercise => (
                 <div
                   key={exercise.id}
-                  className="p-6 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800/70 transition-all duration-200"
+                  className="p-3 sm:p-6 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800/70 transition-all duration-200"
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div>

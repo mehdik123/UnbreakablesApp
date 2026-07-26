@@ -514,7 +514,6 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'nut.showMacros': 'Show daily macros',
     'nut.hideMacros': 'Hide daily macros',
     'nut.macrosTitle': 'Daily macros',
-    'nut.macrosTitle': 'Daily macros',
     'nut.dailyTargetOnly': 'Your daily calorie target from Mehdi',
     'login.welcome': 'Welcome back',
     'login.subtitle': 'Access your training program',

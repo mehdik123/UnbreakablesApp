@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Download, Calendar, ArrowLeft, ArrowRight, Grid, List, X, ChevronLeft, ChevronRight, GitCompare, Camera } from 'lucide-react';
+import { Eye, Download, Calendar, Grid, List, X, ChevronLeft, ChevronRight, GitCompare, Camera } from 'lucide-react';
 import { WeeklyPhoto } from '../lib/db';
 
 interface WeeklyPhotoGalleryProps {
@@ -10,7 +10,6 @@ interface WeeklyPhotoGalleryProps {
 
 const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
   photos,
-  onPhotosUpdate,
   isCoachView = false
 }) => {
   const [selectedWeek, setSelectedWeek] = useState<number | null>(null);
@@ -21,21 +20,16 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
   const [compareWeek2, setCompareWeek2] = useState<number | null>(null);
   const [compareType, setCompareType] = useState<'front' | 'side' | 'back'>('front');
 
-  // Helper function to get image URL (handles both database and component formats)
   const getImageUrl = (photo: WeeklyPhoto) => photo.imageUrl || photo.image_url;
-  
-  // Helper function to get uploaded date (handles both database and component formats)
+
   const getUploadedDate = (photo: WeeklyPhoto) => {
     if (photo.uploadedAt) return photo.uploadedAt;
     if (photo.uploaded_at) return new Date(photo.uploaded_at);
     return new Date();
   };
 
-  // Group photos by week
   const photosByWeek = photos.reduce((acc, photo) => {
-    if (!acc[photo.week]) {
-      acc[photo.week] = [];
-    }
+    if (!acc[photo.week]) acc[photo.week] = [];
     acc[photo.week].push(photo);
     return acc;
   }, {} as Record<number, WeeklyPhoto[]>);
@@ -43,20 +37,11 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
   const weeks = Object.keys(photosByWeek).map(Number).sort((a, b) => b - a);
   const currentWeekPhotos = selectedWeek ? photosByWeek[selectedWeek] || [] : [];
 
-  const getPhotoTypeIcon = (type: 'front' | 'side' | 'back') => {
-    switch (type) {
-      case 'front': return '👤';
-      case 'side': return '↔️';
-      case 'back': return '🔙';
-      default: return '📸';
-    }
-  };
-
   const getPhotoTypeLabel = (type: 'front' | 'side' | 'back') => {
     switch (type) {
-      case 'front': return 'Front View';
-      case 'side': return 'Side View';
-      case 'back': return 'Back View';
+      case 'front': return 'Front';
+      case 'side': return 'Side';
+      case 'back': return 'Back';
       default: return 'Photo';
     }
   };
@@ -69,16 +54,13 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
 
   const navigatePreview = (direction: 'prev' | 'next') => {
     if (!previewPhoto) return;
-    
     const weekPhotos = photosByWeek[previewPhoto.week] || [];
     let newIndex = currentPhotoIndex;
-    
     if (direction === 'prev') {
       newIndex = currentPhotoIndex > 0 ? currentPhotoIndex - 1 : weekPhotos.length - 1;
     } else {
       newIndex = currentPhotoIndex < weekPhotos.length - 1 ? currentPhotoIndex + 1 : 0;
     }
-    
     setCurrentPhotoIndex(newIndex);
     setPreviewPhoto(weekPhotos[newIndex]);
   };
@@ -92,17 +74,12 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
     document.body.removeChild(link);
   };
 
-  // Get photo for specific week and type
-  const getPhotoByWeekAndType = (week: number, type: 'front' | 'side' | 'back') => {
-    return photos.find(p => p.week === week && p.type === type);
-  };
+  const getPhotoByWeekAndType = (week: number, type: 'front' | 'side' | 'back') =>
+    photos.find(p => p.week === week && p.type === type);
 
-  // Get weeks that have photos of the selected type
-  const getWeeksWithPhotoType = (type: 'front' | 'side' | 'back') => {
-    return weeks.filter(week => photosByWeek[week].some(p => p.type === type));
-  };
+  const getWeeksWithPhotoType = (type: 'front' | 'side' | 'back') =>
+    weeks.filter(week => photosByWeek[week].some(p => p.type === type));
 
-  // Initialize comparison weeks when entering compare mode
   const enterCompareMode = () => {
     setViewMode('compare');
     const weeksWithFront = getWeeksWithPhotoType('front');
@@ -117,24 +94,68 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
     }
   };
 
+  const PhotoTile: React.FC<{ photo: WeeklyPhoto; compact?: boolean }> = ({ photo, compact }) => (
+    <div className="relative rounded-xl overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+      <button
+        type="button"
+        onClick={() => openPreview(photo)}
+        className={`block w-full ${compact ? 'aspect-square' : 'aspect-[3/4]'} overflow-hidden`}
+      >
+        <img
+          src={getImageUrl(photo)}
+          alt={`${photo.type} - Week ${photo.week}`}
+          className="w-full h-full object-cover"
+        />
+      </button>
+      <div className="absolute top-1.5 right-1.5 flex gap-1">
+        <button
+          type="button"
+          onClick={() => openPreview(photo)}
+          className="w-8 h-8 rounded-lg flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,.55)', color: '#fff' }}
+          aria-label="Preview"
+        >
+          <Eye className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => downloadPhoto(photo)}
+          className="w-8 h-8 rounded-lg flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,.55)', color: '#fff' }}
+          aria-label="Download"
+        >
+          <Download className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      <div className="px-2 py-1.5 flex items-center justify-between gap-1">
+        <span className="text-[11px] font-semibold truncate" style={{ color: 'var(--txt-hi)' }}>
+          {getPhotoTypeLabel(photo.type)}
+        </span>
+        <span className="text-[10px] shrink-0" style={{ color: 'var(--txt-lo)' }}>
+          W{photo.week}
+        </span>
+      </div>
+    </div>
+  );
+
   if (photos.length === 0) {
     return (
-      <div className="px-3 sm:px-4 py-10">
+      <div className="px-1 py-8">
         <div
-          className="rounded-[20px] p-8 text-center max-w-sm mx-auto"
+          className="rounded-2xl p-5 text-center max-w-sm mx-auto"
           style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
         >
           <div
-            className="w-20 h-20 mx-auto mb-5 rounded-2xl flex items-center justify-center"
+            className="w-12 h-12 mx-auto mb-3 rounded-xl flex items-center justify-center"
             style={{ background: 'rgba(91,140,255,.12)' }}
           >
-            <Calendar className="w-10 h-10" style={{ color: 'var(--blue)' }} />
+            <Calendar className="w-6 h-6" style={{ color: 'var(--blue)' }} />
           </div>
-          <h3 className="font-display text-xl font-semibold mb-2" style={{ color: 'var(--txt-hi)' }}>No photos yet</h3>
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--txt-mid)' }}>
+          <h3 className="font-display text-base font-semibold mb-1" style={{ color: 'var(--txt-hi)' }}>No photos yet</h3>
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--txt-mid)' }}>
             {isCoachView
               ? "Your client hasn't uploaded any progress photos yet."
-              : 'Snap your first progress photo to start tracking your transformation week by week.'}
+              : 'Snap your first progress photo to start tracking.'}
           </p>
         </div>
       </div>
@@ -142,433 +163,256 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 sm:p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
-              📸 Progress Gallery
-            </h1>
-            <p className="text-slate-400 text-sm sm:text-base">
-              {isCoachView ? 'Client\'s weekly progress photos' : 'Your transformation journey'}
-            </p>
-          </div>
-          
-          <div className="flex items-center space-x-3 mt-4 sm:mt-0">
-            <div className="flex bg-slate-800 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === 'grid' ? 'bg-red-500 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-                title="Grid View"
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === 'list' ? 'bg-red-500 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-                title="List View"
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => enterCompareMode()}
-                className={`p-2 rounded-md transition-colors ${
-                  viewMode === 'compare' ? 'bg-red-500 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-                title="Compare Photos"
-              >
-                <GitCompare className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="text-base sm:text-lg font-bold font-display truncate" style={{ color: 'var(--txt-hi)' }}>
+            Progress photos
+          </h2>
+          <p className="text-[11px] sm:text-xs" style={{ color: 'var(--txt-mid)' }}>
+            {isCoachView ? 'Client weekly photos' : 'Your transformation'}
+          </p>
         </div>
-
-        {/* Week Selector */}
-        <div className="mb-8">
-          <div className="flex flex-wrap gap-2">
+        <div
+          className="flex rounded-lg p-0.5 shrink-0"
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+        >
+          {([
+            { id: 'grid' as const, Icon: Grid, fn: () => setViewMode('grid') },
+            { id: 'list' as const, Icon: List, fn: () => setViewMode('list') },
+            { id: 'compare' as const, Icon: GitCompare, fn: enterCompareMode },
+          ]).map(({ id, Icon, fn }) => (
             <button
-              onClick={() => setSelectedWeek(null)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                selectedWeek === null
-                  ? 'bg-red-500 text-white'
-                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-              }`}
+              key={id}
+              type="button"
+              onClick={fn}
+              className="w-9 h-9 rounded-md flex items-center justify-center"
+              style={{
+                background: viewMode === id ? 'var(--red)' : 'transparent',
+                color: viewMode === id ? '#fff' : 'var(--txt-mid)',
+              }}
+              aria-label={id}
             >
-              All Weeks ({photos.length})
+              <Icon className="w-3.5 h-3.5" />
             </button>
-            {weeks.map((week) => (
-              <button
-                key={week}
-                onClick={() => setSelectedWeek(week)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  selectedWeek === week
-                    ? 'bg-red-500 text-white'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                Week {week} ({photosByWeek[week].length})
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
+      </div>
 
-        {/* Comparison Mode - Mobile Optimized */}
-        {viewMode === 'compare' ? (
-          <div className="space-y-3 sm:space-y-4">
-            {/* Photo Type Selector - Mobile Optimized */}
-            <div className="flex justify-center space-x-1 sm:space-x-2">
-              {(['front', 'side', 'back'] as const).map((type) => {
-                const weeksWithType = getWeeksWithPhotoType(type);
-                const hasEnoughPhotos = weeksWithType.length >= 1;
-                return (
-                  <button
-                    key={type}
-                    onClick={() => {
-                      setCompareType(type);
-                      const weeksWithThisType = getWeeksWithPhotoType(type);
-                      if (weeksWithThisType.length >= 2) {
-                        setCompareWeek1(weeksWithThisType[0]);
-                        setCompareWeek2(weeksWithThisType[1]);
-                      } else if (weeksWithThisType.length === 1) {
-                        setCompareWeek1(weeksWithThisType[0]);
-                        setCompareWeek2(null);
-                      }
-                    }}
-                    disabled={!hasEnoughPhotos}
-                    className={`px-3 sm:px-6 py-2 sm:py-3 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-                      compareType === type
-                        ? 'bg-red-500 text-white'
-                        : hasEnoughPhotos
-                        ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                        : 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
-                    }`}
-                  >
-                    <span className="hidden sm:inline">{getPhotoTypeIcon(type)} {getPhotoTypeLabel(type)}</span>
-                    <span className="sm:hidden">{getPhotoTypeIcon(type)}</span>
-                    <span className="ml-1 text-xs">({weeksWithType.length})</span>
-                  </button>
-                );
-              })}
-            </div>
+      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-0.5 px-0.5" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <button
+          type="button"
+          onClick={() => setSelectedWeek(null)}
+          className="shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold"
+          style={{
+            background: selectedWeek === null ? 'var(--red)' : 'var(--surface-2)',
+            color: selectedWeek === null ? '#fff' : 'var(--txt-mid)',
+            border: '1px solid var(--hair)',
+            minHeight: 36,
+          }}
+        >
+          All ({photos.length})
+        </button>
+        {weeks.map((week) => (
+          <button
+            key={week}
+            type="button"
+            onClick={() => setSelectedWeek(week)}
+            className="shrink-0 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold"
+            style={{
+              background: selectedWeek === week ? 'var(--red)' : 'var(--surface-2)',
+              color: selectedWeek === week ? '#fff' : 'var(--txt-mid)',
+              border: '1px solid var(--hair)',
+              minHeight: 36,
+            }}
+          >
+            W{week} ({photosByWeek[week].length})
+          </button>
+        ))}
+      </div>
 
-            {/* Week Selectors - Mobile Optimized */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-4">
-              {/* Week 1 Selector */}
-              <div className="space-y-1 sm:space-y-2">
-                <label className="block text-white font-medium text-center text-xs sm:text-sm">First Week</label>
-                <select
-                  value={compareWeek1 || ''}
-                  onChange={(e) => setCompareWeek1(Number(e.target.value))}
-                  className="w-full bg-slate-800 text-white rounded-lg px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm border border-slate-700 focus:border-red-500 focus:outline-none"
+      {viewMode === 'compare' ? (
+        <div className="space-y-2.5">
+          <div className="flex gap-1 justify-center">
+            {(['front', 'side', 'back'] as const).map((type) => {
+              const weeksWithType = getWeeksWithPhotoType(type);
+              return (
+                <button
+                  key={type}
+                  type="button"
+                  disabled={weeksWithType.length < 1}
+                  onClick={() => {
+                    setCompareType(type);
+                    const list = getWeeksWithPhotoType(type);
+                    setCompareWeek1(list[0] ?? null);
+                    setCompareWeek2(list[1] ?? null);
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-semibold capitalize disabled:opacity-40"
+                  style={{
+                    background: compareType === type ? 'var(--red)' : 'var(--surface-2)',
+                    color: compareType === type ? '#fff' : 'var(--txt-mid)',
+                    border: '1px solid var(--hair)',
+                    minHeight: 36,
+                  }}
                 >
-                  <option value="">Select</option>
-                  {getWeeksWithPhotoType(compareType).map((week) => (
-                    <option key={week} value={week}>
-                      Week {week}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  {type} ({weeksWithType.length})
+                </button>
+              );
+            })}
+          </div>
 
-              {/* Week 2 Selector */}
-              <div className="space-y-1 sm:space-y-2">
-                <label className="block text-white font-medium text-center text-xs sm:text-sm">Second Week</label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: 'First', value: compareWeek1, set: setCompareWeek1 },
+              { label: 'Second', value: compareWeek2, set: setCompareWeek2 },
+            ].map((sel) => (
+              <label key={sel.label} className="block">
+                <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: 'var(--txt-lo)' }}>
+                  {sel.label}
+                </span>
                 <select
-                  value={compareWeek2 || ''}
-                  onChange={(e) => setCompareWeek2(Number(e.target.value))}
-                  className="w-full bg-slate-800 text-white rounded-lg px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm border border-slate-700 focus:border-red-500 focus:outline-none"
+                  value={sel.value || ''}
+                  onChange={(e) => sel.set(Number(e.target.value) || null)}
+                  className="w-full mt-1 rounded-lg px-2 py-2 text-xs outline-none"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)', fontSize: 16 }}
                 >
                   <option value="">Select</option>
                   {getWeeksWithPhotoType(compareType)
-                    .filter(w => w !== compareWeek1)
+                    .filter((w) => sel.label === 'First' || w !== compareWeek1)
                     .map((week) => (
-                      <option key={week} value={week}>
-                        Week {week}
-                      </option>
+                      <option key={week} value={week}>Week {week}</option>
                     ))}
                 </select>
-              </div>
-            </div>
-
-            {/* Comparison Display - Mobile Optimized */}
-            {compareWeek1 && compareWeek2 ? (
-              <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                {[compareWeek1, compareWeek2].map((week) => {
-                  const photo = getPhotoByWeekAndType(week, compareType);
-                  return (
-                    <div key={week} className="space-y-2">
-                      <div className="text-center">
-                        <h3 className="text-base sm:text-xl font-bold text-white">Week {week}</h3>
-                        {photo && (
-                          <p className="text-slate-400 text-xs sm:text-sm">
-                            {getUploadedDate(photo).toLocaleDateString()}
-                          </p>
-                        )}
-                      </div>
-                      {photo ? (
-                        <div className="relative group">
-                          <div className="aspect-[3/4] rounded-lg sm:rounded-xl overflow-hidden bg-slate-700 border-2 sm:border-4 border-slate-700">
-                            <img
-                              src={getImageUrl(photo)}
-                              alt={`Week ${week} - ${compareType}`}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => downloadPhoto(photo)}
-                              className="p-1.5 sm:p-2 bg-blue-500/80 backdrop-blur-sm rounded-md sm:rounded-lg text-white hover:bg-blue-600/80 transition-colors"
-                            >
-                              <Download className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="aspect-[3/4] rounded-lg sm:rounded-xl bg-slate-800 border-2 border-dashed border-slate-600 flex items-center justify-center">
-                          <div className="text-center text-slate-400">
-                            <Camera className="w-6 h-6 sm:w-8 sm:h-8 mx-auto mb-1" />
-                            <p className="text-xs sm:text-sm">No photo</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : compareWeek1 && !compareWeek2 ? (
-              <div className="text-center py-8 sm:py-12">
-                <Calendar className="w-10 h-10 sm:w-16 sm:h-16 mx-auto mb-2 sm:mb-4 text-slate-400" />
-                <h3 className="text-base sm:text-xl font-bold text-white mb-1 sm:mb-2">Select Second Week</h3>
-                <p className="text-xs sm:text-sm text-slate-400">
-                  Choose another week to compare with Week {compareWeek1}
-                </p>
-              </div>
-            ) : (
-              <div className="text-center py-8 sm:py-12">
-                <Calendar className="w-10 h-10 sm:w-16 sm:h-16 mx-auto mb-2 sm:mb-4 text-slate-400" />
-                <h3 className="text-base sm:text-xl font-bold text-white mb-1 sm:mb-2">No Photos Available</h3>
-                <p className="text-xs sm:text-sm text-slate-400">
-                  Upload photos for at least 2 weeks to use comparison
-                </p>
-              </div>
-            )}
-          </div>
-        ) : selectedWeek ? (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-white">Week {selectedWeek}</h2>
-              <div className="text-slate-400 text-sm">
-                {currentWeekPhotos.length} photo{currentWeekPhotos.length !== 1 ? 's' : ''}
-              </div>
-            </div>
-
-            {viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {currentWeekPhotos.map((photo) => (
-                  <div key={photo.id} className="group relative">
-                    <div className="aspect-[3/4] rounded-2xl overflow-hidden bg-slate-700">
-                      <img
-                        src={getImageUrl(photo)}
-                        alt={`${photo.type} - Week ${photo.week}`}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      />
-                    </div>
-                    
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-2xl flex items-center justify-center">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => openPreview(photo)}
-                          className="p-3 bg-white/20 backdrop-blur-sm rounded-lg text-white hover:bg-white/30 transition-colors"
-                          title="Preview"
-                        >
-                          <Eye className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => downloadPhoto(photo)}
-                          className="p-3 bg-blue-500/80 backdrop-blur-sm rounded-lg text-white hover:bg-blue-600/80 transition-colors"
-                          title="Download"
-                        >
-                          <Download className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 text-center">
-                      <div className="flex items-center justify-center space-x-2 mb-1">
-                        <span className="text-lg">{getPhotoTypeIcon(photo.type)}</span>
-                        <span className="text-white font-medium text-sm">
-                          {getPhotoTypeLabel(photo.type)}
-                        </span>
-                      </div>
-                      <p className="text-slate-400 text-xs">
-                        {getUploadedDate(photo).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {currentWeekPhotos.map((photo) => (
-                  <div key={photo.id} className="flex items-center space-x-4 bg-slate-800/50 backdrop-blur-sm rounded-2xl p-4 hover:bg-slate-800/70 transition-colors">
-                    <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-700 flex-shrink-0">
-                      <img
-                        src={getImageUrl(photo)}
-                        alt={`${photo.type} - Week ${photo.week}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <span className="text-lg">{getPhotoTypeIcon(photo.type)}</span>
-                        <span className="text-white font-medium">
-                          {getPhotoTypeLabel(photo.type)}
-                        </span>
-                      </div>
-                      <p className="text-slate-400 text-sm">
-                        Week {photo.week} • {getUploadedDate(photo).toLocaleDateString()}
-                      </p>
-                    </div>
-
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => openPreview(photo)}
-                        className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors"
-                        title="Preview"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => downloadPhoto(photo)}
-                        className="p-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-white transition-colors"
-                        title="Download"
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {weeks.map((week) => (
-              <div key={week} className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white">Week {week}</h2>
-                  <div className="text-slate-400 text-sm">
-                    {photosByWeek[week].length} photo{photosByWeek[week].length !== 1 ? 's' : ''}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {photosByWeek[week].map((photo) => (
-                    <div key={photo.id} className="group relative">
-                      <div className="aspect-[3/4] rounded-xl overflow-hidden bg-slate-700">
-                        <img
-                          src={getImageUrl(photo)}
-                          alt={`${photo.type} - Week ${photo.week}`}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                        />
-                      </div>
-                      
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl flex items-center justify-center">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => openPreview(photo)}
-                            className="p-2 bg-white/20 backdrop-blur-sm rounded-lg text-white hover:bg-white/30 transition-colors"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => downloadPhoto(photo)}
-                            className="p-2 bg-blue-500/80 backdrop-blur-sm rounded-lg text-white hover:bg-blue-600/80 transition-colors"
-                          >
-                            <Download className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="mt-2 text-center">
-                        <div className="flex items-center justify-center space-x-1">
-                          <span className="text-sm">{getPhotoTypeIcon(photo.type)}</span>
-                          <span className="text-white text-xs font-medium">
-                            {getPhotoTypeLabel(photo.type)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              </label>
             ))}
           </div>
-        )}
 
-        {/* Photo Preview Modal */}
-        {previewPhoto && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="relative max-w-4xl w-full max-h-[90vh]">
-              <button
-                onClick={() => setPreviewPhoto(null)}
-                className="absolute top-4 right-4 z-10 p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-              
-              <div className="flex items-center justify-between mb-4">
-                <button
-                  onClick={() => navigatePreview('prev')}
-                  className="p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
-                >
-                  <ChevronLeft className="w-6 h-6" />
-                </button>
-                <button
-                  onClick={() => navigatePreview('next')}
-                  className="p-2 bg-black/50 backdrop-blur-sm rounded-full text-white hover:bg-black/70 transition-colors"
-                >
-                  <ChevronRight className="w-6 h-6" />
-                </button>
-              </div>
-
-              <div className="bg-slate-800 rounded-2xl overflow-hidden">
-                <div className="aspect-[3/4] sm:aspect-square">
-                  <img
-                    src={getImageUrl(previewPhoto)}
-                    alt={`${previewPhoto.type} - Week ${previewPhoto.week}`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-white font-semibold text-lg mb-1">
-                        {getPhotoTypeIcon(previewPhoto.type)} {getPhotoTypeLabel(previewPhoto.type)}
-                      </h3>
-                      <p className="text-slate-400 text-sm">
-                        Week {previewPhoto.week} • {getUploadedDate(previewPhoto).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => downloadPhoto(previewPhoto)}
-                      className="p-3 bg-blue-500 hover:bg-blue-600 rounded-lg text-white transition-colors"
-                    >
-                      <Download className="w-5 h-5" />
-                    </button>
+          {compareWeek1 && compareWeek2 ? (
+            <div className="grid grid-cols-2 gap-2">
+              {[compareWeek1, compareWeek2].map((week) => {
+                const photo = getPhotoByWeekAndType(week, compareType);
+                return (
+                  <div key={week} className="space-y-1">
+                    <div className="text-center text-xs font-semibold" style={{ color: 'var(--txt-hi)' }}>Week {week}</div>
+                    {photo ? (
+                      <PhotoTile photo={photo} compact />
+                    ) : (
+                      <div
+                        className="aspect-square rounded-xl flex flex-col items-center justify-center gap-1"
+                        style={{ background: 'var(--surface-2)', border: '1px dashed var(--hair-strong)' }}
+                      >
+                        <Camera className="w-5 h-5" style={{ color: 'var(--txt-lo)' }} />
+                        <span className="text-[10px]" style={{ color: 'var(--txt-lo)' }}>No photo</span>
+                      </div>
+                    )}
                   </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <Calendar className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--txt-lo)' }} />
+              <p className="text-xs" style={{ color: 'var(--txt-mid)' }}>
+                Pick two weeks to compare
+              </p>
+            </div>
+          )}
+        </div>
+      ) : selectedWeek ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--txt-hi)' }}>Week {selectedWeek}</h3>
+            <span className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>{currentWeekPhotos.length} photos</span>
+          </div>
+          {viewMode === 'list' ? (
+            <div className="space-y-2">
+              {currentWeekPhotos.map((photo) => (
+                <div
+                  key={photo.id}
+                  className="flex items-center gap-2.5 rounded-xl p-2"
+                  style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+                >
+                  <button type="button" onClick={() => openPreview(photo)} className="w-14 h-14 rounded-lg overflow-hidden shrink-0">
+                    <img src={getImageUrl(photo)} alt="" className="w-full h-full object-cover" />
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold" style={{ color: 'var(--txt-hi)' }}>{getPhotoTypeLabel(photo.type)}</div>
+                    <div className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>{getUploadedDate(photo).toLocaleDateString()}</div>
+                  </div>
+                  <button type="button" onClick={() => downloadPhoto(photo)} className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
+                    <Download className="w-3.5 h-3.5" style={{ color: 'var(--txt-mid)' }} />
+                  </button>
                 </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              {currentWeekPhotos.map((photo) => (
+                <PhotoTile key={photo.id} photo={photo} compact />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {weeks.map((week) => (
+            <div key={week} className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold" style={{ color: 'var(--txt-hi)' }}>Week {week}</h3>
+                <span className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>{photosByWeek[week].length}</span>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                {photosByWeek[week].map((photo) => (
+                  <PhotoTile key={photo.id} photo={photo} compact />
+                ))}
               </div>
             </div>
+          ))}
+        </div>
+      )}
+
+      {previewPhoto && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/90 p-0 sm:p-4">
+          <div
+            className="relative w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden"
+            style={{ background: 'var(--surface-1)', maxHeight: '92dvh' }}
+          >
+            <div className="flex items-center justify-between p-3" style={{ borderBottom: '1px solid var(--hair)' }}>
+              <button type="button" onClick={() => navigatePreview('prev')} className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
+                <ChevronLeft className="w-5 h-5" style={{ color: 'var(--txt-hi)' }} />
+              </button>
+              <div className="text-center min-w-0">
+                <div className="text-sm font-semibold truncate" style={{ color: 'var(--txt-hi)' }}>
+                  {getPhotoTypeLabel(previewPhoto.type)} · W{previewPhoto.week}
+                </div>
+                <div className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>
+                  {getUploadedDate(previewPhoto).toLocaleDateString()}
+                </div>
+              </div>
+              <button type="button" onClick={() => setPreviewPhoto(null)} className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--surface-2)' }} aria-label="Close">
+                <X className="w-5 h-5" style={{ color: 'var(--txt-hi)' }} />
+              </button>
+            </div>
+            <div className="aspect-[3/4] max-h-[70dvh] bg-black">
+              <img src={getImageUrl(previewPhoto)} alt="" className="w-full h-full object-contain" />
+            </div>
+            <div className="p-3 flex justify-center" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
+              <button
+                type="button"
+                onClick={() => downloadPhoto(previewPhoto)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
+                style={{ background: 'var(--grad-red)', minHeight: 44 }}
+              >
+                <Download className="w-4 h-4" />
+                Download
+              </button>
+            </div>
+            <button type="button" onClick={() => navigatePreview('next')} className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center sm:hidden" style={{ background: 'rgba(0,0,0,.45)' }}>
+              <ChevronRight className="w-5 h-5 text-white" />
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

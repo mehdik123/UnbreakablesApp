@@ -318,13 +318,16 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                     alt={`${label} view`}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" style={{ background: 'rgba(8,9,13,.55)' }}>
+                  <div
+                    className="absolute top-1.5 right-1.5 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                  >
                     <button
                       onClick={() => removePhoto(photo.id)}
-                      className="text-white rounded-xl p-2 transition-transform active:scale-90"
-                      style={{ background: 'var(--grad-red)', boxShadow: '0 8px 20px -8px rgba(255,45,85,.6)' }}
+                      className="text-white rounded-lg p-2 transition-transform active:scale-90"
+                      style={{ background: 'var(--grad-red)', boxShadow: '0 8px 20px -8px rgba(255,45,85,.6)', minWidth: 36, minHeight: 36 }}
+                      aria-label="Delete photo"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/85 to-transparent">

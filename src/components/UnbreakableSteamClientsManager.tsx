@@ -548,8 +548,8 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6">
             <div className="mb-3 sm:mb-0">
-              <h2 className="text-2xl sm:text-3xl font-bold font-saira italic text-white">Clients</h2>
-              <p className="text-slate-400 text-sm sm:text-base">Open a client to edit nutrition and workouts</p>
+              <h2 className="text-lg sm:text-2xl font-bold font-saira italic" style={{ color: 'var(--txt-hi)' }}>Clients</h2>
+              <p className="text-xs sm:text-sm" style={{ color: 'var(--txt-mid)' }}>Open a client to edit nutrition and workouts</p>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-3">
               <button
@@ -601,9 +601,10 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
             </div>
           )}
 
-          {/* Clients Table/Grid */}
+          {/* Clients Table/Grid — table is laptop-only; phone always uses compact cards */}
           {viewMode === 'list' ? (
-            <div className="bg-[var(--surface-1)] backdrop-blur-sm rounded-2xl border border-[color:var(--hair)] overflow-visible">
+            <>
+            <div className="hidden sm:block bg-[var(--surface-1)] backdrop-blur-sm rounded-2xl border border-[color:var(--hair)] overflow-visible">
               <div className="overflow-x-auto rounded-2xl">
                 <table className="w-full min-w-[760px]">
                   <thead style={{ background: 'var(--surface-2)' }}>
@@ -718,8 +719,61 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                 </table>
               </div>
             </div>
+            {/* Phone: list mode uses the same compact cards (wide table is laptop-only) */}
+            <div className="sm:hidden grid grid-cols-1 gap-2.5">
+              {filteredClients.map((client) => (
+                <div
+                  key={`m-${client.id}`}
+                  onClick={selectionMode ? () => toggleClientSelected(client.id) : () => onNavigateToClientPlan(client)}
+                  className={`flex items-center gap-3 rounded-xl p-3 border ${
+                    selectedIds.has(client.id)
+                      ? 'border-red-500/60 ring-1 ring-red-500/40'
+                      : 'border-[color:var(--hair)]'
+                  }`}
+                  style={{ background: 'var(--surface-1)', minHeight: 56 }}
+                >
+                  {selectionMode && (
+                    <span className="shrink-0">
+                      {selectedIds.has(client.id) ? (
+                        <CheckSquare className="w-5 h-5 text-red-400" />
+                      ) : (
+                        <Square className="w-5 h-5 text-slate-500" />
+                      )}
+                    </span>
+                  )}
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0"
+                    style={{ background: 'var(--grad-red)' }}
+                  >
+                    {client.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold truncate" style={{ color: 'var(--txt-hi)' }}>{client.name}</div>
+                    <div className="text-[11px] truncate" style={{ color: 'var(--txt-lo)' }}>
+                      {client.isActive ? 'Active' : 'Inactive'}
+                      {client.email ? ` · ${client.email}` : ''}
+                    </div>
+                  </div>
+                  {!selectionMode && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDropdownClick(e, client.id);
+                      }}
+                      className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ background: 'var(--red)', color: '#fff' }}
+                      aria-label="More options"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            </>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
               {filteredClients.map((client) => (
                 <div
                   key={client.id}
@@ -818,18 +872,21 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
           )}
 
           {filteredClients.length === 0 && (
-            <div className="text-center py-20">
-              <div className="w-32 h-32 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-8">
-                <Users className="w-16 h-16 text-slate-400" />
+            <div className="text-center py-10 sm:py-16 px-4">
+              <div
+                className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+              >
+                <Users className="w-7 h-7 sm:w-10 sm:h-10" style={{ color: 'var(--txt-lo)' }} />
               </div>
-              <h3 className="text-3xl font-bold text-white mb-4">No clients found</h3>
-              <p className="text-slate-400 text-lg mb-8">Start by adding your first client to get started</p>
+              <h3 className="text-base sm:text-xl font-bold mb-1" style={{ color: 'var(--txt-hi)' }}>No clients found</h3>
+              <p className="text-xs sm:text-sm mb-5" style={{ color: 'var(--txt-mid)' }}>Add your first client to get started</p>
               <button
                 onClick={() => setShowAddModal(true)}
-                className="inline-flex items-center space-x-3 px-8 py-4 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold transition-all duration-300 hover:scale-105 shadow-lg"
+                className="coach-hub-btn coach-hub-btn-primary inline-flex mx-auto"
               >
-                <Plus className="w-6 h-6" />
-                <span>Add Your First Client</span>
+                <Plus className="w-4 h-4" />
+                <span>Add Client</span>
               </button>
             </div>
           )}

@@ -326,16 +326,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
             />
           </div>
         ) : activeTab === 'photos' ? (
-          <div className="bg-[var(--surface-1)] rounded-xl shadow-soft border border-[color:var(--hair)] p-4 sm:p-6 lg:p-8">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold font-display text-[color:var(--txt-hi)] mb-2 flex items-center">
-                <Camera className="w-6 h-6 mr-3 text-[color:var(--red)]" />
-                Client Progress Photos
-              </h2>
-              <p className="text-[color:var(--txt-lo)]">
-                View {client.name}'s weekly progress photos
-              </p>
-            </div>
+          <div className="bg-[var(--surface-1)] rounded-xl shadow-soft border border-[color:var(--hair)] p-3 sm:p-5">
             <WeeklyPhotoGallery
               photos={weeklyPhotos}
               onPhotosUpdate={setWeeklyPhotos}
