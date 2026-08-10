@@ -6,8 +6,8 @@ import { WorkoutWeek, WorkoutExercise, WorkoutSet } from '../types';
  * Computes next week's prescription from this week's actual performance.
  * Pure functions only: the coach reviews/edits the output before it is saved.
  *
- * Each set is read as REPS @ WEIGHT. Dropsets (array reps/weight) are not
- * covered by the spec and are passed through unchanged.
+ * Each set progresses independently (ramp-up / lighter first sets are preserved).
+ * Dropsets (array reps/weight) are passed through unchanged.
  */
 
 export type EquipmentType = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight';
@@ -86,45 +86,18 @@ function isPlainNumberSet(set: WorkoutSet): boolean {
   );
 }
 
-interface UnifiedTarget {
-  reps: number;
-  weight: number;
-  /** True when every set already had the same reps and weight. */
-  allIdentical: boolean;
-}
-
-/**
- * Step 1 — Unify the sets.
- * Pick the set with the heaviest weight (tie → more reps); apply to all.
- * This single rule covers every Step 1 case in the spec.
- */
-function unifySets(sets: WorkoutSet[]): UnifiedTarget {
-  let best = { reps: sets[0].reps as number, weight: sets[0].weight as number };
-  let allIdentical = true;
-
-  for (const set of sets) {
-    const reps = set.reps as number;
-    const weight = set.weight as number;
-    if (reps !== best.reps || weight !== best.weight) allIdentical = false;
-    if (
-      weight > best.weight ||
-      (weight === best.weight && reps > best.reps)
-    ) {
-      best = { reps, weight };
-    }
-  }
-
-  return { reps: best.reps, weight: best.weight, allIdentical };
-}
-
 interface Prescription {
   reps: number;
   weight: number;
 }
 
-/** Step 2 — compute next week's (reps, weight) for a unified exercise. */
-function computeProgression(
-  target: UnifiedTarget,
+/**
+ * Progress one set on its own values.
+ * Example: 6@10 → 8@10, 6@22.5 → 8@22.5 (does NOT flatten all sets to the heaviest).
+ */
+function computeSetProgression(
+  reps: number,
+  weight: number,
   exercise: WorkoutExercise
 ): Prescription {
   const name = exercise.exercise?.name;
@@ -132,43 +105,29 @@ function computeProgression(
 
   // Weighted-bodyweight moves always use the bodyweight cap (14), even once loaded.
   if (weightedBodyweight) {
-    const candidateReps = target.allIdentical ? target.reps + REP_INCREMENT : target.reps;
+    const candidateReps = reps + REP_INCREMENT;
     if (candidateReps >= BODYWEIGHT_REP_CAP) {
       return {
         reps: BODYWEIGHT_RESET_REPS,
-        weight: roundToHalf(target.weight + getWeightedBodyweightIncrement(name)),
+        weight: roundToHalf(weight + getWeightedBodyweightIncrement(name)),
       };
     }
-    return { reps: candidateReps, weight: target.weight };
+    return { reps: candidateReps, weight };
   }
 
   // Pure bodyweight (weight 0, not a weighted-bodyweight name) → reps only, forever.
-  if (target.weight === 0) {
-    const candidateReps = target.allIdentical ? target.reps + REP_INCREMENT : target.reps;
-    return { reps: candidateReps, weight: 0 };
+  if (weight === 0) {
+    return { reps: reps + REP_INCREMENT, weight: 0 };
   }
 
-  // Standard exercises (weight > 0).
-  if (target.reps < STANDARD_REP_CAP) {
-    return { reps: target.reps + REP_INCREMENT, weight: target.weight };
+  // Standard exercises (weight > 0): +2 reps until cap, then reset reps and add load.
+  if (reps < STANDARD_REP_CAP) {
+    return { reps: reps + REP_INCREMENT, weight };
   }
   return {
     reps: STANDARD_RESET_REPS,
-    weight: roundToHalf(target.weight + getStandardIncrement(exercise.exercise?.equipment)),
+    weight: roundToHalf(weight + getStandardIncrement(exercise.exercise?.equipment)),
   };
-}
-
-function applyPrescriptionToSets(
-  sets: WorkoutSet[],
-  prescription: Prescription
-): WorkoutSet[] {
-  return sets.map((set) => ({
-    ...set,
-    reps: prescription.reps,
-    weight: prescription.weight,
-    completed: false,
-    completedAt: undefined,
-  }));
 }
 
 /** Progress a single exercise. Returns a new exercise with updated sets. */
@@ -177,9 +136,22 @@ export function progressExercise(exercise: WorkoutExercise): WorkoutExercise {
   if (sets.length === 0) return exercise;
   if (!sets.every(isPlainNumberSet)) return exercise; // dropsets: leave unchanged
 
-  const target = unifySets(sets);
-  const prescription = computeProgression(target, exercise);
-  return { ...exercise, sets: applyPrescriptionToSets(sets, prescription) };
+  const newSets = sets.map((set) => {
+    const prescription = computeSetProgression(
+      set.reps as number,
+      set.weight as number,
+      exercise
+    );
+    return {
+      ...set,
+      reps: prescription.reps,
+      weight: prescription.weight,
+      completed: false,
+      completedAt: undefined,
+    };
+  });
+
+  return { ...exercise, sets: newSets };
 }
 
 /** Deload a single exercise. No progression: reduce/strip load, keep reps. */

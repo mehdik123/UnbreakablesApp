@@ -25,6 +25,7 @@ import {
 } from '../lib/offlineStore';
 import { ExerciseVideoEmbed } from './ExerciseVideoEmbed';
 import { getLatestDeployedWeekNumber } from '../utils/weekCreation';
+import { persistClientsLocally, safeLocalStorageSet } from '../utils/localStorageClients';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -952,21 +953,25 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         version: (sharedVersion || 0) + 1,
         lastModified: new Date().toISOString()
       };
-      localStorage.setItem(SHARED_KEY, JSON.stringify(sharedData));
+      safeLocalStorageSet(SHARED_KEY, JSON.stringify(sharedData));
       setSharedVersion(prev => prev + 1);
 
       patchClientOfflineSnapshot(client.id, {
         client: { ...client, workoutAssignment: updatedAssignment as any },
       });
 
-      // Update client in clients list
+      // Update client in clients list (offline cache only; skipped when Supabase is ready)
       const clientsRaw = localStorage.getItem('clients');
       if (clientsRaw) {
-        const clients = JSON.parse(clientsRaw);
-        const updated = Array.isArray(clients)
-          ? clients.map((c: any) => (c.id === client.id ? { ...c, workoutAssignment: updatedAssignment } : c))
-          : clients;
-        localStorage.setItem('clients', JSON.stringify(updated));
+        try {
+          const clients = JSON.parse(clientsRaw);
+          const updated = Array.isArray(clients)
+            ? clients.map((c: any) => (c.id === client.id ? { ...c, workoutAssignment: updatedAssignment } : c))
+            : clients;
+          persistClientsLocally(updated);
+        } catch {
+          /* ignore corrupt cache */
+        }
       }
 
       // Ensure the updated assignment has a valid program (with .days array) before updating state
@@ -1046,11 +1051,15 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       // Clean client entry in clients list
       const clientsRaw = localStorage.getItem('clients');
       if (clientsRaw) {
-        const clients = JSON.parse(clientsRaw);
-        const updated = Array.isArray(clients)
-          ? clients.map((c: any) => (c.id === client.id ? { ...c, workoutAssignment: null } : c))
-          : clients;
-        localStorage.setItem('clients', JSON.stringify(updated));
+        try {
+          const clients = JSON.parse(clientsRaw);
+          const updated = Array.isArray(clients)
+            ? clients.map((c: any) => (c.id === client.id ? { ...c, workoutAssignment: null } : c))
+            : clients;
+          persistClientsLocally(updated);
+        } catch {
+          /* ignore */
+        }
       }
       
       // Reload the page to refresh data

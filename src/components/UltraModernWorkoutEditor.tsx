@@ -482,8 +482,9 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     onSaveAssignment(assignment);
   };
 
-  // Simple week change handler
-  // Week change function that saves current week data before switching
+  // Week change: persist the week you leave, then load the target week.
+  // CRITICAL: always save the merged `updatedWeeks` array — never fall back to a
+  // stale selectedProgram.weeks / assignment.weeks copy (that was wiping deployed weeks).
   const handleWeekChange = async (newWeek: number) => {
     
     if (!client.workoutAssignment) {
@@ -491,8 +492,12 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     }
 
     try {
-      // STEP 1: Save current week's data before switching. Use latest weeks (e.g. from realtime) so we don't overwrite client edits.
-      const baseWeeks = (selectedProgram as any)?.weeks ?? client.workoutAssignment?.weeks ?? [];
+      // Prefer assignment weeks (source of truth). selectedProgram.weeks is often missing
+      // after a view switch because selectedProgram is rebuilt as { ...program, days }.
+      const baseWeeks =
+        client.workoutAssignment?.weeks ??
+        (selectedProgram as any)?.weeks ??
+        [];
       let updatedWeeks = Array.isArray(baseWeeks)
         ? baseWeeks.map((w: any) => ({
             ...w,
@@ -506,27 +511,23 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
           }))
         : [];
       
-      if (selectedProgram) {
-        
+      if (selectedProgram?.days?.length) {
         // Calculate current week volume before saving
         let currentWeekVolume = 0;
         selectedProgram.days.forEach(day => {
           day.exercises.forEach(exercise => {
             exercise.sets.forEach(set => {
               if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
-                // Dropset volume: sum of (reps[i] * weight[i]) for each round
                 for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
                   currentWeekVolume += (typeof set.reps[i] === 'number' ? set.reps[i] : 0) * (typeof set.weight[i] === 'number' ? set.weight[i] : 0);
                 }
               } else {
-                // Regular set volume
                 currentWeekVolume += (typeof set.reps === 'number' ? set.reps : 0) * (typeof set.weight === 'number' ? set.weight : 0);
               }
             });
           });
         });
         
-        // Create current week data from the current selectedProgram
         const currentWeekData = {
           weekNumber: currentWeek,
           isUnlocked: true,
@@ -536,80 +537,70 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
             ...day,
             exercises: day.exercises.map(exercise => ({
               ...exercise,
-              sets: exercise.sets.map(set => ({ ...set })) // Deep copy of sets
+              sets: exercise.sets.map(set => ({ ...set }))
             }))
           }))
         };
 
-        // Update or add current week data
-        updatedWeeks = updatedWeeks.filter(w => w.weekNumber !== currentWeek);
-        updatedWeeks.push(currentWeekData);
-        
-        
-        // Update the workout assignment with current week data
-        const updatedAssignment = {
-          ...client.workoutAssignment,
-          weeks: updatedWeeks,
-          lastModifiedBy: 'coach' as const,
-          lastModifiedAt: new Date()
-        };
-        
-        // Save current week data
-        onSaveAssignment(updatedAssignment);
+        // Keep metadata from the previous copy of this week (deployedAt, etc.)
+        const prevMeta = updatedWeeks.find((w: any) => w.weekNumber === currentWeek);
+        updatedWeeks = updatedWeeks.filter((w: any) => w.weekNumber !== currentWeek);
+        updatedWeeks.push({
+          ...currentWeekData,
+          isUnlocked: prevMeta?.isUnlocked ?? true,
+          isCompleted: prevMeta?.isCompleted ?? false,
+          deployedAt: prevMeta?.deployedAt,
+          startDate: prevMeta?.startDate,
+          progressionNotes: prevMeta?.progressionNotes,
+        });
+        updatedWeeks.sort((a: any, b: any) => a.weekNumber - b.weekNumber);
       }
 
-      // STEP 2: Use latest weeks from selectedProgram (updated by realtime) so client edits are visible when switching week.
-      const weeksSource = (selectedProgram as any)?.weeks ?? client.workoutAssignment?.weeks ?? updatedWeeks;
-      const finalWeeks = Array.isArray(weeksSource) ? weeksSource : updatedWeeks;
+      // Always persist the merged weeks — this is what was being discarded before.
+      const finalWeeks = updatedWeeks;
       const targetWeekData = finalWeeks.find((w: any) => w.weekNumber === newWeek);
 
-      // STEP 3: Load the target week's data into selectedProgram (only if week exists)
       if (targetWeekData && targetWeekData.days && targetWeekData.days.length > 0) {
-        
-        // Calculate the volume of the week being loaded
         let loadedWeekVolume = 0;
         targetWeekData.days.forEach((day: any) => {
           day.exercises.forEach((exercise: any) => {
             exercise.sets.forEach((set: any) => {
               if (set.isDropset && Array.isArray(set.reps) && Array.isArray(set.weight)) {
-                // Dropset volume: sum of (reps[i] * weight[i]) for each round
                 for (let i = 0; i < set.reps.length && i < set.weight.length; i++) {
                   loadedWeekVolume += (typeof set.reps[i] === 'number' ? set.reps[i] : 0) * (typeof set.weight[i] === 'number' ? set.weight[i] : 0);
                 }
               } else {
-                // Regular set volume
                 loadedWeekVolume += (typeof set.reps === 'number' ? set.reps : 0) * (typeof set.weight === 'number' ? set.weight : 0);
               }
             });
           });
         });
         
-        // Create a program structure from the week-specific data
         const weekProgram: WorkoutProgram = {
           ...client.workoutAssignment.program,
-          days: targetWeekData.days
+          days: targetWeekData.days,
         };
+        // Keep weeks on the in-memory program so later switches don't fall back to a bare program.
+        (weekProgram as any).weeks = finalWeeks;
         
-        // Update selectedProgram to show the target week's data
         setSelectedProgram(weekProgram);
-
       } else if (client.workoutAssignment.program) {
-
-        setSelectedProgram(client.workoutAssignment.program);
-      } else {
-
+        const fallback = {
+          ...client.workoutAssignment.program,
+          days: client.workoutAssignment.program.days || [],
+        } as WorkoutProgram;
+        (fallback as any).weeks = finalWeeks;
+        setSelectedProgram(fallback);
       }
 
-      // STEP 4: Persist weeks data but keep client's active week unchanged
       if (client.workoutAssignment?.id) {
-        // CRITICAL FIX: Save ALL week data including the updated weeks array
         const programJsonToSave = {
           ...client.workoutAssignment.program,
-          weeks: finalWeeks  // Include all weeks data
+          weeks: finalWeeks,
         };
 
         const { error } = await dbUpdateWorkoutAssignment(client.workoutAssignment.id, {
-          program_json: programJsonToSave,  // Save complete program with all weeks
+          program_json: programJsonToSave,
           last_modified_by: 'coach'
         });
 
@@ -618,18 +609,11 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
           return;
         }
 
-        console.log('✅ Saved all weeks data to database:', {
-          totalWeeks: finalWeeks.length,
-          currentWeek: newWeek,
-          weekNumbers: finalWeeks.map(w => w.weekNumber)
-        });
-
-        // Update local state
         setCurrentWeek(newWeek);
         
-        // Update the client's workout assignment with all week data
         const finalAssignment: ClientWorkoutAssignment = {
           ...client.workoutAssignment,
+          // Coach browsing weeks must NOT change the client's active week
           currentWeek: client.workoutAssignment.currentWeek,
           weeks: finalWeeks,
           program: client.workoutAssignment.program,
@@ -637,13 +621,10 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
           lastModifiedAt: new Date()
         };
         
-        // Save the final assignment
         onSaveAssignment(finalAssignment);
-        
-      } else {
       }
     } catch (error) {
-
+      console.error('❌ Week change failed:', error);
     }
   };
 
@@ -3487,10 +3468,12 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           }
                         }
                         setCurrentWeek(deployed.weekNumber);
-                        setSelectedProgram({
+                        const programWithWeeks = {
                           ...client.workoutAssignment.program,
                           days: deployed.days,
-                        });
+                        } as WorkoutProgram;
+                        (programWithWeeks as any).weeks = updated.weeks;
+                        setSelectedProgram(programWithWeeks);
                         onSaveAssignment(updated);
                         setShowCreateWeekModal(false);
                         setDraftNewWeek(null);

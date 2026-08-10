@@ -51,6 +51,7 @@ import {
 } from './lib/sessionRestore';
 import { getMarketingDemoClient } from './data/marketingDemoClient';
 import type { NewClientSetupOptions } from './components/UnbreakableSteamClientsManager';
+import { persistClientsLocally, safeLocalStorageSet } from './utils/localStorageClients';
 
 function App() {
   const initialAuth = getInitialAuthState();
@@ -294,6 +295,8 @@ function App() {
       
       // Load clients from Supabase if available; fallback to localStorage
       if (isSupabaseReady) {
+        // Free ~5MB quota left by older builds that mirrored full plans into localStorage
+        persistClientsLocally([]);
         const { data, error } = await dbListClientsWithWorkoutAssignments();
         
         if (data && data.length > 0) {
@@ -531,7 +534,7 @@ function App() {
       if (isSupabaseReady) {
         await dbUpsertNutritionPlan(mapped.id, planWithTimestamp);
       }
-      localStorage.setItem(
+      safeLocalStorageSet(
         `nutrition_plan_${mapped.id}`,
         JSON.stringify(planWithTimestamp)
       );
@@ -600,7 +603,7 @@ function App() {
         setAppState(prev => {
           const withoutDup = prev.clients.filter(c => c.id !== seeded.id);
           const next = [...withoutDup, seeded];
-          localStorage.setItem('clients', JSON.stringify(next));
+          persistClientsLocally(next);
           return { ...prev, clients: next };
         });
       }
@@ -608,7 +611,7 @@ function App() {
       const seeded = await seedClientPlans(client);
       setAppState(prev => {
         const newClients = [...prev.clients, seeded];
-        localStorage.setItem('clients', JSON.stringify(newClients));
+        persistClientsLocally(newClients);
         return { ...prev, clients: newClients };
       });
     }
@@ -628,14 +631,14 @@ function App() {
     }
     const updatedClients = appState.clients.map(client => client.id === clientId ? { ...client, ...updates } : client);
     setAppState(prev => ({ ...prev, clients: updatedClients }));
-    if (!isSupabaseReady) localStorage.setItem('clients', JSON.stringify(updatedClients));
+    if (!isSupabaseReady) persistClientsLocally(updatedClients);
   };
 
   const handleDeleteClient = async (clientId: string) => {
     if (isSupabaseReady) await dbDeleteClient(clientId);
     const filteredClients = appState.clients.filter(client => client.id !== clientId);
     setAppState(prev => ({ ...prev, clients: filteredClients }));
-    if (!isSupabaseReady) localStorage.setItem('clients', JSON.stringify(filteredClients));
+    if (!isSupabaseReady) persistClientsLocally(filteredClients);
   };
 
   const handleArchiveClient = (clientId: string) => {
@@ -643,7 +646,7 @@ function App() {
       client.id === clientId ? { ...client, isArchived: true } : client
     );
     setAppState(prev => ({ ...prev, clients: updatedClients }));
-    localStorage.setItem('clients', JSON.stringify(updatedClients));
+    persistClientsLocally(updatedClients);
   };
 
   const handleDuplicateClient = async (
@@ -712,10 +715,10 @@ function App() {
 
     const newClients = [...appState.clients, duplicatedClient];
     setAppState((prev) => ({ ...prev, clients: newClients }));
-    localStorage.setItem('clients', JSON.stringify(newClients));
+    persistClientsLocally(newClients);
 
     if (duplicatedClient.nutritionPlan) {
-      localStorage.setItem(
+      safeLocalStorageSet(
         `nutrition_plan_${duplicatedClient.id}`,
         JSON.stringify(duplicatedClient.nutritionPlan)
       );
@@ -757,10 +760,10 @@ function App() {
       clients: updatedClients,
       selectedClient: updatedSelectedClient
     }));
-    localStorage.setItem('clients', JSON.stringify(updatedClients));
-    
+    persistClientsLocally(updatedClients);
+
     // Also save nutrition plan separately for client interface to load
-    localStorage.setItem(`nutrition_plan_${clientId}`, JSON.stringify(planWithTimestamp));
+    safeLocalStorageSet(`nutrition_plan_${clientId}`, JSON.stringify(planWithTimestamp));
     
     // Update shared data if client has an active share link
     updateClientSharedData(clientId, updatedClients);
@@ -904,7 +907,7 @@ function App() {
         clients: updatedClients,
         selectedClient: updatedSelectedClient
       }));
-      localStorage.setItem('clients', JSON.stringify(updatedClients));
+      persistClientsLocally(updatedClients);
       
       // Update shared data if client has an active share link
       updateClientSharedData(clientId, updatedClients);
@@ -942,7 +945,7 @@ function App() {
           lastUpdated: new Date().toISOString()
         };
         
-        localStorage.setItem(key, JSON.stringify(updatedSharedData));
+        safeLocalStorageSet(key, JSON.stringify(updatedSharedData));
 
       } catch (error) {
         console.error('Error updating shared data for key:', key, error);
@@ -974,7 +977,7 @@ function App() {
       }
     };
     
-    localStorage.setItem(`client_${client.id}_complete_${shareId}`, JSON.stringify(sharedData));
+    safeLocalStorageSet(`client_${client.id}_complete_${shareId}`, JSON.stringify(sharedData));
     
     // Mobile-friendly share implementation
     const shareText = `Complete Client URL for ${client.name}:\n\n${shareUrl}\n\nThey will have access to:\n• Nutrition Plan\n• Workout Plan\n• Weight Journal\n• Progress Tracking`;
