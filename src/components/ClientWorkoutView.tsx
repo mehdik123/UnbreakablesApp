@@ -854,22 +854,27 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
               muscleGroup: videoMeta?.muscleGroup ?? exercise.exercise?.muscleGroup,
             },
             sets: (exercise.sets && Array.isArray(exercise.sets) ? exercise.sets : []).map((set: any, setIndex: number) => {
-              // Apply regular set edits
+              // Dropsets must use per-round edits — never overwrite arrays with scalar exerciseData
+              if (set.isDropset && Array.isArray(set.reps)) {
+                const dropsetEdit = dropsetEdits[setIndex];
+                const weightBase = Array.isArray(set.weight)
+                  ? set.weight
+                  : set.reps.map(() => (typeof set.weight === 'number' ? set.weight : 0));
+                if (dropsetEdit) {
+                  return {
+                    ...set,
+                    reps: set.reps.map((rep: any, roundIndex: number) => dropsetEdit[roundIndex]?.reps ?? rep),
+                    weight: weightBase.map((weight: any, roundIndex: number) => dropsetEdit[roundIndex]?.weight ?? weight),
+                  };
+                }
+                return { ...set, weight: weightBase };
+              }
+
               if (exerciseEdits[setIndex]) {
                 return {
                   ...set,
                   reps: exerciseEdits[setIndex].reps ?? set.reps,
                   weight: exerciseEdits[setIndex].weight ?? set.weight
-                };
-              }
-
-              // Apply dropset edits
-              if (set.isDropset && dropsetEdits[setIndex] && Array.isArray(set.reps) && Array.isArray(set.weight)) {
-                const dropsetEdit = dropsetEdits[setIndex];
-                return {
-                  ...set,
-                  reps: set.reps.map((rep: any, roundIndex: number) => dropsetEdit[roundIndex]?.reps ?? rep),
-                  weight: set.weight.map((weight: any, roundIndex: number) => dropsetEdit[roundIndex]?.weight ?? weight)
                 };
               }
 
@@ -1516,7 +1521,144 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                       </div>
 
                       <div className="space-y-2.5">
-                        {exercise.sets.map((set, setIndex) => (
+                        {exercise.sets.map((set, setIndex) => {
+                          const dropReps =
+                            set.isDropset && Array.isArray(set.reps) ? (set.reps as number[]) : null;
+                          const isDropset = !!dropReps && dropReps.length > 0;
+                          const dropWeights: number[] = isDropset
+                            ? (Array.isArray(set.weight)
+                                ? set.weight.map((w) => (typeof w === 'number' ? w : 0))
+                                : dropReps!.map(() => (typeof set.weight === 'number' ? set.weight : 0)))
+                            : [];
+
+                          if (isDropset && dropReps) {
+                            return (
+                              <div
+                                key={setIndex}
+                                className="rounded-[18px] p-2.5 sm:p-3 space-y-2"
+                                style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="w-[22px] h-[22px] sm:w-[26px] sm:h-[26px] rounded-[8px] flex items-center justify-center font-display font-bold text-[11px] sm:text-[12px] shrink-0"
+                                    style={{ background: 'var(--surface-3)', border: '1px solid var(--hair-strong)', color: 'var(--txt-mid)' }}
+                                  >
+                                    {setIndex + 1}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.1em]" style={{ color: 'var(--txt-lo)' }}>
+                                      {t('workout.dropset')} · {t('workout.reps')}
+                                    </div>
+                                    <div className="font-display font-bold text-[13px] sm:text-[15px] tnum truncate" style={{ color: 'var(--txt-hi)' }}>
+                                      {dropReps.join('→')}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <div className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.1em] mb-1.5 pl-0.5" style={{ color: 'var(--txt-lo)' }}>
+                                    {t('workout.weight')} ({t('workout.kg')})
+                                  </div>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {dropReps.map((_rep: number, roundIndex: number) => {
+                                      const editKey = `${exercise.id}-${setIndex}-d${roundIndex}`;
+                                      const prescribed = dropWeights[roundIndex] ?? 0;
+                                      const current =
+                                        dropsetData[exercise.id]?.[setIndex]?.[roundIndex]?.weight ?? prescribed;
+                                      return (
+                                        <div
+                                          key={roundIndex}
+                                          className="flex items-center rounded-[10px] overflow-hidden min-h-11"
+                                          style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)', flex: '1 1 5.5rem', maxWidth: '100%' }}
+                                        >
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const next = Math.max(0, (typeof current === 'number' ? current : 0) - 2.5);
+                                              updateDropsetData(exercise.id, setIndex, roundIndex, 'weight', next);
+                                              setEditingWeightInput((prev) => {
+                                                const n = { ...prev };
+                                                delete n[editKey];
+                                                return n;
+                                              });
+                                            }}
+                                            className="wk-step flex items-center justify-center shrink-0 touch-manipulation"
+                                            style={{ color: 'var(--blue)', WebkitTapHighlightColor: 'transparent' }}
+                                            aria-label={`Decrease drop ${roundIndex + 1} weight`}
+                                          >
+                                            <Minus className="w-3.5 h-3.5" />
+                                          </button>
+                                          <div className="flex-1 min-w-0 flex items-baseline justify-center gap-0.5 px-0.5">
+                                            <input
+                                              type="number"
+                                              min={0}
+                                              step={0.5}
+                                              inputMode="decimal"
+                                              placeholder="0"
+                                              className="wk-weight-input bg-transparent text-center font-display font-bold text-[13px] sm:text-[14px] tnum w-full min-w-0
+                                                focus:outline-none focus:ring-0
+                                                [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                              style={{ color: 'var(--txt-hi)', fontSize: '16px' }}
+                                              value={
+                                                editingWeightInput[editKey] ??
+                                                String(typeof current === 'number' ? current : 0)
+                                              }
+                                              onChange={(e) => {
+                                                setEditingWeightInput((prev) => ({
+                                                  ...prev,
+                                                  [editKey]: e.target.value,
+                                                }));
+                                              }}
+                                              onBlur={() => {
+                                                const raw = editingWeightInput[editKey];
+                                                if (raw === undefined) return;
+                                                const parsed = parseFloat(raw.replace(',', '.'));
+                                                const value = Number.isFinite(parsed)
+                                                  ? Math.max(0, parsed)
+                                                  : (typeof current === 'number' ? current : 0);
+                                                updateDropsetData(exercise.id, setIndex, roundIndex, 'weight', value);
+                                                setEditingWeightInput((prev) => {
+                                                  const next = { ...prev };
+                                                  delete next[editKey];
+                                                  return next;
+                                                });
+                                              }}
+                                              onKeyDown={(e) => {
+                                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                              }}
+                                              aria-label={`${t('workout.weightAria')} drop ${roundIndex + 1}`}
+                                            />
+                                            <span className="text-[9px] font-medium shrink-0" style={{ color: 'var(--txt-lo)' }}>
+                                              {t('workout.kg')}
+                                            </span>
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const next = (typeof current === 'number' ? current : 0) + 2.5;
+                                              updateDropsetData(exercise.id, setIndex, roundIndex, 'weight', next);
+                                              setEditingWeightInput((prev) => {
+                                                const n = { ...prev };
+                                                delete n[editKey];
+                                                return n;
+                                              });
+                                            }}
+                                            className="wk-step flex items-center justify-center shrink-0 touch-manipulation"
+                                            style={{ color: 'var(--red)', WebkitTapHighlightColor: 'transparent' }}
+                                            aria-label={`Increase drop ${roundIndex + 1} weight`}
+                                          >
+                                            <Plus className="w-3.5 h-3.5" />
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
                           <div
                             key={setIndex}
                             className="flex items-center gap-1.5 sm:gap-2.5 rounded-[18px] p-2 sm:p-3"
@@ -1532,7 +1674,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                             {/* Reps stepper */}
                             <div className="flex-1 min-w-0 basis-0">
                               <div className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.1em] sm:tracking-[0.12em] mb-1 sm:mb-1.5 pl-0.5 flex items-center gap-1" style={{ color: 'var(--txt-lo)' }}>
-                                {set.isDropset ? t('workout.dropset') : t('workout.reps')}
+                                {t('workout.reps')}
                               </div>
                               <div className="flex items-center rounded-[10px] sm:rounded-[11px] overflow-hidden" style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}>
                                 <button
@@ -1549,14 +1691,10 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                   <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                 </button>
                                 <div
-                                  className={`flex-1 min-w-0 text-center font-display font-bold tnum truncate px-0.5 ${
-                                    set.isDropset && Array.isArray(set.reps) ? 'text-[12px] sm:text-[13px]' : 'text-[15px] sm:text-[17px]'
-                                  }`}
+                                  className="flex-1 min-w-0 text-center font-display font-bold tnum truncate px-0.5 text-[15px] sm:text-[17px]"
                                   style={{ color: 'var(--txt-hi)' }}
                                 >
-                                  {set.isDropset && Array.isArray(set.reps)
-                                    ? set.reps.join('→')
-                                    : (exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps)}
+                                  {exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps}
                                 </div>
                                 <button
                                   type="button"
@@ -1594,12 +1732,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                 >
                                   <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                 </button>
-                                {set.isDropset && Array.isArray(set.weight) ? (
-                                  <div className="flex-1 min-w-0 text-center font-display font-bold text-[12px] sm:text-[13px] tnum truncate px-0.5" style={{ color: 'var(--txt-hi)' }}>
-                                    {set.weight.join('→')}
-                                    <span className="text-[9px] sm:text-[10px] font-medium ml-0.5" style={{ color: 'var(--txt-lo)' }}>{t('workout.kg')}</span>
-                                  </div>
-                                ) : (
                                   <div className="flex-1 min-w-0 flex items-baseline justify-center gap-0.5 px-0.5">
                                     <input
                                       type="number"
@@ -1647,7 +1779,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                     />
                                     <span className="text-[9px] sm:text-[10px] font-medium shrink-0" style={{ color: 'var(--txt-lo)' }}>{t('workout.kg')}</span>
                                   </div>
-                                )}
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1665,7 +1796,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                               </div>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
 
                   {/* Save button for this exercise - saves performance to Supabase and updates coach + charts */}

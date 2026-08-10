@@ -679,6 +679,40 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     }
   };
 
+  /** Clone the last set (including dropset arrays) onto the exercise — assignment editor. */
+  const handleAddSet = (exerciseId: string) => {
+    if (!selectedProgram) return;
+    const updatedProgram = {
+      ...selectedProgram,
+      days: selectedProgram.days.map((day) => ({
+        ...day,
+        exercises: day.exercises.map((exercise) => {
+          if (exercise.id !== exerciseId) return exercise;
+          const lastSet = exercise.sets[exercise.sets.length - 1];
+          const newSet = {
+            id: `set-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            reps: lastSet
+              ? Array.isArray(lastSet.reps)
+                ? [...lastSet.reps]
+                : lastSet.reps
+              : 8,
+            weight: lastSet
+              ? Array.isArray(lastSet.weight)
+                ? [...lastSet.weight]
+                : lastSet.weight
+              : 0,
+            isDropset: lastSet?.isDropset ?? false,
+            completed: false,
+            restPeriod: lastSet?.restPeriod,
+            notes: lastSet?.notes,
+          };
+          return { ...exercise, sets: [...exercise.sets, newSet] };
+        }),
+      })),
+    };
+    setSelectedProgram(updatedProgram);
+  };
+
   // Handle superset toggle
   const handleToggleSuperset = (exerciseId: string) => {
     if (selectedProgram) {
@@ -3048,6 +3082,21 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         </div>
                       </div>
                     ))}
+
+                    <button
+                      type="button"
+                      onClick={() => handleAddSet(exercise.id)}
+                      className="w-full min-h-12 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-dashed transition-colors touch-manipulation"
+                      style={{
+                        borderColor: 'var(--hair-strong)',
+                        background: 'var(--surface-2)',
+                        color: 'var(--txt-mid)',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      <Plus className="w-4 h-4" style={{ color: 'var(--red)' }} />
+                      <span className="text-sm font-semibold">Add Set</span>
+                    </button>
                   </div>
 
 
