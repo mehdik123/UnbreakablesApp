@@ -7,7 +7,9 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      // autoUpdate: new deploys activate immediately so production doesn't stay
+      // stuck on an old cached bundle (prompt left users on QuotaExceeded builds).
+      registerType: 'autoUpdate',
       includeAssets: ['icons/apple-touch-icon.png', 'brand-logo-light.png', 'brand-logo.png', 'offline.html'],
       manifest: {
         name: 'Unbreakables Team',

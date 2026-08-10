@@ -73,13 +73,7 @@ export function freeHeavyLocalStorageDrafts(): void {
   try {
     const keys = Object.keys(localStorage);
     for (const key of keys) {
-      if (
-        key === 'clients' ||
-        key.startsWith('nutrition_editor_') ||
-        key.startsWith('nutrition_plan_') ||
-        (key.startsWith('client_') && key.includes('_complete_')) ||
-        (key.startsWith('client_') && key.includes('_nutrition_'))
-      ) {
+      if (shouldDropHeavyKey(key)) {
         try {
           localStorage.removeItem(key);
         } catch {
@@ -90,6 +84,39 @@ export function freeHeavyLocalStorageDrafts(): void {
   } catch {
     /* ignore */
   }
+}
+
+function shouldDropHeavyKey(key: string): boolean {
+  if (key === 'clients' || key === 'meals' || key === 'exercises') return true;
+  if (key.startsWith('nutrition_editor_')) return true;
+  if (key.startsWith('nutrition_plan_')) return true;
+  if (key.startsWith('nutritionTemplates') || key === 'nutrition_templates') return true;
+  if (key.startsWith('client_offline_snapshot_')) return true;
+  if (key.startsWith('client_offline_queue_')) return true;
+  if (key.startsWith('client_') && key.includes('_complete_')) return true;
+  if (key.startsWith('client_') && key.includes('_nutrition_')) return true;
+  if (key.startsWith('client_') && key.includes('_plan_')) return true;
+  if (key.startsWith('client_') && key.endsWith('_assignment')) return true;
+  if (key.startsWith('client_') && key.includes('_complete')) return true;
+  if (key.startsWith('weight_entries_')) return true;
+  if (key.startsWith('performance_')) return true;
+  return false;
+}
+
+/**
+ * Mirror a plan/share blob to localStorage only when offline (no Supabase).
+ * With Supabase, these dumps are what fill the quota on the live domain.
+ */
+export function mirrorPlanLocally(key: string, value: unknown): boolean {
+  if (isSupabaseReady) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+    return true;
+  }
+  return safeLocalStorageSet(key, typeof value === 'string' ? value : JSON.stringify(value));
 }
 
 /** Safe setItem that never crashes the UI on quota errors. */
@@ -111,8 +138,22 @@ export function safeLocalStorageSet(key: string, value: string): boolean {
   }
 }
 
+const RECLAIM_FLAG = 'ub_ls_reclaim_v';
+const RECLAIM_VERSION = '4';
+
 /** Call once on coach app boot when Supabase is ready. */
 export function reclaimLocalStorageQuotaIfNeeded(): void {
   if (!isSupabaseReady) return;
-  freeHeavyLocalStorageDrafts();
+  try {
+    // Always clear heavy mirrors; version flag forces a full wipe after deploys
+    // that introduced this reclaim (production browsers keep old bloated keys).
+    freeHeavyLocalStorageDrafts();
+    localStorage.setItem(RECLAIM_FLAG, RECLAIM_VERSION);
+  } catch {
+    try {
+      freeHeavyLocalStorageDrafts();
+    } catch {
+      /* ignore */
+    }
+  }
 }

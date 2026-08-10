@@ -33,6 +33,7 @@ import {
   removeWeekFromAssignment,
 } from '../utils/weekCreation';
 import { applyAutoProgression, applyDeload } from '../utils/autoProgression';
+import { safeLocalStorageSet } from '../utils/localStorageClients';
 
 type WeekGenMode = 'progress' | 'deload' | 'copy';
 
@@ -1406,7 +1407,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
           lastModifiedAt: new Date().toISOString(),
           version: nextVersion
         };
-        localStorage.setItem(SHARED_KEY, JSON.stringify(sharedData));
+        safeLocalStorageSet(SHARED_KEY, JSON.stringify(sharedData));
         setSharedVersion(nextVersion);
         window.dispatchEvent(new StorageEvent('storage', { key: SHARED_KEY, newValue: JSON.stringify(sharedData) }));
       } catch {}

@@ -658,7 +658,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         });
       }
     }
-    localStorage.setItem(SHARED_KEY, JSON.stringify({ workoutAssignment: updatedAssignment, version: (sharedVersion || 0) + 1, lastModified: new Date().toISOString() }));
+    safeLocalStorageSet(SHARED_KEY, JSON.stringify({ workoutAssignment: updatedAssignment, version: (sharedVersion || 0) + 1, lastModified: new Date().toISOString() }));
     setSharedVersion((v) => v + 1);
     setLocalAssignment(updatedAssignment);
     patchClientOfflineSnapshot(client.id, {

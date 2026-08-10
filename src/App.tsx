@@ -51,7 +51,7 @@ import {
 } from './lib/sessionRestore';
 import { getMarketingDemoClient } from './data/marketingDemoClient';
 import type { NewClientSetupOptions } from './components/UnbreakableSteamClientsManager';
-import { persistClientsLocally, safeLocalStorageSet, reclaimLocalStorageQuotaIfNeeded } from './utils/localStorageClients';
+import { persistClientsLocally, safeLocalStorageSet, mirrorPlanLocally, reclaimLocalStorageQuotaIfNeeded } from './utils/localStorageClients';
 
 function App() {
   const initialAuth = getInitialAuthState();
@@ -534,10 +534,7 @@ function App() {
       if (isSupabaseReady) {
         await dbUpsertNutritionPlan(mapped.id, planWithTimestamp);
       }
-      safeLocalStorageSet(
-        `nutrition_plan_${mapped.id}`,
-        JSON.stringify(planWithTimestamp)
-      );
+      mirrorPlanLocally(`nutrition_plan_${mapped.id}`, planWithTimestamp);
 
       let workoutAssignment = mapped.workoutAssignment;
       if (setup?.workoutProgramId && isSupabaseReady) {
@@ -718,10 +715,7 @@ function App() {
     persistClientsLocally(newClients);
 
     if (duplicatedClient.nutritionPlan) {
-      safeLocalStorageSet(
-        `nutrition_plan_${duplicatedClient.id}`,
-        JSON.stringify(duplicatedClient.nutritionPlan)
-      );
+      mirrorPlanLocally(`nutrition_plan_${duplicatedClient.id}`, duplicatedClient.nutritionPlan);
     }
   };
 
@@ -762,8 +756,8 @@ function App() {
     }));
     persistClientsLocally(updatedClients);
 
-    // Also save nutrition plan separately for client interface to load
-    safeLocalStorageSet(`nutrition_plan_${clientId}`, JSON.stringify(planWithTimestamp));
+    // Offline-only mirror — with Supabase, clients load plan_json from DB
+    mirrorPlanLocally(`nutrition_plan_${clientId}`, planWithTimestamp);
     
     // Update shared data if client has an active share link
     updateClientSharedData(clientId, updatedClients);
@@ -920,6 +914,9 @@ function App() {
 
   // Update shared data for existing client links
   const updateClientSharedData = (clientId: string, updatedClients: Client[]) => {
+    // Share dumps are offline-only; with Supabase they only refill the quota.
+    if (isSupabaseReady) return;
+
     const client = updatedClients.find(c => c.id === clientId);
     if (!client) return;
     
@@ -977,7 +974,10 @@ function App() {
       }
     };
     
-    safeLocalStorageSet(`client_${client.id}_complete_${shareId}`, JSON.stringify(sharedData));
+    safeLocalStorageSet(
+      `client_${client.id}_complete_${shareId}`,
+      JSON.stringify(sharedData)
+    );
     
     // Mobile-friendly share implementation
     const shareText = `Complete Client URL for ${client.name}:\n\n${shareUrl}\n\nThey will have access to:\n• Nutrition Plan\n• Workout Plan\n• Weight Journal\n• Progress Tracking`;
@@ -1157,8 +1157,16 @@ function App() {
   // Meal Database Handlers
   const handleUpdateMeals = (updatedMeals: Meal[]) => {
     setMeals(updatedMeals);
-    // Save to localStorage
-    localStorage.setItem('meals', JSON.stringify(updatedMeals));
+    // Meals live in Supabase when ready; never crash coach UI on quota
+    if (!isSupabaseReady) {
+      safeLocalStorageSet('meals', JSON.stringify(updatedMeals));
+    } else {
+      try {
+        localStorage.removeItem('meals');
+      } catch {
+        /* ignore */
+      }
+    }
   };
 
   const handleNavigateToDatabaseSelector = () => {
@@ -1199,7 +1207,7 @@ function App() {
       if (data) setExercises(data.map((r: any) => ({ id: r.id, name: r.name, muscleGroup: r.muscle_group || '', equipment: '', instructions: '', videoUrl: r.video_url, imageUrl: '', difficulty: 'beginner', category: 'strength', primaryMuscles: [], secondaryMuscles: [], createdAt: new Date(), updatedAt: new Date() })));
     } else {
       setExercises(updatedExercises);
-      localStorage.setItem('exercises', JSON.stringify(updatedExercises));
+      safeLocalStorageSet('exercises', JSON.stringify(updatedExercises));
     }
   };
 

@@ -12,8 +12,11 @@ let activateWaitingWorker: ((reloadPage?: boolean) => Promise<void>) | null = nu
 
 export function registerPwaUpdates(): void {
   activateWaitingWorker = registerSW({
+    immediate: true,
     onNeedRefresh() {
+      // autoUpdate builds will claim clients; still surface a toast and apply.
       window.dispatchEvent(new CustomEvent(PWA_NEED_REFRESH));
+      void applyPwaUpdate();
     },
     onOfflineReady() {
       window.dispatchEvent(new CustomEvent(PWA_OFFLINE_READY));
