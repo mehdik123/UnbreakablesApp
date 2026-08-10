@@ -51,7 +51,7 @@ import {
 } from './lib/sessionRestore';
 import { getMarketingDemoClient } from './data/marketingDemoClient';
 import type { NewClientSetupOptions } from './components/UnbreakableSteamClientsManager';
-import { persistClientsLocally, safeLocalStorageSet } from './utils/localStorageClients';
+import { persistClientsLocally, safeLocalStorageSet, reclaimLocalStorageQuotaIfNeeded } from './utils/localStorageClients';
 
 function App() {
   const initialAuth = getInitialAuthState();
@@ -295,8 +295,8 @@ function App() {
       
       // Load clients from Supabase if available; fallback to localStorage
       if (isSupabaseReady) {
-        // Free ~5MB quota left by older builds that mirrored full plans into localStorage
-        persistClientsLocally([]);
+        // Free ~5MB quota left by older builds (clients mirror, nutrition drafts, share dumps)
+        reclaimLocalStorageQuotaIfNeeded();
         const { data, error } = await dbListClientsWithWorkoutAssignments();
         
         if (data && data.length > 0) {

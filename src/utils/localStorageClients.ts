@@ -65,6 +65,33 @@ function slimClientForCache(c: Client): Client {
   };
 }
 
+/**
+ * Remove heavy coach draft / mirror keys that fill the ~5MB quota.
+ * Safe when Supabase is the source of truth — real plans live in the DB.
+ */
+export function freeHeavyLocalStorageDrafts(): void {
+  try {
+    const keys = Object.keys(localStorage);
+    for (const key of keys) {
+      if (
+        key === 'clients' ||
+        key.startsWith('nutrition_editor_') ||
+        key.startsWith('nutrition_plan_') ||
+        (key.startsWith('client_') && key.includes('_complete_')) ||
+        (key.startsWith('client_') && key.includes('_nutrition_'))
+      ) {
+        try {
+          localStorage.removeItem(key);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Safe setItem that never crashes the UI on quota errors. */
 export function safeLocalStorageSet(key: string, value: string): boolean {
   try {
@@ -72,6 +99,20 @@ export function safeLocalStorageSet(key: string, value: string): boolean {
     return true;
   } catch (err) {
     console.warn(`localStorage setItem failed for ${key}:`, err);
-    return false;
+    // One recovery pass: drop heavy drafts, then retry once
+    freeHeavyLocalStorageDrafts();
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (err2) {
+      console.warn(`localStorage setItem still failed for ${key}:`, err2);
+      return false;
+    }
   }
+}
+
+/** Call once on coach app boot when Supabase is ready. */
+export function reclaimLocalStorageQuotaIfNeeded(): void {
+  if (!isSupabaseReady) return;
+  freeHeavyLocalStorageDrafts();
 }

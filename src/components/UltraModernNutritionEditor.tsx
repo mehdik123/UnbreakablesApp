@@ -63,6 +63,8 @@ import {
 import { mealMatchesSearch, matchesSearchQuery } from '../utils/mealSearch';
 import { isPlausibleFood } from '../utils/csvParser';
 import { foods as staticFoods } from '../data/foods';
+import { isSupabaseReady } from '../lib/supabaseClient';
+import { safeLocalStorageSet, freeHeavyLocalStorageDrafts } from '../utils/localStorageClients';
 
 interface NutritionTemplate {
   id: string;
@@ -398,9 +400,22 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mealsPerDay]);
 
-  // Save meal slots to localStorage whenever they change
+  // Autosave draft to localStorage only when offline / no Supabase.
+  // With Supabase, full mealSlots dumps blow the ~5MB quota and crash the editor.
   useEffect(() => {
-    localStorage.setItem(`nutrition_editor_${client.id}`, JSON.stringify(mealSlots));
+    if (isSupabaseReady) {
+      try {
+        localStorage.removeItem(`nutrition_editor_${client.id}`);
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    if (!mealSlots?.length) return;
+    const ok = safeLocalStorageSet(`nutrition_editor_${client.id}`, JSON.stringify(mealSlots));
+    if (!ok) {
+      freeHeavyLocalStorageDrafts();
+    }
   }, [mealSlots, client.id]);
 
   // Calculate total nutrition
@@ -675,7 +690,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
       isReadOnly: true
     };
     
-    localStorage.setItem(`client_${client.id}_nutrition_${shareId}`, JSON.stringify(sharedData));
+    safeLocalStorageSet(`client_${client.id}_nutrition_${shareId}`, JSON.stringify(sharedData));
     
     navigator.clipboard.writeText(shareUrl).then(() => {
       alert(`Nutrition plan URL copied to clipboard!\n\nShare this link with ${client.name}:\n${shareUrl}`);
@@ -699,7 +714,7 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
 
     const newTemplates = [...templates, template];
     setTemplates(newTemplates);
-    localStorage.setItem('nutritionTemplates', JSON.stringify(newTemplates));
+    safeLocalStorageSet('nutritionTemplates', JSON.stringify(newTemplates));
     setShowSaveTemplate(false);
     setTemplateName('');
   };
