@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Upload, X, ChevronDown, ArrowLeftRight } from 'lucide-react';
+import { Camera, Upload, X, ChevronDown, ArrowLeftRight, Columns2, Rows2 } from 'lucide-react';
 import { dbSaveWeeklyPhoto, dbDeleteWeeklyPhoto, dbGetClientPhotos, uploadWeeklyPhoto, WeeklyPhoto } from '../lib/db';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 
@@ -10,6 +10,8 @@ interface WeeklyPhotoUploadProps {
   onPhotosUpdate: (photos: WeeklyPhoto[]) => void;
   existingPhotos?: WeeklyPhoto[];
 }
+
+type CompareLayout = 'side' | 'stack';
 
 const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
   clientId,
@@ -33,6 +35,23 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
   const [showComparison, setShowComparison] = useState(marketingCompare);
   const [compareWeek1, setCompareWeek1] = useState<number>(1);
   const [compareWeek2, setCompareWeek2] = useState<number>(marketingCompare ? 3 : currentWeek);
+  const [compareLayout, setCompareLayout] = useState<CompareLayout>(() => {
+    try {
+      const saved = localStorage.getItem('ub_photo_compare_layout');
+      return saved === 'stack' || saved === 'side' ? saved : 'stack';
+    } catch {
+      return 'stack';
+    }
+  });
+  const [compareFocusType, setCompareFocusType] = useState<'front' | 'side' | 'back' | 'all'>('front');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ub_photo_compare_layout', compareLayout);
+    } catch {
+      /* ignore */
+    }
+  }, [compareLayout]);
   
   const fileInputRefs = {
     front: useRef<HTMLInputElement>(null),
@@ -374,8 +393,8 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                 <select
                   value={compareWeek1}
                   onChange={(e) => setCompareWeek1(Number(e.target.value))}
-                  className="flex-1 rounded-lg px-2 py-1.5 text-xs"
-                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)' }}
+                  className="flex-1 rounded-lg px-2 py-2 text-xs outline-none"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)', fontSize: 16 }}
                 >
                   {Array.from({ length: maxWeeks }, (_, i) => i + 1).map(week => (
                     <option key={week} value={week}>{t('photo.week', { n: week })}</option>
@@ -385,8 +404,8 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                 <select
                   value={compareWeek2}
                   onChange={(e) => setCompareWeek2(Number(e.target.value))}
-                  className="flex-1 rounded-lg px-2 py-1.5 text-xs"
-                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)' }}
+                  className="flex-1 rounded-lg px-2 py-2 text-xs outline-none"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)', fontSize: 16 }}
                 >
                   {Array.from({ length: maxWeeks }, (_, i) => i + 1).map(week => (
                     <option key={week} value={week}>{t('photo.week', { n: week })}</option>
@@ -394,47 +413,129 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                 </select>
               </div>
 
+              {/* Layout: side-by-side (small) vs stacked vertical (screenshot-friendly) */}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--txt-lo)' }}>
+                  {t('photo.compareLayout')}
+                </span>
+                <div
+                  className="flex rounded-lg p-0.5"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setCompareLayout('side')}
+                    className="min-h-10 px-3 rounded-md flex items-center gap-1.5 text-[11px] font-semibold touch-manipulation"
+                    style={{
+                      background: compareLayout === 'side' ? 'var(--red)' : 'transparent',
+                      color: compareLayout === 'side' ? '#fff' : 'var(--txt-mid)',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    <Columns2 className="w-3.5 h-3.5" />
+                    {t('photo.layoutSide')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCompareLayout('stack')}
+                    className="min-h-10 px-3 rounded-md flex items-center gap-1.5 text-[11px] font-semibold touch-manipulation"
+                    style={{
+                      background: compareLayout === 'stack' ? 'var(--red)' : 'transparent',
+                      color: compareLayout === 'stack' ? '#fff' : 'var(--txt-mid)',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    <Rows2 className="w-3.5 h-3.5" />
+                    {t('photo.layoutStack')}
+                  </button>
+                </div>
+              </div>
+
+              {/* Angle focus — stacked mode works best one pose at a time for screenshots */}
+              {compareLayout === 'stack' && (
+                <div className="flex gap-1 overflow-x-auto pb-0.5" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  {([
+                    { id: 'front' as const, label: t('photo.front') },
+                    { id: 'side' as const, label: t('photo.side') },
+                    { id: 'back' as const, label: t('photo.back') },
+                    { id: 'all' as const, label: t('photo.layoutAll') },
+                  ]).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setCompareFocusType(opt.id)}
+                      className="shrink-0 min-h-10 px-3 rounded-lg text-[11px] font-semibold touch-manipulation"
+                      style={{
+                        background: compareFocusType === opt.id ? 'var(--red)' : 'var(--surface-2)',
+                        color: compareFocusType === opt.id ? '#fff' : 'var(--txt-mid)',
+                        border: '1px solid var(--hair)',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Comparison Grid */}
-              {photoTypes.map(({ type, label }) => {
+              {(compareLayout === 'side'
+                ? photoTypes
+                : photoTypes.filter((p) => compareFocusType === 'all' || p.type === compareFocusType)
+              ).map(({ type, label }) => {
                 const photo1 = photos.find(p => p.week === compareWeek1 && p.type === type);
                 const photo2 = photos.find(p => p.week === compareWeek2 && p.type === type);
+
+                const renderCard = (photo: WeeklyPhoto | undefined, week: number, tall: boolean) => (
+                  <div
+                    className={`relative rounded-2xl overflow-hidden ${
+                      tall ? 'aspect-[3/4] max-h-[72dvh] w-full mx-auto' : 'aspect-[3/4]'
+                    }`}
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+                  >
+                    {photo ? (
+                      <>
+                        <img
+                          src={photo.imageUrl}
+                          alt={`${label} week ${week}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <div
+                          className="absolute top-2 left-2 px-2.5 py-1 rounded-lg text-white text-[11px] font-bold uppercase tracking-wide backdrop-blur-sm"
+                          style={{ background: 'rgba(8,9,13,.65)' }}
+                        >
+                          {t('photo.week', { n: week })}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>{t('photo.noPhoto')}</span>
+                      </div>
+                    )}
+                  </div>
+                );
 
                 return (
                   <div key={type} className="space-y-2">
                     <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--txt-mid)' }}>{label}</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {/* Week 1 Photo */}
-                      <div className="relative aspect-[3/4] rounded-2xl overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
-                        {photo1 ? (
-                          <>
-                            <img src={photo1.imageUrl} alt={`${label} week ${compareWeek1}`} className="w-full h-full object-cover" />
-                            <div className="absolute top-2 left-2 px-2 py-1 rounded-lg text-white text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm" style={{ background: 'rgba(8,9,13,.6)' }}>
-                              {t('photo.week', { n: compareWeek1 })}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>{t('photo.noPhoto')}</span>
-                          </div>
-                        )}
+                    {compareLayout === 'stack' ? (
+                      <div className="space-y-3">
+                        {renderCard(photo1, compareWeek1, true)}
+                        <div className="flex items-center justify-center gap-2 py-0.5">
+                          <div className="h-px flex-1" style={{ background: 'var(--hair)' }} />
+                          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--txt-lo)' }}>
+                            {t('photo.vs')}
+                          </span>
+                          <div className="h-px flex-1" style={{ background: 'var(--hair)' }} />
+                        </div>
+                        {renderCard(photo2, compareWeek2, true)}
                       </div>
-
-                      {/* Week 2 Photo */}
-                      <div className="relative aspect-[3/4] rounded-2xl overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
-                        {photo2 ? (
-                          <>
-                            <img src={photo2.imageUrl} alt={`${label} week ${compareWeek2}`} className="w-full h-full object-cover" />
-                            <div className="absolute top-2 left-2 px-2 py-1 rounded-lg text-white text-[10px] font-bold uppercase tracking-wide backdrop-blur-sm" style={{ background: 'rgba(8,9,13,.6)' }}>
-                              {t('photo.week', { n: compareWeek2 })}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>{t('photo.noPhoto')}</span>
-                          </div>
-                        )}
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {renderCard(photo1, compareWeek1, false)}
+                        {renderCard(photo2, compareWeek2, false)}
                       </div>
-                    </div>
+                    )}
                   </div>
                 );
               })}

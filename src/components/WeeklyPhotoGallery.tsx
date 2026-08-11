@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Download, Calendar, Grid, List, X, ChevronLeft, ChevronRight, GitCompare, Camera } from 'lucide-react';
+import { Eye, Download, Calendar, Grid, List, X, ChevronLeft, ChevronRight, GitCompare, Camera, Columns2, Rows2 } from 'lucide-react';
 import { WeeklyPhoto } from '../lib/db';
 
 interface WeeklyPhotoGalleryProps {
@@ -19,6 +19,14 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
   const [compareWeek1, setCompareWeek1] = useState<number | null>(null);
   const [compareWeek2, setCompareWeek2] = useState<number | null>(null);
   const [compareType, setCompareType] = useState<'front' | 'side' | 'back'>('front');
+  const [compareLayout, setCompareLayout] = useState<'side' | 'stack'>(() => {
+    try {
+      const saved = localStorage.getItem('ub_photo_compare_layout');
+      return saved === 'stack' || saved === 'side' ? saved : 'stack';
+    } catch {
+      return 'stack';
+    }
+  });
 
   const getImageUrl = (photo: WeeklyPhoto) => photo.imageUrl || photo.image_url;
 
@@ -287,7 +295,75 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
             ))}
           </div>
 
+          <div className="flex items-center justify-end gap-1">
+            <div
+              className="flex rounded-lg p-0.5"
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+            >
+              <button
+                type="button"
+                onClick={() => setCompareLayout('side')}
+                className="min-h-10 px-3 rounded-md flex items-center gap-1.5 text-[11px] font-semibold"
+                style={{
+                  background: compareLayout === 'side' ? 'var(--red)' : 'transparent',
+                  color: compareLayout === 'side' ? '#fff' : 'var(--txt-mid)',
+                }}
+              >
+                <Columns2 className="w-3.5 h-3.5" />
+                Side
+              </button>
+              <button
+                type="button"
+                onClick={() => setCompareLayout('stack')}
+                className="min-h-10 px-3 rounded-md flex items-center gap-1.5 text-[11px] font-semibold"
+                style={{
+                  background: compareLayout === 'stack' ? 'var(--red)' : 'transparent',
+                  color: compareLayout === 'stack' ? '#fff' : 'var(--txt-mid)',
+                }}
+              >
+                <Rows2 className="w-3.5 h-3.5" />
+                Stack
+              </button>
+            </div>
+          </div>
+
           {compareWeek1 && compareWeek2 ? (
+            compareLayout === 'stack' ? (
+              <div className="space-y-3">
+                {[compareWeek1, compareWeek2].map((week, idx) => {
+                  const photo = getPhotoByWeekAndType(week, compareType);
+                  return (
+                    <div key={week} className="space-y-1.5">
+                      <div className="text-center text-xs font-semibold" style={{ color: 'var(--txt-hi)' }}>
+                        Week {week}
+                      </div>
+                      {photo ? (
+                        <div className="relative rounded-xl overflow-hidden aspect-[3/4] max-h-[72dvh]" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                          <button type="button" onClick={() => openPreview(photo)} className="block w-full h-full">
+                            <img src={getImageUrl(photo)} alt="" className="w-full h-full object-cover" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div
+                          className="aspect-[3/4] max-h-[40dvh] rounded-xl flex flex-col items-center justify-center gap-1"
+                          style={{ background: 'var(--surface-2)', border: '1px dashed var(--hair-strong)' }}
+                        >
+                          <Camera className="w-5 h-5" style={{ color: 'var(--txt-lo)' }} />
+                          <span className="text-[10px]" style={{ color: 'var(--txt-lo)' }}>No photo</span>
+                        </div>
+                      )}
+                      {idx === 0 && (
+                        <div className="flex items-center justify-center gap-2 py-1">
+                          <div className="h-px flex-1" style={{ background: 'var(--hair)' }} />
+                          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--txt-lo)' }}>VS</span>
+                          <div className="h-px flex-1" style={{ background: 'var(--hair)' }} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
             <div className="grid grid-cols-2 gap-2">
               {[compareWeek1, compareWeek2].map((week) => {
                 const photo = getPhotoByWeekAndType(week, compareType);
@@ -309,6 +385,7 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
                 );
               })}
             </div>
+            )
           ) : (
             <div className="text-center py-6">
               <Calendar className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--txt-lo)' }} />
