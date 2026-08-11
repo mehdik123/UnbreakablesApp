@@ -34,6 +34,14 @@ import {
 } from '../utils/weekCreation';
 import { applyAutoProgression, applyDeload } from '../utils/autoProgression';
 import { safeLocalStorageSet } from '../utils/localStorageClients';
+import {
+  loadClientWeightUnit,
+  persistClientWeightUnit,
+  toDisplayWeight,
+  toStorageKg,
+  weightStep,
+  type WeightUnit,
+} from '../utils/weightUnits';
 
 type WeekGenMode = 'progress' | 'deload' | 'copy';
 
@@ -49,6 +57,18 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 }) => {
   // Tab management
   const [activeTab, setActiveTab] = useState<'workout' | 'progression'>('workout');
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(() =>
+    loadClientWeightUnit(client.id, client.workoutAssignment)
+  );
+
+  useEffect(() => {
+    setWeightUnit(loadClientWeightUnit(client.id, client.workoutAssignment));
+  }, [client.id, client.workoutAssignment?.weightUnit]);
+
+  const handleWeightUnitChange = (unit: WeightUnit) => {
+    setWeightUnit(unit);
+    persistClientWeightUnit(client.id, unit);
+  };
   
   // Load workout templates from database
   const [workoutPrograms, setWorkoutPrograms] = useState<WorkoutProgram[]>([]);
@@ -1402,6 +1422,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       // Real-time sync tracking
       lastModifiedBy: 'coach',
       lastModifiedAt: new Date(),
+      weightUnit,
       // Do NOT set lastSavedDay / numbersSaved here — preparing a week must not mark sessions done
     } as ClientWorkoutAssignment;
 
@@ -1552,6 +1573,30 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
           {/* General Save - persists to Supabase, updates client interface and muscle charts */}
           {selectedProgram && !showProgramSelection && client.workoutAssignment && (
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <div
+                className="flex items-center gap-1 p-1 rounded-xl"
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+                title="Client weight unit (loads stored as kg; progressive overload runs in kg)"
+              >
+                {(['kg', 'lbs'] as WeightUnit[]).map((u) => {
+                  const active = weightUnit === u;
+                  return (
+                    <button
+                      key={u}
+                      type="button"
+                      onClick={() => handleWeightUnitChange(u)}
+                      className="min-h-10 min-w-[3rem] px-3 rounded-lg text-xs font-bold touch-manipulation"
+                      style={{
+                        background: active ? 'var(--grad-red)' : 'transparent',
+                        color: active ? '#fff' : 'var(--txt-mid)',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
+                    >
+                      {u}
+                    </button>
+                  );
+                })}
+              </div>
               <button
                 onClick={() => handleSaveAssignment()}
                 className="coach-editor-btn justify-center w-full sm:w-auto"
@@ -2961,19 +3006,30 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         {set.isDropset && Array.isArray(set.weight) ? (
                           <div className="coach-set-panel" style={{ ['--panel-accent' as string]: 'var(--orange)' } as React.CSSProperties}>
                             <div className="flex items-center justify-between mb-1.5">
-                              <h6 className="coach-set-panel-title">Dropset Weight</h6>
+                              <h6 className="coach-set-panel-title">Dropset Weight ({weightUnit})</h6>
                               <Zap className="w-3 h-3 text-[color:var(--orange)]" />
                             </div>
                             <div className="text-center mb-2">
                               <span className="text-[color:var(--txt-hi)] font-bold text-base tnum">
-                                {set.weight.join('→')}kg
+                                {(set.weight as number[]).map((w) => toDisplayWeight(w, weightUnit)).join('→')}
+                                {weightUnit}
                               </span>
                             </div>
                             <div className="flex justify-center gap-1 flex-wrap">
-                              {set.weight.map((weight, roundIndex) => (
+                              {set.weight.map((weight, roundIndex) => {
+                                const display = toDisplayWeight(typeof weight === 'number' ? weight : 0, weightUnit);
+                                const step = weightStep(weightUnit);
+                                return (
                                 <div key={roundIndex} className="flex items-center gap-1 p-1 rounded" style={{ background: 'var(--surface-3)' }}>
                                   <button
-                                    onClick={() => handleUpdateDropsetWeight(exercise.id, set.id, roundIndex, -2.5)}
+                                    onClick={() =>
+                                      handleSetDropsetWeight(
+                                        exercise.id,
+                                        set.id,
+                                        roundIndex,
+                                        toStorageKg(Math.max(0, display - step), weightUnit)
+                                      )
+                                    }
                                     className="coach-step-btn"
                                     style={{ ['--step-accent' as string]: 'var(--orange)' } as React.CSSProperties}
                                   >
@@ -2984,35 +3040,58 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                       type="number"
                                       inputMode="decimal"
                                       min={0}
-                                      step={2.5}
-                                      value={typeof weight === 'number' ? weight : ''}
-                                      onChange={(e) => handleSetDropsetWeight(exercise.id, set.id, roundIndex, parseFloat(e.target.value) || 0)}
+                                      step={0.5}
+                                      value={display}
+                                      onChange={(e) =>
+                                        handleSetDropsetWeight(
+                                          exercise.id,
+                                          set.id,
+                                          roundIndex,
+                                          toStorageKg(parseFloat(e.target.value) || 0, weightUnit)
+                                        )
+                                      }
                                       onFocus={(e) => e.currentTarget.select()}
                                       className="coach-set-input coach-set-input--drop"
-                                      aria-label={`Drop ${roundIndex + 1} weight in kg`}
+                                      aria-label={`Drop ${roundIndex + 1} weight in ${weightUnit}`}
                                     />
-                                    <span className="text-[color:var(--txt-lo)] text-[9px]">kg</span>
+                                    <span className="text-[color:var(--txt-lo)] text-[9px]">{weightUnit}</span>
                                   </div>
                                   <button
-                                    onClick={() => handleUpdateDropsetWeight(exercise.id, set.id, roundIndex, 2.5)}
+                                    onClick={() =>
+                                      handleSetDropsetWeight(
+                                        exercise.id,
+                                        set.id,
+                                        roundIndex,
+                                        toStorageKg(display + step, weightUnit)
+                                      )
+                                    }
                                     className="coach-step-btn"
                                     style={{ ['--step-accent' as string]: 'var(--orange)' } as React.CSSProperties}
                                   >
                                     <Plus className="w-3 h-3" />
                                   </button>
                                 </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         ) : (
                           <div className="coach-set-panel" style={{ ['--panel-accent' as string]: 'var(--red)' } as React.CSSProperties}>
                             <div className="flex items-center justify-between mb-1.5">
-                              <h6 className="coach-set-panel-title">Weight</h6>
+                              <h6 className="coach-set-panel-title">Weight ({weightUnit})</h6>
                               <Zap className="w-3 h-3 text-[color:var(--red)]" />
                             </div>
                             <div className="flex items-center justify-center gap-1">
                               <button
-                                onClick={() => handleUpdateWeight(exercise.id, set.id, -2.5)}
+                                onClick={() => {
+                                  const kg = typeof set.weight === 'number' ? set.weight : 0;
+                                  const display = toDisplayWeight(kg, weightUnit);
+                                  handleSetWeight(
+                                    exercise.id,
+                                    set.id,
+                                    toStorageKg(Math.max(0, display - weightStep(weightUnit)), weightUnit)
+                                  );
+                                }}
                                 className="coach-step-btn"
                                 style={{ ['--step-accent' as string]: 'var(--red)' } as React.CSSProperties}
                               >
@@ -3023,17 +3102,35 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                                   type="number"
                                   inputMode="decimal"
                                   min={0}
-                                  step={2.5}
-                                  value={typeof set.weight === 'number' ? set.weight : ''}
-                                  onChange={(e) => handleSetWeight(exercise.id, set.id, parseFloat(e.target.value) || 0)}
+                                  step={0.5}
+                                  value={
+                                    typeof set.weight === 'number'
+                                      ? toDisplayWeight(set.weight, weightUnit)
+                                      : ''
+                                  }
+                                  onChange={(e) =>
+                                    handleSetWeight(
+                                      exercise.id,
+                                      set.id,
+                                      toStorageKg(parseFloat(e.target.value) || 0, weightUnit)
+                                    )
+                                  }
                                   onFocus={(e) => e.currentTarget.select()}
                                   className="coach-set-input"
-                                  aria-label={`Set ${setIndex + 1} weight in kg`}
+                                  aria-label={`Set ${setIndex + 1} weight in ${weightUnit}`}
                                 />
-                                <div className="text-[color:var(--txt-lo)] text-[9px] leading-tight">kg</div>
+                                <div className="text-[color:var(--txt-lo)] text-[9px] leading-tight">{weightUnit}</div>
                               </div>
                               <button
-                                onClick={() => handleUpdateWeight(exercise.id, set.id, 2.5)}
+                                onClick={() => {
+                                  const kg = typeof set.weight === 'number' ? set.weight : 0;
+                                  const display = toDisplayWeight(kg, weightUnit);
+                                  handleSetWeight(
+                                    exercise.id,
+                                    set.id,
+                                    toStorageKg(display + weightStep(weightUnit), weightUnit)
+                                  );
+                                }}
                                 className="coach-step-btn"
                                 style={{ ['--step-accent' as string]: 'var(--red)' } as React.CSSProperties}
                               >

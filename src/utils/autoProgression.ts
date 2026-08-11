@@ -8,6 +8,9 @@ import { WorkoutWeek, WorkoutExercise, WorkoutSet } from '../types';
  *
  * Each set progresses independently (ramp-up / lighter first sets are preserved).
  * Dropsets (array reps/weight) are passed through unchanged.
+ *
+ * Weights in the plan are always stored in kilograms. Client/coach lbs preference
+ * is display-only: convert to kg before progression, show results back in lbs.
  */
 
 export type EquipmentType = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight';

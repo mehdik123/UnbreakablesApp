@@ -45,6 +45,12 @@ import {
 } from '../lib/offlineStore';
 import { authService } from '../lib/authService';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
+import {
+  loadClientWeightUnit,
+  persistClientWeightUnit,
+  saveClientWeightUnitPreference,
+  type WeightUnit,
+} from '../utils/weightUnits';
 import { 
   WorkoutDaySkeleton, 
   NutritionPlanSkeleton, 
@@ -134,6 +140,22 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     if (!saved) return true;
     return saved === 'dark';
   });
+  const [weightUnitPref, setWeightUnitPref] = useState<WeightUnit>(() =>
+    loadClientWeightUnit(client.id, client.workoutAssignment)
+  );
+  useEffect(() => {
+    setWeightUnitPref(loadClientWeightUnit(client.id, client.workoutAssignment));
+  }, [client.id, client.workoutAssignment?.weightUnit]);
+  useEffect(() => {
+    const onUnit = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.clientId === client.id && (detail.unit === 'kg' || detail.unit === 'lbs')) {
+        setWeightUnitPref(detail.unit);
+      }
+    };
+    window.addEventListener('client-weight-unit-changed', onUnit);
+    return () => window.removeEventListener('client-weight-unit-changed', onUnit);
+  }, [client.id]);
   const [currentWeek, setCurrentWeek] = useState<number>(() => {
     return getLatestDeployedWeekNumber(client.workoutAssignment) || client.workoutAssignment?.currentWeek || 1;
   });
@@ -1228,6 +1250,63 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                   {t('profile.themeLight')}
                 </button>
               </div>
+            </section>
+
+            <section className="profile-card">
+              <div className="profile-card-label">
+                <span className="pc-ic"><Scale className="w-3.5 h-3.5" /></span>
+                {t('profile.weightUnit')}
+              </div>
+              <div className="profile-chip-row">
+                {(['kg', 'lbs'] as WeightUnit[]).map((u) => {
+                  const active = weightUnitPref === u;
+                  return (
+                    <button
+                      key={u}
+                      type="button"
+                      onClick={() => {
+                        setWeightUnitPref(u);
+                        persistClientWeightUnit(client.id, u);
+                        void (async () => {
+                          let assignmentId: string | null = client.workoutAssignment?.id || null;
+                          if (!assignmentId && isSupabaseReady && supabase) {
+                            try {
+                              const { data } = await supabase
+                                .from('workout_assignments')
+                                .select('id')
+                                .eq('client_id', client.id)
+                                .eq('is_active', true)
+                                .maybeSingle();
+                              assignmentId = data?.id || null;
+                            } catch {
+                              /* ignore */
+                            }
+                          }
+                          await saveClientWeightUnitPreference({
+                            clientId: client.id,
+                            unit: u,
+                            assignmentId,
+                            assignment: client.workoutAssignment
+                              ? { ...client.workoutAssignment, weightUnit: u }
+                              : { weightUnit: u },
+                          });
+                          window.dispatchEvent(
+                            new CustomEvent('client-weight-unit-changed', {
+                              detail: { clientId: client.id, unit: u },
+                            })
+                          );
+                        })();
+                      }}
+                      className={`profile-chip${active ? ' is-active' : ''}`}
+                    >
+                      {u === 'lbs' ? t('workout.lbs') : t('workout.kg')}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[12px] mt-2 leading-relaxed" style={{ color: 'var(--txt-mid)' }}>
+                {t('profile.weightUnitHint')}
+              </p>
             </section>
 
             <section className="profile-card">

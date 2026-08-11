@@ -149,6 +149,8 @@ export interface Client {
   workoutAssignment?: ClientWorkoutAssignment;
   cardioPlan?: CardioPlan;
   shareUrl?: string;
+  /** Preferred workout load unit (mirrors assignment.weightUnit when present) */
+  weightUnit?: 'kg' | 'lbs';
 }
 
 export interface WeightEntry {
@@ -343,6 +345,8 @@ export interface ClientWorkoutAssignment {
   /** 1-based day last saved via Save my numbers / coach save; used for next-session pointer */
   lastSavedDay?: number;
   lastSavedWeek?: number;
+  /** Client preferred workout load unit. Stored loads remain kg; UI converts. */
+  weightUnit?: 'kg' | 'lbs';
 }
 
 export interface ProgressionRule {

@@ -26,6 +26,15 @@ import {
 import { ExerciseVideoEmbed } from './ExerciseVideoEmbed';
 import { getLatestDeployedWeekNumber } from '../utils/weekCreation';
 import { persistClientsLocally, safeLocalStorageSet } from '../utils/localStorageClients';
+import {
+  loadClientWeightUnit,
+  persistClientWeightUnit,
+  saveClientWeightUnitPreference,
+  toDisplayWeight,
+  toStorageKg,
+  weightStep,
+  type WeightUnit,
+} from '../utils/weightUnits';
 
 interface ClientWorkoutViewProps {
   client: Client;
@@ -81,6 +90,38 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   const [exerciseSaveState, setExerciseSaveState] = useState<{ [exerciseId: string]: 'saving' | 'saved' }>({});
   const [activeVideoExerciseId, setActiveVideoExerciseId] = useState<string | null>(null);
   const dayResumeDoneRef = useRef(false);
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(() =>
+    loadClientWeightUnit(client.id, client.workoutAssignment)
+  );
+
+  useEffect(() => {
+    setWeightUnit(loadClientWeightUnit(client.id, localAssignment || client.workoutAssignment));
+  }, [client.id, client.workoutAssignment?.weightUnit, localAssignment?.weightUnit]);
+
+  useEffect(() => {
+    const onUnit = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.clientId === client.id && (detail.unit === 'kg' || detail.unit === 'lbs')) {
+        setWeightUnit(detail.unit);
+      }
+    };
+    window.addEventListener('client-weight-unit-changed', onUnit);
+    return () => window.removeEventListener('client-weight-unit-changed', onUnit);
+  }, [client.id]);
+
+  const unitLabel = weightUnit === 'lbs' ? t('workout.lbs') : t('workout.kg');
+
+  const handleWeightUnitChange = (unit: WeightUnit) => {
+    setWeightUnit(unit);
+    persistClientWeightUnit(client.id, unit);
+    setLocalAssignment((prev) => (prev ? { ...prev, weightUnit: unit } : prev));
+    void saveClientWeightUnitPreference({
+      clientId: client.id,
+      unit,
+      assignmentId,
+      assignment: (localAssignment || client.workoutAssignment) as any,
+    });
+  };
 
   // Marketing screenshots: scroll so the requested block is in frame (form demo by default, or sets)
   useEffect(() => {
@@ -923,6 +964,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         currentDay: currentDay + 1,
         lastSavedWeek: currentWeek,
         lastSavedDay: currentDay + 1,
+        weightUnit,
       };
 
       // Save to Supabase if available (full assignment so coach and charts see client's edits)
@@ -1089,6 +1131,36 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       )}
 
       <div className="px-3 sm:px-4 py-3 sm:py-4 space-y-4 sm:space-y-6 pb-20 max-w-full overflow-x-hidden">
+        {/* Weight unit — client preference (loads stored as kg; UI converts) */}
+        <div
+          className="flex items-center justify-between gap-3 rounded-[15px] px-3 py-2.5 min-h-12"
+          style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+        >
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--txt-lo)' }}>
+            {t('workout.weightUnit')}
+          </span>
+          <div className="flex gap-1 p-0.5 rounded-[12px]" style={{ background: 'var(--surface-3)' }}>
+            {(['kg', 'lbs'] as WeightUnit[]).map((u) => {
+              const active = weightUnit === u;
+              return (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => handleWeightUnitChange(u)}
+                  className="min-h-10 min-w-[3.25rem] px-3 rounded-[10px] text-[13px] font-bold touch-manipulation"
+                  style={{
+                    background: active ? 'var(--grad-red)' : 'transparent',
+                    color: active ? '#fff' : 'var(--txt-mid)',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
+                  {u === 'lbs' ? t('workout.lbs') : t('workout.kg')}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Week navigation - collapsed into a pill by default to reduce clutter */}
         {deployedWeeks.length > 0 && onWeekChange && (
           <div>
@@ -1557,14 +1629,19 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 
                                 <div>
                                   <div className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.1em] mb-1.5 pl-0.5" style={{ color: 'var(--txt-lo)' }}>
-                                    {t('workout.weight')} ({t('workout.kg')})
+                                    {t('workout.weight')} ({unitLabel})
                                   </div>
                                   <div className="flex flex-wrap gap-1.5">
                                     {dropReps.map((_rep: number, roundIndex: number) => {
                                       const editKey = `${exercise.id}-${setIndex}-d${roundIndex}`;
-                                      const prescribed = dropWeights[roundIndex] ?? 0;
-                                      const current =
-                                        dropsetData[exercise.id]?.[setIndex]?.[roundIndex]?.weight ?? prescribed;
+                                      const prescribedKg = dropWeights[roundIndex] ?? 0;
+                                      const currentKg =
+                                        dropsetData[exercise.id]?.[setIndex]?.[roundIndex]?.weight ?? prescribedKg;
+                                      const display = toDisplayWeight(
+                                        typeof currentKg === 'number' ? currentKg : 0,
+                                        weightUnit
+                                      );
+                                      const step = weightStep(weightUnit);
                                       return (
                                         <div
                                           key={roundIndex}
@@ -1574,8 +1651,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                           <button
                                             type="button"
                                             onClick={() => {
-                                              const next = Math.max(0, (typeof current === 'number' ? current : 0) - 2.5);
-                                              updateDropsetData(exercise.id, setIndex, roundIndex, 'weight', next);
+                                              const nextKg = toStorageKg(Math.max(0, display - step), weightUnit);
+                                              updateDropsetData(exercise.id, setIndex, roundIndex, 'weight', nextKg);
                                               setEditingWeightInput((prev) => {
                                                 const n = { ...prev };
                                                 delete n[editKey];
@@ -1592,17 +1669,14 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                             <input
                                               type="number"
                                               min={0}
-                                              step={0.5}
+                                              step={weightUnit === 'lbs' ? 0.5 : 0.5}
                                               inputMode="decimal"
                                               placeholder="0"
                                               className="wk-weight-input bg-transparent text-center font-display font-bold text-[13px] sm:text-[14px] tnum w-full min-w-0
                                                 focus:outline-none focus:ring-0
                                                 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                               style={{ color: 'var(--txt-hi)', fontSize: '16px' }}
-                                              value={
-                                                editingWeightInput[editKey] ??
-                                                String(typeof current === 'number' ? current : 0)
-                                              }
+                                              value={editingWeightInput[editKey] ?? String(display)}
                                               onChange={(e) => {
                                                 setEditingWeightInput((prev) => ({
                                                   ...prev,
@@ -1613,10 +1687,16 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                                 const raw = editingWeightInput[editKey];
                                                 if (raw === undefined) return;
                                                 const parsed = parseFloat(raw.replace(',', '.'));
-                                                const value = Number.isFinite(parsed)
+                                                const displayVal = Number.isFinite(parsed)
                                                   ? Math.max(0, parsed)
-                                                  : (typeof current === 'number' ? current : 0);
-                                                updateDropsetData(exercise.id, setIndex, roundIndex, 'weight', value);
+                                                  : display;
+                                                updateDropsetData(
+                                                  exercise.id,
+                                                  setIndex,
+                                                  roundIndex,
+                                                  'weight',
+                                                  toStorageKg(displayVal, weightUnit)
+                                                );
                                                 setEditingWeightInput((prev) => {
                                                   const next = { ...prev };
                                                   delete next[editKey];
@@ -1629,14 +1709,14 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                               aria-label={`${t('workout.weightAria')} drop ${roundIndex + 1}`}
                                             />
                                             <span className="text-[9px] font-medium shrink-0" style={{ color: 'var(--txt-lo)' }}>
-                                              {t('workout.kg')}
+                                              {unitLabel}
                                             </span>
                                           </div>
                                           <button
                                             type="button"
                                             onClick={() => {
-                                              const next = (typeof current === 'number' ? current : 0) + 2.5;
-                                              updateDropsetData(exercise.id, setIndex, roundIndex, 'weight', next);
+                                              const nextKg = toStorageKg(display + step, weightUnit);
+                                              updateDropsetData(exercise.id, setIndex, roundIndex, 'weight', nextKg);
                                               setEditingWeightInput((prev) => {
                                                 const n = { ...prev };
                                                 delete n[editKey];
@@ -1712,7 +1792,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                               </div>
                             </div>
 
-                            {/* Weight stepper — wider value field so decimals like 137.5 stay visible */}
+                            {/* Weight stepper — values stored as kg; UI shows client unit */}
                             <div className="flex-[1.2] min-w-0 basis-0">
                               <div className="text-[8px] sm:text-[9px] font-semibold uppercase tracking-[0.1em] sm:tracking-[0.12em] mb-1 sm:mb-1.5 pl-0.5" style={{ color: 'var(--txt-lo)' }}>
                                 {t('workout.weight')}
@@ -1721,14 +1801,20 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
-                                    const newWeight = typeof currentWeight === 'number' ? Math.max(0, currentWeight - 2.5) : 0;
-                                    updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
+                                    const stored =
+                                      exerciseData[exercise.id]?.[setIndex]?.weight ??
+                                      (typeof set.weight === 'number' ? set.weight : 0);
+                                    const display = toDisplayWeight(typeof stored === 'number' ? stored : 0, weightUnit);
+                                    const nextKg = toStorageKg(
+                                      Math.max(0, display - weightStep(weightUnit)),
+                                      weightUnit
+                                    );
+                                    updateExerciseData(exercise.id, setIndex, 'weight', nextKg);
                                     setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
                                   }}
                                   className="wk-step flex items-center justify-center shrink-0"
                                   style={{ color: 'var(--blue)' }}
-                                  aria-label="Decrease weight 2.5 kg"
+                                  aria-label="Decrease weight"
                                 >
                                   <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                 </button>
@@ -1746,9 +1832,15 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                       value={
                                         editingWeightInput[`${exercise.id}-${setIndex}`] ??
                                         String(
-                                          typeof set.weight === 'number'
-                                            ? exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight
-                                            : exerciseData[exercise.id]?.[setIndex]?.weight ?? 0
+                                          toDisplayWeight(
+                                            typeof (
+                                              exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight
+                                            ) === 'number'
+                                              ? ((exerciseData[exercise.id]?.[setIndex]?.weight ??
+                                                  set.weight) as number)
+                                              : 0,
+                                            weightUnit
+                                          )
                                         )
                                       }
                                       onChange={(e) => {
@@ -1762,10 +1854,18 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                         const raw = editingWeightInput[key];
                                         if (raw === undefined) return;
                                         const parsed = parseFloat(raw.replace(',', '.'));
-                                        const fallback =
-                                          exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight ?? 0;
-                                        const value = Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
-                                        updateExerciseData(exercise.id, setIndex, 'weight', typeof value === 'number' ? value : 0);
+                                        const fallbackKg =
+                                          exerciseData[exercise.id]?.[setIndex]?.weight ??
+                                          (typeof set.weight === 'number' ? set.weight : 0);
+                                        const displayVal = Number.isFinite(parsed)
+                                          ? Math.max(0, parsed)
+                                          : toDisplayWeight(fallbackKg, weightUnit);
+                                        updateExerciseData(
+                                          exercise.id,
+                                          setIndex,
+                                          'weight',
+                                          toStorageKg(displayVal, weightUnit)
+                                        );
                                         setEditingWeightInput(prev => {
                                           const next = { ...prev };
                                           delete next[key];
@@ -1777,14 +1877,17 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                       }}
                                       aria-label={t('workout.weightAria')}
                                     />
-                                    <span className="text-[9px] sm:text-[10px] font-medium shrink-0" style={{ color: 'var(--txt-lo)' }}>{t('workout.kg')}</span>
+                                    <span className="text-[9px] sm:text-[10px] font-medium shrink-0" style={{ color: 'var(--txt-lo)' }}>{unitLabel}</span>
                                   </div>
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    const currentWeight = exerciseData[exercise.id]?.[setIndex]?.weight ?? set.weight;
-                                    const newWeight = typeof currentWeight === 'number' ? currentWeight + 2.5 : 2.5;
-                                    updateExerciseData(exercise.id, setIndex, 'weight', newWeight);
+                                    const stored =
+                                      exerciseData[exercise.id]?.[setIndex]?.weight ??
+                                      (typeof set.weight === 'number' ? set.weight : 0);
+                                    const display = toDisplayWeight(typeof stored === 'number' ? stored : 0, weightUnit);
+                                    const nextKg = toStorageKg(display + weightStep(weightUnit), weightUnit);
+                                    updateExerciseData(exercise.id, setIndex, 'weight', nextKg);
                                     setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
                                   }}
                                   className="wk-step flex items-center justify-center shrink-0"

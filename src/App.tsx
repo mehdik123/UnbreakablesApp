@@ -372,7 +372,11 @@ function App() {
                 weeks: enrichedProgram?.weeks || [],
                 progressionRules: enrichedProgram?.progressionRules || [],
                 isActive: assignment.is_active,
-                lastModifiedBy: assignment.last_modified_by
+                lastModifiedBy: assignment.last_modified_by,
+                weightUnit:
+                  enrichedProgram?.weightUnit === 'lbs' || enrichedProgram?.weightUnit === 'kg'
+                    ? enrichedProgram.weightUnit
+                    : undefined,
               };
               
               console.log('🔍 APP DEBUG - Mapped workout assignment:', {
