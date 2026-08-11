@@ -787,6 +787,68 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     }));
   };
 
+  /**
+   * Typed weight fields keep raw display strings until blur.
+   * Mobile/desktop often fire Save before blur — merge pending inputs as kg here
+   * so "Save my numbers" never drops lbs (or kg) edits.
+   */
+  const collectWeightEditsForSave = () => {
+    const mergedExercise: {
+      [exerciseId: string]: { [setIndex: number]: { reps?: number; weight?: number } };
+    } = {};
+    for (const [exId, sets] of Object.entries(exerciseData)) {
+      mergedExercise[exId] = {};
+      for (const [setIdx, vals] of Object.entries(sets)) {
+        mergedExercise[exId][Number(setIdx)] = { ...vals };
+      }
+    }
+
+    const mergedDropset: typeof dropsetData = {};
+    for (const [exId, bySet] of Object.entries(dropsetData)) {
+      mergedDropset[exId] = {};
+      for (const [setIdx, byRound] of Object.entries(bySet)) {
+        mergedDropset[exId][Number(setIdx)] = {};
+        for (const [roundIdx, vals] of Object.entries(byRound)) {
+          mergedDropset[exId][Number(setIdx)][Number(roundIdx)] = { ...vals };
+        }
+      }
+    }
+
+    for (const [key, raw] of Object.entries(editingWeightInput)) {
+      if (raw === undefined) continue;
+      const parsed = parseFloat(String(raw).replace(',', '.'));
+      if (!Number.isFinite(parsed)) continue;
+      const kg = toStorageKg(Math.max(0, parsed), weightUnit);
+
+      const dropSuffix = key.match(/-(\d+)-d(\d+)$/);
+      if (dropSuffix && dropSuffix.index != null) {
+        const exerciseId = key.slice(0, dropSuffix.index);
+        const setIndex = Number(dropSuffix[1]);
+        const roundIndex = Number(dropSuffix[2]);
+        if (!mergedDropset[exerciseId]) mergedDropset[exerciseId] = {};
+        if (!mergedDropset[exerciseId][setIndex]) mergedDropset[exerciseId][setIndex] = {};
+        mergedDropset[exerciseId][setIndex][roundIndex] = {
+          ...(mergedDropset[exerciseId][setIndex][roundIndex] || { reps: 0, weight: 0 }),
+          weight: kg,
+        };
+        continue;
+      }
+
+      const normalSuffix = key.match(/-(\d+)$/);
+      if (normalSuffix && normalSuffix.index != null) {
+        const exerciseId = key.slice(0, normalSuffix.index);
+        const setIndex = Number(normalSuffix[1]);
+        if (!mergedExercise[exerciseId]) mergedExercise[exerciseId] = {};
+        mergedExercise[exerciseId][setIndex] = {
+          ...(mergedExercise[exerciseId][setIndex] || {}),
+          weight: kg,
+        };
+      }
+    }
+
+    return { mergedExercise, mergedDropset };
+  };
+
   const isHumanReadableSupersetName = (name: unknown): name is string => {
     if (typeof name !== 'string' || !name.trim()) return false;
     const s = name.trim();
@@ -876,6 +938,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
       });
 
       // Create updated days with client's edits applied and videoUrl/muscleGroup preserved so videos don't disappear after save
+      const { mergedExercise, mergedDropset } = collectWeightEditsForSave();
       const updatedDays = sourceDays.map((day: any, dayIndex: number) => ({
         ...day,
         // Mark only the day being saved — prescribed weights on other/new weeks do not count
@@ -883,9 +946,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         exercises: (day.exercises && Array.isArray(day.exercises) ? day.exercises : []).map((exercise: any) => {
           const exName = (exercise.exercise?.name ?? exercise.exercise?.id ?? exercise.name ?? '').toString().trim().toLowerCase();
           const videoMeta = exName ? videoByName[exName] : null;
-          // Get client's edits for this exercise
-          const exerciseEdits = exerciseData[exercise.id] || {};
-          const dropsetEdits = dropsetData[exercise.id] || {};
+          // Get client's edits for this exercise (includes pending typed lbs/kg not yet blurred)
+          const exerciseEdits = mergedExercise[exercise.id] || {};
+          const dropsetEdits = mergedDropset[exercise.id] || {};
 
           return {
             ...exercise,
@@ -911,11 +974,12 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                 return { ...set, weight: weightBase };
               }
 
-              if (exerciseEdits[setIndex]) {
+              const edit = exerciseEdits[setIndex];
+              if (edit && (edit.weight !== undefined || edit.reps !== undefined)) {
                 return {
                   ...set,
-                  reps: exerciseEdits[setIndex].reps ?? set.reps,
-                  weight: exerciseEdits[setIndex].weight ?? set.weight
+                  reps: edit.reps !== undefined ? edit.reps : set.reps,
+                  weight: edit.weight !== undefined ? edit.weight : set.weight,
                 };
               }
 
@@ -924,6 +988,24 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           };
         })
       }));
+
+      // Sync React state with what we actually persisted (pending typed fields included)
+      setExerciseData((prev) => {
+        const next = { ...prev };
+        for (const [exId, sets] of Object.entries(mergedExercise)) {
+          next[exId] = { ...(next[exId] || {}) };
+          for (const [setIdx, vals] of Object.entries(sets)) {
+            const i = Number(setIdx);
+            next[exId][i] = {
+              reps: vals.reps ?? next[exId][i]?.reps ?? 0,
+              weight: vals.weight ?? next[exId][i]?.weight ?? 0,
+            };
+          }
+        }
+        return next;
+      });
+      setDropsetData(mergedDropset);
+      setEditingWeightInput({});
 
       // Update or create current week data
       if (!currentWeekData) {
@@ -956,7 +1038,12 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             : { ...(assignment.program || programToUse || {}), days: updatedDays };
       const updatedAssignment = {
         ...assignment,
-        program: programWithDays,
+        // Keep weeks as source of truth; also mirror this week's saved days onto program.days
+        // so reloads never fall back to stale prescribed kg values.
+        program: {
+          ...programWithDays,
+          days: updatedDays,
+        },
         weeks: existingWeeks,
         lastModifiedBy: 'client' as const,
         lastModifiedAt: new Date(),
@@ -1064,6 +1151,12 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   };
 
   const handleSaveExercise = async (exerciseId: string) => {
+    // Commit any focused weight field before save (esp. important for lbs typing).
+    try {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+    } catch {
+      /* ignore */
+    }
     setExerciseSaveState(prev => ({ ...prev, [exerciseId]: 'saving' }));
     try {
       await saveClientEdits();
