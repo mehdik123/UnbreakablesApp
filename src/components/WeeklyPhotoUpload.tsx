@@ -333,23 +333,13 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
       )}
 
       {/* Week gallery layout: Side (default 3-up) | Stack (full-width vertical) */}
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--txt-lo)' }}>
-          {t('photo.weekLayout')}
-        </span>
-        <div
-          className="flex rounded-lg p-0.5"
-          style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
-        >
+      <div className="photo-layout-toggle">
+        <span className="photo-layout-toggle__label">{t('photo.weekLayout')}</span>
+        <div className="photo-layout-seg" role="group" aria-label={t('photo.weekLayout')}>
           <button
             type="button"
             onClick={() => setWeekLayout('side')}
-            className="min-h-10 px-3 rounded-md flex items-center gap-1.5 text-[11px] font-semibold touch-manipulation"
-            style={{
-              background: weekLayout === 'side' ? 'var(--red)' : 'transparent',
-              color: weekLayout === 'side' ? '#fff' : 'var(--txt-mid)',
-              WebkitTapHighlightColor: 'transparent',
-            }}
+            className={`photo-layout-seg__btn${weekLayout === 'side' ? ' is-active' : ''}`}
             aria-pressed={weekLayout === 'side'}
           >
             <Columns2 className="w-3.5 h-3.5" />
@@ -358,12 +348,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
           <button
             type="button"
             onClick={() => setWeekLayout('stack')}
-            className="min-h-10 px-3 rounded-md flex items-center gap-1.5 text-[11px] font-semibold touch-manipulation"
-            style={{
-              background: weekLayout === 'stack' ? 'var(--red)' : 'transparent',
-              color: weekLayout === 'stack' ? '#fff' : 'var(--txt-mid)',
-              WebkitTapHighlightColor: 'transparent',
-            }}
+            className={`photo-layout-seg__btn${weekLayout === 'stack' ? ' is-active' : ''}`}
             aria-pressed={weekLayout === 'stack'}
           >
             <Rows2 className="w-3.5 h-3.5" />
@@ -372,17 +357,14 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
         </div>
       </div>
 
-      {/* Upload / view grid */}
-      <div
-        className={
-          weekLayout === 'stack'
-            ? 'flex flex-col gap-3'
-            : 'grid grid-cols-3 gap-2'
-        }
-      >
-        {photoTypes.map(({ type, label }) => {
+      {/* Upload / view grid — cinematic frames for screenshots */}
+      <div className={weekLayout === 'stack' ? 'photo-week-stack' : 'photo-week-grid'}>
+        {photoTypes.map(({ type, label }, index) => {
           const photo = getPhotoForType(type);
           const tall = weekLayout === 'stack';
+          const frameMod = tall ? 'photo-frame--stack' : 'photo-frame--side';
+          const emptyMod = tall ? 'photo-empty--stack' : 'photo-empty--side';
+          const poseIndex = String(index + 1).padStart(2, '0');
 
           return (
             <div key={type} className="relative group">
@@ -395,50 +377,42 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
               />
 
               {photo ? (
-                <div
-                  className={`relative rounded-2xl overflow-hidden ${
-                    tall ? 'aspect-[3/4] max-h-[72dvh] w-full' : 'aspect-[3/4]'
-                  }`}
-                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
-                >
+                <div className={`photo-frame ${frameMod}`}>
                   <img
                     src={photo.imageUrl}
                     alt={`${label} view`}
-                    className="w-full h-full object-cover"
+                    className="photo-frame__img"
                   />
-                  <div
-                    className="absolute top-1.5 right-1.5 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                  <div className="photo-frame__vignette" aria-hidden="true" />
+                  <div className="photo-frame__accent" aria-hidden="true" />
+                  <div className="photo-frame__top">
+                    <span className="photo-frame__brand">Unbreakables</span>
+                    <span className="photo-frame__week">{t('photo.week', { n: selectedWeek })}</span>
+                  </div>
+                  <div className="photo-frame__bottom">
+                    <span className="photo-frame__pose">{label}</span>
+                    <span className="photo-frame__index">{poseIndex} / 03</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(photo.id)}
+                    className="photo-frame__delete"
+                    aria-label="Delete photo"
                   >
-                    <button
-                      onClick={() => removePhoto(photo.id)}
-                      className="text-white rounded-lg p-2 transition-transform active:scale-90"
-                      style={{ background: 'var(--grad-red)', boxShadow: '0 8px 20px -8px rgba(255,45,85,.6)', minWidth: 36, minHeight: 36 }}
-                      aria-label="Delete photo"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/85 to-transparent">
-                    <span className={`text-white font-bold uppercase tracking-wider ${tall ? 'text-[12px]' : 'text-[10px]'}`}>
-                      {label}
-                    </span>
-                  </div>
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ) : (
                 <button
+                  type="button"
                   onClick={() => fileInputRefs[type].current?.click()}
                   disabled={uploading}
-                  className={`${
-                    tall ? 'aspect-[3/4] max-h-[40dvh]' : 'aspect-[3/4]'
-                  } w-full rounded-2xl flex flex-col items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
-                  style={{ background: 'var(--surface-2)', border: '1px dashed var(--hair-strong)' }}
+                  className={`photo-empty ${emptyMod} disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  <div className={`${tall ? 'w-12 h-12' : 'w-9 h-9'} rounded-xl flex items-center justify-center`} style={{ background: 'rgba(255,45,85,.12)' }}>
-                    <Upload className={tall ? 'w-5 h-5' : 'w-4 h-4'} style={{ color: 'var(--red)' }} />
+                  <div className="photo-empty__icon">
+                    <Upload className={tall ? 'w-5 h-5' : 'w-4 h-4'} />
                   </div>
-                  <span className={`font-bold uppercase tracking-wider ${tall ? 'text-[12px]' : 'text-[10px]'}`} style={{ color: 'var(--txt-mid)' }}>
-                    {label}
-                  </span>
+                  <span className="photo-empty__label">{label}</span>
                 </button>
               )}
             </div>
@@ -562,28 +536,26 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                 const photo2 = photos.find(p => p.week === compareWeek2 && p.type === type);
 
                 const renderCard = (photo: WeeklyPhoto | undefined, week: number, tall: boolean) => (
-                  <div
-                    className={`relative rounded-2xl overflow-hidden ${
-                      tall ? 'aspect-[3/4] max-h-[72dvh] w-full mx-auto' : 'aspect-[3/4]'
-                    }`}
-                    style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
-                  >
+                  <div className={`photo-frame ${tall ? 'photo-frame--stack' : 'photo-frame--side'}`}>
                     {photo ? (
                       <>
                         <img
                           src={photo.imageUrl}
                           alt={`${label} week ${week}`}
-                          className="w-full h-full object-cover"
+                          className="photo-frame__img"
                         />
-                        <div
-                          className="absolute top-2 left-2 px-2.5 py-1 rounded-lg text-white text-[11px] font-bold uppercase tracking-wide backdrop-blur-sm"
-                          style={{ background: 'rgba(8,9,13,.65)' }}
-                        >
-                          {t('photo.week', { n: week })}
+                        <div className="photo-frame__vignette" aria-hidden="true" />
+                        <div className="photo-frame__accent" aria-hidden="true" />
+                        <div className="photo-frame__top">
+                          <span className="photo-frame__brand">Unbreakables</span>
+                          <span className="photo-frame__week">{t('photo.week', { n: week })}</span>
+                        </div>
+                        <div className="photo-frame__bottom">
+                          <span className="photo-frame__pose">{label}</span>
                         </div>
                       </>
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
+                      <div className="w-full h-full flex items-center justify-center min-h-[8rem]">
                         <span className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>{t('photo.noPhoto')}</span>
                       </div>
                     )}
