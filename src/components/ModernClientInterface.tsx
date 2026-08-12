@@ -92,7 +92,29 @@ const ClientNutritionView = lazy(() => import('./ClientNutritionView').then(modu
 const UltraModernNutritionView = lazy(() => import('./UltraModernNutritionView').then(module => ({ default: module.default })));
 const SimpleNutritionView = lazy(() => import('./SimpleNutritionView').then(module => ({ default: module.default })));
 const ClientWorkoutView = lazy(() => import('./ClientWorkoutView').then(module => ({ default: module.ClientWorkoutView })));
-const UltraModernWeeklyWeightLogger = lazy(() => import('./UltraModernWeeklyWeightLogger').then(module => ({ default: module.UltraModernWeeklyWeightLogger })));
+const UltraModernWeeklyWeightLogger = lazy(() =>
+  import('./UltraModernWeeklyWeightLogger')
+    .then((module) => ({ default: module.UltraModernWeeklyWeightLogger }))
+    .catch((err) => {
+      console.error('Failed to load weight screen:', err);
+      return {
+        default: () => (
+          <div className="rounded-xl p-4 text-center" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--txt-hi)' }}>Couldn’t load body weight</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--txt-mid)' }}>Refresh the page (or clear site data) and try again.</p>
+            <button
+              type="button"
+              className="mt-3 min-h-11 px-4 rounded-xl text-sm font-semibold touch-manipulation"
+              style={{ background: 'var(--grad-red)', color: '#fff' }}
+              onClick={() => window.location.reload()}
+            >
+              Refresh
+            </button>
+          </div>
+        ),
+      };
+    })
+);
 const IndependentMuscleGroupCharts = lazy(() => import('./IndependentMuscleGroupCharts').then(module => ({ default: module.IndependentMuscleGroupCharts })));
 const WeeklyPhotoUpload = lazy(() => import('./WeeklyPhotoUpload').then(module => ({ default: module.default })));
 const PerformanceAnalytics = lazy(() => import('./PerformanceAnalytics').then(module => ({ default: module.PerformanceAnalytics })));
@@ -1453,12 +1475,18 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               workoutAssignment={clientForCharts.workoutAssignment ?? effectiveWorkoutAssignment ?? client.workoutAssignment}
             />
           ) : activeTab === 'weight' ? (
-            <UltraModernWeeklyWeightLogger
-              client={client}
-              currentWeek={currentWeek}
-              maxWeeks={client.numberOfWeeks}
-              isDark={useDarkTheme}
-            />
+            <ErrorBoundary>
+              <UltraModernWeeklyWeightLogger
+                client={
+                  databaseClientId && databaseClientId !== client.id
+                    ? { ...client, id: databaseClientId }
+                    : client
+                }
+                currentWeek={currentWeek}
+                maxWeeks={client.numberOfWeeks || 12}
+                isDark={useDarkTheme}
+              />
+            </ErrorBoundary>
           ) : activeTab === 'photos' ? (
             <ErrorBoundary>
             <div className="photos-shell px-1">

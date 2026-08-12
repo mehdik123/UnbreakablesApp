@@ -47,12 +47,16 @@ function dayNumberFromKey(dayKey: string): number {
 export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLoggerProps> = ({
   client,
   currentWeek: initialWeek,
-  maxWeeks,
+  maxWeeks: maxWeeksProp,
   isDark
 }) => {
   const { t } = useClientLocale();
+  const maxWeeks = Math.max(1, Math.min(52, Number(maxWeeksProp) || 12));
   const [activeTab, setActiveTab] = useState<'weight' | 'measurements'>('weight');
-  const [selectedWeek, setSelectedWeek] = useState(initialWeek);
+  const [selectedWeek, setSelectedWeek] = useState(() => {
+    const w = Number(initialWeek) || 1;
+    return Math.max(1, Math.min(maxWeeks, w));
+  });
   const [weeklyData, setWeeklyData] = useState<Record<number, Record<string, WeightEntry>>>({});
   const [editingCell, setEditingCell] = useState<{week: number, day: string} | null>(null);
   const [tempValue, setTempValue] = useState('');

@@ -23,7 +23,15 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {
-    throw new Error('useToast must be used within ToastProvider');
+    // Avoid blanking an entire screen if a leaf mounts outside the provider.
+    const noop = () => {};
+    return {
+      showToast: noop as ToastContextType['showToast'],
+      success: noop as ToastContextType['success'],
+      error: noop as ToastContextType['error'],
+      warning: noop as ToastContextType['warning'],
+      info: noop as ToastContextType['info'],
+    };
   }
   return context;
 };
