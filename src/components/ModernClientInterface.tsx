@@ -1460,6 +1460,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               isDark={useDarkTheme}
             />
           ) : activeTab === 'photos' ? (
+            <ErrorBoundary>
             <div className="photos-shell px-1">
               <div className="photos-summary">
                 <div className="photos-summary-icon">
@@ -1485,11 +1486,12 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               <WeeklyPhotoUpload
                 clientId={databaseClientId || client.id}
                 currentWeek={currentWeek}
-                maxWeeks={client.numberOfWeeks}
+                maxWeeks={client.numberOfWeeks || 12}
                 onPhotosUpdate={setWeeklyPhotos}
                 existingPhotos={weeklyPhotos}
               />
             </div>
+            </ErrorBoundary>
           ) : null}
         </Suspense>
       </div>

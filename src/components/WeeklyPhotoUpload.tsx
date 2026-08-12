@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, Upload, X, ChevronDown, ArrowLeftRight, Columns2, Rows2 } from 'lucide-react';
+import { Camera, Upload, X, ChevronDown, ArrowLeftRight } from 'lucide-react';
 import { dbSaveWeeklyPhoto, dbDeleteWeeklyPhoto, dbGetClientPhotos, uploadWeeklyPhoto, WeeklyPhoto } from '../lib/db';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 
@@ -13,14 +13,41 @@ interface WeeklyPhotoUploadProps {
 
 type CompareLayout = 'side' | 'stack';
 
+/** Inline icons — avoid extra lucide chunks (Columns2/Rows2) that can 404 under stale PWA caches. */
+const SideLayoutIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M12 3v18" />
+  </svg>
+);
+const StackLayoutIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M3 12h18" />
+  </svg>
+);
+
 const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
   clientId,
   currentWeek,
-  maxWeeks,
+  maxWeeks: maxWeeksProp,
   onPhotosUpdate,
   existingPhotos = []
 }) => {
   const { t } = useClientLocale();
+  const maxWeeks = Math.max(1, Math.min(52, Number(maxWeeksProp) || 12));
+  const fileInputFrontRef = useRef<HTMLInputElement>(null);
+  const fileInputSideRef = useRef<HTMLInputElement>(null);
+  const fileInputBackRef = useRef<HTMLInputElement>(null);
+  const fileInputRefs = {
+    front: fileInputFrontRef,
+    side: fileInputSideRef,
+    back: fileInputBackRef,
+  };
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const onPhotosUpdateRef = useRef(onPhotosUpdate);
+  onPhotosUpdateRef.current = onPhotosUpdate;
+
   const [photos, setPhotos] = useState<WeeklyPhoto[]>(existingPhotos);
   const [uploading, setUploading] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState<number>(currentWeek);
@@ -69,13 +96,6 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
       /* ignore */
     }
   }, [weekLayout]);
-  
-  const fileInputRefs = {
-    front: useRef<HTMLInputElement>(null),
-    side: useRef<HTMLInputElement>(null),
-    back: useRef<HTMLInputElement>(null)
-  };
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Load photos
   useEffect(() => {
@@ -83,25 +103,27 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
       if (!clientId) return;
       try {
         const { data: dbPhotos, error } = await dbGetClientPhotos(clientId);
-        if (error || !dbPhotos) return;
+        if (error || !dbPhotos || !Array.isArray(dbPhotos)) return;
         
-        const convertedPhotos: WeeklyPhoto[] = dbPhotos.map(photo => ({
-          id: photo.id,
-          week: photo.week,
-          type: photo.type,
-          imageUrl: photo.image_url,
-          uploadedAt: new Date(photo.uploaded_at)
-        }));
+        const convertedPhotos: WeeklyPhoto[] = dbPhotos
+          .filter((photo) => photo && (photo.image_url || photo.imageUrl))
+          .map(photo => ({
+            id: photo.id,
+            week: Number(photo.week) || 1,
+            type: photo.type,
+            imageUrl: photo.image_url || photo.imageUrl || '',
+            uploadedAt: new Date(photo.uploaded_at || Date.now())
+          }));
         
         setPhotos(convertedPhotos);
-        onPhotosUpdate(convertedPhotos);
+        onPhotosUpdateRef.current(convertedPhotos);
       } catch (error) {
         console.error('Error loading photos:', error);
       }
     };
 
     loadPhotos();
-  }, [clientId, onPhotosUpdate]);
+  }, [clientId]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -342,7 +364,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
             className={`photo-layout-seg__btn${weekLayout === 'side' ? ' is-active' : ''}`}
             aria-pressed={weekLayout === 'side'}
           >
-            <Columns2 className="w-3.5 h-3.5" />
+            <SideLayoutIcon className="w-3.5 h-3.5" />
             {t('photo.layoutSide')}
           </button>
           <button
@@ -351,7 +373,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
             className={`photo-layout-seg__btn${weekLayout === 'stack' ? ' is-active' : ''}`}
             aria-pressed={weekLayout === 'stack'}
           >
-            <Rows2 className="w-3.5 h-3.5" />
+            <StackLayoutIcon className="w-3.5 h-3.5" />
             {t('photo.layoutStack')}
           </button>
         </div>
@@ -481,7 +503,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                       WebkitTapHighlightColor: 'transparent',
                     }}
                   >
-                    <Columns2 className="w-3.5 h-3.5" />
+                    <SideLayoutIcon className="w-3.5 h-3.5" />
                     {t('photo.layoutSide')}
                   </button>
                   <button
@@ -494,7 +516,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                       WebkitTapHighlightColor: 'transparent',
                     }}
                   >
-                    <Rows2 className="w-3.5 h-3.5" />
+                    <StackLayoutIcon className="w-3.5 h-3.5" />
                     {t('photo.layoutStack')}
                   </button>
                 </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Download, Calendar, Grid, List, X, ChevronLeft, ChevronRight, GitCompare, Camera, Columns2, Rows2 } from 'lucide-react';
+import { Eye, Download, Calendar, Grid, List, X, ChevronLeft, ChevronRight, GitCompare, Camera } from 'lucide-react';
 import { WeeklyPhoto } from '../lib/db';
 
 interface WeeklyPhotoGalleryProps {
@@ -7,6 +7,19 @@ interface WeeklyPhotoGalleryProps {
   onPhotosUpdate: (photos: WeeklyPhoto[]) => void;
   isCoachView?: boolean;
 }
+
+const SideLayoutIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M12 3v18" />
+  </svg>
+);
+const StackLayoutIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <path d="M3 12h18" />
+  </svg>
+);
 
 const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
   photos,
@@ -309,7 +322,7 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
                   color: compareLayout === 'side' ? '#fff' : 'var(--txt-mid)',
                 }}
               >
-                <Columns2 className="w-3.5 h-3.5" />
+                <SideLayoutIcon className="w-3.5 h-3.5" />
                 Side
               </button>
               <button
@@ -321,7 +334,7 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
                   color: compareLayout === 'stack' ? '#fff' : 'var(--txt-mid)',
                 }}
               >
-                <Rows2 className="w-3.5 h-3.5" />
+                <StackLayoutIcon className="w-3.5 h-3.5" />
                 Stack
               </button>
             </div>
