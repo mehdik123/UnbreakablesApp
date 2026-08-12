@@ -44,6 +44,15 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
     }
   });
   const [compareFocusType, setCompareFocusType] = useState<'front' | 'side' | 'back' | 'all'>('front');
+  /** Week Front/Side/Back gallery — horizontal 3-up is default; stack = big vertical for screenshots */
+  const [weekLayout, setWeekLayout] = useState<CompareLayout>(() => {
+    try {
+      const saved = localStorage.getItem('ub_photo_week_layout');
+      return saved === 'stack' || saved === 'side' ? saved : 'side';
+    } catch {
+      return 'side';
+    }
+  });
 
   useEffect(() => {
     try {
@@ -52,6 +61,14 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
       /* ignore */
     }
   }, [compareLayout]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ub_photo_week_layout', weekLayout);
+    } catch {
+      /* ignore */
+    }
+  }, [weekLayout]);
   
   const fileInputRefs = {
     front: useRef<HTMLInputElement>(null),
@@ -315,11 +332,58 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
         </p>
       )}
 
-      {/* Compact Upload Grid */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* Week gallery layout: Side (default 3-up) | Stack (full-width vertical) */}
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--txt-lo)' }}>
+          {t('photo.weekLayout')}
+        </span>
+        <div
+          className="flex rounded-lg p-0.5"
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+        >
+          <button
+            type="button"
+            onClick={() => setWeekLayout('side')}
+            className="min-h-10 px-3 rounded-md flex items-center gap-1.5 text-[11px] font-semibold touch-manipulation"
+            style={{
+              background: weekLayout === 'side' ? 'var(--red)' : 'transparent',
+              color: weekLayout === 'side' ? '#fff' : 'var(--txt-mid)',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+            aria-pressed={weekLayout === 'side'}
+          >
+            <Columns2 className="w-3.5 h-3.5" />
+            {t('photo.layoutSide')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setWeekLayout('stack')}
+            className="min-h-10 px-3 rounded-md flex items-center gap-1.5 text-[11px] font-semibold touch-manipulation"
+            style={{
+              background: weekLayout === 'stack' ? 'var(--red)' : 'transparent',
+              color: weekLayout === 'stack' ? '#fff' : 'var(--txt-mid)',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+            aria-pressed={weekLayout === 'stack'}
+          >
+            <Rows2 className="w-3.5 h-3.5" />
+            {t('photo.layoutStack')}
+          </button>
+        </div>
+      </div>
+
+      {/* Upload / view grid */}
+      <div
+        className={
+          weekLayout === 'stack'
+            ? 'flex flex-col gap-3'
+            : 'grid grid-cols-3 gap-2'
+        }
+      >
         {photoTypes.map(({ type, label }) => {
           const photo = getPhotoForType(type);
-          
+          const tall = weekLayout === 'stack';
+
           return (
             <div key={type} className="relative group">
               <input
@@ -329,9 +393,14 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                 onChange={(e) => handleFileSelect(e.target.files, type)}
                 className="hidden"
               />
-              
+
               {photo ? (
-                <div className="relative aspect-[3/4] rounded-2xl overflow-hidden" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
+                <div
+                  className={`relative rounded-2xl overflow-hidden ${
+                    tall ? 'aspect-[3/4] max-h-[72dvh] w-full' : 'aspect-[3/4]'
+                  }`}
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+                >
                   <img
                     src={photo.imageUrl}
                     alt={`${label} view`}
@@ -350,20 +419,26 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                     </button>
                   </div>
                   <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/85 to-transparent">
-                    <span className="text-white text-[10px] font-bold uppercase tracking-wider">{label}</span>
+                    <span className={`text-white font-bold uppercase tracking-wider ${tall ? 'text-[12px]' : 'text-[10px]'}`}>
+                      {label}
+                    </span>
                   </div>
                 </div>
               ) : (
                 <button
                   onClick={() => fileInputRefs[type].current?.click()}
                   disabled={uploading}
-                  className="aspect-[3/4] w-full rounded-2xl flex flex-col items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`${
+                    tall ? 'aspect-[3/4] max-h-[40dvh]' : 'aspect-[3/4]'
+                  } w-full rounded-2xl flex flex-col items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed`}
                   style={{ background: 'var(--surface-2)', border: '1px dashed var(--hair-strong)' }}
                 >
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,45,85,.12)' }}>
-                    <Upload className="w-4 h-4" style={{ color: 'var(--red)' }} />
+                  <div className={`${tall ? 'w-12 h-12' : 'w-9 h-9'} rounded-xl flex items-center justify-center`} style={{ background: 'rgba(255,45,85,.12)' }}>
+                    <Upload className={tall ? 'w-5 h-5' : 'w-4 h-4'} style={{ color: 'var(--red)' }} />
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--txt-mid)' }}>{label}</span>
+                  <span className={`font-bold uppercase tracking-wider ${tall ? 'text-[12px]' : 'text-[10px]'}`} style={{ color: 'var(--txt-mid)' }}>
+                    {label}
+                  </span>
                 </button>
               )}
             </div>
