@@ -188,6 +188,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   const [draftNewWeek, setDraftNewWeek] = useState<WorkoutWeek | null>(null);
   const [weekGenMode, setWeekGenMode] = useState<WeekGenMode>('progress');
   const [progressionSourceWeek, setProgressionSourceWeek] = useState<WorkoutWeek | null>(null);
+  /** Days the client did not train — copied as-is, no overload / deload. */
+  const [excludedProgressionDayIndexes, setExcludedProgressionDayIndexes] = useState<number[]>([]);
 
   // Superset pairing (pick exactly 2 exercises) + save-as-template
   const [supersetPickMode, setSupersetPickMode] = useState(false);
@@ -201,12 +203,21 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   const buildDraftWeek = (
     prevWeek: WorkoutWeek,
     nextNum: number,
-    mode: WeekGenMode
+    mode: WeekGenMode,
+    excludedDayIndexes: number[] = []
   ): WorkoutWeek => {
     const base = createNextWeekFromActuals(prevWeek, nextNum);
-    if (mode === 'deload') return applyDeload(base);
+    const options = { excludedDayIndexes };
+    if (mode === 'deload') return applyDeload(base, options);
     if (mode === 'copy') return base;
-    return applyAutoProgression(base);
+    return applyAutoProgression(base, options);
+  };
+
+  const closeCreateWeekModal = () => {
+    setShowCreateWeekModal(false);
+    setDraftNewWeek(null);
+    setProgressionSourceWeek(null);
+    setExcludedProgressionDayIndexes([]);
   };
 
   const handleDeleteWeek = async (weekNumber: number, openRecreateModal = false) => {
@@ -252,7 +263,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       if (openRecreateModal && prevWeek?.days?.length) {
         setProgressionSourceWeek(prevWeek);
         setWeekGenMode('progress');
-        setDraftNewWeek(buildDraftWeek(prevWeek, weekNumber, 'progress'));
+        setExcludedProgressionDayIndexes([]);
+        setDraftNewWeek(buildDraftWeek(prevWeek, weekNumber, 'progress', []));
         setShowCreateWeekModal(true);
       } else {
         alert(result.message);
@@ -1668,7 +1680,8 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     const nextNum = getNextWeekNumber({ ...client.workoutAssignment, weeks: savedWeeks });
                     setProgressionSourceWeek(prevWeek);
                     setWeekGenMode('progress');
-                    setDraftNewWeek(buildDraftWeek(prevWeek, nextNum, 'progress'));
+                    setExcludedProgressionDayIndexes([]);
+                    setDraftNewWeek(buildDraftWeek(prevWeek, nextNum, 'progress', []));
                     setShowCreateWeekModal(true);
                   }}
                   disabled={!client.workoutAssignment || !canCreateNextWeek(client.workoutAssignment)}
@@ -3484,7 +3497,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         Create Week {draftNewWeek.weekNumber} from Week {draftNewWeek.weekNumber - 1} actuals
                       </h2>
                       <button
-                        onClick={() => { setShowCreateWeekModal(false); setDraftNewWeek(null); setProgressionSourceWeek(null); }}
+                        onClick={closeCreateWeekModal}
                         className="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white"
                       >
                         <X className="w-5 h-5" />
@@ -3503,7 +3516,14 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                           onClick={() => {
                             setWeekGenMode(opt.id);
                             if (progressionSourceWeek) {
-                              setDraftNewWeek(buildDraftWeek(progressionSourceWeek, draftNewWeek.weekNumber, opt.id));
+                              setDraftNewWeek(
+                                buildDraftWeek(
+                                  progressionSourceWeek,
+                                  draftNewWeek.weekNumber,
+                                  opt.id,
+                                  excludedProgressionDayIndexes
+                                )
+                              );
                             }
                           }}
                           title={opt.hint}
@@ -3522,6 +3542,55 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         {weekGenMode === 'copy' && `Week ${draftNewWeek.weekNumber} starts with the exact same exercises, reps and weights as Week ${draftNewWeek.weekNumber - 1}.`}
                       </span>
                     </div>
+
+                    {weekGenMode !== 'copy' && (progressionSourceWeek?.days?.length || 0) > 0 && (
+                      <div>
+                        <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+                          Which days were trained?
+                        </div>
+                        <p className="text-xs text-slate-500 mb-2">
+                          Uncheck a day to exclude it from this update. That day stays the same as last week.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {(progressionSourceWeek?.days || []).map((day, dayIndex) => {
+                            const trained = !excludedProgressionDayIndexes.includes(dayIndex);
+                            return (
+                              <button
+                                key={`${day.id || day.name}-${dayIndex}`}
+                                type="button"
+                                onClick={() => {
+                                  const nextExcluded = trained
+                                    ? [...excludedProgressionDayIndexes, dayIndex].sort((a, b) => a - b)
+                                    : excludedProgressionDayIndexes.filter((i) => i !== dayIndex);
+                                  setExcludedProgressionDayIndexes(nextExcluded);
+                                  if (progressionSourceWeek) {
+                                    setDraftNewWeek(
+                                      buildDraftWeek(
+                                        progressionSourceWeek,
+                                        draftNewWeek.weekNumber,
+                                        weekGenMode,
+                                        nextExcluded
+                                      )
+                                    );
+                                  }
+                                }}
+                                className={`min-h-11 px-3 rounded-xl text-sm font-semibold touch-manipulation transition-all ${
+                                  trained
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-slate-700 text-slate-400 line-through'
+                                }`}
+                                aria-pressed={trained}
+                              >
+                                {day.name || `Day ${dayIndex + 1}`}
+                                <span className="block text-[10px] font-medium opacity-80">
+                                  {trained ? 'Progress' : 'Keep same'}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1 overflow-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div>
@@ -3550,9 +3619,20 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     <div>
                       <h3 className="text-sm font-semibold text-slate-400 uppercase mb-3">Week {draftNewWeek.weekNumber} draft (edit for progressive overload)</h3>
                       <div className="space-y-4 text-sm">
-                        {draftNewWeek.days?.map((day, dayIdx) => (
+                        {draftNewWeek.days?.map((day, dayIdx) => {
+                          const keptSame = excludedProgressionDayIndexes.includes(dayIdx);
+                          return (
                           <div key={dayIdx} className="bg-slate-700/30 rounded-xl p-4">
-                            <div className="font-medium text-white mb-2">{day.name}</div>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <div className="font-medium text-white">{day.name}</div>
+                              {weekGenMode !== 'copy' && (
+                                <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                                  keptSame ? 'bg-slate-600 text-slate-300' : 'bg-emerald-500/20 text-emerald-300'
+                                }`}>
+                                  {keptSame ? 'Kept same' : 'Progressed'}
+                                </span>
+                              )}
+                            </div>
                             {day.exercises?.map((ex, exIdx) => (
                               <div key={exIdx} className="ml-2 mb-3">
                                 <div className="text-slate-300 mb-1">{ex.exercise?.name}</div>
@@ -3583,13 +3663,14 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                               </div>
                             ))}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-700">
                     <button
-                      onClick={() => { setShowCreateWeekModal(false); setDraftNewWeek(null); setProgressionSourceWeek(null); }}
+                      onClick={closeCreateWeekModal}
                       className="px-4 py-2 rounded-xl bg-slate-600 hover:bg-slate-500 text-white"
                     >
                       Cancel
@@ -3625,6 +3706,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         setShowCreateWeekModal(false);
                         setDraftNewWeek(null);
                         setProgressionSourceWeek(null);
+                        setExcludedProgressionDayIndexes([]);
                       }}
                       className="px-6 py-2 rounded-xl bg-green-600 hover:bg-green-500 text-white font-medium"
                     >
