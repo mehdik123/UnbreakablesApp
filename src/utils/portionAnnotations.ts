@@ -110,6 +110,16 @@ export const PORTION_RULES: PortionRule[] = [
     unitSingular: 'slice',
     unitPlural: 'slices',
   },
+  {
+    id: 'rice-cake',
+    matches: (n) => {
+      const name = normalizeName(n);
+      return name === 'rice cake' || name === 'rice cakes' || name.includes('rice cake');
+    },
+    gramsPerUnit: 7,
+    unitSingular: 'rice cake',
+    unitPlural: 'rice cakes',
+  },
 ];
 
 function formatUnitCount(count: number): string {
