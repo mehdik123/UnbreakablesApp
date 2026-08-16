@@ -20,6 +20,11 @@ import { Client, NutritionPlan, Meal, Ingredient, SelectedMeal } from '../types'
 import { useClientLocale } from '../contexts/ClientLocaleContext';
 import { getEffectiveSelectedMeal } from '../utils/mealSlotOverrides';
 import { formatIngredientQuantityLabel } from '../utils/portionAnnotations';
+import {
+  translateCookingInstructions,
+  translateIngredientName,
+  translateMealName,
+} from '../locales/client/mealContent';
 
 interface ClientNutritionViewProps {
   client: Client;
@@ -32,7 +37,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
   isDark,
   nutritionPlan: propNutritionPlan
 }) => {
-  const { t } = useClientLocale();
+  const { t, locale } = useClientLocale();
   const [favoriteMeals, setFavoriteMeals] = useState<string[]>([]);
   const [showIngredients, setShowIngredients] = useState<{ [mealId: string]: boolean }>({});
   const [showInstructions, setShowInstructions] = useState<{ [mealId: string]: boolean }>({});
@@ -184,8 +189,12 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
     return selectedMeal.meal.ingredients || [];
   };
 
-  const getMealName = (selectedMeal: SelectedMeal): string => {
+  const getRawMealName = (selectedMeal: SelectedMeal): string => {
     return selectedMeal.slotOverride?.nameOverride || selectedMeal.meal.name;
+  };
+
+  const getMealName = (selectedMeal: SelectedMeal): string => {
+    return translateMealName(getRawMealName(selectedMeal), locale);
   };
 
   const getMealImage = (selectedMeal: SelectedMeal): string => {
@@ -193,7 +202,8 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
   };
 
   const getCookingInstructions = (selectedMeal: SelectedMeal): string => {
-    return selectedMeal.slotOverride?.instructionsOverride || selectedMeal.meal.cookingInstructions;
+    const stored = selectedMeal.slotOverride?.instructionsOverride || selectedMeal.meal.cookingInstructions;
+    return translateCookingInstructions(getRawMealName(selectedMeal), stored, locale);
   };
 
   const getMealNutrition = (selectedMeal: SelectedMeal) => {
@@ -506,7 +516,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                             <div key={idx} className="flex items-center justify-between rounded-xl px-3 py-2 text-sm" style={{ background: sf2, border: `1px solid ${hair}` }}>
                               <span className="flex items-center gap-2.5 min-w-0" style={{ color: txtHi }}>
                                 <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--red)' }} />
-                                <span className="truncate">{ingredient.food.name}</span>
+                                <span className="truncate">{translateIngredientName(ingredient.food.name, locale)}</span>
                               </span>
                               <span className="font-display tnum font-semibold shrink-0 text-end ms-2" style={{ color: txtMid }}>
                                 {formatIngredientQuantityLabel(ingredient.food.name, ingredient.quantity)}
@@ -713,7 +723,7 @@ export const ClientNutritionView: React.FC<ClientNutritionViewProps> = ({
                               <div key={idx} className="rounded-xl p-3 flex items-center justify-between" style={{ background: sf2, border: `1px solid ${hair}` }}>
                                 <span className="flex items-center gap-2.5 min-w-0" style={{ color: txtHi }}>
                                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--red)' }} />
-                                  <span className="truncate">{ingredient.food.name}</span>
+                                  <span className="truncate">{translateIngredientName(ingredient.food.name, locale)}</span>
                                 </span>
                                 <span className="font-display tnum font-semibold shrink-0 text-end ms-2" style={{ color: txtMid }}>
                                 {formatIngredientQuantityLabel(ingredient.food.name, ingredient.quantity)}

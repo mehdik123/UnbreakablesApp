@@ -44,6 +44,7 @@ import UltraModernWorkoutEditor from './UltraModernWorkoutEditor';
 import { IndependentMuscleGroupCharts } from './IndependentMuscleGroupCharts';
 import { UltraModernWeeklyWeightLogger } from './UltraModernWeeklyWeightLogger';
 import WeeklyPhotoGallery from './WeeklyPhotoGallery';
+import WeeklyPhotoUpload from './WeeklyPhotoUpload';
 import { PerformanceAnalytics } from './PerformanceAnalytics';
 import { SupplementsManager } from './SupplementsManager';
 import { CardioEditor } from './CardioEditor';
@@ -78,6 +79,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
   const [shareUrl, setShareUrl] = useState<string>('');
   const [showShareModal, setShowShareModal] = useState(false);
   const [weeklyPhotos, setWeeklyPhotos] = useState<any[]>([]);
+  const [photosClientId, setPhotosClientId] = useState<string | null>(null);
   const [showSupplementsManager, setShowSupplementsManager] = useState(false);
 
   useEffect(() => {
@@ -100,6 +102,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
             .maybeSingle();
           
           if (cRow?.id) {
+            setPhotosClientId(cRow.id);
             const { data: dbPhotos, error } = await dbGetClientPhotos(cRow.id);
             if (error) {
               console.error('Error loading photos:', error);
@@ -118,6 +121,8 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
               
               setWeeklyPhotos(convertedPhotos);
             }
+          } else if (client.id) {
+            setPhotosClientId(client.id);
           }
         }
       } catch (error) {
@@ -126,7 +131,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
     };
 
     loadPhotos();
-  }, [client.name]);
+  }, [client.name, client.id]);
 
   // Generate unique client share link
   const handleShareClient = () => {
@@ -326,7 +331,20 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
             />
           </div>
         ) : activeTab === 'photos' ? (
-          <div className="bg-[var(--surface-1)] rounded-xl shadow-soft border border-[color:var(--hair)] p-3 sm:p-5">
+          <div className="bg-[var(--surface-1)] rounded-xl shadow-soft border border-[color:var(--hair)] p-3 sm:p-5 space-y-4">
+            {photosClientId ? (
+              <WeeklyPhotoUpload
+                clientId={photosClientId}
+                currentWeek={client.workoutAssignment?.currentWeek || 1}
+                maxWeeks={client.numberOfWeeks || 12}
+                onPhotosUpdate={setWeeklyPhotos}
+                existingPhotos={weeklyPhotos}
+              />
+            ) : (
+              <p className="text-sm text-[color:var(--txt-mid)] px-1">
+                Loading client photos…
+              </p>
+            )}
             <WeeklyPhotoGallery
               photos={weeklyPhotos}
               onPhotosUpdate={setWeeklyPhotos}
