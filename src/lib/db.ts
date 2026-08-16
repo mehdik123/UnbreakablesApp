@@ -596,14 +596,13 @@ export async function uploadWeeklyPhoto(
   if (!isSupabaseReady || !supabase) return { data: null };
   
   try {
-    // Create unique filename
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${clientId}/${week}/${type}-${Date.now()}.${fileExt}`;
+    // Always JPEG after client-side SDR bake (no HDR / HEIC).
+    const fileName = `${clientId}/${week}/${type}-${Date.now()}.jpg`;
     
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('weekly-photos')
-      .upload(fileName, file);
+      .upload(fileName, file, { contentType: 'image/jpeg', upsert: false });
     
     if (uploadError) {
       console.error('Upload error:', uploadError);

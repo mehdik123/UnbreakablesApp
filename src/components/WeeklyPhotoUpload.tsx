@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, Upload, X, ChevronDown, ArrowLeftRight } from 'lucide-react';
 import { dbSaveWeeklyPhoto, dbDeleteWeeklyPhoto, dbGetClientPhotos, uploadWeeklyPhoto, WeeklyPhoto } from '../lib/db';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
+import { isLikelyImageFile, prepareProgressPhoto } from '../utils/prepareProgressPhoto';
 
 interface WeeklyPhotoUploadProps {
   clientId: string;
@@ -151,14 +152,22 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
     try {
       const file = files[0];
       
-      if (!file.type.startsWith('image/')) {
+      if (!isLikelyImageFile(file)) {
         alert(t('photo.invalidImage'));
         setUploading(false);
         return;
       }
 
-      if (file.size > 10 * 1024 * 1024) {
-        alert(t('photo.tooLarge'));
+      let photoFile: File;
+      try {
+        photoFile = await prepareProgressPhoto(file);
+      } catch (prepError) {
+        console.error('Error preparing photo:', prepError);
+        alert(
+          prepError instanceof Error && prepError.message === 'too-large'
+            ? t('photo.tooLarge')
+            : t('photo.processFailed')
+        );
         setUploading(false);
         return;
       }
@@ -166,7 +175,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
       let savedPhoto, error;
       
       try {
-        const result = await uploadWeeklyPhoto(file, clientId, selectedWeek, photoType);
+        const result = await uploadWeeklyPhoto(photoFile, clientId, selectedWeek, photoType);
         savedPhoto = result.data;
         error = result.error;
       } catch (storageError) {
@@ -175,7 +184,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
           reader.onload = (e) => resolve(e.target?.result as string);
           reader.onerror = reject;
         });
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(photoFile);
         const imageUrl = await base64Promise;
         
         const dbResult = await dbSaveWeeklyPhoto({
@@ -404,6 +413,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                     src={photo.imageUrl}
                     alt={`${label} view`}
                     className="photo-frame__img"
+                    decoding="async"
                   />
                   <div className="photo-frame__vignette" aria-hidden="true" />
                   <div className="photo-frame__accent" aria-hidden="true" />
@@ -565,6 +575,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
                           src={photo.imageUrl}
                           alt={`${label} week ${week}`}
                           className="photo-frame__img"
+                          decoding="async"
                         />
                         <div className="photo-frame__vignette" aria-hidden="true" />
                         <div className="photo-frame__accent" aria-hidden="true" />
