@@ -7,7 +7,6 @@ import {
   MoreVertical, 
   Target,
   TrendingUp,
-  Eye,
   Share2,
   CheckCircle,
   X,
@@ -219,13 +218,9 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
     };
   }, [openDropdownId]);
 
-  const getGoalColor = (goal: string) => {
-    switch (goal) {
-      case 'shredding': return 'text-orange-500 bg-orange-500/10 border-orange-500/20';
-      case 'bulking': return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
-      case 'maintenance': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
-      default: return 'text-slate-400 bg-slate-500/10 border-slate-500/20';
-    }
+  const getGoalTone = (goal: string) => {
+    if (goal === 'shredding' || goal === 'bulking' || goal === 'maintenance') return goal;
+    return 'maintenance';
   };
 
   const getGoalIcon = (goal: string) => {
@@ -551,25 +546,21 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               <h2 className="text-lg sm:text-2xl font-bold font-saira italic" style={{ color: 'var(--txt-hi)' }}>Clients</h2>
               <p className="text-xs sm:text-sm" style={{ color: 'var(--txt-mid)' }}>Open a client to edit nutrition and workouts</p>
             </div>
-            <div className="flex items-center space-x-2 sm:space-x-3">
+            <div className="coach-client-toolbar">
               <button
                 onClick={toggleSelectionMode}
-                className={`flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 min-h-[44px] rounded-xl font-semibold transition-all duration-200 border ${
-                  selectionMode
-                    ? 'bg-red-500/15 text-red-300 border-red-500/40'
-                    : 'text-slate-300 border-[color:var(--hair)] hover:bg-[var(--surface-2)]'
-                }`}
+                className={`coach-hub-btn ${selectionMode ? 'coach-hub-btn-primary' : 'coach-hub-btn-ghost'}`}
                 title="Select multiple clients"
               >
-                <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="text-sm sm:text-base">{selectionMode ? 'Done' : 'Select'}</span>
+                <Layers className="w-4 h-4" />
+                <span>{selectionMode ? 'Done' : 'Select'}</span>
               </button>
               <button
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                className="p-2 sm:p-3 min-h-[44px] min-w-[44px] rounded-lg text-slate-400 hover:text-white hover:bg-[var(--surface-2)] transition-colors duration-200"
-                title={viewMode === 'grid' ? 'Switch to List View' : 'Switch to Grid View'}
+                className="coach-hub-btn coach-hub-btn-ghost"
+                title={viewMode === 'grid' ? 'Switch to list' : 'Switch to grid'}
               >
-                {viewMode === 'grid' ? <List className="w-5 h-5 sm:w-6 sm:h-6" /> : <Grid3X3 className="w-5 h-5 sm:w-6 sm:h-6" />}
+                {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid3X3 className="w-4 h-4" />}
               </button>
               <button
                 onClick={() => setShowAddModal(true)}
@@ -604,112 +595,106 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
           {/* Clients Table/Grid — table is laptop-only; phone always uses compact cards */}
           {viewMode === 'list' ? (
             <>
-            <div className="hidden sm:block bg-[var(--surface-1)] backdrop-blur-sm rounded-2xl border border-[color:var(--hair)] overflow-visible">
-              <div className="overflow-x-auto rounded-2xl">
-                <table className="w-full min-w-[760px]">
-                  <thead style={{ background: 'var(--surface-2)' }}>
+            <div className="hidden sm:block coach-client-table-wrap">
+              <div className="overflow-x-auto">
+                <table className="coach-client-table">
+                  <thead>
                     <tr>
-                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">
+                      <th>
                         <input
                           type="checkbox"
                           checked={allFilteredSelected}
                           onChange={toggleSelectAll}
-                          className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-red-500 focus:ring-red-500 cursor-pointer"
+                          className="w-4 h-4 rounded cursor-pointer"
+                          aria-label="Select all clients"
                         />
                       </th>
-                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Client</th>
-                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Goal</th>
-                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Weight</th>
-                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Plans</th>
-                      <th className="px-4 sm:px-8 py-4 sm:py-6 text-left text-sm font-medium text-slate-400 uppercase tracking-wider">Actions</th>
+                      <th>Client</th>
+                      <th>Goal</th>
+                      <th>Weight</th>
+                      <th>Status</th>
+                      <th>Plans</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-700/50">
+                  <tbody>
                     {filteredClients.map((client) => (
-                      <tr key={client.id} className={`hover:bg-slate-800/30 transition-colors duration-200 relative ${selectedIds.has(client.id) ? 'bg-red-500/5' : ''}`}>
-                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
+                      <tr key={client.id} className={selectedIds.has(client.id) ? 'is-selected' : undefined}>
+                        <td>
                           <input
                             type="checkbox"
                             checked={selectedIds.has(client.id)}
                             onChange={() => toggleClientSelected(client.id)}
-                            className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-red-500 focus:ring-red-500 cursor-pointer"
+                            className="w-4 h-4 rounded cursor-pointer"
+                            aria-label={`Select ${client.name}`}
                           />
                         </td>
-                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center">
-                              <User className="w-6 h-6 text-slate-400" />
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-lg font-medium text-white">{client.name}</div>
-                              <div className="text-slate-400">{client.email}</div>
+                        <td>
+                          <div className="flex items-center gap-3">
+                            <div className="coach-client-avatar font-saira">{client.name.charAt(0).toUpperCase()}</div>
+                            <div className="min-w-0">
+                              <div className="font-saira coach-client-name truncate">{client.name}</div>
+                              <div className="coach-client-email">{client.email}</div>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
-                          <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium border ${getGoalColor(client.goal)}`}>
+                        <td>
+                          <div className={`coach-goal-chip ${getGoalTone(client.goal)}`} style={{ marginBottom: 0 }}>
                             {getGoalIcon(client.goal)}
-                            <span className="capitalize">{client.goal}</span>
+                            <span>{client.goal}</span>
                           </div>
                         </td>
-                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
-                          <div className="text-lg text-white font-display tnum">{clientWeightLabel(client)}</div>
+                        <td>
+                          <div className="font-display tnum">{clientWeightLabel(client)}</div>
                         </td>
-                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
-                          <span
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${
-                              client.isActive
-                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-                                : 'bg-slate-500/15 text-slate-400 border-slate-500/30'
-                            }`}
-                          >
+                        <td>
+                          <span className={`coach-client-status ${client.isActive ? 'is-on' : ''}`}>
                             {client.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap">
-                          <div className="flex items-center space-x-3">
-                            <span className={`text-sm ${client.nutritionPlan ? 'text-emerald-400' : 'text-slate-500'}`}>
-                              {client.nutritionPlan ? '✓' : '○'} Nutrition
+                        <td>
+                          <div className="coach-client-pips" style={{ marginBottom: 0 }}>
+                            <span className={`coach-client-pip ${client.nutritionPlan ? 'is-on' : ''}`}>
+                              <i /> Nutrition
                             </span>
-                            <span className={`text-sm ${client.workoutAssignment ? 'text-emerald-400' : 'text-slate-500'}`}>
-                              {client.workoutAssignment ? '✓' : '○'} Workout
+                            <span className={`coach-client-pip ${client.workoutAssignment ? 'is-on' : ''}`}>
+                              <i /> Workout
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 sm:px-8 py-4 sm:py-6 whitespace-nowrap relative">
-                          <div className="flex items-center space-x-2">
+                        <td>
+                          <div className="coach-client-actions">
                             <button
+                              type="button"
                               onClick={() => onNavigateToClientPlan(client)}
-                              className="p-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
+                              className="coach-client-open"
                             >
-                              <Eye className="w-5 h-5" />
+                              <ArrowRight className="w-4 h-4" />
+                              Open plan
                             </button>
                             <button
-                              onClick={() => onNavigateToClientPlan(client)}
-                              className="p-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
-                            >
-                              <Target className="w-5 h-5" />
-                            </button>
-                            <button
+                              type="button"
                               onClick={() => openDuplicateModal(client)}
                               title="Duplicate program"
-                              className="p-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
+                              className="coach-client-iconbtn"
                             >
-                              <Copy className="w-5 h-5" />
+                              <Copy className="w-4 h-4" />
                             </button>
                             <button
+                              type="button"
                               onClick={() => onShareWithClient(client)}
-                              className="p-3 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
+                              className="coach-client-iconbtn"
+                              title="Share with client"
                             >
-                              <Share2 className="w-5 h-5" />
+                              <Share2 className="w-4 h-4" />
                             </button>
-                            <button 
+                            <button
+                              type="button"
                               onClick={(e) => handleDropdownClick(e, client.id)}
-                              className="p-3 min-h-[44px] min-w-[44px] rounded-lg bg-[var(--red)] hover:brightness-110 text-white transition-colors duration-200"
+                              className="coach-client-iconbtn is-more"
                               title="More options"
                             >
-                              <MoreVertical className="w-5 h-5" />
+                              <MoreVertical className="w-4 h-4" />
                             </button>
                           </div>
                         </td>
@@ -720,152 +705,151 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               </div>
             </div>
             {/* Phone: list mode uses the same compact cards (wide table is laptop-only) */}
-            <div className="sm:hidden grid grid-cols-1 gap-2.5">
+            <div className="sm:hidden coach-client-grid">
               {filteredClients.map((client) => (
                 <div
                   key={`m-${client.id}`}
+                  role="button"
+                  tabIndex={0}
                   onClick={selectionMode ? () => toggleClientSelected(client.id) : () => onNavigateToClientPlan(client)}
-                  className={`flex items-center gap-3 rounded-xl p-3 border ${
-                    selectedIds.has(client.id)
-                      ? 'border-red-500/60 ring-1 ring-red-500/40'
-                      : 'border-[color:var(--hair)]'
-                  }`}
-                  style={{ background: 'var(--surface-1)', minHeight: 56 }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (selectionMode) toggleClientSelected(client.id);
+                      else onNavigateToClientPlan(client);
+                    }
+                  }}
+                  className={`coach-client-card ${selectedIds.has(client.id) ? 'is-selected' : ''}`}
+                  style={{ padding: 12 }}
                 >
-                  {selectionMode && (
-                    <span className="shrink-0">
-                      {selectedIds.has(client.id) ? (
-                        <CheckSquare className="w-5 h-5 text-red-400" />
-                      ) : (
-                        <Square className="w-5 h-5 text-slate-500" />
-                      )}
-                    </span>
-                  )}
-                  <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold text-white shrink-0"
-                    style={{ background: 'var(--grad-red)' }}
-                  >
-                    {client.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold truncate" style={{ color: 'var(--txt-hi)' }}>{client.name}</div>
-                    <div className="text-[11px] truncate" style={{ color: 'var(--txt-lo)' }}>
-                      {client.isActive ? 'Active' : 'Inactive'}
-                      {client.email ? ` · ${client.email}` : ''}
+                  <div className="coach-client-card-top" style={{ marginBottom: 0 }}>
+                    {selectionMode && (
+                      <span className="shrink-0">
+                        {selectedIds.has(client.id) ? (
+                          <CheckSquare className="w-5 h-5" style={{ color: 'var(--red)' }} />
+                        ) : (
+                          <Square className="w-5 h-5" style={{ color: 'var(--txt-lo)' }} />
+                        )}
+                      </span>
+                    )}
+                    <div className="coach-client-avatar font-saira">{client.name.charAt(0).toUpperCase()}</div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="coach-client-name font-saira truncate">{client.name}</h3>
+                      <p className="coach-client-email">
+                        {client.isActive ? 'Active' : 'Inactive'}
+                        {client.email ? ` · ${client.email}` : ''}
+                      </p>
                     </div>
+                    {!selectionMode && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDropdownClick(e, client.id);
+                        }}
+                        className="coach-client-iconbtn is-more"
+                        title="More options"
+                        aria-label="More options"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
-                  {!selectionMode && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDropdownClick(e, client.id);
-                      }}
-                      className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                      style={{ background: 'var(--red)', color: '#fff' }}
-                      aria-label="More options"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  )}
                 </div>
               ))}
             </div>
             </>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-              {filteredClients.map((client) => (
+            <div className="coach-client-grid">
+              {filteredClients.map((client, index) => (
                 <div
                   key={client.id}
-                  onClick={selectionMode ? () => toggleClientSelected(client.id) : undefined}
-                  className={`group bg-[var(--surface-1)] backdrop-blur-sm rounded-xl border p-4 transition-all duration-300 relative ${
-                    selectionMode ? 'cursor-pointer' : ''
-                  } ${
-                    selectedIds.has(client.id)
-                      ? 'border-red-500/60 ring-2 ring-red-500/40'
-                      : 'border-[color:var(--hair)] hover:border-[color:var(--hair-strong)]'
-                  }`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={selectionMode ? () => toggleClientSelected(client.id) : () => onNavigateToClientPlan(client)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      if (selectionMode) toggleClientSelected(client.id);
+                      else onNavigateToClientPlan(client);
+                    }
+                  }}
+                  className={`coach-client-card home-anim ${selectedIds.has(client.id) ? 'is-selected' : ''}`}
+                  style={{ animationDelay: `${Math.min(index, 12) * 40}ms` }}
                 >
                   {selectionMode && (
                     <div className="absolute top-3 right-3 z-10">
                       {selectedIds.has(client.id) ? (
-                        <CheckSquare className="w-6 h-6 text-red-400" />
+                        <CheckSquare className="w-6 h-6" style={{ color: 'var(--red)' }} />
                       ) : (
-                        <Square className="w-6 h-6 text-slate-500" />
+                        <Square className="w-6 h-6" style={{ color: 'var(--txt-lo)' }} />
                       )}
                     </div>
                   )}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center">
-                        <User className="w-5 h-5 text-slate-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-white truncate">{client.name}</h3>
-                        <p className="text-slate-400 text-sm truncate">{client.email}</p>
-                      </div>
+                  <div className="coach-client-card-top">
+                    <div className="coach-client-avatar font-saira">{client.name.charAt(0).toUpperCase()}</div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="coach-client-name font-saira truncate">{client.name}</h3>
+                      <p className="coach-client-email">{client.email}</p>
                     </div>
-                    <div className="flex items-center space-x-1">
-                      <div className={`w-2 h-2 rounded-full ${client.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`}></div>
-                      <span className="text-xs text-slate-400 hidden sm:block">{client.isActive ? 'Active' : 'Inactive'}</span>
-                    </div>
+                    <span className={`coach-client-status ${client.isActive ? 'is-on' : ''}`}>
+                      {client.isActive ? 'Active' : 'Inactive'}
+                    </span>
                   </div>
 
-                  <div className={`inline-flex items-center space-x-2 px-3 py-1 rounded-lg text-xs font-medium border mb-3 ${getGoalColor(client.goal)}`}>
+                  <div className={`coach-goal-chip ${getGoalTone(client.goal)}`}>
                     {getGoalIcon(client.goal)}
-                    <span className="capitalize">{client.goal}</span>
+                    <span>{client.goal}</span>
                   </div>
 
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex items-center space-x-1">
-                        <div className={`w-2 h-2 rounded-full ${client.nutritionPlan ? 'bg-emerald-500' : 'bg-slate-500'}`}></div>
-                        <span className="text-xs text-slate-400">Nutrition</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <div className={`w-2 h-2 rounded-full ${client.workoutAssignment ? 'bg-emerald-500' : 'bg-slate-500'}`}></div>
-                        <span className="text-xs text-slate-400">Workout</span>
-                      </div>
+                  <div className="coach-client-pips">
+                    <span className={`coach-client-pip ${client.nutritionPlan ? 'is-on' : ''}`}>
+                      <i /> Nutrition
+                    </span>
+                    <span className={`coach-client-pip ${client.workoutAssignment ? 'is-on' : ''}`}>
+                      <i /> Workout
+                    </span>
+                  </div>
+
+                  {!selectionMode && (
+                    <div
+                      className="coach-client-actions"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onNavigateToClientPlan(client)}
+                        className="coach-client-open"
+                      >
+                        <ArrowRight className="w-4 h-4" />
+                        Open plan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openDuplicateModal(client)}
+                        title="Duplicate program"
+                        className="coach-client-iconbtn"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onShareWithClient(client)}
+                        className="coach-client-iconbtn"
+                        title="Share with client"
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDropdownClick(e, client.id)}
+                        className="coach-client-iconbtn is-more"
+                        title="More options"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
                     </div>
-                  </div>
-
-                  <div className={`flex space-x-2 ${selectionMode ? 'pointer-events-none opacity-40' : ''}`}>
-                    <button
-                      onClick={() => onNavigateToClientPlan(client)}
-                      className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 rounded-lg text-slate-300 bg-slate-700 hover:bg-slate-600 font-medium text-xs transition-colors duration-200"
-                    >
-                      <Eye className="w-3 h-3" />
-                      <span className="hidden sm:block">View</span>
-                    </button>
-                    <button
-                      onClick={() => onNavigateToClientPlan(client)}
-                      className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 font-medium text-xs transition-colors duration-200"
-                    >
-                      <Target className="w-3 h-3" />
-                      <span className="hidden sm:block">Plan</span>
-                    </button>
-                    <button
-                      onClick={() => openDuplicateModal(client)}
-                      title="Duplicate program"
-                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
-                    >
-                      <Copy className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => onShareWithClient(client)}
-                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-700 transition-colors duration-200"
-                      title="Share with client"
-                    >
-                      <Share2 className="w-3 h-3" />
-                    </button>
-                    <button 
-                      onClick={(e) => handleDropdownClick(e, client.id)}
-                      className="p-2 min-h-[44px] min-w-[44px] rounded-lg bg-[var(--red)] hover:brightness-110 text-white transition-colors duration-200"
-                      title="More options"
-                    >
-                      <MoreVertical className="w-3 h-3" />
-                    </button>
-                  </div>
+                  )}
                 </div>
               ))}
             </div>
