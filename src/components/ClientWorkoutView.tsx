@@ -731,8 +731,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           const defaultWeight = Array.isArray(set.weight) ? set.weight[0] || 0 : (typeof set.weight === 'number' ? set.weight : 0);
           return {
             setId: set.id,
-            actualReps: exerciseDataForSet?.reps || defaultReps,
-            actualWeight: exerciseDataForSet?.weight || defaultWeight,
+            actualReps: exerciseDataForSet?.reps ?? defaultReps,
+            actualWeight: exerciseDataForSet?.weight ?? defaultWeight,
             completed: true
           };
         });
@@ -758,17 +758,33 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
     }
   };
 
-  const updateExerciseData = (exerciseId: string, setIndex: number, field: 'reps' | 'weight', value: number) => {
-    setExerciseData(prev => ({
-      ...prev,
-      [exerciseId]: {
-        ...prev[exerciseId],
-        [setIndex]: {
-          ...prev[exerciseId]?.[setIndex],
-          [field]: value
-        }
-      }
-    }));
+  const updateExerciseData = (
+    exerciseId: string,
+    setIndex: number,
+    field: 'reps' | 'weight',
+    value: number,
+    prescribed?: { reps?: number | number[]; weight?: number | number[] }
+  ) => {
+    setExerciseData(prev => {
+      const existing = prev[exerciseId]?.[setIndex];
+      const seedReps =
+        existing?.reps ??
+        (typeof prescribed?.reps === 'number' ? prescribed.reps : 0);
+      const seedWeight =
+        existing?.weight ??
+        (typeof prescribed?.weight === 'number' ? prescribed.weight : 0);
+      return {
+        ...prev,
+        [exerciseId]: {
+          ...prev[exerciseId],
+          [setIndex]: {
+            reps: seedReps,
+            weight: seedWeight,
+            [field]: value,
+          },
+        },
+      };
+    });
   };
 
   const updateDropsetData = (exerciseId: string, dropsetIndex: number, roundIndex: number, field: 'reps' | 'weight', value: number) => {
@@ -828,7 +844,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         if (!mergedDropset[exerciseId]) mergedDropset[exerciseId] = {};
         if (!mergedDropset[exerciseId][setIndex]) mergedDropset[exerciseId][setIndex] = {};
         mergedDropset[exerciseId][setIndex][roundIndex] = {
-          ...(mergedDropset[exerciseId][setIndex][roundIndex] || { reps: 0, weight: 0 }),
+          ...(mergedDropset[exerciseId][setIndex][roundIndex] || {}),
           weight: kg,
         };
         continue;
@@ -997,8 +1013,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           for (const [setIdx, vals] of Object.entries(sets)) {
             const i = Number(setIdx);
             next[exId][i] = {
-              reps: vals.reps ?? next[exId][i]?.reps ?? 0,
-              weight: vals.weight ?? next[exId][i]?.weight ?? 0,
+              ...next[exId][i],
+              ...(vals.reps !== undefined ? { reps: vals.reps } : {}),
+              ...(vals.weight !== undefined ? { weight: vals.weight } : {}),
             };
           }
         }
@@ -1855,7 +1872,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                   onClick={() => {
                                     const currentReps = exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps;
                                     const newReps = typeof currentReps === 'number' ? Math.max(0, currentReps - 1) : 0;
-                                    updateExerciseData(exercise.id, setIndex, 'reps', newReps);
+                                    updateExerciseData(exercise.id, setIndex, 'reps', newReps, set);
                                   }}
                                   className="wk-step flex items-center justify-center shrink-0"
                                   style={{ color: 'var(--blue)' }}
@@ -1874,7 +1891,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                   onClick={() => {
                                     const currentReps = exerciseData[exercise.id]?.[setIndex]?.reps ?? set.reps;
                                     const newReps = typeof currentReps === 'number' ? currentReps + 1 : 1;
-                                    updateExerciseData(exercise.id, setIndex, 'reps', newReps);
+                                    updateExerciseData(exercise.id, setIndex, 'reps', newReps, set);
                                   }}
                                   className="wk-step flex items-center justify-center shrink-0"
                                   style={{ color: 'var(--red)' }}
@@ -1902,7 +1919,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                       Math.max(0, display - weightStep(weightUnit)),
                                       weightUnit
                                     );
-                                    updateExerciseData(exercise.id, setIndex, 'weight', nextKg);
+                                    updateExerciseData(exercise.id, setIndex, 'weight', nextKg, set);
                                     setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
                                   }}
                                   className="wk-step flex items-center justify-center shrink-0"
@@ -1957,7 +1974,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                           exercise.id,
                                           setIndex,
                                           'weight',
-                                          toStorageKg(displayVal, weightUnit)
+                                          toStorageKg(displayVal, weightUnit),
+                                          set
                                         );
                                         setEditingWeightInput(prev => {
                                           const next = { ...prev };
@@ -1980,7 +1998,7 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                       (typeof set.weight === 'number' ? set.weight : 0);
                                     const display = toDisplayWeight(typeof stored === 'number' ? stored : 0, weightUnit);
                                     const nextKg = toStorageKg(display + weightStep(weightUnit), weightUnit);
-                                    updateExerciseData(exercise.id, setIndex, 'weight', nextKg);
+                                    updateExerciseData(exercise.id, setIndex, 'weight', nextKg, set);
                                     setEditingWeightInput(prev => { const n = { ...prev }; delete n[`${exercise.id}-${setIndex}`]; return n; });
                                   }}
                                   className="wk-step flex items-center justify-center shrink-0"

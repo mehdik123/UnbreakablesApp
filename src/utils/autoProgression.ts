@@ -7,12 +7,15 @@ import { WorkoutWeek, WorkoutExercise, WorkoutSet } from '../types';
  * Pure functions only: the coach reviews/edits the output before it is saved.
  *
  * Regular sets:
- *  1. Unify to the heaviest set (tie → more reps). Mixed warm-up / working
- *     loads become that working prescription for every set.
- *  2. Add +2 reps (or cap → reset 8 + load) ONLY when every set already had
- *     the same reps AND the same weight. Otherwise unify only — no extra reps.
+ *  1. Ignore failed / skipped sets (0 reps). They must never win "heaviest"
+ *     or trigger a +2 bump — that is what zeroed whole exercises.
+ *  2. If nothing was trained (all 0 reps), keep the sets as-is. Do not invent reps.
+ *  3. If every completed set matches (same reps + weight), add +2 reps
+ *     (or cap → reset 8 + load).
+ *  4. If completed sets are mixed, keep each completed set as logged. Fill any
+ *     0-rep slots from the best completed set so next week is not empty.
  *
- * Dropsets: each drop progresses on its own (+2 / cap / load).
+ * Dropsets: each drop progresses on its own (+2 / cap / load). A 0-rep drop stays 0.
  *
  * Weights in the plan are always stored in kilograms. Client/coach lbs preference
  * is display-only: convert to kg before progression, show results back in lbs.
@@ -114,33 +117,50 @@ interface Prescription {
 interface UnifiedTarget {
   reps: number;
   weight: number;
-  /** True when every set already had the same reps and weight. */
+  /** True when every set was completed at the same reps and weight. */
   allIdentical: boolean;
 }
 
-/**
- * Unify regular sets to the heaviest (tie → more reps).
- * Mixed 6@10 / 6@22.5 → 6@22.5 for all.
- */
-function unifySets(sets: WorkoutSet[]): UnifiedTarget {
-  let best = { reps: sets[0].reps as number, weight: sets[0].weight as number };
-  let allIdentical = true;
+function setReps(set: WorkoutSet): number {
+  return set.reps as number;
+}
 
-  for (const set of sets) {
-    const reps = set.reps as number;
-    const weight = set.weight as number;
-    if (reps !== best.reps || weight !== best.weight) allIdentical = false;
+function setWeight(set: WorkoutSet): number {
+  return set.weight as number;
+}
+
+/** A set the client actually performed (logged reps). 0 reps = skipped / failed. */
+function isWorkedSet(set: WorkoutSet): boolean {
+  return isPlainNumberSet(set) && setReps(set) > 0;
+}
+
+/**
+ * Best completed set (heaviest, tie → more reps).
+ * Returns null when nothing was trained — caller must not invent a prescription.
+ */
+function unifySets(sets: WorkoutSet[]): UnifiedTarget | null {
+  const worked = sets.filter(isWorkedSet);
+  if (worked.length === 0) return null;
+
+  let best = { reps: setReps(worked[0]), weight: setWeight(worked[0]) };
+  for (const set of worked) {
+    const reps = setReps(set);
+    const weight = setWeight(set);
     if (weight > best.weight || (weight === best.weight && reps > best.reps)) {
       best = { reps, weight };
     }
   }
+
+  const allIdentical =
+    worked.length === sets.length &&
+    worked.every((s) => setReps(s) === best.reps && setWeight(s) === best.weight);
 
   return { reps: best.reps, weight: best.weight, allIdentical };
 }
 
 /**
  * Next (reps, weight) for one prescription.
- * `allowRepBump` is false when sets were mixed — unify only, no +2.
+ * `allowRepBump` is false when sets were mixed — copy only, no +2.
  */
 function computeProgression(
   reps: number,
@@ -167,7 +187,10 @@ function computeProgression(
     return { reps: candidateReps, weight };
   }
 
+  // 0 kg (unlogged load, or true bodyweight that is not in the weighted list):
+  // still +2 reps, but never climb past the cap (that produced 16-rep RDLs).
   if (weight === 0) {
+    if (reps >= STANDARD_REP_CAP) return { reps, weight: 0 };
     return { reps: reps + REP_INCREMENT, weight: 0 };
   }
 
@@ -200,6 +223,12 @@ function progressDropset(set: WorkoutSet, exercise: WorkoutExercise): WorkoutSet
   const nextWeights: number[] = [];
 
   for (let i = 0; i < reps.length; i++) {
+    // Skipped drop (0 reps) stays 0 — do not +2 into "2 reps".
+    if (!reps[i] || reps[i] <= 0) {
+      nextReps.push(reps[i] || 0);
+      nextWeights.push(weights[i] ?? 0);
+      continue;
+    }
     const prescription = computeProgression(reps[i], weights[i], exercise, true);
     nextReps.push(prescription.reps);
     nextWeights.push(prescription.weight);
@@ -214,13 +243,43 @@ function progressDropset(set: WorkoutSet, exercise: WorkoutExercise): WorkoutSet
   };
 }
 
+function resetCompletion(set: WorkoutSet, reps: number, weight: number): WorkoutSet {
+  return {
+    ...set,
+    reps,
+    weight,
+    completed: false,
+    completedAt: undefined,
+  };
+}
+
 function progressPlainSets(sets: WorkoutSet[], exercise: WorkoutExercise): WorkoutSet[] {
   const target = unifySets(sets);
+
+  // Nothing logged — leave the week as copied. Do not turn 0 into 2 reps.
+  if (!target) {
+    return sets.map((set) =>
+      resetCompletion(set, setReps(set), setWeight(set))
+    );
+  }
+
+  if (!target.allIdentical) {
+    // Mixed or partial: keep completed sets as logged; fill skipped (0-rep)
+    // slots from the best completed set so a failed heavy attempt cannot
+    // wipe the exercise (e.g. 9×20 + 0×25 must not become 0×25).
+    return sets.map((set) => {
+      const reps = setReps(set);
+      const weight = setWeight(set);
+      if (reps > 0) return resetCompletion(set, reps, weight);
+      return resetCompletion(set, target.reps, target.weight);
+    });
+  }
+
   const prescription = computeProgression(
     target.reps,
     target.weight,
     exercise,
-    target.allIdentical
+    true
   );
   return applyPrescriptionToSets(sets, prescription);
 }
