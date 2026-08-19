@@ -201,12 +201,23 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
   const handleAddSet = (dayIndex: number, exIndex: number) => {
     const updated = [...days];
     const sets = updated[dayIndex].exercises[exIndex].sets;
+    const restSeconds = sets[0]?.rest_seconds ?? 90;
     sets.push({
       set_order: sets.length + 1,
       reps: 10,
       weight: 0,
-      rest_seconds: 90
+      rest_seconds: restSeconds
     });
+    setDays(updated);
+  };
+
+  const handleUpdateExerciseRest = (dayIndex: number, exIndex: number, seconds: number) => {
+    const updated = [...days];
+    const safe = Math.max(0, Math.min(600, Math.round(seconds) || 0));
+    updated[dayIndex].exercises[exIndex].sets = updated[dayIndex].exercises[exIndex].sets.map((set: any) => ({
+      ...set,
+      rest_seconds: safe,
+    }));
     setDays(updated);
   };
 
@@ -655,7 +666,36 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
                                   </button>
                                 </div>
 
-                                {/* Sets */}
+                                <div className="flex items-center gap-2 mb-3 min-h-11">
+                                  <label className="text-xs text-gray-400 shrink-0">Rest between sets</label>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateExerciseRest(currentDayIndex, exIdx, Math.max(0, (ex.sets[0]?.rest_seconds ?? 90) - 15))}
+                                      className="w-11 h-11 flex items-center justify-center bg-black/40 hover:bg-purple-500/30 border border-white/10 rounded-lg text-white transition-colors touch-manipulation"
+                                    >
+                                      −
+                                    </button>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={600}
+                                      step={15}
+                                      value={ex.sets[0]?.rest_seconds ?? 90}
+                                      onChange={(e) => handleUpdateExerciseRest(currentDayIndex, exIdx, parseInt(e.target.value, 10) || 0)}
+                                      className="w-16 px-2 py-2.5 bg-black/30 border border-white/10 rounded-lg text-white text-center text-sm focus:outline-none focus:border-purple-500/50"
+                                    />
+                                    <span className="text-xs text-gray-400">sec</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateExerciseRest(currentDayIndex, exIdx, (ex.sets[0]?.rest_seconds ?? 90) + 15)}
+                                      className="w-11 h-11 flex items-center justify-center bg-black/40 hover:bg-purple-500/30 border border-white/10 rounded-lg text-white transition-colors touch-manipulation"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+
                                 <div>
                                   <div className="flex items-center justify-between mb-3">
                                     <label className="text-sm font-medium text-gray-300">Sets Configuration</label>
@@ -683,7 +723,7 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
                                       <div key={setIdx} className="bg-white/5 rounded-lg p-3 border border-white/10">
                                         <div className="flex items-center gap-3">
                                           <span className="text-sm text-gray-300 font-semibold w-16">Set {set.set_order}</span>
-                                          <div className="flex-1 grid grid-cols-3 gap-3">
+                                          <div className="flex-1 grid grid-cols-2 gap-3">
                                             {/* Reps */}
                                             <div>
                                               <label className="block text-xs text-gray-400 mb-1.5">Reps</label>
@@ -727,31 +767,6 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
                                                 />
                                                 <button
                                                   onClick={() => handleUpdateSet(currentDayIndex, exIdx, setIdx, 'weight', set.weight + 2.5)}
-                                                  className="w-8 h-8 flex items-center justify-center bg-black/40 hover:bg-purple-500/30 border border-white/10 rounded-lg text-white transition-colors"
-                                                >
-                                                  +
-                                                </button>
-                                              </div>
-                                            </div>
-                                            {/* Rest */}
-                                            <div>
-                                              <label className="block text-xs text-gray-400 mb-1.5">Rest (sec)</label>
-                                              <div className="flex items-center gap-1">
-                                                <button
-                                                  onClick={() => handleUpdateSet(currentDayIndex, exIdx, setIdx, 'rest_seconds', Math.max(30, set.rest_seconds - 15))}
-                                                  className="w-8 h-8 flex items-center justify-center bg-black/40 hover:bg-purple-500/30 border border-white/10 rounded-lg text-white transition-colors"
-                                                >
-                                                  −
-                                                </button>
-                                                <input
-                                                  type="number"
-                                                  value={set.rest_seconds}
-                                                  onChange={(e) => handleUpdateSet(currentDayIndex, exIdx, setIdx, 'rest_seconds', parseInt(e.target.value) || 90)}
-                                                  step="15"
-                                                  className="flex-1 px-2 py-1.5 bg-black/30 border border-white/10 rounded-lg text-white text-center text-sm focus:outline-none focus:border-purple-500/50"
-                                                />
-                                                <button
-                                                  onClick={() => handleUpdateSet(currentDayIndex, exIdx, setIdx, 'rest_seconds', set.rest_seconds + 15)}
                                                   className="w-8 h-8 flex items-center justify-center bg-black/40 hover:bg-purple-500/30 border border-white/10 rounded-lg text-white transition-colors"
                                                 >
                                                   +

@@ -25,6 +25,7 @@ import {
 } from '../lib/offlineStore';
 import { ExerciseVideoEmbed } from './ExerciseVideoEmbed';
 import { getLatestDeployedWeekNumber } from '../utils/weekCreation';
+import { getExerciseRestSeconds } from '../utils/exerciseRest';
 import { persistClientsLocally, safeLocalStorageSet } from '../utils/localStorageClients';
 import {
   loadClientWeightUnit,
@@ -1704,6 +1705,16 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 
                       <div className="space-y-2.5">
                         {exercise.sets.map((set, setIndex) => {
+                          const restSec = getExerciseRestSeconds(exercise);
+                          const restChip =
+                            setIndex < exercise.sets.length - 1 && restSec > 0 && !exercise.superset ? (
+                              <div className="wk-rest-gap" key={`rest-${setIndex}`}>
+                                <span className="wk-rest-chip">
+                                  <Clock />
+                                  {t('workout.restSeconds', { n: restSec })}
+                                </span>
+                              </div>
+                            ) : null;
                           const dropReps =
                             set.isDropset && Array.isArray(set.reps) ? (set.reps as number[]) : null;
                           const isDropset = !!dropReps && dropReps.length > 0;
@@ -1715,8 +1726,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 
                           if (isDropset && dropReps) {
                             return (
+                              <React.Fragment key={setIndex}>
                               <div
-                                key={setIndex}
                                 className="rounded-[18px] p-2.5 sm:p-3 space-y-2"
                                 style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                               >
@@ -1845,12 +1856,14 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                                   </div>
                                 </div>
                               </div>
+                              {restChip}
+                              </React.Fragment>
                             );
                           }
 
                           return (
+                          <React.Fragment key={setIndex}>
                           <div
-                            key={setIndex}
                             className="flex items-center gap-1.5 sm:gap-2.5 rounded-[18px] p-2 sm:p-3"
                             style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
                           >
@@ -2010,6 +2023,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                               </div>
                             </div>
                           </div>
+                          {restChip}
+                          </React.Fragment>
                           );
                         })}
                       </div>

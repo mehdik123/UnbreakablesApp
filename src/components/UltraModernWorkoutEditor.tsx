@@ -16,6 +16,7 @@ import {
   Trash2,
   Copy,
   X,
+  Clock,
 } from 'lucide-react';
 import { Client, ClientWorkoutAssignment, WorkoutProgram, WorkoutExercise, Exercise, WorkoutWeek } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
@@ -33,6 +34,7 @@ import {
   removeWeekFromAssignment,
 } from '../utils/weekCreation';
 import { applyAutoProgression, applyDeload } from '../utils/autoProgression';
+import { getExerciseRestSeconds, formatRestSeconds } from '../utils/exerciseRest';
 import { safeLocalStorageSet } from '../utils/localStorageClients';
 import {
   loadClientWeightUnit,
@@ -735,7 +737,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               : 0,
             isDropset: lastSet?.isDropset ?? false,
             completed: false,
-            restPeriod: lastSet?.restPeriod,
+            restPeriod: lastSet?.restPeriod ?? getExerciseRestSeconds(exercise),
             notes: lastSet?.notes,
           };
           return { ...exercise, sets: [...exercise.sets, newSet] };
@@ -933,7 +935,40 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               ...day,
               exercises: day.exercises.map((ex) =>
                 ex.superset === groupId
-                  ? { ...ex, restPeriod: safe, rest: `${safe}s` }
+                  ? {
+                      ...ex,
+                      restPeriod: safe,
+                      rest: `${safe}s`,
+                      sets: (ex.sets || []).map((set) => ({ ...set, restPeriod: safe })),
+                    }
+                  : ex
+              ),
+            }
+          : day
+      ),
+    };
+    setSelectedProgram(updatedProgram);
+    setHasModifications(true);
+  };
+
+  const updateExerciseRest = (exerciseId: string, seconds: number) => {
+    if (!selectedProgram) return;
+    const safe = Math.max(0, Math.min(600, Math.round(seconds) || 0));
+    const restLabel = formatRestSeconds(safe);
+    const updatedProgram = {
+      ...selectedProgram,
+      days: selectedProgram.days.map((day, dayIndex) =>
+        dayIndex === currentDay
+          ? {
+              ...day,
+              exercises: day.exercises.map((ex) =>
+                ex.id === exerciseId
+                  ? {
+                      ...ex,
+                      restPeriod: safe,
+                      rest: restLabel,
+                      sets: (ex.sets || []).map((set) => ({ ...set, restPeriod: safe })),
+                    }
                   : ex
               ),
             }
@@ -2690,6 +2725,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                 currentDayData.exercises.map((exercise) => {
                 const pickIndex = supersetPicks.indexOf(exercise.id);
                 const isPicked = pickIndex >= 0;
+                const restSec = getExerciseRestSeconds(exercise);
                 return (
                 <div
                   key={exercise.id}
@@ -2732,7 +2768,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                               </span>
                             )}
                           </div>
-                          <p className="text-slate-400 text-xs sm:text-sm">{exercise.rest} rest</p>
+                          <p className="text-slate-400 text-xs sm:text-sm">{exercise.exercise.muscleGroup}</p>
                         </button>
                       </div>
                     </div>
@@ -2904,10 +2940,55 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     </div>
                   )}
 
+                  {!exercise.superset && (
+                    <div className="mb-3 flex items-center gap-2 min-h-11">
+                      <Clock className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--blue)' }} />
+                      <span className="text-[10px] font-bold uppercase tracking-[0.08em] shrink-0" style={{ color: 'var(--txt-lo)' }}>
+                        Rest between sets
+                      </span>
+                      <div
+                        className="flex items-center overflow-hidden min-h-11 rounded-[10px]"
+                        style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => updateExerciseRest(exercise.id, restSec - 15)}
+                          className="coach-step-btn"
+                          style={{ ['--step-accent' as string]: 'var(--blue)', border: 'none', background: 'transparent' } as React.CSSProperties}
+                          aria-label="Decrease rest"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </button>
+                        <input
+                          type="number"
+                          min={0}
+                          max={600}
+                          step={15}
+                          inputMode="numeric"
+                          value={restSec}
+                          onChange={(e) => updateExerciseRest(exercise.id, parseInt(e.target.value, 10) || 0)}
+                          className="coach-set-input w-14"
+                          aria-label="Rest between sets in seconds"
+                        />
+                        <span className="text-[10px] font-semibold pr-1.5" style={{ color: 'var(--txt-lo)' }}>sec</span>
+                        <button
+                          type="button"
+                          onClick={() => updateExerciseRest(exercise.id, restSec + 15)}
+                          className="coach-step-btn"
+                          style={{ ['--step-accent' as string]: 'var(--blue)', border: 'none', background: 'transparent' } as React.CSSProperties}
+                          aria-label="Increase rest"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Sets */}
                   <div className="space-y-3">
                     {exercise.sets.map((set, setIndex) => (
-                      <div key={set.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-slate-700/30 rounded-xl border border-slate-600/30">
+                      <div key={set.id}>
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-slate-700/30 rounded-xl border border-slate-600/30">
                         {/* Set Number */}
                         <div className="flex items-center sm:flex-col">
                           <span className="text-white text-sm font-medium">Set {setIndex + 1}</span>
@@ -3190,6 +3271,15 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
+                      </div>
+                      {setIndex < exercise.sets.length - 1 && restSec > 0 && !exercise.superset && (
+                        <div className="wk-rest-gap mt-3">
+                          <span className="wk-rest-chip">
+                            <Clock />
+                            Rest {restSec}s
+                          </span>
+                        </div>
+                      )}
                       </div>
                     ))}
 

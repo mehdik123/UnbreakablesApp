@@ -1455,6 +1455,43 @@
   .coach-step-btn:active { transform: none; }
 }
 
+.wk-rest-gap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 28px;
+  padding: 0 0.25rem;
+}
+.wk-rest-gap::before,
+.wk-rest-gap::after {
+  content: '';
+  flex: 1 1 0%;
+  height: 1px;
+  background: var(--hair);
+}
+.wk-rest-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 28px;
+  padding: 0 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--hair);
+  background: var(--surface-3);
+  color: var(--txt-mid);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.wk-rest-chip svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex-shrink: 0;
+  color: var(--blue);
+}
+
 /* Coach modals: sheet-style on phones, centered dialog on laptop */
 .coach-modal {
   position: fixed;
