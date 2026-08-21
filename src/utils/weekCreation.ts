@@ -68,6 +68,7 @@ export function copyWeekData(
     completedAt: undefined,
     startDate: undefined,
     deployedAt: undefined,
+    createdAt: new Date().toISOString(),
     days: newDays,
   };
 }
@@ -85,6 +86,7 @@ export function createInitialWeek(program: WorkoutProgram): WorkoutWeek {
       exercises: [],
       days: [],
       startDate: new Date(),
+      createdAt: new Date().toISOString(),
     };
   }
 
@@ -110,6 +112,7 @@ export function createInitialWeek(program: WorkoutProgram): WorkoutWeek {
     exercises: [],
     days,
     startDate: new Date(),
+    createdAt: new Date().toISOString(),
   };
 }
 
@@ -168,14 +171,51 @@ export function addWeekToAssignment(
 /**
  * Mark a week as deployed (visible to client).
  * Sets isUnlocked: true and deployedAt timestamp.
+ * Keeps createdAt from draft creation; stamps it only if missing.
  */
 export function markWeekAsDeployed(week: WorkoutWeek): WorkoutWeek {
+  const now = new Date().toISOString();
   return {
     ...week,
     isUnlocked: true,
-    deployedAt: new Date().toISOString(),
-    startDate: new Date().toISOString(),
+    deployedAt: now,
+    startDate: now,
+    createdAt: week.createdAt || now,
   };
+}
+
+/** Calendar days since a week was created (0 = today). */
+export function getDaysSinceWeekCreated(
+  week: { createdAt?: string | Date | null; deployedAt?: string | Date | null; startDate?: string | Date | null } | null | undefined
+): number | null {
+  const raw = week?.createdAt || week?.deployedAt || week?.startDate;
+  if (!raw) return null;
+  const created = new Date(raw);
+  if (Number.isNaN(created.getTime())) return null;
+  const start = new Date(created.getFullYear(), created.getMonth(), created.getDate()).getTime();
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return Math.max(0, Math.floor((today - start) / 86400000));
+}
+
+/** Coach-only label, e.g. "Created 21 Aug 2026 · Day 5" or "… · 7+ days". */
+export function formatWeekCreatedLabel(
+  week: { createdAt?: string | Date | null; deployedAt?: string | Date | null; startDate?: string | Date | null } | null | undefined
+): string | null {
+  const raw = week?.createdAt || week?.deployedAt || week?.startDate;
+  if (!raw) return null;
+  const created = new Date(raw);
+  if (Number.isNaN(created.getTime())) return null;
+  const dateStr = created.toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  const days = getDaysSinceWeekCreated(week);
+  const age =
+    days == null ? '' : days >= 7 ? ' · 7+ days' : days === 0 ? ' · today' : ` · Day ${days + 1}`;
+  const prefix = week?.createdAt ? 'Created' : 'Since';
+  return `${prefix} ${dateStr}${age}`;
 }
 
 export interface RemoveWeekResult {

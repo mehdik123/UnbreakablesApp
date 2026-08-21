@@ -32,6 +32,8 @@ import {
   markWeekAsDeployed,
   canDeleteWeek,
   removeWeekFromAssignment,
+  formatWeekCreatedLabel,
+  getDaysSinceWeekCreated,
 } from '../utils/weekCreation';
 import { applyAutoProgression, applyDeload } from '../utils/autoProgression';
 import { getExerciseRestSeconds, formatRestSeconds } from '../utils/exerciseRest';
@@ -586,6 +588,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
           isCompleted: prevMeta?.isCompleted ?? false,
           deployedAt: prevMeta?.deployedAt,
           startDate: prevMeta?.startDate,
+          createdAt: prevMeta?.createdAt,
           progressionNotes: prevMeta?.progressionNotes,
         });
         updatedWeeks.sort((a: any, b: any) => a.weekNumber - b.weekNumber);
@@ -1452,7 +1455,19 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
         : w
     );
     const hasCurrentWeek = existingWeeks.some((w: any) => w.weekNumber === currentWeek);
-    const weeksToSave = hasCurrentWeek ? existingWeeks : [...existingWeeks, { weekNumber: currentWeek, isUnlocked: true, isCompleted: false, exercises: [], days: programRef.days }];
+    const weeksToSave = hasCurrentWeek
+      ? existingWeeks
+      : [
+          ...existingWeeks,
+          {
+            weekNumber: currentWeek,
+            isUnlocked: true,
+            isCompleted: false,
+            exercises: [],
+            days: programRef.days,
+            createdAt: new Date().toISOString(),
+          },
+        ];
 
     const assignment: ClientWorkoutAssignment = {
       id: client.workoutAssignment?.id || Date.now().toString(),
@@ -1680,6 +1695,27 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                   Week {client.workoutAssignment.currentWeek}
                 </div>
                 <div className="text-slate-300">Client's Current Active Week</div>
+                {(() => {
+                  const activeWeek = (client.workoutAssignment.weeks || []).find(
+                    (w) => w.weekNumber === client.workoutAssignment!.currentWeek
+                  );
+                  const label = formatWeekCreatedLabel(activeWeek);
+                  if (!label) return null;
+                  const days = getDaysSinceWeekCreated(activeWeek);
+                  const overdue = days != null && days >= 7;
+                  return (
+                    <div
+                      className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold"
+                      style={{
+                        background: overdue ? 'rgba(255,149,0,.15)' : 'var(--surface-3)',
+                        color: overdue ? 'var(--orange)' : 'var(--txt-mid)',
+                        border: `1px solid ${overdue ? 'rgba(255,149,0,.35)' : 'var(--hair)'}`,
+                      }}
+                    >
+                      {label}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Week Control Buttons */}
@@ -1781,11 +1817,17 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                               ) : null}
                             </div>
                             <div className="text-xs text-slate-400">
-                              {week.deployedAt
-                                ? `Deployed ${new Date(week.deployedAt).toLocaleDateString()}`
-                                : week.isUnlocked
-                                  ? 'Unlocked'
-                                  : 'Locked'}
+                              {formatWeekCreatedLabel(week) ||
+                                (week.deployedAt
+                                  ? `Deployed ${new Date(week.deployedAt).toLocaleDateString()}`
+                                  : week.isUnlocked
+                                    ? 'Unlocked'
+                                    : 'Locked')}
+                              {week.createdAt && week.deployedAt && (
+                                <span className="text-slate-500">
+                                  {' · '}Deployed {new Date(week.deployedAt).toLocaleDateString()}
+                                </span>
+                              )}
                             </div>
                           </div>
                           {deletable && (
@@ -2413,7 +2455,27 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
             {/* Week Selection */}
             <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-white">Current Week: {currentWeek}</h2>
+                <div className="min-w-0">
+                  <h2 className="text-2xl font-bold text-white">Current Week: {currentWeek}</h2>
+                  {(() => {
+                    const selectedWeek = (client.workoutAssignment?.weeks || []).find(
+                      (w) => w.weekNumber === currentWeek
+                    );
+                    const label = formatWeekCreatedLabel(selectedWeek);
+                    if (!label) return null;
+                    const days = getDaysSinceWeekCreated(selectedWeek);
+                    const overdue = days != null && days >= 7;
+                    return (
+                      <p
+                        className="mt-1 text-sm font-medium"
+                        style={{ color: overdue ? 'var(--orange)' : 'var(--txt-mid)' }}
+                      >
+                        {label}
+                        {overdue ? ' — ready for next week?' : ''}
+                      </p>
+                    );
+                  })()}
+                </div>
                 <div className="flex items-center space-x-3">
                   {/* Simple Week Selector */}
                   <div className="flex items-center space-x-4">

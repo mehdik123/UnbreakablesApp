@@ -83,9 +83,32 @@ export const PORTION_RULES: PortionRule[] = [
     unitPlural: 'wraps',
   },
   {
+    // Body Attack label: 30 g = 2 scoops → 15 g per level scoop
+    id: 'body-attack-whey-scoop',
+    matches: (n) => {
+      const name = normalizeName(n);
+      return name.includes('body attack') && name.includes('whey');
+    },
+    gramsPerUnit: 15,
+    unitSingular: 'scoop',
+    unitPlural: 'scoops',
+  },
+  {
+    // Label serving: 2½ scoops/cups = 333 g → ~133 g per scoop
+    id: 'dymatize-mass-gainer-scoop',
+    matches: (n) => {
+      const name = normalizeName(n);
+      return name.includes('dymatize') && name.includes('mass');
+    },
+    gramsPerUnit: 133,
+    unitSingular: 'scoop',
+    unitPlural: 'scoops',
+  },
+  {
     id: 'whey-scoop',
     matches: (n) => {
       const name = normalizeName(n);
+      if (name.includes('body attack') || name.includes('dymatize')) return false;
       if (!name.includes('protein') && !name.includes('whey') && !name.includes('isolate')) return false;
       // Prefer whey / gold standard / ON Gold style powders
       return (

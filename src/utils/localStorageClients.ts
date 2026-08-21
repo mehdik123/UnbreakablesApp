@@ -50,6 +50,7 @@ function slimClientForCache(c: Client): Client {
             isCompleted: w.isCompleted,
             deployedAt: w.deployedAt,
             startDate: w.startDate,
+            createdAt: (w as any).createdAt,
             progressionNotes: w.progressionNotes,
             exercises: [],
             days: [],

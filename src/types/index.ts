@@ -321,6 +321,8 @@ export interface WorkoutWeek {
   completedAt?: Date | string; // When client marked week complete
   startDate?: Date | string;
   deployedAt?: string; // ISO timestamp when coach deployed this week to client
+  /** ISO timestamp when the coach created this week (coach-only; used to track ~7-day cycles). */
+  createdAt?: string;
   days: WorkoutDay[];
 }
 
