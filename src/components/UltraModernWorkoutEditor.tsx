@@ -39,6 +39,11 @@ import { applyAutoProgression, applyDeload } from '../utils/autoProgression';
 import { getExerciseRestSeconds, formatRestSeconds } from '../utils/exerciseRest';
 import { safeLocalStorageSet } from '../utils/localStorageClients';
 import {
+  createBlankWorkoutDay,
+  duplicateWorkoutDay,
+  buildNewWorkoutExercise,
+} from '../utils/workoutDayOps';
+import {
   loadClientWeightUnit,
   persistClientWeightUnit,
   toDisplayWeight,
@@ -129,10 +134,10 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                 reps: set.reps,
                 weight: set.weight,
                 completed: false,
-                restPeriod: set.rest_seconds || 90
+                restPeriod: set.rest_seconds || 120
               })),
-              rest: workoutExercise.rest || '90 seconds',
-              restPeriod: parseInt(workoutExercise.rest?.replace(/[^0-9]/g, '') || '90'),
+              rest: workoutExercise.rest || '120 seconds',
+              restPeriod: parseInt(workoutExercise.rest?.replace(/[^0-9]/g, '') || '120'),
               notes: workoutExercise.notes || '',
               order: workoutExercise.ex_order
             }))
@@ -202,6 +207,10 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   const [saveTemplateName, setSaveTemplateName] = useState('');
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [saveTemplateMsg, setSaveTemplateMsg] = useState<string | null>(null);
+  /** Add exercise to assigned program day (vs custom-builder selectedDayIndex). */
+  const [addExerciseToAssigned, setAddExerciseToAssigned] = useState(false);
+  const [showDuplicateDayModal, setShowDuplicateDayModal] = useState(false);
+  const [duplicateSourceDayIndex, setDuplicateSourceDayIndex] = useState(0);
 
   // Build a next-week draft from the previous week's actuals using the chosen mode.
   const buildDraftWeek = (
@@ -689,8 +698,112 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       };
       
       setSelectedProgram(updatedProgram);
+      setHasModifications(true);
     }
     setShowExerciseSearch(null);
+  };
+
+  /** Append a blank day to the week currently being edited (assigned program only). */
+  const handleAddBlankDay = () => {
+    if (!selectedProgram) return;
+    const dayNumber = (selectedProgram.days?.length || 0) + 1;
+    const newDay = createBlankWorkoutDay(dayNumber);
+    const updatedProgram = {
+      ...selectedProgram,
+      days: [...(selectedProgram.days || []), newDay],
+    };
+    setSelectedProgram(updatedProgram);
+    setCurrentDay(updatedProgram.days.length - 1);
+    setHasModifications(true);
+  };
+
+  /** Duplicate a day onto the end of the current week. */
+  const handleDuplicateDay = (sourceIndex: number, zeroWeights: boolean) => {
+    if (!selectedProgram?.days?.[sourceIndex]) return;
+    const source = selectedProgram.days[sourceIndex];
+    const dayNumber = selectedProgram.days.length + 1;
+    const newDay = duplicateWorkoutDay(source, {
+      zeroWeights,
+      dayNumber,
+      name: `${source.name || `Day ${sourceIndex + 1}`} (copy)`,
+    });
+    const updatedProgram = {
+      ...selectedProgram,
+      days: [...selectedProgram.days, newDay],
+    };
+    setSelectedProgram(updatedProgram);
+    setCurrentDay(updatedProgram.days.length - 1);
+    setHasModifications(true);
+    setShowDuplicateDayModal(false);
+  };
+
+  const handleRenameCurrentDay = (name: string) => {
+    if (!selectedProgram?.days?.[currentDay]) return;
+    setSelectedProgram({
+      ...selectedProgram,
+      days: selectedProgram.days.map((day, i) =>
+        i === currentDay ? { ...day, name } : day
+      ),
+    });
+    setHasModifications(true);
+  };
+
+  const openAddExerciseToAssignedDay = () => {
+    setAddExerciseToAssigned(true);
+    setSelectedDayIndex(null);
+    setExerciseSearch('');
+    setShowExerciseModal(true);
+  };
+
+  const handleAddExerciseFromModal = (exercise: Exercise) => {
+    if (addExerciseToAssigned && selectedProgram) {
+      const day = selectedProgram.days[currentDay];
+      if (!day) return;
+      const newEx = buildNewWorkoutExercise(exercise, (day.exercises?.length || 0) + 1);
+      setSelectedProgram({
+        ...selectedProgram,
+        days: selectedProgram.days.map((d, i) =>
+          i === currentDay
+            ? { ...d, exercises: [...(d.exercises || []), newEx] }
+            : d
+        ),
+      });
+      setHasModifications(true);
+      setShowExerciseModal(false);
+      setAddExerciseToAssigned(false);
+      setExerciseSearch('');
+      return;
+    }
+
+    if (selectedDayIndex !== null) {
+      const newExercise: WorkoutExercise = {
+        id: `exercise-${Date.now()}`,
+        exercise,
+        sets: [
+          {
+            id: `set-${Date.now()}`,
+            reps: 8,
+            weight: 0,
+            isDropset: false,
+            completed: false,
+            restPeriod: 120,
+          },
+        ],
+        rest: '120 seconds',
+        restPeriod: 120,
+        notes: '',
+        order: 1,
+      };
+      const newDays = [...customWorkout.days];
+      newDays[selectedDayIndex] = {
+        ...newDays[selectedDayIndex],
+        exercises: [...(newDays[selectedDayIndex].exercises || []), newExercise],
+      };
+      setCustomWorkout((prev) => ({ ...prev, days: newDays }));
+      setShowExerciseModal(false);
+      setSelectedDayIndex(null);
+      setExerciseSearch('');
+    }
   };
 
 
@@ -2536,24 +2649,68 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
             {/* Day Navigation */}
             {selectedProgram && (
               <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-6">
-                <h3 className="text-lg font-bold text-white mb-4">Day Navigation</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <h3 className="text-lg font-bold text-white">Day Navigation</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAddBlankDay}
+                      className="min-h-12 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-all touch-manipulation"
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
+                      title="Add an empty day you can fill with exercises"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add empty day</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDuplicateSourceDayIndex(currentDay);
+                        setShowDuplicateDayModal(true);
+                      }}
+                      disabled={!selectedProgram.days?.length}
+                      className="min-h-12 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation"
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
+                      title="Copy an existing day to the end of this week"
+                    >
+                      <Copy className="w-4 h-4" />
+                      <span>Duplicate day</span>
+                    </button>
+                  </div>
+                </div>
                 <div className="flex space-x-2 overflow-x-auto pb-2">
                   {selectedProgram?.days?.map((day, index) => (
                     <button
                       key={day.id}
+                      type="button"
                       onClick={() => setCurrentDay(index)}
-                      className={`flex-shrink-0 px-4 py-3 rounded-xl font-medium transition-all duration-200 ${
+                      className={`flex-shrink-0 min-h-12 px-4 py-3 rounded-xl font-medium transition-all duration-200 touch-manipulation ${
                         currentDay === index
                           ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg'
                           : 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 hover:text-white'
                       }`}
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
                     >
                       {day.name}
                     </button>
                   ))}
                 </div>
-                <div className="mt-4 text-sm text-slate-400">
-                  Day {currentDay + 1} of {selectedProgram?.days?.length || 0} • {currentDayData?.exercises?.length || 0} exercises
+                <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="text-sm text-slate-400">
+                    Day {currentDay + 1} of {selectedProgram?.days?.length || 0} • {currentDayData?.exercises?.length || 0} exercises
+                  </div>
+                  {currentDayData && (
+                    <label className="flex items-center gap-2 text-sm text-slate-400 sm:ml-auto">
+                      <span className="whitespace-nowrap">Day name</span>
+                      <input
+                        type="text"
+                        value={currentDayData.name}
+                        onChange={(e) => handleRenameCurrentDay(e.target.value)}
+                        className="min-h-11 px-3 py-2 rounded-xl bg-slate-700/50 border border-slate-600/50 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                        style={{ fontSize: 16 }}
+                      />
+                    </label>
+                  )}
                 </div>
 
                 {/* Superset / Template toolbar */}
@@ -2577,6 +2734,17 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                       <span>Cancel pairing</span>
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={openAddExerciseToAssignedDay}
+                    disabled={!currentDayData}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white text-sm font-semibold transition-all disabled:opacity-40"
+                    title="Add an exercise to this day"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Exercise</span>
+                  </button>
 
                   <button
                     onClick={openSaveTemplate}
@@ -3374,8 +3542,17 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
               ) : (
                 <div className="text-center py-12">
                   <Dumbbell className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-slate-300 mb-2">No exercises found</h3>
-                  <p className="text-slate-400">This day doesn't have any exercises assigned yet.</p>
+                  <h3 className="text-xl font-semibold text-slate-300 mb-2">No exercises yet</h3>
+                  <p className="text-slate-400 mb-6">Add exercises to build this day, or duplicate another day.</p>
+                  <button
+                    type="button"
+                    onClick={openAddExerciseToAssignedDay}
+                    className="inline-flex items-center gap-2 min-h-12 px-5 py-3 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 text-white font-semibold touch-manipulation"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Exercise</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -3400,6 +3577,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     onClick={() => {
                       setShowExerciseModal(false);
                       setSelectedDayIndex(null);
+                      setAddExerciseToAssigned(false);
                       setExerciseSearch('');
                     }}
                     className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white transition-all duration-200"
@@ -3414,6 +3592,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     onChange={(e) => setExerciseSearch(e.target.value)}
                     placeholder="Search exercises..."
                     className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    style={{ fontSize: 16 }}
                   />
                 </div>
               </div>
@@ -3428,34 +3607,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     .map(exercise => (
                       <div
                         key={exercise.id}
-                        onClick={() => {
-                          if (selectedDayIndex !== null) {
-                            const newExercise: WorkoutExercise = {
-                              id: `exercise-${Date.now()}`,
-                              exercise: exercise,
-                              sets: [
-                                {
-                                  id: `set-${Date.now()}`,
-                                  reps: 8,
-                                  weight: 50,
-                                  isDropset: false,
-                                  completed: false
-                                }
-                              ],
-                              rest: '2 min',
-                              notes: '',
-                              order: 1
-                            };
-                            
-                            const newDays = [...customWorkout.days];
-                            newDays[selectedDayIndex].exercises.push(newExercise);
-                            setCustomWorkout(prev => ({ ...prev, days: newDays }));
-                            
-                            setShowExerciseModal(false);
-                            setSelectedDayIndex(null);
-                            setExerciseSearch('');
-                          }
-                        }}
+                        onClick={() => handleAddExerciseFromModal(exercise)}
                         className="p-4 bg-slate-700/50 hover:bg-slate-600/50 rounded-xl border border-slate-600/50 hover:border-slate-500/50 cursor-pointer transition-all duration-200 hover:scale-105"
                       >
                         <div className="flex items-center space-x-3">
@@ -3472,6 +3624,74 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                       </div>
                     ))}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Duplicate day modal (assigned program) */}
+        {showDuplicateDayModal && selectedProgram && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 max-w-md w-full overflow-hidden">
+              <div className="p-6 border-b border-slate-700">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white">Duplicate day</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowDuplicateDayModal(false)}
+                    className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-slate-400 text-sm mt-2">
+                  Copies the day to the end of this week. Does not change other weeks until you create the next week from this one.
+                </p>
+              </div>
+              <div className="p-6 space-y-4">
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-300 mb-2 block">Source day</span>
+                  <select
+                    value={duplicateSourceDayIndex}
+                    onChange={(e) => setDuplicateSourceDayIndex(parseInt(e.target.value, 10))}
+                    className="w-full min-h-12 appearance-none bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    style={{ fontSize: 16 }}
+                  >
+                    {selectedProgram.days.map((day, index) => (
+                      <option key={day.id} value={index}>
+                        {day.name || `Day ${index + 1}`} ({day.exercises?.length || 0} exercises)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleDuplicateDay(duplicateSourceDayIndex, false)}
+                  className="w-full min-h-12 p-4 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600/50 hover:border-blue-500/50 text-left transition-all flex items-center gap-4 touch-manipulation"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
+                    <Copy className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Same weights</h4>
+                    <p className="text-slate-400 text-sm">Keep all reps and loads from the source day</p>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDuplicateDay(duplicateSourceDayIndex, true)}
+                  className="w-full min-h-12 p-4 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600/50 hover:border-amber-500/50 text-left transition-all flex items-center gap-4 touch-manipulation"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+                    <Dumbbell className="w-6 h-6 text-amber-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Zero weights</h4>
+                    <p className="text-slate-400 text-sm">Same exercises and reps, all weights set to 0</p>
+                  </div>
+                </button>
               </div>
             </div>
           </div>
