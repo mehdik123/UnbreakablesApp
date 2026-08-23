@@ -211,6 +211,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   const [addExerciseToAssigned, setAddExerciseToAssigned] = useState(false);
   const [showDuplicateDayModal, setShowDuplicateDayModal] = useState(false);
   const [duplicateSourceDayIndex, setDuplicateSourceDayIndex] = useState(0);
+  const [showRemoveDayConfirm, setShowRemoveDayConfirm] = useState(false);
 
   // Build a next-week draft from the previous week's actuals using the chosen mode.
   const buildDraftWeek = (
@@ -735,6 +736,24 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     setCurrentDay(updatedProgram.days.length - 1);
     setHasModifications(true);
     setShowDuplicateDayModal(false);
+  };
+
+  /** Remove the currently selected day from this week (assigned program). Keeps at least one day. */
+  const handleRemoveCurrentDay = () => {
+    if (!selectedProgram?.days?.length) return;
+    if (selectedProgram.days.length <= 1) {
+      setShowRemoveDayConfirm(false);
+      return;
+    }
+    const removeIndex = currentDay;
+    const nextDays = selectedProgram.days.filter((_, i) => i !== removeIndex);
+    const nextIndex = Math.min(removeIndex, nextDays.length - 1);
+    setSelectedProgram({ ...selectedProgram, days: nextDays });
+    setCurrentDay(Math.max(0, nextIndex));
+    setSupersetPickMode(false);
+    setSupersetPicks([]);
+    setHasModifications(true);
+    setShowRemoveDayConfirm(false);
   };
 
   const handleRenameCurrentDay = (name: string) => {
@@ -2700,16 +2719,33 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     Day {currentDay + 1} of {selectedProgram?.days?.length || 0} • {currentDayData?.exercises?.length || 0} exercises
                   </div>
                   {currentDayData && (
-                    <label className="flex items-center gap-2 text-sm text-slate-400 sm:ml-auto">
-                      <span className="whitespace-nowrap">Day name</span>
-                      <input
-                        type="text"
-                        value={currentDayData.name}
-                        onChange={(e) => handleRenameCurrentDay(e.target.value)}
-                        className="min-h-11 px-3 py-2 rounded-xl bg-slate-700/50 border border-slate-600/50 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
-                        style={{ fontSize: 16 }}
-                      />
-                    </label>
+                    <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+                      <label className="flex items-center gap-2 text-sm text-slate-400">
+                        <span className="whitespace-nowrap">Day name</span>
+                        <input
+                          type="text"
+                          value={currentDayData.name}
+                          onChange={(e) => handleRenameCurrentDay(e.target.value)}
+                          className="min-h-11 px-3 py-2 rounded-xl bg-slate-700/50 border border-slate-600/50 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                          style={{ fontSize: 16 }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowRemoveDayConfirm(true)}
+                        disabled={(selectedProgram.days?.length || 0) <= 1}
+                        className="min-h-11 flex items-center gap-2 px-3 py-2 rounded-xl bg-red-600/20 hover:bg-red-600/35 text-red-300 text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                        title={
+                          (selectedProgram.days?.length || 0) <= 1
+                            ? 'Keep at least one day in the program'
+                            : 'Remove this day from the current week'
+                        }
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span>Remove day</span>
+                      </button>
+                    </div>
                   )}
                 </div>
 
@@ -3624,6 +3660,50 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                       </div>
                     ))}
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Remove day confirm (assigned program) */}
+        {showRemoveDayConfirm && currentDayData && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 max-w-md w-full overflow-hidden">
+              <div className="p-6 border-b border-slate-700">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white">Remove day?</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowRemoveDayConfirm(false)}
+                    className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-slate-400 text-sm mt-2">
+                  This removes <span className="text-white font-medium">{currentDayData.name || `Day ${currentDay + 1}`}</span> and its{' '}
+                  {currentDayData.exercises?.length || 0} exercise
+                  {(currentDayData.exercises?.length || 0) === 1 ? '' : 's'} from the week you are editing.
+                  Save afterward to sync the client. Other weeks are unchanged.
+                </p>
+              </div>
+              <div className="p-6 flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowRemoveDayConfirm(false)}
+                  className="flex-1 min-h-12 px-4 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold touch-manipulation"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemoveCurrentDay}
+                  className="flex-1 min-h-12 px-4 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold touch-manipulation"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  Remove day
+                </button>
               </div>
             </div>
           </div>
