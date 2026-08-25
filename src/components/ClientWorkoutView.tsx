@@ -76,7 +76,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
 }) => {
   const [currentDay, setCurrentDay] = useState(0);
   const [weekStripOpen, setWeekStripOpen] = useState(false);
-  const [dayStripOpen, setDayStripOpen] = useState(true);
   const [completedExercises, setCompletedExercises] = useState<{ [exerciseId: string]: boolean }>({});
   const [exerciseData, setExerciseData] = useState<{ [exerciseId: string]: { [setIndex: number]: { reps: number; weight: number } } }>({});
   const [dropsetData, setDropsetData] = useState<{ [exerciseId: string]: { [dropsetIndex: number]: { [roundIndex: number]: { reps: number; weight: number } } } }>({});
@@ -1386,15 +1385,9 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
           </div>
         )}
 
-        {/* Day Navigation - collapsed by default (same pattern as week strip) */}
+        {/* Day Navigation — always visible for quick switching */}
         <div>
-          <button
-            type="button"
-            onClick={() => setDayStripOpen((o) => !o)}
-            className="workout-week-toggle"
-            aria-expanded={dayStripOpen}
-            style={{ minHeight: 44 }}
-          >
+          <div className="workout-week-toggle" style={{ minHeight: 44, pointerEvents: 'none' }}>
             <span className="flex flex-col items-start gap-0.5 min-w-0">
               <span className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--txt-lo)' }}>
                 {t('workout.changeWeekDay')}
@@ -1405,13 +1398,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                   : t('workout.selectDay')}
               </span>
             </span>
-            <ChevronDown
-              className={`w-4 h-4 shrink-0 transition-transform duration-200 ${dayStripOpen ? 'rotate-180' : ''}`}
-              style={{ color: 'var(--txt-lo)' }}
-            />
-          </button>
+          </div>
 
-          {dayStripOpen && (
           <div className="mt-2">
           {/* Horizontal Scrolling Days */}
           <div className="relative">
@@ -1449,7 +1437,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
                       data-scroll-item
                       onClick={() => {
                         setCurrentDay(index);
-                        setDayStripOpen(false);
                       }}
                       disabled={!isDayUnlocked}
                       className={`group relative flex-shrink-0 w-[118px] sm:w-[132px] text-left p-2.5 sm:p-3 rounded-[14px] transition-all duration-200 active:scale-[0.97] ${
@@ -1531,7 +1518,6 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
             </button>
           </div>
           </div>
-          )}
 
           {!isDayUnlocked && (
             <div className="workout-locked-banner">
