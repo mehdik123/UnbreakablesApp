@@ -328,6 +328,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
               currentWeek={client.workoutAssignment?.currentWeek || 1}
               maxWeeks={client.numberOfWeeks}
               isDark={isDark}
+              isCoachView
             />
           </div>
         ) : activeTab === 'photos' ? (

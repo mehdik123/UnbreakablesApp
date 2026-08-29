@@ -161,6 +161,8 @@ export interface WeightEntry {
   weekNumber?: number;
   dayKey?: string;
   notes?: string;
+  /** When the client actually saved this entry (coach-only display). */
+  loggedAt?: Date;
 }
 
 // Progress Tracking Types

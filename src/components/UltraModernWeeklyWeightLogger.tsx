@@ -13,12 +13,15 @@ import { UltraModernWeightChart } from './UltraModernWeightChart';
 import { WeightStatsGrid } from './WeightStatsCards';
 import { BodyMeasurementsTab } from './BodyMeasurementsTab';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
+import { formatWeightLoggedShort, formatWeightLoggedLabel } from '../utils/weightLogDate';
 
 interface UltraModernWeeklyWeightLoggerProps {
   client: Client;
   currentWeek: number;
   maxWeeks: number;
   isDark: boolean;
+  /** Coach view shows when each entry was logged; clients never see it. */
+  isCoachView?: boolean;
 }
 
 // Day 1 to Day 7 per week — no calendar dates
@@ -48,7 +51,8 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
   client,
   currentWeek: initialWeek,
   maxWeeks: maxWeeksProp,
-  isDark
+  isDark,
+  isCoachView = false
 }) => {
   const { t } = useClientLocale();
   const maxWeeks = Math.max(1, Math.min(52, Number(maxWeeksProp) || 12));
@@ -96,7 +100,8 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
             date: entry.date,
             weekNumber,
             dayKey,
-            notes: entry.notes
+            notes: entry.notes,
+            loggedAt: entry.loggedAt
           };
         });
       } else {
@@ -113,7 +118,8 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
             date: entry.date,
             weekNumber,
             dayKey,
-            notes: entry.notes
+            notes: entry.notes,
+            loggedAt: entry.loggedAt
           };
         });
       }
@@ -192,7 +198,8 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
               date: dateString,
               weekNumber: editingCell.week,
               dayKey: editingCell.day,
-              notes: savedData.notes
+              notes: savedData.notes,
+              loggedAt: savedData.created_at ? new Date(savedData.created_at) : new Date()
             }
           }
         };
@@ -432,6 +439,8 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
                   !editingCell &&
                   !hasWeight &&
                   DAYS_OF_WEEK.findIndex((d) => getCurrentWeekData()[d.key]?.weight === undefined) === dayIndex;
+                const loggedShort = isCoachView ? formatWeightLoggedShort(dayData?.loggedAt) : null;
+                const loggedFull = isCoachView ? formatWeightLoggedLabel(dayData?.loggedAt) : null;
 
                 return (
                   <button
@@ -449,6 +458,11 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
                           <Check className="w-3 h-3" />
                           {t('wt.logged')}
                         </span>
+                        {isCoachView && loggedShort && (
+                          <span className="wt-day-logged tnum" title={loggedFull || undefined}>
+                            {loggedShort}
+                          </span>
+                        )}
                       </>
                     ) : (
                       <>

@@ -97,7 +97,8 @@ export async function getClientWeightLogs(clientId: string, limit?: number): Pro
     clientId: log.client_id,
     date: parseStoredDate(log.date),
     weight: parseFloat(log.weight),
-    notes: log.notes
+    notes: log.notes,
+    loggedAt: log.created_at ? new Date(log.created_at) : undefined
   }));
   
   return mappedData;

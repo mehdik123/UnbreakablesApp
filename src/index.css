@@ -2750,6 +2750,16 @@
     border: 1px solid rgba(52, 211, 153, 0.28);
   }
 
+  /* Coach-only: when the client saved this entry */
+  .wt-day-logged {
+    margin-top: 3px;
+    font-size: 9.5px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    color: var(--txt-lo);
+  }
+
   .wt-day-plus {
     width: 36px;
     height: 36px;
