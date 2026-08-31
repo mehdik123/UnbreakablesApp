@@ -57,7 +57,7 @@ export async function migrateWorkoutTemplateExercises() {
             dbDay.id,
             dbExercise.name, // Use name instead of id since exercise_id is text
             exerciseIndex + 1,
-            frontendExercise.rest || '90 seconds',
+            frontendExercise.rest || '120 seconds',
             frontendExercise.notes || ''
           );
           
@@ -75,7 +75,7 @@ export async function migrateWorkoutTemplateExercises() {
               setIndex + 1,
               frontendSet.reps,
               frontendSet.weight,
-              frontendSet.restPeriod || 90
+              frontendSet.restPeriod || 120
             );
           }
           

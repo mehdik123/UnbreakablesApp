@@ -411,7 +411,7 @@ export async function dbAddWorkoutExercise(dayId: string, exerciseId: string, ex
       day_id: dayId, 
       exercise_id: exerciseId, // Use text column as it exists
       ex_order: exerciseOrder,
-      rest: rest || '90 seconds',
+      rest: rest || '120 seconds',
       notes: notes || ''
     })
     .select('*')

@@ -32,13 +32,13 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
           set_order: s.set_order ?? 1,
           reps: typeof s.reps === 'number' ? s.reps : 10,
           weight: typeof s.weight === 'number' ? s.weight : 0,
-          rest_seconds: s.rest_seconds ?? 90
+          rest_seconds: s.rest_seconds ?? 120
         }));
         return {
           exercise_id: ex.exercise_id ?? '',
           ex_order: ex.ex_order ?? 0,
           notes: ex.notes || '',
-          sets: rawSets.length ? rawSets : [{ set_order: 1, reps: 10, weight: 0, rest_seconds: 90 }]
+          sets: rawSets.length ? rawSets : [{ set_order: 1, reps: 10, weight: 0, rest_seconds: 120 }]
         };
       })
     }));
@@ -161,7 +161,7 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
       ex_order: updated[dayIndex].exercises.length + 1,
       notes: '',
       sets: [
-        { set_order: 1, reps: 10, weight: 0, rest_seconds: 90 }
+        { set_order: 1, reps: 10, weight: 0, rest_seconds: 120 }
       ]
     });
     setDays(updated);
@@ -201,7 +201,7 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
   const handleAddSet = (dayIndex: number, exIndex: number) => {
     const updated = [...days];
     const sets = updated[dayIndex].exercises[exIndex].sets;
-    const restSeconds = sets[0]?.rest_seconds ?? 90;
+    const restSeconds = sets[0]?.rest_seconds ?? 120;
     sets.push({
       set_order: sets.length + 1,
       reps: 10,
@@ -258,7 +258,7 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
             day_id: dayData.id,
             exercise_id: ex.exercise_id,
             ex_order: ex.ex_order,
-            rest: '90',
+            rest: '120',
             notes: ex.notes || ''
           })
           .select()
@@ -671,7 +671,7 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
                                   <div className="flex items-center gap-1">
                                     <button
                                       type="button"
-                                      onClick={() => handleUpdateExerciseRest(currentDayIndex, exIdx, Math.max(0, (ex.sets[0]?.rest_seconds ?? 90) - 15))}
+                                      onClick={() => handleUpdateExerciseRest(currentDayIndex, exIdx, Math.max(0, (ex.sets[0]?.rest_seconds ?? 120) - 15))}
                                       className="w-11 h-11 flex items-center justify-center bg-black/40 hover:bg-purple-500/30 border border-white/10 rounded-lg text-white transition-colors touch-manipulation"
                                     >
                                       −
@@ -681,14 +681,14 @@ export const WorkoutProgramManager: React.FC<WorkoutProgramManagerProps> = ({ on
                                       min={0}
                                       max={600}
                                       step={15}
-                                      value={ex.sets[0]?.rest_seconds ?? 90}
+                                      value={ex.sets[0]?.rest_seconds ?? 120}
                                       onChange={(e) => handleUpdateExerciseRest(currentDayIndex, exIdx, parseInt(e.target.value, 10) || 0)}
                                       className="w-16 px-2 py-2.5 bg-black/30 border border-white/10 rounded-lg text-white text-center text-sm focus:outline-none focus:border-purple-500/50"
                                     />
                                     <span className="text-xs text-gray-400">sec</span>
                                     <button
                                       type="button"
-                                      onClick={() => handleUpdateExerciseRest(currentDayIndex, exIdx, (ex.sets[0]?.rest_seconds ?? 90) + 15)}
+                                      onClick={() => handleUpdateExerciseRest(currentDayIndex, exIdx, (ex.sets[0]?.rest_seconds ?? 120) + 15)}
                                       className="w-11 h-11 flex items-center justify-center bg-black/40 hover:bg-purple-500/30 border border-white/10 rounded-lg text-white transition-colors touch-manipulation"
                                     >
                                       +

@@ -16,12 +16,12 @@ const createWorkoutDay = (id: string, name: string, exerciseNames: string[]): Wo
         id: `${id}-${exercise.id}`,
         exercise,
         sets: [
-          { id: `${id}-${exercise.id}-set-1`, reps: 8, weight: 50, completed: false, restPeriod: 90 },
-          { id: `${id}-${exercise.id}-set-2`, reps: 8, weight: 50, completed: false, restPeriod: 90 },
-          { id: `${id}-${exercise.id}-set-3`, reps: 8, weight: 50, completed: false, restPeriod: 90 }
+          { id: `${id}-${exercise.id}-set-1`, reps: 8, weight: 50, completed: false, restPeriod: 120 },
+          { id: `${id}-${exercise.id}-set-2`, reps: 8, weight: 50, completed: false, restPeriod: 120 },
+          { id: `${id}-${exercise.id}-set-3`, reps: 8, weight: 50, completed: false, restPeriod: 120 }
         ],
-        rest: '90 seconds',
-        restPeriod: 90,
+        rest: '120 seconds',
+        restPeriod: 120,
         notes: '',
         order: index + 1
       };

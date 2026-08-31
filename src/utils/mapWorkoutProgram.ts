@@ -44,11 +44,11 @@ export function mapDbProgramToWorkoutProgram(program: any): WorkoutProgram {
           reps: set.reps,
           weight: set.weight,
           completed: false,
-          restPeriod: set.rest_seconds || 90,
+          restPeriod: set.rest_seconds || 120,
         })),
-        rest: workoutExercise.rest || '90 seconds',
+        rest: workoutExercise.rest || '120 seconds',
         restPeriod: parseInt(
-          workoutExercise.rest?.replace(/[^0-9]/g, '') || '90',
+          workoutExercise.rest?.replace(/[^0-9]/g, '') || '120',
           10
         ),
         notes: workoutExercise.notes || '',
