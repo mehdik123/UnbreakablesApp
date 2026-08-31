@@ -141,6 +141,8 @@ export interface Client {
   numberOfWeeks: number;
   startDate: Date;
   isActive: boolean;
+  /** Hidden from main coach list; data retained for restore */
+  isArchived?: boolean;
   favorites: string[]; // meal IDs
   weightLog: WeightEntry[];
   /** Coach-set baseline body weight (kg) at client creation — home compares latest log vs this */

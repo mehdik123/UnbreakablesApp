@@ -52,6 +52,12 @@ import {
 import { getMarketingDemoClient } from './data/marketingDemoClient';
 import type { NewClientSetupOptions } from './components/UnbreakableSteamClientsManager';
 import { persistClientsLocally, safeLocalStorageSet, mirrorPlanLocally, reclaimLocalStorageQuotaIfNeeded } from './utils/localStorageClients';
+import {
+  addLocalArchivedId,
+  isMissingArchiveColumnError,
+  removeLocalArchivedId,
+  resolveClientArchived,
+} from './utils/clientArchive';
 
 function App() {
   const initialAuth = getInitialAuthState();
@@ -152,6 +158,7 @@ function App() {
           numberOfWeeks: row.number_of_weeks || 12,
           startDate: new Date(row.start_date || new Date()),
           isActive: row.is_active !== false,
+          isArchived: resolveClientArchived(row.id, row.is_archived),
           favorites: row.favorites || [],
           weightLog: row.weight_log || [],
           startingWeight:
@@ -396,6 +403,7 @@ function App() {
               numberOfWeeks: row.number_of_weeks || 12,
               startDate: new Date(row.start_date || new Date()),
               isActive: row.is_active !== false,
+              isArchived: resolveClientArchived(row.id, row.is_archived),
               favorites: row.favorites || [],
               weightLog: row.weight_log || [],
               startingWeight:
@@ -428,6 +436,7 @@ function App() {
               numberOfWeeks: row.number_of_weeks || 12,
               startDate: new Date(row.start_date || new Date()),
               isActive: row.is_active !== false,
+              isArchived: resolveClientArchived(row.id, row.is_archived),
               favorites: row.favorites || [],
               weightLog: row.weight_log || [],
               startingWeight:
@@ -642,12 +651,56 @@ function App() {
     if (!isSupabaseReady) persistClientsLocally(filteredClients);
   };
 
-  const handleArchiveClient = (clientId: string) => {
-    const updatedClients = appState.clients.map(client => 
-      client.id === clientId ? { ...client, isArchived: true } : client
+  const handleArchiveClient = async (clientId: string) => {
+    const client = appState.clients.find((c) => c.id === clientId);
+    if (!client || client.isArchived) return;
+
+    if (isSupabaseReady) {
+      const { error } = await dbUpdateClient(clientId, { is_archived: true });
+      if (error) {
+        if (isMissingArchiveColumnError(error.message)) {
+          addLocalArchivedId(clientId);
+        } else {
+          console.error('Failed to archive client:', error);
+          alert(`Could not archive client: ${error.message}`);
+          return;
+        }
+      } else {
+        removeLocalArchivedId(clientId);
+      }
+    }
+
+    const updatedClients = appState.clients.map((c) =>
+      c.id === clientId ? { ...c, isArchived: true } : c
     );
-    setAppState(prev => ({ ...prev, clients: updatedClients }));
-    persistClientsLocally(updatedClients);
+    setAppState((prev) => ({ ...prev, clients: updatedClients }));
+    if (!isSupabaseReady) persistClientsLocally(updatedClients);
+  };
+
+  const handleRestoreClient = async (clientId: string) => {
+    const client = appState.clients.find((c) => c.id === clientId);
+    if (!client || !client.isArchived) return;
+
+    if (isSupabaseReady) {
+      const { error } = await dbUpdateClient(clientId, { is_archived: false });
+      if (error) {
+        if (isMissingArchiveColumnError(error.message)) {
+          removeLocalArchivedId(clientId);
+        } else {
+          console.error('Failed to restore client:', error);
+          alert(`Could not restore client: ${error.message}`);
+          return;
+        }
+      }
+    } else {
+      removeLocalArchivedId(clientId);
+    }
+
+    const updatedClients = appState.clients.map((c) =>
+      c.id === clientId ? { ...c, isArchived: false } : c
+    );
+    setAppState((prev) => ({ ...prev, clients: updatedClients }));
+    if (!isSupabaseReady) persistClientsLocally(updatedClients);
   };
 
   const handleDuplicateClient = async (
@@ -1375,6 +1428,7 @@ function App() {
               onUpdateClient={handleUpdateClient}
               onDeleteClient={handleDeleteClient}
               onArchiveClient={handleArchiveClient}
+              onRestoreClient={handleRestoreClient}
               onAssignNutritionPlan={handleAssignNutritionPlan}
               onAssignWorkoutPlan={handleAssignWorkoutPlan}
               onShareWithClient={handleShareWithClient}

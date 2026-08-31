@@ -65,6 +65,7 @@ export async function dbAddClient(payload: {
   phone?: string;
   start_date?: string;
   is_active?: boolean;
+  is_archived?: boolean;
   favorites?: any;
   weight_log?: any;
   starting_weight?: number | null;
@@ -78,6 +79,7 @@ export async function dbAddClient(payload: {
     phone: payload.phone || '',
     start_date: payload.start_date || new Date().toISOString().split('T')[0],
     is_active: payload.is_active !== false,
+    is_archived: payload.is_archived === true,
     favorites: payload.favorites || [],
     weight_log: payload.weight_log || [],
     starting_weight:
@@ -96,6 +98,7 @@ export async function dbUpdateClient(id: string, updates: {
   phone?: string;
   start_date?: string;
   is_active?: boolean;
+  is_archived?: boolean;
   starting_weight?: number | null;
 }): Promise<DBResult<any>> {
   if (!isSupabaseReady || !supabase) return { data: null };

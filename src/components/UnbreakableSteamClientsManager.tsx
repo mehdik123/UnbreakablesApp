@@ -81,6 +81,7 @@ interface UnbreakableSteamClientsManagerProps {
   onUpdateClient: (clientId: string, updates: Partial<Client>) => void;
   onDeleteClient: (clientId: string) => void;
   onArchiveClient: (clientId: string) => void;
+  onRestoreClient: (clientId: string) => void;
   onAssignNutritionPlan: (clientId: string, plan: any) => void;
   onAssignWorkoutPlan: (clientId: string, assignment: ClientWorkoutAssignment) => void;
   onShareWithClient: (client: Client) => void;
@@ -97,6 +98,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   onAddClient,
   onDeleteClient,
   onArchiveClient,
+  onRestoreClient,
   onShareWithClient,
   onNavigateToClientPlan,
   onDuplicateClient,
@@ -107,6 +109,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   onNavigateToTemplates
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isLoading, setIsLoading] = useState(true);
@@ -232,8 +235,10 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
     }
   };
 
-  // Filter clients based on search term
-  const filteredClients = clients.filter(client => {
+  // Filter clients based on archive tab + search term
+  const archivedCount = clients.filter((c) => c.isArchived).length;
+  const visibleClients = clients.filter((client) => Boolean(client.isArchived) === showArchived);
+  const filteredClients = visibleClients.filter(client => {
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          client.email.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
@@ -411,9 +416,10 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   };
 
   const clientsWithPlan = clients.filter(
-    (c) => c.nutritionPlan || c.workoutAssignment
+    (c) => !c.isArchived && (c.nutritionPlan || c.workoutAssignment)
   ).length;
-  const activeClients = clients.filter((c) => c.isActive).length;
+  const activeClients = clients.filter((c) => !c.isArchived && c.isActive).length;
+  const totalActiveClients = clients.filter((c) => !c.isArchived).length;
 
   const clientWeightLabel = (client: Client): string => {
     const log = client.weightLog;
@@ -515,7 +521,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               Total clients
             </div>
             <p className="coach-hub-stat-value font-display tnum">
-              <AnimatedCounter value={clients.length} duration={900} />
+              <AnimatedCounter value={totalActiveClients} duration={900} />
             </p>
           </div>
           <div className="coach-hub-stat">
@@ -543,10 +549,31 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6">
             <div className="mb-3 sm:mb-0">
-              <h2 className="text-lg sm:text-2xl font-bold font-saira italic" style={{ color: 'var(--txt-hi)' }}>Clients</h2>
-              <p className="text-xs sm:text-sm" style={{ color: 'var(--txt-mid)' }}>Open a client to edit nutrition and workouts</p>
+              <h2 className="text-lg sm:text-2xl font-bold font-saira italic" style={{ color: 'var(--txt-hi)' }}>
+                {showArchived ? 'Archived clients' : 'Clients'}
+              </h2>
+              <p className="text-xs sm:text-sm" style={{ color: 'var(--txt-mid)' }}>
+                {showArchived
+                  ? 'Restore a client to show them on the main list again'
+                  : 'Open a client to edit nutrition and workouts'}
+              </p>
             </div>
             <div className="coach-client-toolbar">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowArchived((v) => !v);
+                  setSelectionMode(false);
+                  setSelectedIds(new Set());
+                  setOpenDropdownId(null);
+                }}
+                className={`coach-hub-btn ${showArchived ? 'coach-hub-btn-primary' : 'coach-hub-btn-ghost'}`}
+                title={showArchived ? 'Back to active clients' : 'View archived clients'}
+              >
+                <Archive className="w-4 h-4" />
+                <span>{showArchived ? 'Active' : `Archived${archivedCount ? ` (${archivedCount})` : ''}`}</span>
+              </button>
+              {!showArchived && (
               <button
                 onClick={toggleSelectionMode}
                 className={`coach-hub-btn ${selectionMode ? 'coach-hub-btn-primary' : 'coach-hub-btn-ghost'}`}
@@ -555,6 +582,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                 <Layers className="w-4 h-4" />
                 <span>{selectionMode ? 'Done' : 'Select'}</span>
               </button>
+              )}
               <button
                 onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
                 className="coach-hub-btn coach-hub-btn-ghost"
@@ -562,6 +590,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               >
                 {viewMode === 'grid' ? <List className="w-4 h-4" /> : <Grid3X3 className="w-4 h-4" />}
               </button>
+              {!showArchived && (
               <button
                 onClick={() => setShowAddModal(true)}
                 className="coach-hub-btn coach-hub-btn-primary"
@@ -569,6 +598,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                 <Plus className="w-4 h-4" />
                 <span className="text-sm">Add Client</span>
               </button>
+              )}
             </div>
           </div>
 
@@ -863,8 +893,15 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               >
                 <Users className="w-7 h-7 sm:w-10 sm:h-10" style={{ color: 'var(--txt-lo)' }} />
               </div>
-              <h3 className="text-base sm:text-xl font-bold mb-1" style={{ color: 'var(--txt-hi)' }}>No clients found</h3>
-              <p className="text-xs sm:text-sm mb-5" style={{ color: 'var(--txt-mid)' }}>Add your first client to get started</p>
+              <h3 className="text-base sm:text-xl font-bold mb-1" style={{ color: 'var(--txt-hi)' }}>
+                {showArchived ? 'No archived clients' : 'No clients found'}
+              </h3>
+              <p className="text-xs sm:text-sm mb-5" style={{ color: 'var(--txt-mid)' }}>
+                {showArchived
+                  ? 'Archived clients are hidden from the main list but their data is kept.'
+                  : 'Add your first client to get started'}
+              </p>
+              {!showArchived && (
               <button
                 onClick={() => setShowAddModal(true)}
                 className="coach-hub-btn coach-hub-btn-primary inline-flex mx-auto"
@@ -872,6 +909,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                 <Plus className="w-4 h-4" />
                 <span>Add Client</span>
               </button>
+              )}
             </div>
           )}
         </div>
@@ -1087,9 +1125,28 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     <Key className="w-4 h-4" />
                     <span>Manage Credentials</span>
                   </button>
+                  {showArchived ? (
                   <button
                     onClick={() => {
-                      onArchiveClient(currentClient.id);
+                      onRestoreClient(currentClient.id);
+                      setOpenDropdownId(null);
+                      setDropdownPosition(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-green-400 hover:bg-slate-700 flex items-center space-x-2"
+                  >
+                    <Archive className="w-4 h-4" />
+                    <span>Restore Client</span>
+                  </button>
+                  ) : (
+                  <button
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `Archive ${currentClient.name}? They will be hidden from the main list but their data is kept.`
+                        )
+                      ) {
+                        onArchiveClient(currentClient.id);
+                      }
                       setOpenDropdownId(null);
                       setDropdownPosition(null);
                     }}
@@ -1098,6 +1155,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     <Archive className="w-4 h-4" />
                     <span>Archive Client</span>
                   </button>
+                  )}
                   <button
                     onClick={() => {
                       if (window.confirm(`Are you sure you want to permanently delete ${currentClient.name}? This action cannot be undone.`)) {
