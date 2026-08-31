@@ -845,6 +845,46 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       };
       
       setSelectedProgram(updatedProgram);
+      setHasModifications(true);
+    }
+  };
+
+  /** Remove an entire exercise from the current day (assigned program editor). */
+  const handleRemoveExercise = (exerciseId: string) => {
+    if (!selectedProgram?.days?.[currentDay]) return;
+    const dayExercises = selectedProgram.days[currentDay].exercises || [];
+    const target = dayExercises.find((ex) => ex.id === exerciseId);
+    if (!target) return;
+
+    const groupId = target.superset;
+    const partnerIds = groupId
+      ? dayExercises
+          .filter((ex) => ex.superset === groupId && ex.id !== exerciseId)
+          .map((ex) => ex.id)
+      : [];
+
+    setSelectedProgram({
+      ...selectedProgram,
+      days: selectedProgram.days.map((day, dayIndex) =>
+        dayIndex === currentDay
+          ? {
+              ...day,
+              exercises: day.exercises
+                .filter((ex) => ex.id !== exerciseId)
+                .map((ex) =>
+                  partnerIds.includes(ex.id)
+                    ? { ...ex, superset: undefined, supersetName: undefined }
+                    : ex
+                ),
+            }
+          : day
+      ),
+    });
+    setHasModifications(true);
+    setSupersetPicks((picks) => picks.filter((id) => id !== exerciseId));
+    if (showExerciseSearch === exerciseId) {
+      setShowExerciseSearch(null);
+      setExerciseSearch('');
     }
   };
 
@@ -3073,7 +3113,22 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         )}
                       </div>
                       )}
-                      
+
+                      {!supersetPickMode && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveExercise(exercise.id);
+                          }}
+                          className="w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-red-600/20 hover:bg-red-600/40 text-red-300 transition-all duration-200 flex items-center justify-center flex-shrink-0 touch-manipulation"
+                          style={{ WebkitTapHighlightColor: 'transparent' }}
+                          title="Remove exercise from this day"
+                          aria-label="Remove exercise"
+                        >
+                          <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                      )}
                       
                       {/* Quick Bulk Actions */}
                       <div className="flex items-center gap-1 bg-gradient-to-r from-slate-800/60 to-slate-700/60 backdrop-blur-sm rounded-lg p-1 border border-slate-600/30 shadow-lg flex-wrap">

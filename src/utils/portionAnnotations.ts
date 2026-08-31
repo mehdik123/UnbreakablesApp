@@ -73,6 +73,16 @@ export const PORTION_RULES: PortionRule[] = [
     unitPlural: 'bananas',
   },
   {
+    id: 'date-fruit',
+    matches: (n) => {
+      const name = normalizeName(n);
+      return name === 'date' || name === 'dates' || name.startsWith('date ') || name.startsWith('dates ');
+    },
+    gramsPerUnit: 7,
+    unitSingular: 'date',
+    unitPlural: 'dates',
+  },
+  {
     id: 'whole-wheat-wrap',
     matches: (n) => {
       const name = normalizeName(n);
