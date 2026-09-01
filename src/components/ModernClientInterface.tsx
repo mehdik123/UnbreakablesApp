@@ -26,7 +26,8 @@ import {
 import { ClientWelcomeTour } from './ClientWelcomeTour';
 import { ClientHelpGuide } from './ClientHelpGuide';
 import { ClientMilestoneSheet } from './ClientMilestoneSheet';
-import { Client, ClientWorkoutAssignment, NutritionPlan } from '../types';
+import { ClientWeightReminder } from './ClientWeightReminder';
+import { Client, ClientWorkoutAssignment, NutritionPlan, WeightEntry } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { dbResolveClientIdByName, dbGetCardioPlan } from '../lib/db';
 import { enrichProgramAndWeeksWithExercises } from '../utils/enrichAssignment';
@@ -43,6 +44,14 @@ import {
   persistMilestoneSeen,
   hasMilestoneBeenSeen,
 } from '../utils/clientMilestones';
+import {
+  type WeightReminderResult,
+  bumpClientHomeVisits,
+  getClientHomeVisits,
+  dismissWeightReminderForToday,
+  evaluateWeightReminder,
+  wasWeightReminderDismissedToday,
+} from '../utils/weightLogReminder';
 import { getClientWeightLogs, getClientPRHistory } from '../lib/progressTracking';
 import { getClientSupplements } from '../services/supplementsService';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -279,7 +288,15 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   }, [guideKey]);
 
   const milestoneSessionShownRef = useRef(false);
+  const weightReminderSuppressedRef = useRef(false);
   const [activeMilestone, setActiveMilestone] = useState<ClientMilestone | null>(null);
+  const [clientWeightLogs, setClientWeightLogs] = useState<WeightEntry[]>([]);
+  const [weightReminder, setWeightReminder] = useState<WeightReminderResult>({
+    show: false,
+    variant: null,
+    week: 1,
+  });
+  const [homeVisitCount, setHomeVisitCount] = useState(() => getClientHomeVisits(client.id));
 
   const tryPresentMilestone = useCallback(
     (milestone: ClientMilestone | null) => {
@@ -333,14 +350,22 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
   const handleWeightLogged = useCallback(async () => {
     const clientId = databaseClientId || client.id;
     if (client.id === 'marketing-demo') return;
+    weightReminderSuppressedRef.current = true;
+    setWeightReminder({ show: false, variant: null, week: 1 });
     try {
       const logs = await getClientWeightLogs(clientId);
+      setClientWeightLogs(logs);
       const streak = detectWeightStreakMilestone(clientId, logs);
       tryPresentMilestone(streak);
     } catch {
       /* ignore fetch errors */
     }
   }, [client.id, databaseClientId, tryPresentMilestone]);
+
+  const dismissWeightReminder = useCallback(() => {
+    dismissWeightReminderForToday(client.id);
+    setWeightReminder((prev) => ({ ...prev, show: false }));
+  }, [client.id]);
 
   useEffect(() => {
     if (route !== 'home' || showWelcome) return;
@@ -381,6 +406,10 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     setRoute(target);
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
   }, []);
+
+  const openWeightFromReminder = useCallback(() => {
+    navigate('weight');
+  }, [navigate]);
 
   const handleMilestoneAction = useCallback(() => {
     if (activeMilestone?.kind === 'week_unlocked' && activeMilestone.week) {
@@ -510,6 +539,8 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
             : getClientPRHistory(databaseClientId),
         ]);
         if (cancelled) return;
+
+        setClientWeightLogs(weightLogs);
 
         const asc = [...weightLogs].sort((a, b) => a.date.getTime() - b.date.getTime());
         let latestWeight: number | null = null;
@@ -892,6 +923,40 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     [effectiveWorkoutAssignment, client.workoutAssignment]
   );
 
+  useEffect(() => {
+    if (route !== 'home' || client.id === 'marketing-demo') return;
+    setHomeVisitCount(bumpClientHomeVisits(client.id));
+  }, [route, client.id]);
+
+  useEffect(() => {
+    if (client.id === 'marketing-demo' || route !== 'home' || showWelcome || activeMilestone) {
+      setWeightReminder((prev) => (prev.show ? { ...prev, show: false } : prev));
+      return;
+    }
+
+    const result = evaluateWeightReminder({
+      clientId: client.id,
+      logs: clientWeightLogs,
+      currentWeek: activeWeek,
+      startDate: client.startDate,
+      maxWeeks: totalWeeks,
+      visitCount: homeVisitCount,
+      dismissedToday: wasWeightReminderDismissedToday(client.id),
+      suppressedThisSession: weightReminderSuppressedRef.current,
+    });
+    setWeightReminder(result);
+  }, [
+    client.id,
+    client.startDate,
+    route,
+    showWelcome,
+    activeMilestone,
+    clientWeightLogs,
+    activeWeek,
+    totalWeeks,
+    homeVisitCount,
+  ]);
+
   const progressPercentage = Math.round((activeWeek / totalWeeks) * 100);
 
   const lastSavedWeek = (effectiveWorkoutAssignment ?? client.workoutAssignment)?.lastSavedWeek;
@@ -1122,6 +1187,17 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               </div>
             </div>
           </div>
+
+          {weightReminder.show && weightReminder.variant && !showWelcome && !activeMilestone && (
+            <ClientWeightReminder
+              variant={weightReminder.variant}
+              week={weightReminder.week}
+              isRtl={isRtl}
+              t={t}
+              onLog={openWeightFromReminder}
+              onDismiss={dismissWeightReminder}
+            />
+          )}
 
           {/* Body weight highlight — blank until client logs; then latest vs coach starting weight */}
           {dashStats.latestWeight != null && (

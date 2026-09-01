@@ -1751,6 +1751,96 @@
   .home-weight-card:active {
     transform: scale(0.975);
   }
+
+  .home-weight-reminder {
+    position: relative;
+    margin-bottom: 14px;
+    border-radius: var(--r-lg);
+    border: 1px solid rgba(91, 140, 255, 0.28);
+    background:
+      radial-gradient(120% 120% at 0% 0%, rgba(91, 140, 255, 0.2), transparent 55%),
+      linear-gradient(135deg, var(--surface-2), var(--surface-1));
+    box-shadow: 0 16px 40px -24px rgba(91, 140, 255, 0.45);
+    overflow: hidden;
+  }
+
+  .home-weight-reminder-glow {
+    pointer-events: none;
+    position: absolute;
+    inset: auto -8% -50% auto;
+    width: 55%;
+    height: 90%;
+    background: radial-gradient(circle, rgba(91, 140, 255, 0.2), transparent 70%);
+  }
+
+  .home-weight-reminder-dismiss {
+    position: absolute;
+    top: 10px;
+    inset-inline-end: 10px;
+    z-index: 2;
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    border: 1px solid var(--hair);
+    background: rgba(0, 0, 0, 0.2);
+    color: var(--txt-mid);
+    transition: transform 0.18s var(--spring);
+  }
+
+  .home-weight-reminder-dismiss:active {
+    transform: scale(0.9);
+  }
+
+  .home-weight-reminder-main {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 44px 14px 14px;
+    text-align: start;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.18s var(--spring);
+  }
+
+  .home-weight-reminder-main:active {
+    transform: scale(0.985);
+  }
+
+  .home-weight-reminder-ic {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    color: #fff;
+    background: linear-gradient(135deg, #5b8cff, #3b6fe8);
+    box-shadow: 0 10px 24px -10px rgba(91, 140, 255, 0.75);
+  }
+
+  .home-weight-reminder-kicker {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--blue);
+  }
+
+  .home-weight-reminder-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--blue);
+  }
+
   .home-weight-glow {
     pointer-events: none;
     position: absolute;
