@@ -54,6 +54,7 @@ import type { NewClientSetupOptions } from './components/UnbreakableSteamClients
 import { persistClientsLocally, safeLocalStorageSet, mirrorPlanLocally, reclaimLocalStorageQuotaIfNeeded } from './utils/localStorageClients';
 import {
   addLocalArchivedId,
+  isEmptyDbUpdate,
   isMissingArchiveColumnError,
   removeLocalArchivedId,
   resolveClientArchived,
@@ -652,55 +653,79 @@ function App() {
   };
 
   const handleArchiveClient = async (clientId: string) => {
-    const client = appState.clients.find((c) => c.id === clientId);
-    if (!client || client.isArchived) return;
+    let updatedClients: Client[] | null = null;
+    setAppState((prev) => {
+      const client = prev.clients.find((c) => c.id === clientId);
+      if (!client || client.isArchived) return prev;
+      addLocalArchivedId(clientId);
+      updatedClients = prev.clients.map((c) =>
+        c.id === clientId ? { ...c, isArchived: true } : c
+      );
+      return { ...prev, clients: updatedClients };
+    });
+    if (!updatedClients) return;
 
-    if (isSupabaseReady) {
-      const { error } = await dbUpdateClient(clientId, { is_archived: true });
-      if (error) {
-        if (isMissingArchiveColumnError(error.message)) {
-          addLocalArchivedId(clientId);
-        } else {
-          console.error('Failed to archive client:', error);
-          alert(`Could not archive client: ${error.message}`);
-          return;
-        }
-      } else {
-        removeLocalArchivedId(clientId);
-      }
+    if (!isSupabaseReady) {
+      persistClientsLocally(updatedClients);
+      return;
     }
 
-    const updatedClients = appState.clients.map((c) =>
-      c.id === clientId ? { ...c, isArchived: true } : c
-    );
-    setAppState((prev) => ({ ...prev, clients: updatedClients }));
-    if (!isSupabaseReady) persistClientsLocally(updatedClients);
+    const { data, error } = await dbUpdateClient(clientId, { is_archived: true });
+    if (error) {
+      if (!isMissingArchiveColumnError(error.message)) {
+        console.error('Failed to archive client:', error);
+      }
+      return;
+    }
+    if (isEmptyDbUpdate(data, error)) {
+      console.warn('Archive update returned no row — kept local archive flag for', clientId);
+      return;
+    }
+    removeLocalArchivedId(clientId);
   };
 
   const handleRestoreClient = async (clientId: string) => {
-    const client = appState.clients.find((c) => c.id === clientId);
-    if (!client || !client.isArchived) return;
-
-    if (isSupabaseReady) {
-      const { error } = await dbUpdateClient(clientId, { is_archived: false });
-      if (error) {
-        if (isMissingArchiveColumnError(error.message)) {
-          removeLocalArchivedId(clientId);
-        } else {
-          console.error('Failed to restore client:', error);
-          alert(`Could not restore client: ${error.message}`);
-          return;
-        }
-      }
-    } else {
+    let updatedClients: Client[] | null = null;
+    setAppState((prev) => {
+      const client = prev.clients.find((c) => c.id === clientId);
+      if (!client || !client.isArchived) return prev;
       removeLocalArchivedId(clientId);
+      updatedClients = prev.clients.map((c) =>
+        c.id === clientId ? { ...c, isArchived: false } : c
+      );
+      return { ...prev, clients: updatedClients };
+    });
+    if (!updatedClients) return;
+
+    if (!isSupabaseReady) {
+      persistClientsLocally(updatedClients);
+      return;
     }
 
-    const updatedClients = appState.clients.map((c) =>
-      c.id === clientId ? { ...c, isArchived: false } : c
-    );
-    setAppState((prev) => ({ ...prev, clients: updatedClients }));
-    if (!isSupabaseReady) persistClientsLocally(updatedClients);
+    const { data, error } = await dbUpdateClient(clientId, { is_archived: false });
+    if (error) {
+      if (!isMissingArchiveColumnError(error.message)) {
+        console.error('Failed to restore client:', error);
+        addLocalArchivedId(clientId);
+        setAppState((prev) => ({
+          ...prev,
+          clients: prev.clients.map((c) =>
+            c.id === clientId ? { ...c, isArchived: true } : c
+          ),
+        }));
+      }
+      return;
+    }
+    if (isEmptyDbUpdate(data, error)) {
+      console.warn('Restore update returned no row — reverted UI for', clientId);
+      addLocalArchivedId(clientId);
+      setAppState((prev) => ({
+        ...prev,
+        clients: prev.clients.map((c) =>
+          c.id === clientId ? { ...c, isArchived: true } : c
+        ),
+      }));
+    }
   };
 
   const handleDuplicateClient = async (

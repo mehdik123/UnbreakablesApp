@@ -39,6 +39,7 @@ import {
 } from '../utils/bulkProgression';
 import { dbListWorkoutPrograms } from '../lib/db';
 import { getMealSlotNames } from '../utils/nutritionMealSlots';
+import { useToast } from '../contexts/ToastContext';
 
 export type NewClientSetupOptions = {
   mealsPerDay: number;
@@ -80,8 +81,8 @@ interface UnbreakableSteamClientsManagerProps {
   onAddClient: (client: Client, setup?: NewClientSetupOptions) => void | Promise<void>;
   onUpdateClient: (clientId: string, updates: Partial<Client>) => void;
   onDeleteClient: (clientId: string) => void;
-  onArchiveClient: (clientId: string) => void;
-  onRestoreClient: (clientId: string) => void;
+  onArchiveClient: (clientId: string) => void | Promise<void>;
+  onRestoreClient: (clientId: string) => void | Promise<void>;
   onAssignNutritionPlan: (clientId: string, plan: any) => void;
   onAssignWorkoutPlan: (clientId: string, assignment: ClientWorkoutAssignment) => void;
   onShareWithClient: (client: Client) => void;
@@ -108,6 +109,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   onNavigateToIngredients,
   onNavigateToTemplates
 }) => {
+  const toast = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -202,12 +204,11 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
     };
   }, [showAddModal]);
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside (use click — mousedown races menu item activation)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (openDropdownId) {
         const target = e.target as HTMLElement;
-        // Don't close if clicking inside dropdown or on the button
         if (!target.closest('.dropdown-menu') && !target.closest('button[title="More options"]')) {
           setOpenDropdownId(null);
           setDropdownPosition(null);
@@ -215,9 +216,9 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('click', handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('click', handleClickOutside);
     };
   }, [openDropdownId]);
 
@@ -1127,10 +1128,14 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                   </button>
                   {showArchived ? (
                   <button
-                    onClick={() => {
-                      onRestoreClient(currentClient.id);
+                    type="button"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       setOpenDropdownId(null);
                       setDropdownPosition(null);
+                      await onRestoreClient(currentClient.id);
+                      toast.success(`${currentClient.name} restored`);
                     }}
                     className="w-full px-4 py-2 text-left text-green-400 hover:bg-slate-700 flex items-center space-x-2"
                   >
@@ -1139,16 +1144,21 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                   </button>
                   ) : (
                   <button
-                    onClick={() => {
+                    type="button"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setOpenDropdownId(null);
+                      setDropdownPosition(null);
                       if (
-                        window.confirm(
+                        !window.confirm(
                           `Archive ${currentClient.name}? They will be hidden from the main list but their data is kept.`
                         )
                       ) {
-                        onArchiveClient(currentClient.id);
+                        return;
                       }
-                      setOpenDropdownId(null);
-                      setDropdownPosition(null);
+                      await onArchiveClient(currentClient.id);
+                      toast.success(`${currentClient.name} archived`);
                     }}
                     className="w-full px-4 py-2 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2"
                   >

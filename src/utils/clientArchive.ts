@@ -45,5 +45,13 @@ export function resolveClientArchived(clientId: string, rowArchived?: boolean | 
 export function isMissingArchiveColumnError(message: string | undefined): boolean {
   if (!message) return false;
   const m = message.toLowerCase();
-  return m.includes('is_archived') && (m.includes('column') || m.includes('schema cache'));
+  return (
+    m.includes('is_archived') &&
+    (m.includes('column') || m.includes('schema cache') || m.includes('does not exist'))
+  );
+}
+
+/** True when Supabase accepted zero rows — still treat as failure for persistence. */
+export function isEmptyDbUpdate(data: unknown, error: unknown): boolean {
+  return !error && !data;
 }
