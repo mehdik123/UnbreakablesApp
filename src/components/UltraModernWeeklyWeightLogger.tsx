@@ -22,6 +22,8 @@ interface UltraModernWeeklyWeightLoggerProps {
   isDark: boolean;
   /** Coach view shows when each entry was logged; clients never see it. */
   isCoachView?: boolean;
+  /** Called after a weight entry is saved (for milestone celebrations). */
+  onWeightLogged?: () => void;
 }
 
 // Day 1 to Day 7 per week — no calendar dates
@@ -52,7 +54,8 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
   currentWeek: initialWeek,
   maxWeeks: maxWeeksProp,
   isDark,
-  isCoachView = false
+  isCoachView = false,
+  onWeightLogged,
 }) => {
   const { t } = useClientLocale();
   const maxWeeks = Math.max(1, Math.min(52, Number(maxWeeksProp) || 12));
@@ -214,6 +217,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
       setEditingCell(null);
       setTempValue('');
       navigator.vibrate?.(8);
+      onWeightLogged?.();
       
       // Don't reload data immediately - the local state update should be sufficient
       // await loadWeightData();

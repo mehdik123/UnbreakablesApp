@@ -25,6 +25,12 @@ import {
 } from '../lib/offlineStore';
 import { ExerciseVideoEmbed } from './ExerciseVideoEmbed';
 import { getLatestDeployedWeekNumber } from '../utils/weekCreation';
+import {
+  detectWeekCompleteMilestone,
+  detectFirstWorkoutWeekMilestone,
+  pickHighestPriorityMilestone,
+  type ClientMilestone,
+} from '../utils/clientMilestones';
 import { getExerciseRestSeconds } from '../utils/exerciseRest';
 import { persistClientsLocally, safeLocalStorageSet } from '../utils/localStorageClients';
 import {
@@ -44,6 +50,8 @@ interface ClientWorkoutViewProps {
   onWeekChange?: (week: number) => void;
   /** Called when assignment is saved or loaded so parent (e.g. charts) can use latest data */
   onAssignmentUpdated?: (assignment: ClientWorkoutAssignment) => void;
+  /** Celebrate workout milestones (first save of week, week complete). */
+  onMilestoneDetected?: (milestone: ClientMilestone) => void;
 }
 
 interface ClientWorkoutAssignment {
@@ -72,7 +80,8 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
   client,
   currentWeek,
   onWeekChange,
-  onAssignmentUpdated
+  onAssignmentUpdated,
+  onMilestoneDetected
 }) => {
   const [currentDay, setCurrentDay] = useState(0);
   const [weekStripOpen, setWeekStripOpen] = useState(false);
@@ -756,6 +765,18 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         });
       }
     }
+
+    if (newCompletedState && onMilestoneDetected) {
+      const assignment = localAssignment || client.workoutAssignment;
+      const nextCompleted = { ...completedExercises, [exerciseId]: true };
+      const complete = detectWeekCompleteMilestone(
+        client.id,
+        assignment,
+        currentWeek,
+        nextCompleted
+      );
+      if (complete) onMilestoneDetected(complete);
+    }
   };
 
   const updateExerciseData = (
@@ -1144,6 +1165,25 @@ export const ClientWorkoutView: React.FC<ClientWorkoutViewProps> = memo(({
         programDays: updatedAssignment.program?.days?.length,
         weeksCount: updatedAssignment.weeks?.length
       });
+
+      if (onMilestoneDetected) {
+        const wasFirstSaveThisWeek =
+          assignment.lastSavedWeek == null || assignment.lastSavedWeek !== currentWeek;
+        const candidates = [];
+        const complete = detectWeekCompleteMilestone(
+          client.id,
+          updatedAssignment,
+          currentWeek,
+          completedExercises
+        );
+        if (complete) candidates.push(complete);
+        if (wasFirstSaveThisWeek) {
+          const first = detectFirstWorkoutWeekMilestone(client.id, currentWeek);
+          if (first) candidates.push(first);
+        }
+        const best = pickHighestPriorityMilestone(candidates);
+        if (best) onMilestoneDetected(best);
+      }
     } catch (error) {
       console.error('❌ Error saving client edits:', error);
     }

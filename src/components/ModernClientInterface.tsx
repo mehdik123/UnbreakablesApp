@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { ClientWelcomeTour } from './ClientWelcomeTour';
 import { ClientHelpGuide } from './ClientHelpGuide';
+import { ClientMilestoneSheet } from './ClientMilestoneSheet';
 import { Client, ClientWorkoutAssignment, NutritionPlan } from '../types';
 import { supabase, isSupabaseReady } from '../lib/supabaseClient';
 import { dbResolveClientIdByName, dbGetCardioPlan } from '../lib/db';
@@ -32,6 +33,16 @@ import { enrichProgramAndWeeksWithExercises } from '../utils/enrichAssignment';
 import { normalizeCardioPlan } from '../data/cardioPresets';
 import { WeekProgressionManager } from '../utils/weekProgressionManager';
 import { getLatestDeployedWeekNumber } from '../utils/weekCreation';
+import {
+  type ClientMilestone,
+  detectWeekUnlockedMilestone,
+  detectHalfwayMilestone,
+  detectWeightStreakMilestone,
+  filterUnseenMilestones,
+  pickHighestPriorityMilestone,
+  persistMilestoneSeen,
+  hasMilestoneBeenSeen,
+} from '../utils/clientMilestones';
 import { getClientWeightLogs, getClientPRHistory } from '../lib/progressTracking';
 import { getClientSupplements } from '../services/supplementsService';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -267,6 +278,75 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     }
   }, [guideKey]);
 
+  const milestoneSessionShownRef = useRef(false);
+  const [activeMilestone, setActiveMilestone] = useState<ClientMilestone | null>(null);
+
+  const tryPresentMilestone = useCallback(
+    (milestone: ClientMilestone | null) => {
+      if (!milestone || client.id === 'marketing-demo') return;
+      if (milestoneSessionShownRef.current || showWelcome) return;
+      if (hasMilestoneBeenSeen(client.id, milestone.id)) return;
+      milestoneSessionShownRef.current = true;
+      setActiveMilestone(milestone);
+    },
+    [client.id, showWelcome]
+  );
+
+  const dismissMilestone = useCallback(() => {
+    if (activeMilestone) {
+      persistMilestoneSeen(client.id, activeMilestone);
+    }
+    setActiveMilestone(null);
+  }, [activeMilestone, client.id]);
+
+  const scanHomeMilestones = useCallback(() => {
+    if (client.id === 'marketing-demo' || showWelcome || milestoneSessionShownRef.current) return;
+
+    const assignment = effectiveWorkoutAssignment ?? client.workoutAssignment;
+    const totalWeeks = client.numberOfWeeks || (assignment as { duration?: number })?.duration || 12;
+    const candidates: ClientMilestone[] = [];
+
+    const unlock = detectWeekUnlockedMilestone(client.id, assignment);
+    if (unlock) candidates.push(unlock);
+
+    const halfway = detectHalfwayMilestone(client.id, assignment, totalWeeks);
+    if (halfway) candidates.push(halfway);
+
+    const best = pickHighestPriorityMilestone(filterUnseenMilestones(client.id, candidates));
+    tryPresentMilestone(best);
+  }, [
+    client.id,
+    client.workoutAssignment,
+    client.numberOfWeeks,
+    effectiveWorkoutAssignment,
+    showWelcome,
+    tryPresentMilestone,
+  ]);
+
+  const handleWorkoutMilestone = useCallback(
+    (milestone: ClientMilestone) => {
+      tryPresentMilestone(milestone);
+    },
+    [tryPresentMilestone]
+  );
+
+  const handleWeightLogged = useCallback(async () => {
+    const clientId = databaseClientId || client.id;
+    if (client.id === 'marketing-demo') return;
+    try {
+      const logs = await getClientWeightLogs(clientId);
+      const streak = detectWeightStreakMilestone(clientId, logs);
+      tryPresentMilestone(streak);
+    } catch {
+      /* ignore fetch errors */
+    }
+  }, [client.id, databaseClientId, tryPresentMilestone]);
+
+  useEffect(() => {
+    if (route !== 'home' || showWelcome) return;
+    scanHomeMilestones();
+  }, [route, showWelcome, scanHomeMilestones]);
+
   useEffect(() => {
     localStorage.setItem('client_interface_theme', useDarkTheme ? 'dark' : 'light');
   }, [useDarkTheme]);
@@ -301,6 +381,13 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     setRoute(target);
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'auto' });
   }, []);
+
+  const handleMilestoneAction = useCallback(() => {
+    if (activeMilestone?.kind === 'week_unlocked' && activeMilestone.week) {
+      jumpToActiveTrainingWeek(activeMilestone.week);
+      navigate('workout');
+    }
+  }, [activeMilestone, jumpToActiveTrainingWeek, navigate]);
 
   // Back only for progress detail spokes → progress hub (tabs handle tab roots)
   const goBack = useCallback(() => {
@@ -939,6 +1026,17 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
         <ClientWelcomeTour name={client.name.split(' ')[0] || 'there'} isRtl={isRtl} t={t} onClose={closeWelcome} />
       )}
 
+      {activeMilestone && !showWelcome && (
+        <ClientMilestoneSheet
+          milestone={activeMilestone}
+          name={client.name.split(' ')[0] || 'there'}
+          isRtl={isRtl}
+          t={t}
+          onDismiss={dismissMilestone}
+          onAction={activeMilestone.kind === 'week_unlocked' ? handleMilestoneAction : undefined}
+        />
+      )}
+
       {showHelpGuide && (
         <ClientHelpGuide
           isRtl={isRtl}
@@ -1454,6 +1552,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
               currentWeek={currentWeek}
               isDark={useDarkTheme}
               onWeekChange={handleClientWeekChange}
+              onMilestoneDetected={handleWorkoutMilestone}
               onAssignmentUpdated={(a) => {
                 // Use saved assignment directly so Progress charts and coach view see client's volume edits
                 if (a?.weeks != null && a?.program != null) {
@@ -1485,6 +1584,7 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
                 currentWeek={currentWeek}
                 maxWeeks={client.numberOfWeeks || 12}
                 isDark={useDarkTheme}
+                onWeightLogged={handleWeightLogged}
               />
             </ErrorBoundary>
           ) : activeTab === 'photos' ? (
