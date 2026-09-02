@@ -10,6 +10,9 @@ import {
 import { WeightEntry, Client } from '../types';
 import { logClientWeight, getClientWeightLogs, deleteClientWeight } from '../lib/progressTracking';
 import { UltraModernWeightChart } from './UltraModernWeightChart';
+import {
+  getDisplayWeekAverage,
+} from '../utils/weightChartData';
 import { WeightStatsGrid } from './WeightStatsCards';
 import { BodyMeasurementsTab } from './BodyMeasurementsTab';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
@@ -325,11 +328,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
     return getAllWeightEntries().length;
   };
 
-  const getAverageWeight = () => {
-    const entries = getAllWeightEntries();
-    if (entries.length === 0) return 0;
-    return entries.reduce((sum, e) => sum + e.weight, 0) / entries.length;
-  };
+  const getWeekAverageWeight = () => getDisplayWeekAverage(getAllWeightEntries(), selectedWeek);
 
   return (
     <div className="wt-shell space-y-4">
@@ -554,7 +553,7 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
           weeklyChange={getWeeklyChange()}
           monthlyChange={getMonthlyChange()}
           totalEntries={getTotalEntries()}
-          averageWeight={getAverageWeight()}
+          weekAverageWeight={getWeekAverageWeight()}
         />
 
           {/* Weight Progress Chart */}

@@ -50,7 +50,7 @@ interface WeightStatsGridProps {
   weeklyChange: number;
   monthlyChange: number;
   totalEntries: number;
-  averageWeight: number;
+  weekAverageWeight: number;
 }
 
 export const WeightStatsGrid: React.FC<WeightStatsGridProps> = ({
@@ -58,7 +58,7 @@ export const WeightStatsGrid: React.FC<WeightStatsGridProps> = ({
   weeklyChange,
   monthlyChange,
   totalEntries,
-  averageWeight,
+  weekAverageWeight,
 }) => {
   const { t } = useClientLocale();
   return (
@@ -84,9 +84,9 @@ export const WeightStatsGrid: React.FC<WeightStatsGridProps> = ({
         unit="kg"
       />
       <StatsCard
-        title={t('wt.averageWeight')}
-        value={averageWeight}
-        icon={<BarChart3 className="w-5 h-5" style={{ color: 'var(--amber)' }} />}
+        title={t('wt.weekAverage')}
+        value={weekAverageWeight}
+        icon={<BarChart3 className="w-5 h-5" style={{ color: 'var(--blue)' }} />}
         unit="kg"
       />
     </div>

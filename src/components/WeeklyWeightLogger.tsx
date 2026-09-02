@@ -12,6 +12,7 @@ import {
 import { WeightEntry, Client } from '../types';
 import { logClientWeight, getClientWeightLogs, deleteClientWeight } from '../lib/progressTracking';
 import { UltraModernWeightChart } from './UltraModernWeightChart';
+import { getDisplayWeekAverage } from '../utils/weightChartData';
 import { WeightStatsGrid } from './WeightStatsCards';
 import { WeeklyWeightOverview } from './WeeklyWeightOverview';
 
@@ -316,11 +317,16 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
     return getAllWeightEntries().length;
   };
 
-  const getAverageWeight = () => {
-    const entries = getAllWeightEntries();
-    if (entries.length === 0) return 0;
-    return entries.reduce((sum, e) => sum + e.weight, 0) / entries.length;
+  const getChartEntries = () => {
+    return getAllWeightEntries().map((entry) => ({
+      label: `W${entry.weekNumber} ${entry.dayKey.replace('day', 'D')}`,
+      weight: entry.weight,
+      weekNumber: entry.weekNumber,
+      dayKey: entry.dayKey,
+    }));
   };
+
+  const getWeekAverageWeight = () => getDisplayWeekAverage(getChartEntries(), selectedWeek);
 
   return (
     <div className="space-y-8">
@@ -680,11 +686,11 @@ export default function WeeklyWeightLogger({ client, currentWeek, maxWeeks, isDa
           weeklyChange={getWeeklyChange()}
           monthlyChange={getMonthlyChange()}
           totalEntries={getTotalEntries()}
-          averageWeight={getAverageWeight()}
+          weekAverageWeight={getWeekAverageWeight()}
         />
 
         {/* Weight Progress Chart */}
-        <UltraModernWeightChart entries={getAllWeightEntries()} />
+        <UltraModernWeightChart entries={getChartEntries()} />
       </div>
     </div>
   );
