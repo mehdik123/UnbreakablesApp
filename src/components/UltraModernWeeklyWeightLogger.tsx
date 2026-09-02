@@ -12,6 +12,7 @@ import { logClientWeight, getClientWeightLogs, deleteClientWeight } from '../lib
 import { UltraModernWeightChart } from './UltraModernWeightChart';
 import {
   getDisplayWeekAverage,
+  getWeekAverageWeight,
 } from '../utils/weightChartData';
 import { WeightStatsGrid } from './WeightStatsCards';
 import { BodyMeasurementsTab } from './BodyMeasurementsTab';
@@ -300,15 +301,11 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
     if (entries.length < 2) return 0;
     const currentWeek = selectedWeek;
     const lastWeek = currentWeek - 1;
-    
-    const currentWeekEntries = entries.filter(e => e.weekNumber === currentWeek);
-    const lastWeekEntries = entries.filter(e => e.weekNumber === lastWeek);
-    
-    if (currentWeekEntries.length === 0 || lastWeekEntries.length === 0) return 0;
-    
-    const currentAvg = currentWeekEntries.reduce((sum, e) => sum + e.weight, 0) / currentWeekEntries.length;
-    const lastAvg = lastWeekEntries.reduce((sum, e) => sum + e.weight, 0) / lastWeekEntries.length;
-    
+
+    const currentAvg = getWeekAverageWeight(entries, currentWeek);
+    const lastAvg = getWeekAverageWeight(entries, lastWeek);
+
+    if (currentAvg == null || lastAvg == null) return 0;
     return currentAvg - lastAvg;
   };
 
@@ -316,11 +313,20 @@ export const UltraModernWeeklyWeightLogger: React.FC<UltraModernWeeklyWeightLogg
     const entries = getAllWeightEntries();
     if (entries.length < 2) return 0;
     const recentWeeks = Math.max(1, maxWeeks - 3);
-    const recentEntries = entries.filter((e) => e.weekNumber >= recentWeeks);
-    const oldEntries = entries.filter((e) => e.weekNumber < recentWeeks);
-    if (recentEntries.length === 0 || oldEntries.length === 0) return 0;
-    const recentAvg = recentEntries.reduce((sum, e) => sum + e.weight, 0) / recentEntries.length;
-    const oldAvg = oldEntries.reduce((sum, e) => sum + e.weight, 0) / oldEntries.length;
+    const recentWeekNums = [...new Set(entries.filter((e) => e.weekNumber >= recentWeeks).map((e) => e.weekNumber))];
+    const oldWeekNums = [...new Set(entries.filter((e) => e.weekNumber < recentWeeks).map((e) => e.weekNumber))];
+    if (!recentWeekNums.length || !oldWeekNums.length) return 0;
+
+    const recentAvgs = recentWeekNums
+      .map((w) => getWeekAverageWeight(entries, w))
+      .filter((v): v is number => v != null);
+    const oldAvgs = oldWeekNums
+      .map((w) => getWeekAverageWeight(entries, w))
+      .filter((v): v is number => v != null);
+    if (!recentAvgs.length || !oldAvgs.length) return 0;
+
+    const recentAvg = recentAvgs.reduce((a, b) => a + b, 0) / recentAvgs.length;
+    const oldAvg = oldAvgs.reduce((a, b) => a + b, 0) / oldAvgs.length;
     return recentAvg - oldAvg;
   };
 

@@ -14,6 +14,7 @@ import {
   getOverallAverageWeight,
   computeWeeklyWeightSummaries,
   type WeightChartEntry,
+  type WeightChartPoint,
 } from '../utils/weightChartData';
 
 export type { WeightChartEntry };
@@ -27,7 +28,7 @@ const WEEKLY_AVG_COLOR = '#5b8cff';
 
 interface TooltipProps {
   active?: boolean;
-  payload?: Array<{ dataKey: string; value: number }>;
+  payload?: Array<{ dataKey: string; value: number; payload?: WeightChartPoint }>;
   label?: string;
   t: (key: string, vars?: Record<string, string | number>) => string;
 }
@@ -35,8 +36,9 @@ interface TooltipProps {
 const CustomTooltip = ({ active, payload, label, t }: TooltipProps) => {
   if (!active || !payload?.length) return null;
 
-  const daily = payload.find((p) => p.dataKey === 'weight');
-  const weekly = payload.find((p) => p.dataKey === 'weekAverage');
+  const point = payload[0]?.payload;
+  const daily = payload.find((p) => p.dataKey === 'weight' && p.value != null);
+  const weekly = payload.find((p) => p.dataKey === 'weekAverage' && p.value != null);
 
   return (
     <div
@@ -49,7 +51,7 @@ const CustomTooltip = ({ active, payload, label, t }: TooltipProps) => {
       <p className="text-[12px] font-medium mb-2" style={{ color: 'var(--txt-mid)' }}>
         {label}
       </p>
-      {daily?.value != null && (
+      {daily && !point?.isWeekAverageMarker && (
         <p
           className="text-[16px] font-bold font-saira tnum flex items-center gap-1.5 mb-1"
           style={{ color: DAILY_COLOR }}
@@ -58,7 +60,7 @@ const CustomTooltip = ({ active, payload, label, t }: TooltipProps) => {
           {t('wt.tooltipDaily')}: {Number(daily.value).toFixed(1)} kg
         </p>
       )}
-      {weekly?.value != null && (
+      {weekly && (
         <p
           className="text-[13px] font-semibold font-saira tnum flex items-center gap-1.5"
           style={{ color: WEEKLY_AVG_COLOR }}
@@ -174,6 +176,7 @@ export const UltraModernWeightChart: React.FC<UltraModernWeightChartProps> = ({ 
                 stroke={DAILY_COLOR}
                 strokeWidth={2.5}
                 fill="url(#weightGradient)"
+                connectNulls={false}
                 dot={{ fill: DAILY_COLOR, strokeWidth: 2, stroke: '#fff', r: 4 }}
                 activeDot={{ r: 6, fill: DAILY_COLOR, stroke: '#fff', strokeWidth: 2 }}
               />
@@ -182,8 +185,23 @@ export const UltraModernWeightChart: React.FC<UltraModernWeightChartProps> = ({ 
                 dataKey="weekAverage"
                 stroke={WEEKLY_AVG_COLOR}
                 strokeWidth={2.75}
-                dot={{ fill: WEEKLY_AVG_COLOR, strokeWidth: 2, stroke: '#fff', r: 5 }}
-                activeDot={{ r: 7, fill: WEEKLY_AVG_COLOR, stroke: '#fff', strokeWidth: 2 }}
+                dot={(props: { cx?: number; cy?: number; payload?: WeightChartPoint }) => {
+                  if (!props.payload?.isWeekAverageMarker || props.payload.weekAverage == null) {
+                    return <g key={`empty-${props.payload?.label}`} />;
+                  }
+                  return (
+                    <circle
+                      key={`avg-${props.payload.label}`}
+                      cx={props.cx}
+                      cy={props.cy}
+                      r={6}
+                      fill={WEEKLY_AVG_COLOR}
+                      stroke="#fff"
+                      strokeWidth={2}
+                    />
+                  );
+                }}
+                activeDot={{ r: 8, fill: WEEKLY_AVG_COLOR, stroke: '#fff', strokeWidth: 2 }}
                 connectNulls
               />
             </ComposedChart>
