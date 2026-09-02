@@ -5,35 +5,28 @@ export interface WeightChartEntry {
   dayKey?: string;
 }
 
-export interface WeightChartPoint {
+export interface DailyWeightChartPoint {
   label: string;
-  weight?: number | null;
-  weekNumber?: number;
-  dayKey?: string;
-  weekAverage?: number | null;
-  /** True for the single weekly summary point (e.g. label "W1"). */
-  isWeekAverageMarker?: boolean;
+  weight: number;
+}
+
+export interface WeeklyAvgChartPoint {
+  label: string;
+  average: number;
+  weekNumber: number;
 }
 
 export interface WeeklyWeightSummary {
   weekNumber: number;
-  /** Sum of logged weights that week ÷ 7 (program week has 7 day slots). */
+  /** Sum of logged weights that week ÷ number of logs that week. */
   average: number;
   entryCount: number;
 }
 
-export const WEIGHT_DAYS_PER_WEEK = 7;
-
-function daySortIndex(dayKey?: string): number {
-  if (!dayKey) return 99;
-  const n = Number(dayKey.replace('day', ''));
-  return Number.isFinite(n) ? n : 99;
-}
-
-/** Sum of logged weights in the week ÷ 7. Returns null if nothing logged that week. */
-export function computeWeekAverageOverSeven(loggedWeights: number[]): number | null {
+/** Mean of logged weights in the week (sum ÷ count). Returns null if nothing logged. */
+export function computeWeekAverage(loggedWeights: number[]): number | null {
   if (loggedWeights.length === 0) return null;
-  return loggedWeights.reduce((sum, w) => sum + w, 0) / WEIGHT_DAYS_PER_WEEK;
+  return loggedWeights.reduce((sum, w) => sum + w, 0) / loggedWeights.length;
 }
 
 /** One summary row per training week that has at least one log. */
@@ -54,7 +47,7 @@ export function computeWeeklyWeightSummaries(
     .sort(([a], [b]) => a - b)
     .map(([weekNumber, weights]) => ({
       weekNumber,
-      average: computeWeekAverageOverSeven(weights)!,
+      average: computeWeekAverage(weights)!,
       entryCount: weights.length,
     }));
 }
@@ -64,14 +57,14 @@ export function getOverallAverageWeight(entries: WeightChartEntry[]): number {
   return entries.reduce((sum, entry) => sum + entry.weight, 0) / entries.length;
 }
 
-/** Weekly average (sum ÷ 7) for one training week, or null if no logs. */
+/** Weekly average for one training week, or null if no logs. */
 export function getWeekAverageWeight(
   entries: WeightChartEntry[],
   weekNumber: number
 ): number | null {
   const weekEntries = entries.filter((e) => e.weekNumber === weekNumber);
   if (weekEntries.length === 0) return null;
-  return computeWeekAverageOverSeven(weekEntries.map((e) => e.weight));
+  return computeWeekAverage(weekEntries.map((e) => e.weight));
 }
 
 /** Latest training week that has at least one log. */
@@ -96,50 +89,24 @@ export function getDisplayWeekAverage(
   return getWeekAverageWeight(entries, latestWeek) ?? 0;
 }
 
-/**
- * Chart series: daily logged points, then one weekly-average marker per week (label "W{n}").
- * Weekly average = sum of that week's logs ÷ 7 — only one blue point per week.
- */
-export function buildWeightChartPoints(entries: WeightChartEntry[]): WeightChartPoint[] {
-  const summaries = computeWeeklyWeightSummaries(entries);
-  const avgByWeek = new Map(summaries.map((s) => [s.weekNumber, s.average]));
+/** Daily weight series — one point per logged day, in entry order. */
+export function buildDailyWeightChartPoints(entries: WeightChartEntry[]): DailyWeightChartPoint[] {
+  return entries.map((entry) => ({
+    label: entry.label,
+    weight: entry.weight,
+  }));
+}
 
-  const byWeek = new Map<number, WeightChartEntry[]>();
-  for (const entry of entries) {
-    if (entry.weekNumber == null || entry.weekNumber < 1) continue;
-    const bucket = byWeek.get(entry.weekNumber) ?? [];
-    bucket.push(entry);
-    byWeek.set(entry.weekNumber, bucket);
-  }
+/** Weekly average series — one point per training week (W1, W2, …). */
+export function buildWeeklyAverageChartPoints(entries: WeightChartEntry[]): WeeklyAvgChartPoint[] {
+  return computeWeeklyWeightSummaries(entries).map(({ weekNumber, average }) => ({
+    label: `W${weekNumber}`,
+    average,
+    weekNumber,
+  }));
+}
 
-  const points: WeightChartPoint[] = [];
-
-  for (const weekNumber of [...byWeek.keys()].sort((a, b) => a - b)) {
-    const weekEntries = [...(byWeek.get(weekNumber) ?? [])].sort(
-      (a, b) => daySortIndex(a.dayKey) - daySortIndex(b.dayKey)
-    );
-
-    for (const entry of weekEntries) {
-      points.push({
-        label: entry.label,
-        weight: entry.weight,
-        weekNumber: entry.weekNumber,
-        dayKey: entry.dayKey,
-        weekAverage: null,
-      });
-    }
-
-    const avg = avgByWeek.get(weekNumber);
-    if (avg != null) {
-      points.push({
-        label: `W${weekNumber}`,
-        weight: null,
-        weekNumber,
-        weekAverage: avg,
-        isWeekAverageMarker: true,
-      });
-    }
-  }
-
-  return points;
+export function getWeeklyAverageOverall(summaries: WeeklyWeightSummary[]): number {
+  if (summaries.length === 0) return 0;
+  return summaries.reduce((sum, row) => sum + row.average, 0) / summaries.length;
 }
