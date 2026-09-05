@@ -29,7 +29,7 @@ const REP_INCREMENT = 2;
 
 const EQUIPMENT_INCREMENT: Record<EquipmentType, number> = {
   barbell: 5,
-  dumbbell: 2,
+  dumbbell: 2.5,
   machine: 5,
   cable: 5,
   bodyweight: 0,
@@ -56,22 +56,82 @@ function normalizeName(name: string | undefined): string {
     .replace(/s$/, '');
 }
 
-/** Map free-text equipment (e.g. "Cable Machine", "Dumbbells") to a category. */
-export function classifyEquipment(equipment: string | undefined): EquipmentType {
-  const e = (equipment || '').toLowerCase();
-  if (e.includes('dumbbell')) return 'dumbbell';
-  if (e.includes('barbell')) return 'barbell';
-  if (e.includes('cable')) return 'cable';
-  if (e.includes('machine')) return 'machine';
-  if (e.includes('body') || e.includes('pull-up bar') || e.includes('pull up bar')) {
+/**
+ * Map free-text equipment / exercise name to a category.
+ * Returns null when the text has no usable keyword (caller may try another source).
+ * Order matters: cable/barbell/machine before dumbbell name heuristics (e.g. "Cable Lateral Raises").
+ */
+function classifyFromText(text: string | undefined): EquipmentType | null {
+  const e = (text || '').toLowerCase().trim();
+  if (!e) return null;
+
+  if (
+    e.includes('body') ||
+    e.includes('pull-up') ||
+    e.includes('pull up') ||
+    e.includes('chin-up') ||
+    e.includes('chin up') ||
+    /\b(push[\s-]?ups?|dips?|plank|burpees?|crunches?|mountain climbers?|wall sit|pistol squats?|sissy squats?|bicycle kicks?|hanging (knee|leg) raises?|jump (squats?|lunges?)|leg raises?)\b/.test(
+      e
+    )
+  ) {
     return 'bodyweight';
   }
-  return 'machine'; // sensible default: +5kg increment
+
+  if (e.includes('cable') || e.includes('lat pulldown') || e.includes('rope triceps')) {
+    return 'cable';
+  }
+
+  if (
+    e.includes('machine') ||
+    e.includes('leg press') ||
+    e.includes('smith') ||
+    e.includes('abductor') ||
+    e.includes('adductor')
+  ) {
+    return 'machine';
+  }
+
+  if (
+    e.includes('dumbbell') ||
+    e.includes('kettlebell') ||
+    /\b(lateral raises?|chest flyes?|flyes?|goblet|concentration curls?|bulgarian split)\b/.test(e)
+  ) {
+    return 'dumbbell';
+  }
+
+  if (
+    e.includes('barbell') ||
+    e.includes('ez bar') ||
+    e.includes('ezbar') ||
+    e.includes('t-bar') ||
+    e.includes('t bar') ||
+    e.includes('straight bar') ||
+    /\b(deadlifts?|hip thrusts?|spider curls?|bent over rows?|back squats?)\b/.test(e)
+  ) {
+    return 'barbell';
+  }
+
+  return null;
 }
 
-/** Standard weight increment (kg) for a weighted exercise, by equipment. */
-export function getStandardIncrement(equipment: string | undefined): number {
-  return EQUIPMENT_INCREMENT[classifyEquipment(equipment)] || 5;
+/**
+ * Prefer stored equipment; if missing/unrecognized, fall back to exercise name.
+ * Empty/unknown → machine (+5), same as before for true unknowns.
+ */
+export function classifyEquipment(
+  equipment: string | undefined,
+  name?: string
+): EquipmentType {
+  return classifyFromText(equipment) ?? classifyFromText(name) ?? 'machine';
+}
+
+/** Standard weight increment (kg) for a weighted exercise, by equipment (+ name fallback). */
+export function getStandardIncrement(
+  equipment: string | undefined,
+  name?: string
+): number {
+  return EQUIPMENT_INCREMENT[classifyEquipment(equipment, name)] ?? 5;
 }
 
 /** True for bodyweight moves that gain load at the cap (pull-ups, dips, etc.). */
@@ -82,7 +142,10 @@ export function isWeightedBodyweightExercise(name: string | undefined): boolean 
 /** True for pull-ups, dips, and anything logged as bodyweight equipment. */
 export function isBodyweightExercise(exercise: WorkoutExercise): boolean {
   if (isWeightedBodyweightExercise(exercise.exercise?.name)) return true;
-  return classifyEquipment(exercise.exercise?.equipment) === 'bodyweight';
+  return (
+    classifyEquipment(exercise.exercise?.equipment, exercise.exercise?.name) ===
+    'bodyweight'
+  );
 }
 
 function getWeightedBodyweightIncrement(name: string | undefined): number {
@@ -206,7 +269,10 @@ function computeProgression(
   }
   return {
     reps: STANDARD_RESET_REPS,
-    weight: roundToHalf(weight + getStandardIncrement(exercise.exercise?.equipment)),
+    weight: roundToHalf(
+      weight +
+        getStandardIncrement(exercise.exercise?.equipment, exercise.exercise?.name)
+    ),
   };
 }
 
