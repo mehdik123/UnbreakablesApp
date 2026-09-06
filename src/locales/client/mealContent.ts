@@ -117,6 +117,10 @@ const MEAL_NAMES: Record<string, Pair> = {
   'greek yogurt with fruits and scambled eggs': { ar: 'ياغورت يوناني مع فواكه و بيض مخفوق', fr: 'Yaourt grec, fruits et œufs brouillés' },
   'greek yogurt with fruits and scrambled eggs': { ar: 'ياغورت يوناني مع فواكه و بيض مخفوق', fr: 'Yaourt grec, fruits et œufs brouillés' },
   'greek yogurt with fruits and whole granola': { ar: 'ياغورت يوناني مع فواكه و غرانولا', fr: 'Yaourt grec, fruits et granola' },
+  'greek yogurt with fruits ,granola, berries and dark chocolate': {
+    ar: 'ياغورت يوناني مع فواكه، غرانولا، توت و شوكولا كحلة',
+    fr: 'Yaourt grec, fruits, granola, baies et chocolat noir',
+  },
   'greek yogurt with granola & nuts': { ar: 'ياغورت يوناني مع غرانولا و مكسرات', fr: 'Yaourt grec, granola et noix' },
   'ground beef with ebly and green beans': { ar: 'كفتة مع إبلي و لوبيا خضرا', fr: 'Bœuf haché, ebly et haricots verts' },
   'ground beef with rice ,onion and broccoli': { ar: 'كفتة مع روز، بصل و بروكلي', fr: 'Bœuf haché, riz, oignon et brocoli' },
@@ -284,6 +288,11 @@ export const COOKING_BY_MEAL: Record<string, Cooking> = {
     ar: 'حط الياغورت اليوناني في زلافة. زيد غرانولا، بنان، ميرتي، شوكولا كحلة و مكسرات. قدّمو بارد.',
     fr: 'Verse le yaourt grec dans un bol. Ajoute granola, banane, myrtilles, chocolat noir et noix. Sers froid.',
   },
+  'greek yogurt with fruits ,granola, berries and dark chocolate': {
+    en: 'Spoon the Greek yogurt into a bowl. Top with granola, sliced banana, blueberries, chopped dark chocolate, and mixed nuts. Serve cold.',
+    ar: 'حط الياغورت اليوناني في زلافة. زيد غرانولا، بنان، ميرتي، شوكولا كحلة و مكسرات. قدّمو بارد.',
+    fr: 'Verse le yaourt grec dans un bol. Ajoute granola, banane, myrtilles, chocolat noir et noix. Sers froid.',
+  },
   'greek yogurt with granola & nuts': {
     en: 'Spoon the Greek yogurt into a bowl. Top with granola and fresh blueberries. Serve cold.',
     ar: 'حط الياغورت اليوناني في زلافة. زيد الغرانولا و الميرتي. قدّمو بارد.',
@@ -425,9 +434,9 @@ export const COOKING_BY_MEAL: Record<string, Cooking> = {
     fr: 'Brouille les œufs dans un peu d’huile d’olive, encore crémeux. Écrase l’avocat sur le pain, ajoute les œufs et le cheddar.',
   },
   'scrambled eggs with avocado and philadelphia': {
-    en: 'Heat the olive oil in a non-stick skillet and scramble the eggs cooking under medium heat. Toast the whole bread, spread Philadelphia over it, and top with the scrambled eggs, add a cup of milk along with an Apple.',
-    ar: 'سخّن زيت الزيتون في مقلاة و طيب البيض المخفوق على نار متوسطة. حمص الخبز الكامل، دهن فيلادلفيا، زيد البيض من الفوق. قدّم مع كاس حليب و تفاحة.',
-    fr: 'Brouille les œufs dans un peu d’huile d’olive à feu moyen. Toaste le pain, étale le Philadelphia, ajoute les œufs. Sers avec un verre de lait et une pomme.',
+    en: 'Heat the olive oil in a non-stick skillet and scramble the eggs cooking under medium heat. Toast the whole bread, spread Philadelphia over it, and top with the scrambled eggs. Prepare a Banana shake and take it with your meal for easy extra calories.',
+    ar: 'سخّن زيت الزيتون في مقلاة و طيب البيض المخفوق على نار متوسطة. حمص الخبز الكامل، دهن فيلادلفيا، زيد البيض من الفوق. خذ الشيك أو المشروب المرافق مع الوجبة.',
+    fr: 'Brouille les œufs dans un peu d’huile d’olive à feu moyen. Toaste le pain, étale le Philadelphia, ajoute les œufs. Prends le shake ou la boisson prévue avec le repas.',
   },
   'scrambled eggs with avocado and shrimps': {
     en: 'Scramble the eggs in butter until soft. Toast the whole bread, top with mashed avocado and cooked shrimps. Serve warm with a glass of orange juice on the side.',
@@ -490,9 +499,9 @@ export const COOKING_BY_MEAL: Record<string, Cooking> = {
     fr: 'Toaste le pain. Brouille les œufs. Fais fondre le fromage mexicain sur le toast et ajoute les œufs. Mixe la whey avec le lait, et termine avec le kiwi.',
   },
   'tuna & pasta with veggies': {
-    en: 'Cook the pasta in boiled water until soft . In another bowl  cut avocado to small slices along with the fresh onion , mix everything with the cooked pasta and add cheddar cheese,  corn ,tuna as well as your favourite seaoning.',
-    ar: 'طيب الباتا حتى تطرى. قطّع الأفوكا و البصل، خلطهم مع الباتا، زيد الشيدر، المايس، الثون و التوابل.',
-    fr: 'Cuis les pâtes. Coupe avocat et oignon, mélange avec les pâtes, le cheddar, le maïs, le thon et tes épices.',
+    en: 'Cook the pasta in boiled water until soft . In another bowl  cut avocado to small slices along with the fresh onion , mix everything with the cooked pasta and add cheddar cheese, tuna as well as your favourite seaoning.',
+    ar: 'طيب الباتا حتى تطرى. قطّع الأفوكا و البصل، خلطهم مع الباتا، زيد الشيدر، الثون و التوابل.',
+    fr: 'Cuis les pâtes. Coupe avocat et oignon, mélange avec les pâtes, le cheddar, le thon et tes épices.',
   },
   'tuna and rice salad': {
     en: 'Cook the rice in boiled water until soft , when cooked , add a tuna can to the rice along with avocado slices , corn and cheddar cheese. You can add your favourite seasoning.',
