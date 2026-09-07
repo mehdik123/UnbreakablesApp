@@ -15,6 +15,7 @@ import {
   Zap,
   Trash2,
   Copy,
+  ArrowLeftRight,
   X,
   Clock,
 } from 'lucide-react';
@@ -41,6 +42,7 @@ import { safeLocalStorageSet } from '../utils/localStorageClients';
 import {
   createBlankWorkoutDay,
   duplicateWorkoutDay,
+  cloneTemplateDay,
   buildNewWorkoutExercise,
 } from '../utils/workoutDayOps';
 import {
@@ -212,6 +214,9 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   const [showDuplicateDayModal, setShowDuplicateDayModal] = useState(false);
   const [duplicateSourceDayIndex, setDuplicateSourceDayIndex] = useState(0);
   const [showRemoveDayConfirm, setShowRemoveDayConfirm] = useState(false);
+  const [showReplaceDayModal, setShowReplaceDayModal] = useState(false);
+  const [replaceTemplateId, setReplaceTemplateId] = useState('');
+  const [replaceTemplateDayIndex, setReplaceTemplateDayIndex] = useState(0);
 
   // Build a next-week draft from the previous week's actuals using the chosen mode.
   const buildDraftWeek = (
@@ -765,6 +770,32 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       ),
     });
     setHasModifications(true);
+  };
+
+  const openReplaceDayModal = () => {
+    const templates = workoutPrograms.filter((p) => (p.days?.length || 0) > 0);
+    const first = templates[0];
+    setReplaceTemplateId(first?.id || '');
+    setReplaceTemplateDayIndex(0);
+    setShowReplaceDayModal(true);
+  };
+
+  /** Replace the current week day with a cloned day from another (or same) template. */
+  const handleReplaceCurrentDayFromTemplate = (zeroWeights: boolean) => {
+    if (!selectedProgram?.days?.[currentDay]) return;
+    const template = workoutPrograms.find((p) => p.id === replaceTemplateId);
+    const sourceDay = template?.days?.[replaceTemplateDayIndex];
+    if (!template || !sourceDay) return;
+
+    const replacement = cloneTemplateDay(sourceDay, { zeroWeights });
+    setSelectedProgram({
+      ...selectedProgram,
+      days: selectedProgram.days.map((day, i) => (i === currentDay ? replacement : day)),
+    });
+    setSupersetPickMode(false);
+    setSupersetPicks([]);
+    setHasModifications(true);
+    setShowReplaceDayModal(false);
   };
 
   const openAddExerciseToAssignedDay = () => {
@@ -2785,6 +2816,17 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         <Trash2 className="w-4 h-4" />
                         <span>Remove day</span>
                       </button>
+                      <button
+                        type="button"
+                        onClick={openReplaceDayModal}
+                        disabled={loadingTemplates || workoutPrograms.every((p) => !(p.days?.length))}
+                        className="min-h-11 flex items-center gap-2 px-3 py-2 rounded-xl bg-violet-600/25 hover:bg-violet-600/40 text-violet-200 text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                        title="Replace this day with a session from another template"
+                      >
+                        <ArrowLeftRight className="w-4 h-4" />
+                        <span>Replace from template</span>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -3827,6 +3869,104 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     <p className="text-slate-400 text-sm">Same exercises and reps, all weights set to 0</p>
                   </div>
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Replace current day with a day from another template */}
+        {showReplaceDayModal && selectedProgram && currentDayData && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-800 rounded-2xl border border-slate-700 max-w-md w-full overflow-hidden max-h-[90dvh] flex flex-col">
+              <div className="p-6 border-b border-slate-700">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white">Replace day</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowReplaceDayModal(false)}
+                    className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-slate-400 text-sm mt-2">
+                  Replaces <span className="text-white font-medium">{currentDayData.name || `Day ${currentDay + 1}`}</span> in week {currentWeek} with a session from another template. Other days and other weeks stay as they are. Save afterward to sync the client.
+                </p>
+              </div>
+              <div className="p-6 space-y-4 overflow-y-auto">
+                {(() => {
+                  const templates = workoutPrograms.filter((p) => (p.days?.length || 0) > 0);
+                  const template = templates.find((p) => p.id === replaceTemplateId) || templates[0];
+                  const days = template?.days || [];
+                  return (
+                    <>
+                      <label className="block">
+                        <span className="text-sm font-medium text-slate-300 mb-2 block">Template</span>
+                        <select
+                          value={template?.id || ''}
+                          onChange={(e) => {
+                            setReplaceTemplateId(e.target.value);
+                            setReplaceTemplateDayIndex(0);
+                          }}
+                          className="w-full min-h-12 appearance-none bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                          style={{ fontSize: 16 }}
+                        >
+                          {templates.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} ({p.days?.length || 0} days)
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="text-sm font-medium text-slate-300 mb-2 block">Session to use</span>
+                        <select
+                          value={replaceTemplateDayIndex}
+                          onChange={(e) => setReplaceTemplateDayIndex(parseInt(e.target.value, 10))}
+                          disabled={!days.length}
+                          className="w-full min-h-12 appearance-none bg-slate-700/50 border border-slate-600/50 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+                          style={{ fontSize: 16 }}
+                        >
+                          {days.map((day, index) => (
+                            <option key={day.id || index} value={index}>
+                              {day.name || `Day ${index + 1}`} ({day.exercises?.length || 0} exercises)
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleReplaceCurrentDayFromTemplate(false)}
+                        disabled={!days[replaceTemplateDayIndex]}
+                        className="w-full min-h-12 p-4 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600/50 hover:border-violet-500/50 text-left transition-all flex items-center gap-4 touch-manipulation disabled:opacity-40"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                      >
+                        <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
+                          <ArrowLeftRight className="w-6 h-6 text-violet-300" />
+                        </div>
+                        <div>
+                          <h4 className="text-white font-medium">Replace — keep template weights</h4>
+                          <p className="text-slate-400 text-sm">Use that session’s exercises, reps and loads</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleReplaceCurrentDayFromTemplate(true)}
+                        disabled={!days[replaceTemplateDayIndex]}
+                        className="w-full min-h-12 p-4 rounded-xl bg-slate-700/50 hover:bg-slate-600/50 border border-slate-600/50 hover:border-amber-500/50 text-left transition-all flex items-center gap-4 touch-manipulation disabled:opacity-40"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                      >
+                        <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+                          <Dumbbell className="w-6 h-6 text-amber-400" />
+                        </div>
+                        <div>
+                          <h4 className="text-white font-medium">Replace — zero weights</h4>
+                          <p className="text-slate-400 text-sm">Same session, all weights set to 0</p>
+                        </div>
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

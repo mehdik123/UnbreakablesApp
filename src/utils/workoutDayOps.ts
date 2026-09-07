@@ -56,6 +56,24 @@ export function duplicateWorkoutDay(
   };
 }
 
+/**
+ * Clone a template day into the current week's slot.
+ * Fresh IDs, completion cleared. Keeps the template day name unless overridden.
+ */
+export function cloneTemplateDay(
+  source: WorkoutDay,
+  options: { zeroWeights: boolean; name?: string }
+): WorkoutDay {
+  const exercises = (source.exercises || []).map((ex, i) =>
+    cloneExercise(ex, options.zeroWeights, i + 1)
+  );
+  return {
+    id: uid('day'),
+    name: options.name?.trim() || source.name?.trim() || 'Day',
+    exercises,
+  };
+}
+
 /** Append an exercise to a day (assigned-program editor). */
 export function buildNewWorkoutExercise(
   exercise: WorkoutExercise['exercise'],
