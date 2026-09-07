@@ -59,6 +59,7 @@ interface ModernClientPlanViewProps {
   onSaveNutritionPlan: (clientId: string, plan: NutritionPlan) => void;
   onSaveWorkoutPlan: (clientId: string, plan: WorkoutPlan) => void;
   onAssignWorkout: (clientId: string, workout: Workout) => void;
+  onUpdateClient?: (clientId: string, updates: Partial<Client>) => void;
   isDark: boolean;
 }
 
@@ -70,6 +71,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
   onSaveNutritionPlan,
   onSaveWorkoutPlan,
   onAssignWorkout,
+  onUpdateClient,
   isDark
 }) => {
   const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'cardio' | 'progress' | 'weight' | 'photos' | 'performance'>('nutrition');
@@ -206,10 +208,26 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
                     {client.name}'s Plan
                   </h1>
                   <div className="coach-plan-meta">
-                    <div className={`inline-flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[11px] sm:text-sm font-medium ${getGoalColor(client.goal)}`}>
+                    <label className={`inline-flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[11px] sm:text-sm font-medium min-h-11 ${getGoalColor(client.goal)}`}>
                       {getGoalIcon(client.goal)}
-                      <span className="capitalize">{client.goal}</span>
-                    </div>
+                      <span className="sr-only">Goal</span>
+                      <select
+                        value={client.goal}
+                        onChange={(e) => {
+                          const goal = e.target.value as Client['goal'];
+                          if (goal === client.goal) return;
+                          onUpdateClient?.(client.id, { goal });
+                        }}
+                        disabled={!onUpdateClient}
+                        aria-label="Client goal"
+                        className="min-h-11 bg-transparent border-0 text-inherit font-medium capitalize focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] cursor-pointer"
+                        style={{ fontSize: 16, touchAction: 'manipulation' }}
+                      >
+                        <option value="shredding">Shredding</option>
+                        <option value="bulking">Bulking</option>
+                        <option value="maintenance">Maintenance</option>
+                      </select>
+                    </label>
                     <div className="flex items-center gap-1 text-[color:var(--txt-lo)] text-[11px] sm:text-sm">
                       <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                       <span>{client.numberOfWeeks} weeks</span>

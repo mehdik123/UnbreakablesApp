@@ -632,6 +632,7 @@ function App() {
     if (isSupabaseReady) {
       const dbUpdates: Parameters<typeof dbUpdateClient>[1] = {};
       if (updates.name) dbUpdates.full_name = updates.name;
+      if (updates.goal) dbUpdates.goal = updates.goal;
       if (updates.startingWeight !== undefined) {
         dbUpdates.starting_weight =
           typeof updates.startingWeight === 'number' && Number.isFinite(updates.startingWeight)
@@ -640,9 +641,20 @@ function App() {
       }
       if (Object.keys(dbUpdates).length > 0) await dbUpdateClient(clientId, dbUpdates);
     }
-    const updatedClients = appState.clients.map(client => client.id === clientId ? { ...client, ...updates } : client);
-    setAppState(prev => ({ ...prev, clients: updatedClients }));
-    if (!isSupabaseReady) persistClientsLocally(updatedClients);
+    setAppState(prev => {
+      const updatedClients = prev.clients.map(client =>
+        client.id === clientId ? { ...client, ...updates } : client
+      );
+      persistClientsLocally(updatedClients);
+      return {
+        ...prev,
+        clients: updatedClients,
+        selectedClient:
+          prev.selectedClient?.id === clientId
+            ? { ...prev.selectedClient, ...updates }
+            : prev.selectedClient,
+      };
+    });
   };
 
   const handleDeleteClient = async (clientId: string) => {
@@ -1485,6 +1497,7 @@ function App() {
             onSaveNutritionPlan={handleAssignNutritionPlan}
             onSaveWorkoutPlan={handleAssignWorkoutPlan}
             onAssignWorkout={handleAssignWorkoutPlan}
+            onUpdateClient={handleUpdateClient}
             isDark={appState.isDark}
           />
         )}
