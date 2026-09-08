@@ -295,6 +295,7 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
           </label>
 
           {kind === 'checkin' && (
+          <>
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">Pose</span>
             <div className="mt-1 grid grid-cols-3 gap-2">
@@ -343,7 +344,7 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
               </select>
             </label>
           </div>
-
+          </>
           )}
 
           <button
