@@ -75,6 +75,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
   isDark
 }) => {
   const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'cardio' | 'progress' | 'weight' | 'photos' | 'performance'>('nutrition');
+  const [goalMenuOpen, setGoalMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showStats, setShowStats] = useState(true);
   const [showProgressTracker, setShowProgressTracker] = useState(false);
@@ -152,15 +153,6 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
     });
   };
 
-  const getGoalColor = (goal: string) => {
-    switch (goal) {
-      case 'shredding': return 'text-orange-500 bg-orange-50 dark:bg-orange-950/20 dark:text-orange-400';
-      case 'bulking': return 'text-blue-500 bg-blue-50 dark:bg-blue-950/20 dark:text-blue-400';
-      case 'maintenance': return 'text-emerald-500 bg-emerald-50 dark:bg-emerald-950/20 dark:text-emerald-400';
-      default: return 'text-slate-500 bg-slate-50 dark:bg-slate-950/20 dark:text-slate-400';
-    }
-  };
-
   const getGoalIcon = (goal: string) => {
     switch (goal) {
       case 'shredding': return <Flame className="w-4 h-4" />;
@@ -169,6 +161,12 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
       default: return <Target className="w-4 h-4" />;
     }
   };
+
+  const goalOptions: { id: Client['goal']; label: string; hint: string }[] = [
+    { id: 'shredding', label: 'Shredding', hint: 'Cut fat, keep muscle' },
+    { id: 'bulking', label: 'Bulking', hint: 'Build size and strength' },
+    { id: 'maintenance', label: 'Maintenance', hint: 'Hold weight and performance' },
+  ];
 
   if (isLoading) {
     return (
@@ -208,26 +206,60 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
                     {client.name}'s Plan
                   </h1>
                   <div className="coach-plan-meta">
-                    <label className={`inline-flex items-center gap-1 px-2 py-0.5 sm:px-3 sm:py-1 rounded-lg text-[11px] sm:text-sm font-medium min-h-11 ${getGoalColor(client.goal)}`}>
-                      {getGoalIcon(client.goal)}
-                      <span className="sr-only">Goal</span>
-                      <select
-                        value={client.goal}
-                        onChange={(e) => {
-                          const goal = e.target.value as Client['goal'];
-                          if (goal === client.goal) return;
-                          onUpdateClient?.(client.id, { goal });
-                        }}
+                    <div className="coach-goal-picker">
+                      <button
+                        type="button"
+                        className={`coach-goal-trigger ${client.goal}`}
+                        onClick={() => onUpdateClient && setGoalMenuOpen((open) => !open)}
                         disabled={!onUpdateClient}
-                        aria-label="Client goal"
-                        className="min-h-11 bg-transparent border-0 text-inherit font-medium capitalize focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--red)] cursor-pointer"
-                        style={{ fontSize: 16, touchAction: 'manipulation' }}
+                        aria-expanded={goalMenuOpen}
+                        aria-haspopup="listbox"
+                        aria-label="Change client goal"
                       >
-                        <option value="shredding">Shredding</option>
-                        <option value="bulking">Bulking</option>
-                        <option value="maintenance">Maintenance</option>
-                      </select>
-                    </label>
+                        {getGoalIcon(client.goal)}
+                        <span className="coach-goal-trigger-copy">
+                          <span className="coach-goal-kicker">Goal</span>
+                          <span className="capitalize">{client.goal}</span>
+                        </span>
+                        <ChevronDown className={`w-4 h-4 coach-goal-chevron ${goalMenuOpen ? 'is-open' : ''}`} />
+                      </button>
+                      {goalMenuOpen && (
+                        <>
+                          <button
+                            type="button"
+                            className="coach-goal-backdrop"
+                            aria-label="Close goal menu"
+                            onClick={() => setGoalMenuOpen(false)}
+                          />
+                          <div className="coach-goal-menu" role="listbox" aria-label="Client goal">
+                            {goalOptions.map((option) => {
+                              const selected = option.id === client.goal;
+                              return (
+                                <button
+                                  key={option.id}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={selected}
+                                  className={`coach-goal-option ${option.id}${selected ? ' is-selected' : ''}`}
+                                  onClick={() => {
+                                    setGoalMenuOpen(false);
+                                    if (option.id === client.goal) return;
+                                    onUpdateClient?.(client.id, { goal: option.id });
+                                  }}
+                                >
+                                  <span className="coach-goal-option-icon">{getGoalIcon(option.id)}</span>
+                                  <span className="coach-goal-option-copy">
+                                    <span className="coach-goal-option-label">{option.label}</span>
+                                    <span className="coach-goal-option-hint">{option.hint}</span>
+                                  </span>
+                                  {selected && <CheckCircle className="w-4 h-4 shrink-0" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1 text-[color:var(--txt-lo)] text-[11px] sm:text-sm">
                       <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
                       <span>{client.numberOfWeeks} weeks</span>

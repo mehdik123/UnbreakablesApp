@@ -115,10 +115,31 @@ export const PORTION_RULES: PortionRule[] = [
     unitPlural: 'scoops',
   },
   {
+    // Label: 1 scoop = 35 g (908 g / 26 portions). 24 g protein, 130 kcal.
+    id: 'diesel-whey-scoop',
+    matches: (n) => normalizeName(n).includes('diesel'),
+    gramsPerUnit: 35,
+    unitSingular: 'scoop',
+    unitPlural: 'scoops',
+  },
+  {
+    // Label serving is 2 heaping scoops (~340 g). 1 scoop ≈ 170 g.
+    id: 'serious-mass-scoop',
+    matches: (n) => {
+      const name = normalizeName(n);
+      return name.includes('serious mass') || (name.includes('optimum') && name.includes('mass'));
+    },
+    gramsPerUnit: 170,
+    unitSingular: 'scoop',
+    unitPlural: 'scoops',
+  },
+  {
     id: 'whey-scoop',
     matches: (n) => {
       const name = normalizeName(n);
-      if (name.includes('body attack') || name.includes('dymatize')) return false;
+      if (name.includes('body attack') || name.includes('dymatize') || name.includes('diesel') || name.includes('serious mass')) {
+        return false;
+      }
       if (!name.includes('protein') && !name.includes('whey') && !name.includes('isolate')) return false;
       // Prefer whey / gold standard / ON Gold style powders
       return (
@@ -155,14 +176,18 @@ export const PORTION_RULES: PortionRule[] = [
   },
 ];
 
+function roundedQuarter(count: number): number {
+  return Math.round(count * 4) / 4;
+}
+
 function formatUnitCount(count: number): string {
-  const rounded = Math.round(count * 4) / 4; // nearest quarter
-  if (Math.abs(rounded - 0.25) < 0.001) return '¼';
-  if (Math.abs(rounded - 0.5) < 0.001) return '½';
-  if (Math.abs(rounded - 0.75) < 0.001) return '¾';
-  if (Math.abs(rounded - 1.25) < 0.001) return '1¼';
-  if (Math.abs(rounded - 1.5) < 0.001) return '1½';
-  if (Math.abs(rounded - 1.75) < 0.001) return '1¾';
+  const rounded = roundedQuarter(count);
+  if (Math.abs(rounded - 0.25) < 0.001) return '1/4';
+  if (Math.abs(rounded - 0.5) < 0.001) return '1/2';
+  if (Math.abs(rounded - 0.75) < 0.001) return '3/4';
+  if (Math.abs(rounded - 1.25) < 0.001) return '1 1/4';
+  if (Math.abs(rounded - 1.5) < 0.001) return '1 1/2';
+  if (Math.abs(rounded - 1.75) < 0.001) return '1 3/4';
   if (Math.abs(rounded - Math.round(rounded)) < 0.001) return String(Math.round(rounded));
   return rounded.toFixed(2).replace(/\.?0+$/, '');
 }
@@ -198,9 +223,9 @@ export function formatPortionAnnotation(foodName: string, grams: number): string
   }
 
   const label = formatUnitCount(rawCount);
-  const numeric = Number(label);
-  const isOne = label === '1' || (Number.isFinite(numeric) && Math.abs(numeric - 1) < 0.001);
-  const unit = isOne ? rule.unitSingular : rule.unitPlural;
+  // 1/2 scoop, 1 scoop — not "1/2 scoops". Fractions of one unit stay singular.
+  const rounded = roundedQuarter(rawCount);
+  const unit = rounded > 0 && rounded <= 1 ? rule.unitSingular : rule.unitPlural;
   return `≈ ${label} ${unit}`;
 }
 

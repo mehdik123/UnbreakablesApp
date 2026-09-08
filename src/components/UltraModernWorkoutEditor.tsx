@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowLeft, 
   Save, 
@@ -38,6 +38,7 @@ import {
 } from '../utils/weekCreation';
 import { applyAutoProgression, applyDeload } from '../utils/autoProgression';
 import { getExerciseRestSeconds, formatRestSeconds } from '../utils/exerciseRest';
+import { countSetsByMuscleGroup } from '../utils/volumeCalculator';
 import { safeLocalStorageSet } from '../utils/localStorageClients';
 import {
   createBlankWorkoutDay,
@@ -1749,6 +1750,15 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     ? selectedProgram.days[currentDay] 
     : null;
   const totalSets = currentDayData?.exercises?.reduce((total, exercise) => total + exercise.sets.length, 0) || 0;
+  const weekMuscleSets = useMemo(
+    () => countSetsByMuscleGroup(selectedProgram?.days),
+    [selectedProgram]
+  );
+  const todayMuscleSets = useMemo(
+    () => countSetsByMuscleGroup(currentDayData ? [currentDayData] : []),
+    [currentDayData]
+  );
+  const weekSetTotal = weekMuscleSets.reduce((sum, row) => sum + row.sets, 0);
   const completedSets = currentDayData?.exercises?.reduce((total, exercise) => 
     total + exercise.sets.filter(set => set.completed).length, 0) || 0;
 
@@ -2225,7 +2235,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     {program.description}
                   </p>
                   
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-3">
                     <span className="px-3 py-1 bg-slate-600/50 text-slate-300 text-sm font-medium rounded-full">
                       {program.days.length} days
                     </span>
@@ -2233,6 +2243,25 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                       {program.days.reduce((total, day) => total + day.exercises.length, 0)} exercises
                     </span>
                   </div>
+                  {(() => {
+                    const muscleSets = countSetsByMuscleGroup(program.days);
+                    if (muscleSets.length === 0) return null;
+                    return (
+                      <div className="flex flex-wrap gap-1.5">
+                        {muscleSets.map((row) => (
+                          <span
+                            key={row.group}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900/50 text-[11px] font-semibold text-slate-200"
+                            title={`${row.sets} sets this week · ${row.sessions}x`}
+                          >
+                            <span className="font-display tnum text-white">{row.sets}</span>
+                            {row.group}
+                            <span className="text-slate-400">{row.sessions}x</span>
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
@@ -2735,6 +2764,46 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                 </div>
               </div>
             </div>
+
+            {selectedProgram && (
+              <div className="mb-6 rounded-2xl border border-slate-700/50 bg-slate-900/40 p-4 sm:p-5">
+                <div className="flex items-end justify-between gap-3 mb-1">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-wider font-bold text-slate-400">Weekly total</p>
+                    <h3 className="text-base sm:text-lg font-bold text-white">Sets by muscle · week {currentWeek}</h3>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-display tnum text-2xl font-bold text-white leading-none">{weekSetTotal}</div>
+                    <div className="text-[11px] text-slate-400">sets this week</div>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400 mb-3">Adds every day. A muscle trained twice or 3 times shows the week total and how often.</p>
+                {weekMuscleSets.length === 0 ? (
+                  <p className="text-sm text-slate-400">No working sets yet. Add an exercise to see the split.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {weekMuscleSets.map((row) => {
+                      const today = todayMuscleSets.find((item) => item.group === row.group)?.sets || 0;
+                      return (
+                        <div
+                          key={row.group}
+                          className="min-w-[120px] rounded-xl border border-slate-600/60 bg-slate-800/70 px-3 py-2.5"
+                        >
+                          <div className="flex items-baseline justify-between gap-2">
+                            <div className="font-display tnum text-xl font-bold text-white leading-none">{row.sets}</div>
+                            <span className="text-[11px] font-bold text-red-300">{row.sessions}x</span>
+                          </div>
+                          <div className="mt-1 text-[11px] font-semibold text-slate-200">{row.group}</div>
+                          <div className="mt-0.5 text-[10px] text-slate-400">
+                            {today > 0 ? `${today} today · ` : ''}{row.sets} this week
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Day Navigation */}
             {selectedProgram && (

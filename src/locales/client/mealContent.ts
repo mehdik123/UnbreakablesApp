@@ -65,6 +65,14 @@ const INGREDIENTS: Record<string, Pair> = {
   'dymatize super mass gainer, gourmet vanilla': { ar: 'دايماتايز سوبر ماس غينر فانيلا', fr: 'Super Mass Gainer vanille' },
   'nutri&co whey isolat native, chocolate': { ar: 'واي نوتري كو شوكولا', fr: 'Whey Isolat Native chocolat' },
   'optimum gold standard whey protein powder': { ar: 'واي بروتين', fr: 'Whey Gold Standard' },
+  'perfect sports diesel new zealand whey protein chocolate obsession': {
+    ar: 'واي ديزل شوكولا',
+    fr: 'Whey Diesel chocolat',
+  },
+  'optimum nutrition serious mass vanilla': {
+    ar: 'أوبتيموم سيرياس ماس فانيلا',
+    fr: 'Serious Mass vanille',
+  },
   'pasta, raw': { ar: 'باتا', fr: 'Pâtes' },
   'peanut butter': { ar: 'زبدة الكاوكاو', fr: 'Beurre de cacahuète' },
   'pepper, sweet, green': { ar: 'فلفلة خضرا', fr: 'Poivron vert' },

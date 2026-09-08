@@ -1,4 +1,4 @@
-import { WorkoutProgram } from '../types';
+import { WorkoutDay, WorkoutProgram } from '../types';
 
 /** Muscle groups excluded from Progress / Analytics volume charts. */
 const VOLUME_CHART_EXCLUDED_EXACT = new Set([
@@ -238,4 +238,44 @@ export function computeVolumeFromAssignment(
     chartData.push(weekData);
   }
   return chartData;
+}
+
+export type MuscleSetTotal = {
+  group: string;
+  /** Working sets across every day in the week. */
+  sets: number;
+  /** How many days this muscle is trained (2x, 3x, …). */
+  sessions: number;
+};
+
+function displayMuscleGroup(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Working sets and training frequency per muscle group across the assigned week. */
+export function countSetsByMuscleGroup(days: WorkoutDay[] | undefined): MuscleSetTotal[] {
+  const tally = new Map<string, { sets: number; sessions: number }>();
+  for (const day of days || []) {
+    const daySets = new Map<string, number>();
+    for (const exercise of day.exercises || []) {
+      const raw = String(exercise.exercise?.muscleGroup || '').trim();
+      if (!raw) continue;
+      const key = raw.toLowerCase();
+      if (key === 'cardio') continue;
+      const sets = Array.isArray(exercise.sets) ? exercise.sets.length : 0;
+      if (sets <= 0) continue;
+      const group = displayMuscleGroup(raw);
+      daySets.set(group, (daySets.get(group) || 0) + sets);
+    }
+    for (const [group, sets] of daySets) {
+      const prev = tally.get(group) || { sets: 0, sessions: 0 };
+      tally.set(group, { sets: prev.sets + sets, sessions: prev.sessions + 1 });
+    }
+  }
+  return [...tally.entries()]
+    .map(([group, row]) => ({ group, sets: row.sets, sessions: row.sessions }))
+    .sort((a, b) => b.sets - a.sets || a.group.localeCompare(b.group));
 }
