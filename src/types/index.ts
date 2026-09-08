@@ -365,7 +365,7 @@ export interface ProgressionRule {
 
 // App State Types
 export interface AppState {
-  currentView: 'clients' | 'client-plan' | 'client-view' | 'client-interface' | 'meal-database' | 'ingredients' | 'exercise-database' | 'templates';
+  currentView: 'clients' | 'client-plan' | 'client-view' | 'client-interface' | 'meal-database' | 'ingredients' | 'exercise-database' | 'templates' | 'story-studio';
   selectedClient: Client | null;
   clients: Client[];
   isDark: boolean;

@@ -21,6 +21,7 @@ import {
   Key,
   LogOut,
   Database,
+  Instagram,
   CheckSquare,
   Square,
   Loader2,
@@ -92,6 +93,7 @@ interface UnbreakableSteamClientsManagerProps {
   onNavigateToExerciseDatabase: () => void;
   onNavigateToIngredients: () => void;
   onNavigateToTemplates: () => void;
+  onNavigateToStories: () => void;
 }
 
 export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsManagerProps> = ({
@@ -107,7 +109,8 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   onNavigateToMealDatabase,
   onNavigateToExerciseDatabase,
   onNavigateToIngredients,
-  onNavigateToTemplates
+  onNavigateToTemplates,
+  onNavigateToStories
 }) => {
   const toast = useToast();
   const [searchTerm, setSearchTerm] = useState('');
@@ -488,6 +491,16 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                 aria-label="Search clients"
               />
             </div>
+            <button
+              type="button"
+              onClick={onNavigateToStories}
+              className="coach-hub-btn coach-hub-btn-ghost"
+              title="Story check-in"
+              aria-label="Story check-in"
+            >
+              <Instagram className="w-4 h-4" />
+              <span>Stories</span>
+            </button>
             <button
               type="button"
               onClick={onNavigateToMealDatabase}

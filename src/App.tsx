@@ -16,6 +16,7 @@ const IngredientsManager = lazy(() => import('./components/IngredientsManager'))
 const ExerciseDatabaseManager = lazy(() => import('./components/ExerciseDatabaseManager').then(module => ({ default: module.ExerciseDatabaseManager })));
 const DatabaseSelector = lazy(() => import('./components/DatabaseSelector').then(module => ({ default: module.DatabaseSelector })));
 const WorkoutProgramManager = lazy(() => import('./components/WorkoutProgramManager').then(module => ({ default: module.WorkoutProgramManager })));
+const CoachStoryStudio = lazy(() => import('./components/CoachStoryStudio').then(module => ({ default: module.CoachStoryStudio })));
 // const SimpleWorkoutEditor = lazy(() => import('./components/SimpleWorkoutEditor').then(module => ({ default: module.SimpleWorkoutEditor })));
 const TemplatesBuilder = lazy(() => import('./components/TemplatesBuilder'));
 import './styles/mobile.css';
@@ -1475,6 +1476,10 @@ function App() {
               onNavigateToExerciseDatabase={handleNavigateToDatabaseSelector}
               onNavigateToIngredients={handleNavigateToDatabaseSelector}
               onNavigateToTemplates={handleNavigateToDatabaseSelector}
+              onNavigateToStories={() => {
+                if (authType !== 'coach') return;
+                setAppState(prev => ({ ...prev, currentView: 'story-studio' }));
+              }}
             />
         )}
 
@@ -1546,6 +1551,13 @@ function App() {
         {appState.currentView === 'exercise-database' && (
           <ExerciseDatabaseManager
             onBack={handleBackFromExerciseDatabase}
+          />
+        )}
+
+        {appState.currentView === 'story-studio' && authType === 'coach' && (
+          <CoachStoryStudio
+            clients={appState.clients}
+            onBack={() => setAppState(prev => ({ ...prev, currentView: 'clients' }))}
           />
         )}
 
