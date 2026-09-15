@@ -630,10 +630,26 @@ function App() {
   };
 
   const handleUpdateClient = async (clientId: string, updates: Partial<Client>) => {
+    const existing = appState.clients.find((c) => c.id === clientId) ||
+      (appState.selectedClient?.id === clientId ? appState.selectedClient : null);
+
+    let nextWeeks = updates.numberOfWeeks;
+    if (typeof nextWeeks === 'number' && Number.isFinite(nextWeeks)) {
+      const deployedMax = Math.max(
+        0,
+        ...(existing?.workoutAssignment?.weeks || []).map((w) => Number(w.weekNumber) || 0)
+      );
+      // Never shorten a plan below what already exists, and never decrease the current length.
+      const currentLen = Math.max(1, existing?.numberOfWeeks || 0, existing?.workoutAssignment?.duration || 0);
+      nextWeeks = Math.max(currentLen, deployedMax, Math.floor(nextWeeks));
+      updates = { ...updates, numberOfWeeks: nextWeeks };
+    }
+
     if (isSupabaseReady) {
       const dbUpdates: Parameters<typeof dbUpdateClient>[1] = {};
       if (updates.name) dbUpdates.full_name = updates.name;
       if (updates.goal) dbUpdates.goal = updates.goal;
+      if (typeof nextWeeks === 'number') dbUpdates.number_of_weeks = nextWeeks;
       if (updates.startingWeight !== undefined) {
         dbUpdates.starting_weight =
           typeof updates.startingWeight === 'number' && Number.isFinite(updates.startingWeight)
@@ -641,19 +657,37 @@ function App() {
             : null;
       }
       if (Object.keys(dbUpdates).length > 0) await dbUpdateClient(clientId, dbUpdates);
+
+      // Duration only — do not rewrite program_json / weeks (that can wipe real workout data).
+      if (typeof nextWeeks === 'number' && existing?.workoutAssignment?.id) {
+        await dbUpdateWorkoutAssignment(existing.workoutAssignment.id, {
+          duration_weeks: nextWeeks,
+          last_modified_by: 'coach',
+        });
+      }
     }
+
     setAppState(prev => {
-      const updatedClients = prev.clients.map(client =>
-        client.id === clientId ? { ...client, ...updates } : client
-      );
+      const updatedClients = prev.clients.map(client => {
+        if (client.id !== clientId) return client;
+        const merged = { ...client, ...updates };
+        if (typeof nextWeeks === 'number' && merged.workoutAssignment) {
+          merged.workoutAssignment = {
+            ...merged.workoutAssignment,
+            duration: nextWeeks,
+          };
+        }
+        return merged;
+      });
       persistClientsLocally(updatedClients);
+      const selected =
+        prev.selectedClient?.id === clientId
+          ? updatedClients.find((c) => c.id === clientId) || prev.selectedClient
+          : prev.selectedClient;
       return {
         ...prev,
         clients: updatedClients,
-        selectedClient:
-          prev.selectedClient?.id === clientId
-            ? { ...prev.selectedClient, ...updates }
-            : prev.selectedClient,
+        selectedClient: selected,
       };
     });
   };
@@ -926,6 +960,7 @@ function App() {
           program_json: programJsonToSave,
           current_week: assignment.currentWeek,
           current_day: assignment.currentDay,
+          duration_weeks: assignment.duration,
           last_modified_by: 'coach'
         });
         assignmentResult = updateResult.data;

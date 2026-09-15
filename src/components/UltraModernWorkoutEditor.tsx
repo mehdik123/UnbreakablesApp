@@ -61,11 +61,13 @@ interface UltraModernWorkoutEditorProps {
   client: Client;
   isDark: boolean;
   onSaveAssignment: (assignment: ClientWorkoutAssignment) => void;
+  onUpdateClient?: (clientId: string, updates: Partial<Client>) => void;
 }
 
 export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> = ({
   client,
-  onSaveAssignment
+  onSaveAssignment,
+  onUpdateClient
 }) => {
   // Tab management
   const [activeTab, setActiveTab] = useState<'workout' | 'progression'>('workout');
@@ -1759,6 +1761,16 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     [currentDayData]
   );
   const weekSetTotal = weekMuscleSets.reduce((sum, row) => sum + row.sets, 0);
+  const planDuration = Math.max(
+    client.numberOfWeeks || 0,
+    client.workoutAssignment?.duration || 0,
+    ...(client.workoutAssignment?.weeks || []).map((w) => Number(w.weekNumber) || 0)
+  );
+  const assignmentForWeekCreate = client.workoutAssignment
+    ? { ...client.workoutAssignment, duration: planDuration }
+    : null;
+  const canCreateWeek = canCreateNextWeek(assignmentForWeekCreate);
+  const nextWeekNumber = assignmentForWeekCreate ? getNextWeekNumber(assignmentForWeekCreate) : null;
   const completedSets = currentDayData?.exercises?.reduce((total, exercise) => 
     total + exercise.sets.filter(set => set.completed).length, 0) || 0;
 
@@ -1947,9 +1959,9 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
 
                 <button
                   onClick={async () => {
-                    if (!client.workoutAssignment || !canCreateNextWeek(client.workoutAssignment)) return;
+                    if (!assignmentForWeekCreate || !canCreateWeek) return;
                     // Prefer in-memory weeks (includes realtime client saves) so new week copies actual performance; fallback to DB if needed
-                    let savedWeeks = client.workoutAssignment.weeks || [];
+                    let savedWeeks = assignmentForWeekCreate.weeks || [];
                     if (savedWeeks.length === 0 && isSupabaseReady && supabase && assignmentId) {
                       const { data: row } = await supabase
                         .from('workout_assignments')
@@ -1961,20 +1973,44 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     }
                     const prevWeek = savedWeeks[savedWeeks.length - 1];
                     if (!prevWeek?.days?.length) return;
-                    const nextNum = getNextWeekNumber({ ...client.workoutAssignment, weeks: savedWeeks });
+                    const nextNum = getNextWeekNumber({ ...assignmentForWeekCreate, weeks: savedWeeks });
                     setProgressionSourceWeek(prevWeek);
                     setWeekGenMode('progress');
                     setExcludedProgressionDayIndexes([]);
                     setDraftNewWeek(buildDraftWeek(prevWeek, nextNum, 'progress', []));
                     setShowCreateWeekModal(true);
                   }}
-                  disabled={!client.workoutAssignment || !canCreateNextWeek(client.workoutAssignment)}
+                  disabled={!assignmentForWeekCreate || !canCreateWeek}
                   className="flex items-center justify-center space-x-3 px-6 py-4 bg-green-600 hover:bg-green-700 disabled:bg-slate-700 disabled:opacity-50 text-white rounded-xl font-medium transition-all duration-200"
                 >
                   <Plus className="w-5 h-5" />
-                  <span>Create Week {client.workoutAssignment ? getNextWeekNumber(client.workoutAssignment) : ''}</span>
+                  <span>Create Week {nextWeekNumber ?? ''}</span>
                 </button>
               </div>
+
+              {assignmentForWeekCreate && !canCreateWeek && onUpdateClient && (
+                <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+                  <p className="text-amber-100 text-sm font-medium mb-3">
+                    Plan is set to {planDuration} weeks. Extend it to create Week {nextWeekNumber}.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {[4, 8].map((add) => {
+                      const nextTotal = planDuration + add;
+                      return (
+                        <button
+                          key={add}
+                          type="button"
+                          onClick={() => onUpdateClient(client.id, { numberOfWeeks: nextTotal })}
+                          className="min-h-11 px-4 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-50 text-sm font-semibold border border-amber-400/30 touch-manipulation"
+                          style={{ WebkitTapHighlightColor: 'transparent' }}
+                        >
+                          +{add} weeks → {nextTotal}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Direct Week Selection */}
               <div className="bg-slate-700/20 rounded-xl p-6">
@@ -2064,13 +2100,13 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                 <div className="grid grid-cols-2 gap-4 text-center">
                   <div>
                     <div className="text-2xl font-bold text-blue-400">
-                      {client.workoutAssignment.duration}
+                      {planDuration}
                     </div>
                     <div className="text-slate-300 text-sm">Total Weeks</div>
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-green-400">
-                      {Math.round((client.workoutAssignment.currentWeek / client.workoutAssignment.duration) * 100)}%
+                      {Math.round((client.workoutAssignment.currentWeek / Math.max(1, planDuration)) * 100)}%
                     </div>
                     <div className="text-slate-300 text-sm">Progress</div>
                   </div>

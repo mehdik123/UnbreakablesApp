@@ -140,14 +140,16 @@ export function getNextWeekNumber(assignment: ClientWorkoutAssignment): number {
 /**
  * Check if the coach can create the next week.
  * Coach can create next week at any time (does not require previous week to be completed).
+ * Caps at assignment.duration (plan length). Extending duration unlocks further weeks
+ * without changing existing week workout data.
  */
 export function canCreateNextWeek(
   assignment: ClientWorkoutAssignment | null | undefined
 ): boolean {
   if (!assignment) return false;
-  const weeks = assignment.weeks || [];
   const nextNumber = getNextWeekNumber(assignment);
-  return nextNumber <= assignment.duration;
+  const cap = Math.max(1, Number(assignment.duration) || 0);
+  return nextNumber <= cap;
 }
 
 /**

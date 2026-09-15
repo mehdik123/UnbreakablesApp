@@ -76,6 +76,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'nutrition' | 'workout' | 'cardio' | 'progress' | 'weight' | 'photos' | 'performance'>('nutrition');
   const [goalMenuOpen, setGoalMenuOpen] = useState(false);
+  const [weeksMenuOpen, setWeeksMenuOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showStats, setShowStats] = useState(true);
   const [showProgressTracker, setShowProgressTracker] = useState(false);
@@ -168,6 +169,24 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
     { id: 'maintenance', label: 'Maintenance', hint: 'Hold weight and performance' },
   ];
 
+  const minPlanWeeks = Math.max(
+    1,
+    client.numberOfWeeks || 1,
+    ...(client.workoutAssignment?.weeks || []).map((w) => Number(w.weekNumber) || 1)
+  );
+  const weekExtendOptions = Array.from(
+    new Set([
+      minPlanWeeks,
+      minPlanWeeks + 4,
+      minPlanWeeks + 8,
+      8,
+      12,
+      16,
+      20,
+      24,
+    ].filter((n) => n >= minPlanWeeks))
+  ).sort((a, b) => a - b);
+
   if (isLoading) {
     return (
       <div className="coach-plan flex items-center justify-center">
@@ -210,7 +229,11 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
                       <button
                         type="button"
                         className={`coach-goal-trigger ${client.goal}`}
-                        onClick={() => onUpdateClient && setGoalMenuOpen((open) => !open)}
+                        onClick={() => {
+                          if (!onUpdateClient) return;
+                          setWeeksMenuOpen(false);
+                          setGoalMenuOpen((open) => !open);
+                        }}
                         disabled={!onUpdateClient}
                         aria-expanded={goalMenuOpen}
                         aria-haspopup="listbox"
@@ -260,9 +283,75 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
                         </>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 text-[color:var(--txt-lo)] text-[11px] sm:text-sm">
-                      <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span>{client.numberOfWeeks} weeks</span>
+                    <div className="coach-weeks-picker">
+                      <button
+                        type="button"
+                        className="coach-weeks-trigger"
+                        onClick={() => {
+                          if (!onUpdateClient) return;
+                          setGoalMenuOpen(false);
+                          setWeeksMenuOpen((open) => !open);
+                        }}
+                        disabled={!onUpdateClient}
+                        aria-expanded={weeksMenuOpen}
+                        aria-haspopup="listbox"
+                        aria-label="Change plan length"
+                      >
+                        <Calendar className="w-4 h-4" />
+                        <span className="coach-goal-trigger-copy">
+                          <span className="coach-goal-kicker">Plan</span>
+                          <span>{client.numberOfWeeks} weeks</span>
+                        </span>
+                        <ChevronDown className={`w-4 h-4 coach-goal-chevron ${weeksMenuOpen ? 'is-open' : ''}`} />
+                      </button>
+                      {weeksMenuOpen && (
+                        <>
+                          <button
+                            type="button"
+                            className="coach-goal-backdrop"
+                            aria-label="Close weeks menu"
+                            onClick={() => setWeeksMenuOpen(false)}
+                          />
+                          <div className="coach-goal-menu" role="listbox" aria-label="Plan length">
+                            <p className="coach-weeks-menu-hint">
+                              Extend when a client continues past the original plan.
+                            </p>
+                            {weekExtendOptions.map((weeks) => {
+                              const selected = weeks === client.numberOfWeeks;
+                              const added = weeks - client.numberOfWeeks;
+                              return (
+                                <button
+                                  key={weeks}
+                                  type="button"
+                                  role="option"
+                                  aria-selected={selected}
+                                  className={`coach-goal-option${selected ? ' is-selected' : ''}`}
+                                  onClick={() => {
+                                    setWeeksMenuOpen(false);
+                                    if (weeks === client.numberOfWeeks) return;
+                                    onUpdateClient?.(client.id, { numberOfWeeks: weeks });
+                                  }}
+                                >
+                                  <span className="coach-goal-option-icon">
+                                    <Calendar className="w-4 h-4" />
+                                  </span>
+                                  <span className="coach-goal-option-copy">
+                                    <span className="coach-goal-option-label">{weeks} weeks</span>
+                                    <span className="coach-goal-option-hint">
+                                      {selected
+                                        ? 'Current plan length'
+                                        : added > 0
+                                          ? `Add ${added} more week${added === 1 ? '' : 's'}`
+                                          : 'Keep existing weeks'}
+                                    </span>
+                                  </span>
+                                  {selected && <CheckCircle className="w-4 h-4 shrink-0" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -352,6 +441,7 @@ export const ModernClientPlanView: React.FC<ModernClientPlanViewProps> = ({
             <UltraModernWorkoutEditor
               client={client}
               onSaveAssignment={(assignment) => onSaveWorkoutPlan(client.id, assignment)}
+              onUpdateClient={onUpdateClient}
               onBack={() => {}}
               isDark={isDark}
             />

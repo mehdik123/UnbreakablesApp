@@ -894,6 +894,29 @@
 .coach-goal-option-copy { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .coach-goal-option-label { font-size: 14px; font-weight: 700; }
 .coach-goal-option-hint { font-size: 12px; color: var(--txt-mid); }
+.coach-weeks-picker { position: relative; }
+.coach-weeks-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 10px 4px 8px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--hair-strong);
+  background: var(--surface-2);
+  color: var(--txt-hi);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.coach-weeks-trigger:active { transform: scale(0.98); }
+.coach-weeks-trigger:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+.coach-weeks-trigger:disabled { opacity: 0.6; cursor: default; }
+.coach-weeks-menu-hint {
+  margin: 4px 8px 8px;
+  font-size: 12px;
+  color: var(--txt-mid);
+  line-height: 1.35;
+}
 .coach-client-pips {
   display: flex;
   gap: 12px;

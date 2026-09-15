@@ -515,6 +515,7 @@ export async function dbUpdateWorkoutAssignment(id: string, payload: {
   program_json?: any;
   current_week?: number;
   current_day?: number;
+  duration_weeks?: number;
   is_active?: boolean;
   last_modified_by?: string;
 }): Promise<DBResult<any>> {
