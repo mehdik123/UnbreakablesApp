@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Eye, Download, Calendar, Grid, List, X, ChevronLeft, ChevronRight, GitCompare, Camera } from 'lucide-react';
 import { WeeklyPhoto } from '../lib/db';
+import {
+  downloadProgressPhotoRaw,
+  downloadProgressPhotoTagged,
+  progressPhotoTypeLabel,
+  progressPhotoUrl,
+} from '../utils/progressPhotoDownload';
 
 interface WeeklyPhotoGalleryProps {
   photos: WeeklyPhoto[];
@@ -40,8 +46,11 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
       return 'stack';
     }
   });
+  const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
+  const [downloadBusy, setDownloadBusy] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
 
-  const getImageUrl = (photo: WeeklyPhoto) => photo.imageUrl || photo.image_url;
+  const getImageUrl = (photo: WeeklyPhoto) => progressPhotoUrl(photo);
 
   const getUploadedDate = (photo: WeeklyPhoto) => {
     if (photo.uploadedAt) return photo.uploadedAt;
@@ -58,17 +67,12 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
   const weeks = Object.keys(photosByWeek).map(Number).sort((a, b) => b - a);
   const currentWeekPhotos = selectedWeek ? photosByWeek[selectedWeek] || [] : [];
 
-  const getPhotoTypeLabel = (type: 'front' | 'side' | 'back') => {
-    switch (type) {
-      case 'front': return 'Front';
-      case 'side': return 'Side';
-      case 'back': return 'Back';
-      default: return 'Photo';
-    }
-  };
+  const getPhotoTypeLabel = (type: 'front' | 'side' | 'back') => progressPhotoTypeLabel(type);
 
   const openPreview = (photo: WeeklyPhoto) => {
     setPreviewPhoto(photo);
+    setDownloadMenuOpen(false);
+    setDownloadError('');
     const weekPhotos = photosByWeek[photo.week] || [];
     setCurrentPhotoIndex(weekPhotos.findIndex(p => p.id === photo.id));
   };
@@ -84,16 +88,53 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
     }
     setCurrentPhotoIndex(newIndex);
     setPreviewPhoto(weekPhotos[newIndex]);
+    setDownloadMenuOpen(false);
+    setDownloadError('');
   };
 
-  const downloadPhoto = (photo: WeeklyPhoto) => {
-    const link = document.createElement('a');
-    link.href = getImageUrl(photo);
-    link.download = `week-${photo.week}-${photo.type}-${Date.now()}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const handleDownload = async (photo: WeeklyPhoto, mode: 'raw' | 'tagged') => {
+    setDownloadBusy(true);
+    setDownloadError('');
+    try {
+      if (mode === 'raw') await downloadProgressPhotoRaw(photo);
+      else await downloadProgressPhotoTagged(photo);
+      setDownloadMenuOpen(false);
+    } catch {
+      setDownloadError('Could not download. Try again.');
+    } finally {
+      setDownloadBusy(false);
+    }
   };
+
+  useEffect(() => {
+    if (!previewPhoto) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPreviewPhoto(null);
+        setDownloadMenuOpen(false);
+        return;
+      }
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      const weekPhotos = photosByWeek[previewPhoto.week] || [];
+      if (weekPhotos.length === 0) return;
+      setCurrentPhotoIndex((idx) => {
+        const next =
+          e.key === 'ArrowLeft'
+            ? idx > 0
+              ? idx - 1
+              : weekPhotos.length - 1
+            : idx < weekPhotos.length - 1
+              ? idx + 1
+              : 0;
+        setPreviewPhoto(weekPhotos[next]);
+        setDownloadMenuOpen(false);
+        setDownloadError('');
+        return next;
+      });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [previewPhoto, photosByWeek]);
 
   const getPhotoByWeekAndType = (week: number, type: 'front' | 'side' | 'back') =>
     photos.find(p => p.week === week && p.type === type);
@@ -140,10 +181,11 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => downloadPhoto(photo)}
+          onClick={() => openPreview(photo)}
           className="w-8 h-8 rounded-lg flex items-center justify-center"
           style={{ background: 'rgba(0,0,0,.55)', color: '#fff' }}
-          aria-label="Download"
+          aria-label="Download options"
+          title="Open to download"
         >
           <Download className="w-3.5 h-3.5" />
         </button>
@@ -429,7 +471,13 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
                     <div className="text-sm font-semibold" style={{ color: 'var(--txt-hi)' }}>{getPhotoTypeLabel(photo.type)}</div>
                     <div className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>{getUploadedDate(photo).toLocaleDateString()}</div>
                   </div>
-                  <button type="button" onClick={() => downloadPhoto(photo)} className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
+                  <button
+                    type="button"
+                    onClick={() => openPreview(photo)}
+                    className="w-9 h-9 rounded-lg flex items-center justify-center"
+                    style={{ background: 'var(--surface-2)' }}
+                    aria-label="Open photo"
+                  >
                     <Download className="w-3.5 h-3.5" style={{ color: 'var(--txt-mid)' }} />
                   </button>
                 </div>
@@ -462,44 +510,114 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
       )}
 
       {previewPhoto && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/90 p-0 sm:p-4">
-          <div
-            className="relative w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden"
-            style={{ background: 'var(--surface-1)', maxHeight: '92dvh' }}
-          >
-            <div className="flex items-center justify-between p-3" style={{ borderBottom: '1px solid var(--hair)' }}>
-              <button type="button" onClick={() => navigatePreview('prev')} className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
-                <ChevronLeft className="w-5 h-5" style={{ color: 'var(--txt-hi)' }} />
-              </button>
-              <div className="text-center min-w-0">
-                <div className="text-sm font-semibold truncate" style={{ color: 'var(--txt-hi)' }}>
-                  {getPhotoTypeLabel(previewPhoto.type)} · W{previewPhoto.week}
-                </div>
-                <div className="text-[11px]" style={{ color: 'var(--txt-lo)' }}>
-                  {getUploadedDate(previewPhoto).toLocaleDateString()}
-                </div>
+        <div
+          className="fixed inset-0 z-[80] flex flex-col bg-black"
+          style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Full photo"
+        >
+          <div className="flex items-center justify-between gap-2 px-3 py-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => navigatePreview('prev')}
+              className="coach-touch rounded-xl text-white/90"
+              style={{ background: 'rgba(255,255,255,.08)', minHeight: 44, minWidth: 44 }}
+              aria-label="Previous photo"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="text-center min-w-0 flex-1">
+              <div className="text-sm font-semibold truncate text-white">
+                {getPhotoTypeLabel(previewPhoto.type)} · Week {previewPhoto.week}
               </div>
-              <button type="button" onClick={() => setPreviewPhoto(null)} className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--surface-2)' }} aria-label="Close">
-                <X className="w-5 h-5" style={{ color: 'var(--txt-hi)' }} />
-              </button>
+              <div className="text-[11px] text-white/55">
+                {getUploadedDate(previewPhoto).toLocaleDateString()}
+              </div>
             </div>
-            <div className="aspect-[3/4] max-h-[70dvh] bg-black">
-              <img src={getImageUrl(previewPhoto)} alt="" className="w-full h-full object-contain" />
-            </div>
-            <div className="p-3 flex justify-center" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}>
-              <button
-                type="button"
-                onClick={() => downloadPhoto(previewPhoto)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white"
-                style={{ background: 'var(--grad-red)', minHeight: 44 }}
-              >
-                <Download className="w-4 h-4" />
-                Download
-              </button>
-            </div>
-            <button type="button" onClick={() => navigatePreview('next')} className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center sm:hidden" style={{ background: 'rgba(0,0,0,.45)' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewPhoto(null);
+                setDownloadMenuOpen(false);
+              }}
+              className="coach-touch rounded-xl text-white/90"
+              style={{ background: 'rgba(255,255,255,.08)', minHeight: 44, minWidth: 44 }}
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="relative flex-1 min-h-0 flex items-center justify-center px-2">
+            <img
+              src={getImageUrl(previewPhoto)}
+              alt={`${getPhotoTypeLabel(previewPhoto.type)} week ${previewPhoto.week}`}
+              className="max-w-full max-h-full object-contain select-none"
+              draggable={false}
+            />
+            <button
+              type="button"
+              onClick={() => navigatePreview('next')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full flex items-center justify-center sm:hidden"
+              style={{ background: 'rgba(0,0,0,.45)' }}
+              aria-label="Next photo"
+            >
               <ChevronRight className="w-5 h-5 text-white" />
             </button>
+          </div>
+
+          <div className="shrink-0 px-3 pt-2 pb-3 relative">
+            {downloadError && (
+              <p className="text-center text-xs text-red-300 mb-2">{downloadError}</p>
+            )}
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => setDownloadMenuOpen((open) => !open)}
+                disabled={downloadBusy}
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
+                style={{ background: 'var(--grad-red)', minHeight: 48, touchAction: 'manipulation' }}
+              >
+                <Download className="w-4 h-4" />
+                {downloadBusy ? 'Preparing…' : 'Download'}
+              </button>
+            </div>
+
+            {downloadMenuOpen && (
+              <div
+                className="absolute left-1/2 -translate-x-1/2 bottom-[calc(100%-4px)] w-[min(320px,calc(100vw-24px))] rounded-2xl p-2 shadow-lg"
+                style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+                role="menu"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={downloadBusy}
+                  onClick={() => handleDownload(previewPhoto, 'raw')}
+                  className="w-full text-left rounded-xl px-3 py-3 min-h-12"
+                  style={{ color: 'var(--txt-hi)', touchAction: 'manipulation' }}
+                >
+                  <div className="text-sm font-semibold">Raw photo</div>
+                  <div className="text-xs" style={{ color: 'var(--txt-mid)' }}>
+                    Original file, no label
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={downloadBusy}
+                  onClick={() => handleDownload(previewPhoto, 'tagged')}
+                  className="w-full text-left rounded-xl px-3 py-3 min-h-12"
+                  style={{ color: 'var(--txt-hi)', touchAction: 'manipulation' }}
+                >
+                  <div className="text-sm font-semibold">With tag</div>
+                  <div className="text-xs" style={{ color: 'var(--txt-mid)' }}>
+                    Burns {getPhotoTypeLabel(previewPhoto.type)} + week on the image
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
