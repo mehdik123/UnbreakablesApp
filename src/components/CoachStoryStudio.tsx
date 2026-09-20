@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Download, ImageIcon } from 'lucide-react';
+import { ArrowLeft, Download, ImageIcon, RotateCcw } from 'lucide-react';
 import type { Client } from '../types';
 import { dbGetClientPhotos, type WeeklyPhoto } from '../lib/db';
 import { getClientWeightLogs } from '../lib/progressTracking';
 import {
+  DEFAULT_STORY_FOCUS,
   loadStoryImage,
   renderCheckInStory,
   renderReceiptStory,
   renderTrendStory,
+  type StoryImageFocus,
   type StoryKind,
   type StoryPose,
 } from '../utils/instagramStory';
@@ -23,6 +25,8 @@ const KINDS: { id: StoryKind; label: string }[] = [
   { id: 'trend', label: 'Trend' },
   { id: 'receipt', label: 'Receipt' },
 ];
+
+const DEFAULT_CTA = 'DM to start your plan';
 
 function countSessions(client: Client): number {
   const weeks = client.workoutAssignment?.weeks || [];
@@ -63,6 +67,76 @@ function weightNearWeek(
   return sorted[sorted.length - 1]?.weight ?? fallback ?? null;
 }
 
+function FocusControls({
+  label,
+  focus,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  focus: StoryImageFocus;
+  onChange: (next: StoryImageFocus) => void;
+  disabled?: boolean;
+}) {
+  const patch = (partial: Partial<StoryImageFocus>) => onChange({ ...focus, ...partial });
+  return (
+    <div
+      className="rounded-xl p-3 space-y-2"
+      style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', opacity: disabled ? 0.5 : 1 }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">{label}</span>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange({ ...DEFAULT_STORY_FOCUS })}
+          className="min-h-9 px-2 rounded-lg text-xs font-semibold inline-flex items-center gap-1"
+          style={{ color: 'var(--txt-mid)', touchAction: 'manipulation' }}
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          Reset
+        </button>
+      </div>
+      <label className="block text-xs text-[color:var(--txt-mid)]">
+        Left ↔ Right
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={Math.round(focus.x * 100)}
+          disabled={disabled}
+          onChange={(e) => patch({ x: Number(e.target.value) / 100 })}
+          className="w-full mt-1"
+        />
+      </label>
+      <label className="block text-xs text-[color:var(--txt-mid)]">
+        Up ↔ Down
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={Math.round(focus.y * 100)}
+          disabled={disabled}
+          onChange={(e) => patch({ y: Number(e.target.value) / 100 })}
+          className="w-full mt-1"
+        />
+      </label>
+      <label className="block text-xs text-[color:var(--txt-mid)]">
+        Zoom
+        <input
+          type="range"
+          min={100}
+          max={220}
+          value={Math.round(focus.zoom * 100)}
+          disabled={disabled}
+          onChange={(e) => patch({ zoom: Number(e.target.value) / 100 })}
+          className="w-full mt-1"
+        />
+      </label>
+    </div>
+  );
+}
+
 export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
   const activeClients = useMemo(
     () => clients.filter((c) => !c.isArchived).sort((a, b) => a.name.localeCompare(b.name)),
@@ -74,6 +148,9 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
   const [startWeek, setStartWeek] = useState<number | null>(null);
   const [endWeek, setEndWeek] = useState<number | null>(null);
   const [showName, setShowName] = useState(true);
+  const [cta, setCta] = useState(DEFAULT_CTA);
+  const [startFocus, setStartFocus] = useState<StoryImageFocus>({ ...DEFAULT_STORY_FOCUS });
+  const [endFocus, setEndFocus] = useState<StoryImageFocus>({ ...DEFAULT_STORY_FOCUS });
   const [photos, setPhotos] = useState<WeeklyPhoto[]>([]);
   const [weights, setWeights] = useState<{ weight: number; weekNumber?: number; date: Date }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -136,6 +213,11 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
     setEndWeek(weeks[weeks.length - 1]);
   }, [clientId, pose, weeks.join(',')]);
 
+  useEffect(() => {
+    setStartFocus({ ...DEFAULT_STORY_FOCUS });
+    setEndFocus({ ...DEFAULT_STORY_FOCUS });
+  }, [clientId, pose, startWeek, endWeek]);
+
   const startPhoto = posePhotos.find((p) => p.week === startWeek) || null;
   const endPhoto = posePhotos.find((p) => p.week === endWeek) || null;
 
@@ -155,58 +237,67 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
       return;
     }
     setRendering(true);
-    (async () => {
-      try {
-        const name = showName ? firstName(client.name) : null;
-        let canvas: HTMLCanvasElement;
-        if (kind === 'trend') {
-          const points = sortedWeights.map((row) => row.weight);
-          if (client.startingWeight && points.length && points[0] !== client.startingWeight) {
-            points.unshift(client.startingWeight);
+    const timer = window.setTimeout(() => {
+      (async () => {
+        try {
+          const name = showName ? firstName(client.name) : null;
+          let canvas: HTMLCanvasElement;
+          if (kind === 'trend') {
+            const points = sortedWeights.map((row) => row.weight);
+            if (client.startingWeight && points.length && points[0] !== client.startingWeight) {
+              points.unshift(client.startingWeight);
+            }
+            canvas = await renderTrendStory({
+              firstName: name,
+              goal: client.goal,
+              points,
+              cta,
+            });
+          } else if (kind === 'receipt') {
+            canvas = await renderReceiptStory({
+              firstName: name,
+              goal: client.goal,
+              weeksOpen: client.workoutAssignment?.weeks?.length || client.workoutAssignment?.currentWeek || 0,
+              sessionsLogged: countSessions(client),
+              photoCheckins: countPhotoCheckins(photos),
+              weightLogs: sortedWeights.length,
+              cta,
+            });
+          } else {
+            const [startImage, endImage] = await Promise.all([
+              startPhoto ? loadStoryImage(photoUrl(startPhoto)).catch(() => null) : Promise.resolve(null),
+              endPhoto ? loadStoryImage(photoUrl(endPhoto)).catch(() => null) : Promise.resolve(null),
+            ]);
+            if (cancelled || startWeek == null || endWeek == null) return;
+            canvas = await renderCheckInStory({
+              firstName: name,
+              goal: client.goal,
+              pose,
+              startWeek,
+              endWeek,
+              startWeightKg: weightNearWeek(weights, startWeek, client.startingWeight, 'earliest'),
+              endWeightKg: weightNearWeek(weights, endWeek, undefined, 'latest'),
+              startImage,
+              endImage,
+              startFocus,
+              endFocus,
+              cta,
+            });
           }
-          canvas = await renderTrendStory({
-            firstName: name,
-            goal: client.goal,
-            points,
-          });
-        } else if (kind === 'receipt') {
-          canvas = await renderReceiptStory({
-            firstName: name,
-            goal: client.goal,
-            weeksOpen: client.workoutAssignment?.weeks?.length || client.workoutAssignment?.currentWeek || 0,
-            sessionsLogged: countSessions(client),
-            photoCheckins: countPhotoCheckins(photos),
-            weightLogs: sortedWeights.length,
-          });
-        } else {
-          const [startImage, endImage] = await Promise.all([
-            startPhoto ? loadStoryImage(photoUrl(startPhoto)).catch(() => null) : Promise.resolve(null),
-            endPhoto ? loadStoryImage(photoUrl(endPhoto)).catch(() => null) : Promise.resolve(null),
-          ]);
-          if (cancelled || startWeek == null || endWeek == null) return;
-          canvas = await renderCheckInStory({
-            firstName: name,
-            goal: client.goal,
-            pose,
-            startWeek,
-            endWeek,
-            startWeightKg: weightNearWeek(weights, startWeek, client.startingWeight, 'earliest'),
-            endWeightKg: weightNearWeek(weights, endWeek, undefined, 'latest'),
-            startImage,
-            endImage,
-          });
+          if (!cancelled) setPreviewUrl(canvas.toDataURL('image/png'));
+        } catch {
+          if (!cancelled) setError('Could not build the story preview.');
+        } finally {
+          if (!cancelled) setRendering(false);
         }
-        if (!cancelled) setPreviewUrl(canvas.toDataURL('image/png'));
-      } catch {
-        if (!cancelled) setError('Could not build the story preview.');
-      } finally {
-        if (!cancelled) setRendering(false);
-      }
-    })();
+      })();
+    }, kind === 'checkin' ? 120 : 0);
+
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [kind, client, pose, startWeek, endWeek, showName, startPhoto, endPhoto, weights, sortedWeights, photos]);
+  }, [kind, client, pose, startWeek, endWeek, showName, startPhoto, endPhoto, weights, sortedWeights, photos, startFocus, endFocus, cta]);
 
   const saveStory = async () => {
     if (!previewUrl || !client) return;
@@ -220,7 +311,7 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
       });
       const canShare = typeof navigator.share === 'function' && (!navigator.canShare || navigator.canShare({ files: [file] }));
       if (canShare) {
-        await navigator.share({ files: [file], title: 'Unbreakables check-in' });
+        await navigator.share({ files: [file], title: 'Unbreakables story' });
       } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -256,7 +347,7 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-28 grid gap-4 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+      <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-28 grid gap-4 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
         <div className="rounded-2xl p-4 space-y-3" style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}>
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">Story</span>
@@ -295,56 +386,75 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
           </label>
 
           {kind === 'checkin' && (
-          <>
-          <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">Pose</span>
-            <div className="mt-1 grid grid-cols-3 gap-2">
-              {POSES.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setPose(item)}
-                  className="min-h-11 rounded-xl text-sm font-semibold capitalize"
-                  style={{
-                    background: pose === item ? 'var(--grad-red)' : 'var(--surface-2)',
-                    color: pose === item ? '#fff' : 'var(--txt-hi)',
-                    border: '1px solid var(--hair)',
-                    touchAction: 'manipulation',
-                  }}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </div>
+            <>
+              <div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">Pose</span>
+                <div className="mt-1 grid grid-cols-3 gap-2">
+                  {POSES.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setPose(item)}
+                      className="min-h-11 rounded-xl text-sm font-semibold capitalize"
+                      style={{
+                        background: pose === item ? 'var(--grad-red)' : 'var(--surface-2)',
+                        color: pose === item ? '#fff' : 'var(--txt-hi)',
+                        border: '1px solid var(--hair)',
+                        touchAction: 'manipulation',
+                      }}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">Start week</span>
-              <select
-                value={startWeek ?? ''}
-                onChange={(e) => setStartWeek(Number(e.target.value))}
-                disabled={!weeks.length}
-                className="mt-1 w-full min-h-12 rounded-xl px-3 text-[color:var(--txt-hi)]"
-                style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', fontSize: 16 }}
-              >
-                {weeks.map((week) => <option key={week} value={week}>Week {week}</option>)}
-              </select>
-            </label>
-            <label className="block">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">Latest week</span>
-              <select
-                value={endWeek ?? ''}
-                onChange={(e) => setEndWeek(Number(e.target.value))}
-                disabled={!weeks.length}
-                className="mt-1 w-full min-h-12 rounded-xl px-3 text-[color:var(--txt-hi)]"
-                style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', fontSize: 16 }}
-              >
-                {weeks.map((week) => <option key={week} value={week}>Week {week}</option>)}
-              </select>
-            </label>
-          </div>
-          </>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">Start week</span>
+                  <select
+                    value={startWeek ?? ''}
+                    onChange={(e) => setStartWeek(Number(e.target.value))}
+                    disabled={!weeks.length}
+                    className="mt-1 w-full min-h-12 rounded-xl px-3 text-[color:var(--txt-hi)]"
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', fontSize: 16 }}
+                  >
+                    {weeks.map((week) => <option key={week} value={week}>Week {week}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">Latest week</span>
+                  <select
+                    value={endWeek ?? ''}
+                    onChange={(e) => setEndWeek(Number(e.target.value))}
+                    disabled={!weeks.length}
+                    className="mt-1 w-full min-h-12 rounded-xl px-3 text-[color:var(--txt-hi)]"
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', fontSize: 16 }}
+                  >
+                    {weeks.map((week) => <option key={week} value={week}>Week {week}</option>)}
+                  </select>
+                </label>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">Frame photos</p>
+                <p className="text-xs text-[color:var(--txt-mid)]">
+                  Drag the sliders if a shot cuts shoulders or legs. Preview updates live.
+                </p>
+                <FocusControls
+                  label={`Week ${startWeek ?? '—'} (start)`}
+                  focus={startFocus}
+                  onChange={setStartFocus}
+                  disabled={!startPhoto}
+                />
+                <FocusControls
+                  label={`Week ${endWeek ?? '—'} (latest)`}
+                  focus={endFocus}
+                  onChange={setEndFocus}
+                  disabled={!endPhoto}
+                />
+              </div>
+            </>
           )}
 
           <button
@@ -355,6 +465,17 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
           >
             {showName ? 'First name is shown' : 'Name is hidden'}
           </button>
+
+          <label className="block">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">CTA</span>
+            <input
+              value={cta}
+              onChange={(e) => setCta(e.target.value)}
+              placeholder={DEFAULT_CTA}
+              className="mt-1 w-full min-h-12 rounded-xl px-3 text-[color:var(--txt-hi)]"
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', fontSize: 16 }}
+            />
+          </label>
 
           {kind === 'checkin' && !loading && !weeks.length && (
             <p className="text-sm text-[color:var(--txt-mid)]">No {pose} photos yet for this client.</p>
