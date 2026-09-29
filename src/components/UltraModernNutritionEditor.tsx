@@ -50,6 +50,7 @@ import { CoachMealPlanCard } from './CoachMealPlanCard';
 import { Client, NutritionPlan, SelectedMeal, Meal, Food, Ingredient } from '../types';
 import { calculateMealNutrition, calculatePlanSlotsNutrition } from '../utils/nutritionCalculator';
 import { getEffectiveSelectedMeal } from '../utils/mealSlotOverrides';
+import { MEAL_SLOT_PRESETS, resizeMealSlots } from '../utils/nutritionMealSlots';
 import { exportToPDF } from '../utils/pdfExport';
 import {
   dbUpsertNutritionPlan,
@@ -111,38 +112,8 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
   const [dbMeals, setDbMeals] = useState<any[]>([]);
   const [mealsPerDay, setMealsPerDay] = useState(3);
   const [showMealCountSelector, setShowMealCountSelector] = useState(false);
-
-  // Update meal slots when mealsPerDay changes
-  useEffect(() => {
-    const generateMealSlots = (count: number) => {
-      const getMealNames = (mealCount: number) => {
-        switch (mealCount) {
-          case 2: return ['Breakfast', 'Dinner'];
-          case 3: return ['Breakfast', 'Lunch', 'Dinner'];
-          case 4: return ['Breakfast', 'Lunch', 'Dinner', 'Evening Snack'];
-          case 5: return ['Breakfast', 'Morning Snack', 'Lunch', 'Dinner', 'Evening Snack'];
-          case 6: return ['Breakfast', 'Morning Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'Evening Snack'];
-          default: return Array.from({length: mealCount}, (_, i) => `Meal ${i + 1}`);
-        }
-      };
-      
-      const mealNames = getMealNames(count);
-      const newSlots = [];
-      
-      for (let i = 0; i < count; i++) {
-        const existingSlot = mealSlots.find(slot => slot.id === (i + 1).toString());
-        newSlots.push({
-          id: (i + 1).toString(),
-          name: mealNames[i],
-          selectedMeals: existingSlot?.selectedMeals || []
-        });
-      }
-      
-      return newSlots;
-    };
-
-    setMealSlots(generateMealSlots(mealsPerDay));
-  }, [mealsPerDay]);
+  /** Slot id currently using free-form category name */
+  const [customCategorySlotId, setCustomCategorySlotId] = useState<string | null>(null);
   const [showMealSelector, setShowMealSelector] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [mealSelectorSearch, setMealSelectorSearch] = useState('');
@@ -381,24 +352,19 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client.id]);
 
-  // Update meal slots when mealsPerDay changes
+  // Resize slots when meals/day changes — keep existing names & meals; only add/remove slots.
   useEffect(() => {
-    // Only update if the number of slots actually changed
-    if (mealSlots.length === mealsPerDay) {
-      console.log('⏭️ Skipping meal slots update - count already matches');
-      return;
-    }
-    
-    console.log('🔄 Updating meal slots count from', mealSlots.length, 'to', mealsPerDay);
-    const mealNames = ['Breakfast', 'Lunch', 'Dinner', 'Snack 1', 'Snack 2', 'Snack 3'];
-    const newMealSlots = Array.from({ length: mealsPerDay }, (_, index) => ({
-      id: (index + 1).toString(),
-      name: mealNames[index] || `Meal ${index + 1}`,
-      selectedMeals: mealSlots[index]?.selectedMeals || []
-    }));
-    setMealSlots(newMealSlots);
+    if (mealSlots.length === mealsPerDay) return;
+    setMealSlots((prev) => resizeMealSlots(prev, mealsPerDay));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mealsPerDay]);
+
+  const handleRenameSlot = (slotId: string, name: string) => {
+    const trimmed = name.trim() || 'Meal';
+    setMealSlots((prev) =>
+      prev.map((slot) => (slot.id === slotId ? { ...slot, name: trimmed } : slot))
+    );
+  };
 
   // Autosave draft to localStorage only when offline / no Supabase.
   // With Supabase, full mealSlots dumps blow the ~5MB quota and crash the editor.
@@ -1384,12 +1350,69 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                     {index + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-lg sm:text-2xl font-bold font-display text-[color:var(--txt-hi)] flex items-center gap-2 flex-wrap">
-                      <span className="truncate">{slot.name}</span>
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--red)' }}>
-                        {slot.selectedMeals?.length || 0} {slot.selectedMeals?.length === 1 ? 'meal' : 'meals'}
-                      </span>
-                    </h3>
+                    {(() => {
+                      const isPreset = (MEAL_SLOT_PRESETS as readonly string[]).includes(slot.name);
+                      const showCustom =
+                        customCategorySlotId === slot.id || !isPreset;
+                      const selectValue = showCustom ? '__custom__' : slot.name;
+                      return (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <label className="sr-only" htmlFor={`slot-category-${slot.id}`}>
+                              Meal category
+                            </label>
+                            <select
+                              id={`slot-category-${slot.id}`}
+                              value={selectValue}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (v === '__custom__') {
+                                  setCustomCategorySlotId(slot.id);
+                                } else {
+                                  setCustomCategorySlotId(null);
+                                  handleRenameSlot(slot.id, v);
+                                }
+                              }}
+                              className="coach-slot-category-select font-display text-base sm:text-lg font-bold text-[color:var(--txt-hi)]"
+                            >
+                              {MEAL_SLOT_PRESETS.map((preset) => (
+                                <option key={preset} value={preset}>
+                                  {preset}
+                                </option>
+                              ))}
+                              <option value="__custom__">Custom…</option>
+                            </select>
+                            <span
+                              className="px-2.5 py-0.5 rounded-full text-[11px] font-bold flex-shrink-0"
+                              style={{
+                                background: 'var(--surface-2)',
+                                border: '1px solid var(--hair)',
+                                color: 'var(--red)',
+                              }}
+                            >
+                              {slot.selectedMeals?.length || 0}{' '}
+                              {slot.selectedMeals?.length === 1 ? 'meal' : 'meals'}
+                            </span>
+                          </div>
+                          {showCustom && (
+                            <input
+                              type="text"
+                              value={slot.name}
+                              onChange={(e) => handleRenameSlot(slot.id, e.target.value)}
+                              onBlur={() => {
+                                if (!slot.name.trim()) {
+                                  handleRenameSlot(slot.id, `Meal ${index + 1}`);
+                                }
+                              }}
+                              placeholder="Custom category name"
+                              maxLength={40}
+                              className="coach-slot-category-input w-full max-w-xs"
+                              autoFocus={customCategorySlotId === slot.id}
+                            />
+                          )}
+                        </div>
+                      );
+                    })()}
                     <p className="text-[color:var(--txt-lo)] text-xs sm:text-sm mt-0.5">
                       {slot.selectedMeals?.length === 0
                         ? 'Add a meal to this slot'
@@ -1824,8 +1847,8 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
                   ))}
                 </div>
               </div>
-              <div className="text-sm text-[color:var(--txt-lo)]">
-                <p>This will create {mealsPerDay} meal slots for your client's nutrition plan.</p>
+              <div className="text-sm text-[color:var(--txt-lo)] space-y-1">
+                <p>Adds or removes meal slots. Existing meals and category names stay put — you can rename each slot afterward.</p>
               </div>
             </div>
           </div>

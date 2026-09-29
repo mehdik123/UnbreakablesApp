@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Heart, Flame, Target } from 'lucide-react';
+import { Zap, Target, Heart, Flame } from 'lucide-react';
 
 interface NutritionSummaryProps {
   nutrition: {
@@ -11,8 +11,7 @@ interface NutritionSummaryProps {
   isDark: boolean;
 }
 
-export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ nutrition, isDark }) => {
-  // Safety check for undefined nutrition
+export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ nutrition }) => {
   if (!nutrition) {
     return (
       <div className="p-8 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
@@ -33,6 +32,11 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ nutrition, i
   const fatPercentage = totalMacros > 0 ? (nutrition.fat / totalMacros) * 100 : 0;
   const carbsPercentage = totalMacros > 0 ? (nutrition.carbs / totalMacros) * 100 : 0;
 
+  // Atwater factors: protein/carbs 4 kcal/g, fat 9 kcal/g
+  const proteinKcal = Math.round(nutrition.protein * 4);
+  const fatKcal = Math.round(nutrition.fat * 9);
+  const carbsKcal = Math.round(nutrition.carbs * 4);
+
   return (
     <div className="p-8 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
       <div className="text-center mb-8">
@@ -44,7 +48,6 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ nutrition, i
         </p>
       </div>
 
-      {/* Main Nutrition Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="text-center p-6 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg">
           <div className="flex justify-center mb-3">
@@ -79,7 +82,6 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ nutrition, i
         </div>
       </div>
 
-      {/* Macro Distribution */}
       <div className="mb-8">
         <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-4 text-center">
           Macro Distribution
@@ -87,72 +89,54 @@ export const NutritionSummary: React.FC<NutritionSummaryProps> = ({ nutrition, i
         <div className="space-y-4">
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Protein</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Protein · {Math.round(nutrition.protein)}g
+              </span>
               <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                {Math.round(proteinPercentage)}%
+                {Math.round(proteinPercentage)}% · {proteinKcal} kcal
               </span>
             </div>
             <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3">
-              <div 
+              <div
                 className="bg-emerald-500 h-3 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${proteinPercentage}%` }}
-              ></div>
+              />
             </div>
           </div>
 
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Fat</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Fat · {Math.round(nutrition.fat)}g
+              </span>
               <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                {Math.round(fatPercentage)}%
+                {Math.round(fatPercentage)}% · {fatKcal} kcal
               </span>
             </div>
             <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3">
-              <div 
+              <div
                 className="bg-orange-500 h-3 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${fatPercentage}%` }}
-              ></div>
+              />
             </div>
           </div>
 
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Carbs</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Carbs · {Math.round(nutrition.carbs)}g
+              </span>
               <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                {Math.round(carbsPercentage)}%
+                {Math.round(carbsPercentage)}% · {carbsKcal} kcal
               </span>
             </div>
             <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3">
-              <div 
+              <div
                 className="bg-purple-500 h-3 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${carbsPercentage}%` }}
-              ></div>
+              />
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Additional Info */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="text-center p-4 rounded-lg bg-slate-50 dark:bg-slate-700">
-          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-1">
-            {Math.round(totalMacros)}g
-          </div>
-          <div className="text-sm text-slate-600 dark:text-slate-400">Total Macros</div>
-        </div>
-
-        <div className="text-center p-4 rounded-lg bg-slate-50 dark:bg-slate-700">
-          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-1">
-            {Math.round(nutrition.calories / 4)}g
-          </div>
-          <div className="text-sm text-slate-600 dark:text-slate-400">Calories from Carbs</div>
-        </div>
-
-        <div className="text-center p-4 rounded-lg bg-slate-50 dark:bg-slate-700">
-          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-1">
-            {Math.round(nutrition.calories / 9)}g
-          </div>
-          <div className="text-sm text-slate-600 dark:text-slate-400">Calories from Fat</div>
         </div>
       </div>
     </div>
