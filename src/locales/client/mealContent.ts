@@ -73,6 +73,10 @@ const INGREDIENTS: Record<string, Pair> = {
     ar: 'أوبتيموم سيرياس ماس فانيلا',
     fr: 'Serious Mass vanille',
   },
+  'eafit gainer max double chocolate': {
+    ar: 'إيفيت غينر ماكس شوكولا',
+    fr: 'EAFIT Gainer Max chocolat',
+  },
   'pasta, raw': { ar: 'باتا', fr: 'Pâtes' },
   'peanut butter': { ar: 'زبدة الكاوكاو', fr: 'Beurre de cacahuète' },
   'pepper, sweet, green': { ar: 'فلفلة خضرا', fr: 'Poivron vert' },

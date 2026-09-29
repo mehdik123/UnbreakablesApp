@@ -123,6 +123,17 @@ export const PORTION_RULES: PortionRule[] = [
     unitPlural: 'scoops',
   },
   {
+    // Label: 60 g serving = 2 scoops → 30 g per scoop (Double Chocolate).
+    id: 'eafit-gainer-max-scoop',
+    matches: (n) => {
+      const name = normalizeName(n);
+      return name.includes('eafit') && name.includes('gainer');
+    },
+    gramsPerUnit: 30,
+    unitSingular: 'scoop',
+    unitPlural: 'scoops',
+  },
+  {
     // Label serving is 2 heaping scoops (~340 g). 1 scoop ≈ 170 g.
     id: 'serious-mass-scoop',
     matches: (n) => {
@@ -137,7 +148,13 @@ export const PORTION_RULES: PortionRule[] = [
     id: 'whey-scoop',
     matches: (n) => {
       const name = normalizeName(n);
-      if (name.includes('body attack') || name.includes('dymatize') || name.includes('diesel') || name.includes('serious mass')) {
+      if (
+        name.includes('body attack') ||
+        name.includes('dymatize') ||
+        name.includes('diesel') ||
+        name.includes('eafit') ||
+        name.includes('serious mass')
+      ) {
         return false;
       }
       if (!name.includes('protein') && !name.includes('whey') && !name.includes('isolate')) return false;

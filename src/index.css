@@ -1114,6 +1114,92 @@
   .coach-hub-btn:active { transform: none; }
 }
 
+/* ---- App auth / route splash (coach + client) ---- */
+.app-splash {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1.5rem, var(--safe-top, 0px)) 1.25rem max(1.5rem, var(--safe-bottom, 0px));
+  background: var(--bg);
+  color: var(--txt-mid);
+}
+.app-splash-inner {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 22rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.25rem;
+}
+.app-splash-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+}
+.app-splash-logo {
+  width: 4.75rem;
+  height: 4.75rem;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 32px rgba(255, 45, 85, 0.28));
+}
+.app-splash-wordmark {
+  margin: 0;
+  font-size: clamp(1.35rem, 5vw, 1.65rem);
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--txt-hi);
+}
+.app-splash-message {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--txt-mid);
+  max-width: 16rem;
+  line-height: 1.45;
+}
+.app-splash-bar {
+  width: min(9rem, 72vw);
+}
+.app-splash-pills {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.app-splash-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--txt-mid);
+  background: var(--surface-2);
+  border: 1px solid var(--hair);
+}
+.app-splash-pill-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+}
+.app-splash-pill--red .app-splash-pill-icon { color: var(--red); }
+.app-splash-pill--green .app-splash-pill-icon { color: var(--green); }
+.app-splash-pill--blue .app-splash-pill-icon { color: var(--blue); }
+@media (prefers-reduced-motion: reduce) {
+  .app-splash-logo { filter: none; }
+}
+
 /* ---- Coach client plan shell (design-only chrome) ---- */
 .coach-plan {
   min-height: 100dvh;

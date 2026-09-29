@@ -1429,7 +1429,7 @@ function App() {
     <ToastProvider>
       {/* Show loading while checking authentication */}
       {(isCheckingAuth || isLoading) ? (
-        <ModernLoadingScreen message="Loading UnbreakableSteam..." />
+        <ModernLoadingScreen message="Loading your coaching hub…" />
       ) : (() => {
         // Check if this is a client link
         const urlParams = new URLSearchParams(window.location.search);
