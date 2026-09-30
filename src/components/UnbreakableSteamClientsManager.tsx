@@ -28,7 +28,8 @@ import {
   Layers,
   AlertTriangle,
   ArrowRight,
-  Zap
+  Zap,
+  PenLine,
 } from 'lucide-react';
 import { Client, ClientWorkoutAssignment } from '../types';
 import { ClientCredentialsManager } from './ClientCredentialsManager';
@@ -80,7 +81,7 @@ interface UnbreakableSteamClientsManagerProps {
   isDark: boolean;
   clients: Client[];
   onAddClient: (client: Client, setup?: NewClientSetupOptions) => void | Promise<void>;
-  onUpdateClient: (clientId: string, updates: Partial<Client>) => void;
+  onUpdateClient: (clientId: string, updates: Partial<Client>) => void | Promise<void>;
   onDeleteClient: (clientId: string) => void;
   onArchiveClient: (clientId: string) => void | Promise<void>;
   onRestoreClient: (clientId: string) => void | Promise<void>;
@@ -99,6 +100,7 @@ interface UnbreakableSteamClientsManagerProps {
 export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsManagerProps> = ({
   clients,
   onAddClient,
+  onUpdateClient,
   onDeleteClient,
   onArchiveClient,
   onRestoreClient,
@@ -116,6 +118,9 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [renameClient, setRenameClient] = useState<Client | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isLoading, setIsLoading] = useState(true);
   const [newClient, setNewClient] = useState({
@@ -568,7 +573,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               </h2>
               <p className="text-xs sm:text-sm" style={{ color: 'var(--txt-mid)' }}>
                 {showArchived
-                  ? 'Restore a client to show them on the main list again'
+                  ? 'Ended clients cannot open their link — restore to give access again'
                   : 'Open a client to edit nutrition and workouts'}
               </p>
             </div>
@@ -912,7 +917,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               </h3>
               <p className="text-xs sm:text-sm mb-5" style={{ color: 'var(--txt-mid)' }}>
                 {showArchived
-                  ? 'Archived clients are hidden from the main list but their data is kept.'
+                  ? 'Ended coaching — they see a thank-you page on their link. Restore to give access again.'
                   : 'Add your first client to get started'}
               </p>
               {!showArchived && (
@@ -1116,6 +1121,20 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      setRenameClient(currentClient);
+                      setRenameValue(currentClient.name);
+                      setOpenDropdownId(null);
+                      setDropdownPosition(null);
+                    }}
+                    className="w-full px-4 py-2 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2"
+                  >
+                    <PenLine className="w-4 h-4" />
+                    <span>Rename client</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
                       openDuplicateModal(currentClient);
                       setOpenDropdownId(null);
                       setDropdownPosition(null);
@@ -1153,7 +1172,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     className="w-full px-4 py-2 text-left text-green-400 hover:bg-slate-700 flex items-center space-x-2"
                   >
                     <Archive className="w-4 h-4" />
-                    <span>Restore Client</span>
+                    <span>Restore access</span>
                   </button>
                   ) : (
                   <button
@@ -1165,18 +1184,18 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                       setDropdownPosition(null);
                       if (
                         !window.confirm(
-                          `Archive ${currentClient.name}? They will be hidden from the main list but their data is kept.`
+                          `End coaching for ${currentClient.name}?\n\nThey will be moved to Archived and can no longer open their app link — they will see a thank-you message instead. You can restore them later.`
                         )
                       ) {
                         return;
                       }
                       await onArchiveClient(currentClient.id);
-                      toast.success(`${currentClient.name} archived`);
+                      toast.success(`${currentClient.name} coaching ended`);
                     }}
                     className="w-full px-4 py-2 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2"
                   >
                     <Archive className="w-4 h-4" />
-                    <span>Archive Client</span>
+                    <span>End coaching</span>
                   </button>
                   )}
                   <button
@@ -1198,6 +1217,112 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
           </div>
         </div>,
         document.body
+      )}
+
+      {/* Rename Client Modal */}
+      {renameClient && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="relative w-full max-w-md my-8">
+            <div className="absolute inset-0 rounded-3xl blur-xl bg-gradient-to-r from-red-500/20 to-red-600/20" />
+            <div
+              className="relative backdrop-blur-xl rounded-3xl shadow-2xl"
+              style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
+            >
+              <div className="flex items-center justify-between p-6 border-b border-slate-700/50">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Rename client</h2>
+                  <p className="text-slate-400 text-sm mt-1">
+                    Current name: {renameClient.name}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isRenaming) return;
+                    setRenameClient(null);
+                    setRenameValue('');
+                  }}
+                  className="p-2 rounded-lg text-slate-400 hover:text-slate-300 hover:bg-slate-700 transition-colors duration-200"
+                  disabled={isRenaming}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const next = renameValue.trim();
+                  if (!next || !renameClient) return;
+                  if (next === renameClient.name.trim()) {
+                    setRenameClient(null);
+                    return;
+                  }
+                  setIsRenaming(true);
+                  try {
+                    await Promise.resolve(onUpdateClient(renameClient.id, { name: next }));
+                    toast.success(`Renamed to ${next}`);
+                    setRenameClient(null);
+                    setRenameValue('');
+                  } catch {
+                    toast.error('Could not rename client. Try again.');
+                  } finally {
+                    setIsRenaming(false);
+                  }
+                }}
+                className="p-6 space-y-4"
+              >
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2" htmlFor="rename-client-name">
+                    New name
+                  </label>
+                  <input
+                    id="rename-client-name"
+                    type="text"
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border border-slate-600 bg-slate-700 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-300"
+                    placeholder="Client name"
+                    required
+                    maxLength={80}
+                    autoFocus
+                    disabled={isRenaming}
+                  />
+                </div>
+                <p className="text-xs text-slate-400">
+                  Their login link still works (it uses their ID). Existing credentials are unchanged.
+                </p>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRenameClient(null);
+                      setRenameValue('');
+                    }}
+                    className="flex-1 px-4 py-3 rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 transition-colors"
+                    disabled={isRenaming}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:from-red-600 hover:to-red-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+                    disabled={isRenaming || !renameValue.trim()}
+                  >
+                    {isRenaming ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving…
+                      </>
+                    ) : (
+                      'Save name'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Duplicate Program Modal */}

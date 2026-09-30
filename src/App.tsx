@@ -2,6 +2,7 @@ import { useState, useEffect, Suspense, lazy } from 'react';
 import { ModernLoadingScreen } from './components/ModernLoadingScreen';
 import { CoachLogin } from './components/CoachLogin';
 import { ClientLogin } from './components/ClientLogin';
+import { CoachingEndedScreen } from './components/CoachingEndedScreen';
 import { ToastProvider } from './contexts/ToastContext';
 import { ClientLocaleProvider } from './contexts/ClientLocaleContext';
 
@@ -55,6 +56,8 @@ import type { NewClientSetupOptions } from './components/UnbreakableSteamClients
 import { persistClientsLocally, safeLocalStorageSet, mirrorPlanLocally, reclaimLocalStorageQuotaIfNeeded } from './utils/localStorageClients';
 import {
   addLocalArchivedId,
+  isCoachingEnded,
+  isCoachingEndedFromRow,
   isEmptyDbUpdate,
   isMissingArchiveColumnError,
   removeLocalArchivedId,
@@ -67,6 +70,15 @@ function App() {
   const [authType, setAuthType] = useState<'none' | 'coach' | 'client'>(initialAuth.authType);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [sessionRestored, setSessionRestored] = useState(false);
+  /** When set, client link shows thank-you instead of login/app */
+  const [endedCoaching, setEndedCoaching] = useState<{
+    clientId: string;
+    name?: string;
+  } | null>(null);
+  const [checkingClientAccess, setCheckingClientAccess] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return !!new URLSearchParams(window.location.search).get('client');
+  });
   
   const [appState, setAppState] = useState<AppState>({
     currentView: 'clients',
@@ -101,10 +113,28 @@ function App() {
     return () => window.removeEventListener('pageshow', onPageShow);
   }, []);
 
+  const clearClientSessionForEnded = () => {
+    authService.logout();
+    setIsAuthenticated(false);
+    setAuthType('none');
+    setSessionRestored(true);
+    setAppState((prev) => ({
+      ...prev,
+      selectedClient: null,
+      currentView: 'clients',
+    }));
+  };
+
   const openClientInterface = async (clientId: string) => {
     let foundClient = appState.clients.find((c) => c.id === clientId);
 
     const openWithClient = (client: Client) => {
+      if (isCoachingEnded(client)) {
+        setEndedCoaching({ clientId: client.id, name: client.name });
+        clearClientSessionForEnded();
+        return;
+      }
+      setEndedCoaching(null);
       setAppState((prev) => ({
         ...prev,
         currentView: 'client-interface',
@@ -186,6 +216,71 @@ function App() {
     }
     return foundClient;
   };
+
+  // Client link: if coaching ended, show thank-you (before login / instead of app).
+  useEffect(() => {
+    if (isCheckingAuth || isLoading) return;
+    const shareId = new URLSearchParams(window.location.search).get('client');
+    if (!shareId) {
+      setEndedCoaching(null);
+      setCheckingClientAccess(false);
+      return;
+    }
+
+    const clientId = extractClientIdFromShareParam(shareId);
+    let cancelled = false;
+    setCheckingClientAccess(true);
+
+    (async () => {
+      try {
+        const fromList = appState.clients.find((c) => c.id === clientId);
+        if (fromList && isCoachingEnded(fromList)) {
+          if (!cancelled) {
+            setEndedCoaching({ clientId, name: fromList.name });
+            if (authType === 'client') clearClientSessionForEnded();
+          }
+          return;
+        }
+
+        if (isSupabaseReady && isAppOnline()) {
+          const { data: row } = await dbGetClientWithWorkoutAssignment(clientId);
+          if (cancelled) return;
+          if (row && isCoachingEndedFromRow(row)) {
+            setEndedCoaching({
+              clientId,
+              name: row.full_name || undefined,
+            });
+            if (authType === 'client') clearClientSessionForEnded();
+            return;
+          }
+          // Local archive fallback when DB column missing / not yet synced
+          if (resolveClientArchived(clientId, row?.is_archived)) {
+            setEndedCoaching({
+              clientId,
+              name: row?.full_name || fromList?.name,
+            });
+            if (authType === 'client') clearClientSessionForEnded();
+            return;
+          }
+        } else if (resolveClientArchived(clientId, null)) {
+          if (!cancelled) {
+            setEndedCoaching({ clientId, name: fromList?.name });
+            if (authType === 'client') clearClientSessionForEnded();
+          }
+          return;
+        }
+
+        if (!cancelled) setEndedCoaching(null);
+      } finally {
+        if (!cancelled) setCheckingClientAccess(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCheckingAuth, isLoading, authType, appState.clients]);
 
   // After refresh of a client link (?client=...), keep the client in their portal.
   // We never rewrite the URL: bare root stays on the coach login/dashboard.
@@ -633,6 +728,12 @@ function App() {
     const existing = appState.clients.find((c) => c.id === clientId) ||
       (appState.selectedClient?.id === clientId ? appState.selectedClient : null);
 
+    if (typeof updates.name === 'string') {
+      const trimmed = updates.name.trim();
+      if (!trimmed) return;
+      updates = { ...updates, name: trimmed };
+    }
+
     let nextWeeks = updates.numberOfWeeks;
     if (typeof nextWeeks === 'number' && Number.isFinite(nextWeeks)) {
       const deployedMax = Math.max(
@@ -665,6 +766,17 @@ function App() {
           last_modified_by: 'coach',
         });
       }
+
+      // Keep nutrition plan display name in sync when renaming
+      if (updates.name && existing?.nutritionPlan) {
+        const nextPlan = {
+          ...existing.nutritionPlan,
+          clientName: updates.name,
+          updatedAt: new Date(),
+        };
+        await dbUpsertNutritionPlan(clientId, nextPlan);
+        updates = { ...updates, nutritionPlan: nextPlan };
+      }
     }
 
     setAppState(prev => {
@@ -675,6 +787,18 @@ function App() {
           merged.workoutAssignment = {
             ...merged.workoutAssignment,
             duration: nextWeeks,
+          };
+        }
+        if (updates.name && merged.workoutAssignment) {
+          merged.workoutAssignment = {
+            ...merged.workoutAssignment,
+            clientName: updates.name,
+          };
+        }
+        if (updates.name && merged.nutritionPlan) {
+          merged.nutritionPlan = {
+            ...merged.nutritionPlan,
+            clientName: updates.name,
           };
         }
         return merged;
@@ -706,7 +830,7 @@ function App() {
       if (!client || client.isArchived) return prev;
       addLocalArchivedId(clientId);
       updatedClients = prev.clients.map((c) =>
-        c.id === clientId ? { ...c, isArchived: true } : c
+        c.id === clientId ? { ...c, isArchived: true, isActive: false } : c
       );
       return { ...prev, clients: updatedClients };
     });
@@ -717,10 +841,16 @@ function App() {
       return;
     }
 
-    const { data, error } = await dbUpdateClient(clientId, { is_archived: true });
+    const { data, error } = await dbUpdateClient(clientId, {
+      is_archived: true,
+      is_active: false,
+    });
     if (error) {
       if (!isMissingArchiveColumnError(error.message)) {
         console.error('Failed to archive client:', error);
+      } else {
+        // Column missing: still deactivate so the thank-you gate can use is_active
+        await dbUpdateClient(clientId, { is_active: false });
       }
       return;
     }
@@ -738,7 +868,7 @@ function App() {
       if (!client || !client.isArchived) return prev;
       removeLocalArchivedId(clientId);
       updatedClients = prev.clients.map((c) =>
-        c.id === clientId ? { ...c, isArchived: false } : c
+        c.id === clientId ? { ...c, isArchived: false, isActive: true } : c
       );
       return { ...prev, clients: updatedClients };
     });
@@ -749,7 +879,10 @@ function App() {
       return;
     }
 
-    const { data, error } = await dbUpdateClient(clientId, { is_archived: false });
+    const { data, error } = await dbUpdateClient(clientId, {
+      is_archived: false,
+      is_active: true,
+    });
     if (error) {
       if (!isMissingArchiveColumnError(error.message)) {
         console.error('Failed to restore client:', error);
@@ -757,9 +890,11 @@ function App() {
         setAppState((prev) => ({
           ...prev,
           clients: prev.clients.map((c) =>
-            c.id === clientId ? { ...c, isArchived: true } : c
+            c.id === clientId ? { ...c, isArchived: true, isActive: false } : c
           ),
         }));
+      } else {
+        await dbUpdateClient(clientId, { is_active: true });
       }
       return;
     }
@@ -769,7 +904,7 @@ function App() {
       setAppState((prev) => ({
         ...prev,
         clients: prev.clients.map((c) =>
-          c.id === clientId ? { ...c, isArchived: true } : c
+          c.id === clientId ? { ...c, isArchived: true, isActive: false } : c
         ),
       }));
     }
@@ -1428,8 +1563,12 @@ function App() {
   return (
     <ToastProvider>
       {/* Show loading while checking authentication */}
-      {(isCheckingAuth || isLoading) ? (
+      {(isCheckingAuth || isLoading || checkingClientAccess) ? (
         <ModernLoadingScreen message="Loading your coaching hub…" />
+      ) : endedCoaching ? (
+        <ClientLocaleProvider>
+          <CoachingEndedScreen clientName={endedCoaching.name} />
+        </ClientLocaleProvider>
       ) : (() => {
         // Check if this is a client link
         const urlParams = new URLSearchParams(window.location.search);

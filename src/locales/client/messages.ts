@@ -581,6 +581,14 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'login.signingIn': 'Signing in…',
     'login.help': 'Need help? Contact Mehdi.',
     'login.secureNote': 'Your credentials were provided by Mehdi with your program link.',
+
+    'ended.title': 'Thank you',
+    'ended.greeting': 'Your coaching journey with us has come to a close.',
+    'ended.greetingName': '{name}, your coaching journey with us has come to a close.',
+    'ended.body':
+      'We hope you enjoyed the work we did together — the training, the meals, and every step along the way.',
+    'ended.wish': 'We wish you the very best in everything that comes next.',
+    'ended.signoff': '— Unbreakables',
   },
   ar: {
     'modern.welcomeBack': 'مرحبًا بعودتك، {name}!',
@@ -1160,6 +1168,14 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'login.signingIn': 'جارٍ تسجيل الدخول…',
     'login.help': 'تحتاج مساعدة؟ تواصل مع مهدي.',
     'login.secureNote': 'بيانات الدخول أرسلها لك مهدي مع رابط برنامجك.',
+
+    'ended.title': 'شكرًا لك',
+    'ended.greeting': 'رحلتك معنا في التدريب وصلت إلى نهايتها.',
+    'ended.greetingName': '{name}، رحلتك معنا في التدريب وصلت إلى نهايتها.',
+    'ended.body':
+      'نتمنى أن تكون قد استمتعت بالعمل معًا — التمارين، الوجبات، وكل خطوة في الطريق.',
+    'ended.wish': 'نتمنى لك كل التوفيق في ما ينتظرك بعد ذلك.',
+    'ended.signoff': '— Unbreakables',
   },
   fr: {
     'modern.welcomeBack': 'Bon retour, {name} !',
@@ -1740,5 +1756,13 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
     'login.signingIn': 'Connexion…',
     'login.help': 'Besoin d’aide ? Contacte Mehdi.',
     'login.secureNote': 'Tes identifiants t’ont été envoyés par Mehdi avec ton lien de programme.',
+
+    'ended.title': 'Merci',
+    'ended.greeting': 'Ton parcours de coaching avec nous est terminé.',
+    'ended.greetingName': '{name}, ton parcours de coaching avec nous est terminé.',
+    'ended.body':
+      'Nous espérons que tu as apprécié le travail ensemble — l’entraînement, les repas, et chaque étape du chemin.',
+    'ended.wish': 'Nous te souhaitons le meilleur pour la suite.',
+    'ended.signoff': '— Unbreakables',
   },
 };

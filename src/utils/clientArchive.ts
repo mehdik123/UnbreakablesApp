@@ -51,6 +51,24 @@ export function isMissingArchiveColumnError(message: string | undefined): boolea
   );
 }
 
+/** True when coaching has ended — client link must not open the app. */
+export function isCoachingEnded(client: {
+  isActive?: boolean;
+  isArchived?: boolean;
+} | null | undefined): boolean {
+  if (!client) return false;
+  return client.isArchived === true || client.isActive === false;
+}
+
+/** Map DB row flags (is_active / is_archived) to coaching-ended. */
+export function isCoachingEndedFromRow(row: {
+  is_active?: boolean | null;
+  is_archived?: boolean | null;
+} | null | undefined): boolean {
+  if (!row) return false;
+  return row.is_archived === true || row.is_active === false;
+}
+
 /** True when Supabase accepted zero rows — still treat as failure for persistence. */
 export function isEmptyDbUpdate(data: unknown, error: unknown): boolean {
   return !error && !data;
