@@ -701,8 +701,8 @@ export const UltraModernNutritionEditor: React.FC<UltraModernNutritionEditorProp
           calories: totalNutrition.calories,
           protein: totalNutrition.protein,
           carbs: totalNutrition.carbs,
-          fats: totalNutrition.fats
-        }
+          fat: totalNutrition.fat,
+        },
       });
     } catch (error) {
       console.error('Export failed:', error);

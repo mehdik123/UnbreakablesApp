@@ -1,6 +1,9 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { MealSlot, SelectedMeal } from '../types';
+import { MealSlot, SelectedMeal, Ingredient } from '../types';
+import { calculateMealNutrition } from './nutritionCalculator';
+import { getEffectiveSelectedMeal } from './mealSlotOverrides';
+import { formatIngredientQuantityLabel } from './portionAnnotations';
 
 interface PDFExportOptions {
   clientName: string;
@@ -9,170 +12,199 @@ interface PDFExportOptions {
     calories: number;
     protein: number;
     carbs: number;
-    fats: number;
+    fat: number;
   };
 }
 
+function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function getMealIngredients(sm: SelectedMeal): Ingredient[] {
+  if (Array.isArray(sm.customIngredients) && sm.customIngredients.length > 0) {
+    return sm.customIngredients;
+  }
+  return sm.meal?.ingredients || [];
+}
+
+function ingredientLineCalories(ing: Ingredient): number {
+  const qty = Number(ing.quantity) || 0;
+  const kcal = Number(ing.food?.kcal) || 0;
+  return Math.round((kcal * qty) / 100);
+}
+
 export const exportEnhancedNutritionPDF = async (options: PDFExportOptions) => {
+  const { clientName, mealSlots, totalNutrition } = options;
+  let tempContainer: HTMLDivElement | null = null;
+
   try {
-    const { clientName, mealSlots, totalNutrition } = options;
+    tempContainer = document.createElement('div');
+    tempContainer.setAttribute('data-nutrition-pdf', '1');
+    // Keep on-screen but invisible — off-canvas (-9999px) often yields blank captures
+    Object.assign(tempContainer.style, {
+      position: 'fixed',
+      left: '0',
+      top: '0',
+      width: '800px',
+      padding: '40px',
+      backgroundColor: '#ffffff',
+      color: '#333333',
+      fontFamily: 'Inter, Arial, sans-serif',
+      zIndex: '0',
+      pointerEvents: 'none',
+      boxSizing: 'border-box',
+      // Keep painted for html2canvas but off-screen
+      transform: 'translateY(-12000px)',
+    });
 
-    // Create a temporary container for the PDF content
-    const tempContainer = document.createElement('div');
-    tempContainer.style.position = 'absolute';
-    tempContainer.style.left = '-9999px';
-    tempContainer.style.top = '0';
-    tempContainer.style.width = '800px';
-    tempContainer.style.backgroundColor = 'white';
-    tempContainer.style.padding = '40px';
-    tempContainer.style.fontFamily = 'Arial, sans-serif';
-    tempContainer.style.color = '#333';
+    const safeName = escapeHtml(clientName || 'Client');
+    const generatedOn = new Date().toLocaleDateString();
 
-    // Add professional header
     const header = document.createElement('div');
     header.innerHTML = `
-      <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #dc2626; padding-bottom: 20px;">
-        <h1 style="color: #dc2626; font-size: 32px; margin: 0; font-weight: bold;">UnbreakableSteam</h1>
-        <p style="color: #666; font-size: 16px; margin: 10px 0 0 0;">Professional Nutrition Coaching</p>
-        <div style="margin-top: 10px; display:inline-block; padding:6px 14px; border:1px solid #dc2626; border-radius:999px; color:#dc2626; font-weight:600;">Prepared for ${clientName}</div>
-        <p style="color: #666; font-size: 14px; margin: 10px 0 0 0;">Generated on: ${new Date().toLocaleDateString()}</p>
+      <div style="text-align:center;margin-bottom:30px;border-bottom:3px solid #dc2626;padding-bottom:20px;">
+        <h1 style="color:#dc2626;font-size:32px;margin:0;font-weight:bold;">Unbreakables</h1>
+        <p style="color:#666;font-size:16px;margin:10px 0 0 0;">Professional Nutrition Coaching</p>
+        <div style="margin-top:12px;display:inline-block;padding:6px 14px;border:1px solid #dc2626;border-radius:999px;color:#dc2626;font-weight:600;">
+          Prepared for ${safeName}
+        </div>
+        <p style="color:#666;font-size:14px;margin:10px 0 0 0;">Generated on: ${generatedOn}</p>
       </div>
     `;
     tempContainer.appendChild(header);
 
-    // Add nutrition summary
     const summary = document.createElement('div');
     summary.innerHTML = `
-      <div style="background: #f3f4f6; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-        <h2 style="color: #dc2626; font-size: 20px; margin: 0 0 15px 0;">Daily Nutrition Summary</h2>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;">
-          <div style="text-align: center;">
-            <div style="font-size: 24px; font-weight: bold; color: #dc2626;">${Math.round(totalNutrition.calories)}</div>
-            <div style="font-size: 12px; color: #666; text-transform: uppercase;">Calories</div>
+      <div style="background:#f3f4f6;border-radius:12px;padding:20px;margin-bottom:30px;">
+        <h2 style="color:#dc2626;font-size:20px;margin:0 0 15px 0;">Daily Nutrition Summary</h2>
+        <p style="margin:0 0 12px 0;color:#6b7280;font-size:12px;">
+          Totals use the first meal option in each slot (what the client sees first).
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:15px;">
+          <div style="text-align:center;">
+            <div style="font-size:24px;font-weight:bold;color:#dc2626;">${Math.round(totalNutrition.calories || 0)}</div>
+            <div style="font-size:12px;color:#666;text-transform:uppercase;">Calories</div>
           </div>
-          <div style="text-align: center;">
-            <div style="font-size: 24px; font-weight: bold; color: #3b82f6;">${Math.round(totalNutrition.protein)}g</div>
-            <div style="font-size: 12px; color: #666; text-transform: uppercase;">Protein</div>
+          <div style="text-align:center;">
+            <div style="font-size:24px;font-weight:bold;color:#3b82f6;">${Math.round(totalNutrition.protein || 0)}g</div>
+            <div style="font-size:12px;color:#666;text-transform:uppercase;">Protein</div>
           </div>
-          <div style="text-align: center;">
-            <div style="font-size: 24px; font-weight: bold; color: #10b981;">${Math.round(totalNutrition.carbs)}g</div>
-            <div style="font-size: 12px; color: #666; text-transform: uppercase;">Carbs</div>
+          <div style="text-align:center;">
+            <div style="font-size:24px;font-weight:bold;color:#10b981;">${Math.round(totalNutrition.carbs || 0)}g</div>
+            <div style="font-size:12px;color:#666;text-transform:uppercase;">Carbs</div>
           </div>
-          <div style="text-align: center;">
-            <div style="font-size: 24px; font-weight: bold; color: #f59e0b;">${Math.round(totalNutrition.fats)}g</div>
-            <div style="font-size: 12px; color: #666; text-transform: uppercase;">Fats</div>
+          <div style="text-align:center;">
+            <div style="font-size:24px;font-weight:bold;color:#f59e0b;">${Math.round(totalNutrition.fat || 0)}g</div>
+            <div style="font-size:12px;color:#666;text-transform:uppercase;">Fat</div>
           </div>
         </div>
       </div>
     `;
     tempContainer.appendChild(summary);
 
-    // Add each meal slot with ALL meal options
-    mealSlots.forEach((slot, slotIndex) => {
-      const slotSection = document.createElement('div');
-      slotSection.style.marginBottom = '40px';
-      slotSection.style.pageBreakInside = 'avoid';
+    const slots = Array.isArray(mealSlots) ? mealSlots : [];
+    if (slots.length === 0 || slots.every((s) => !(s.selectedMeals || []).length)) {
+      const empty = document.createElement('div');
+      empty.innerHTML = `
+        <div style="padding:24px;border:1px dashed #d1d5db;border-radius:12px;text-align:center;color:#6b7280;">
+          No meals in this plan yet.
+        </div>
+      `;
+      tempContainer.appendChild(empty);
+    }
 
-      // Meal slot header
+    slots.forEach((slot) => {
+      const selectedMeals = Array.isArray(slot.selectedMeals) ? slot.selectedMeals : [];
+      if (selectedMeals.length === 0) return;
+
+      const slotSection = document.createElement('div');
+      slotSection.style.marginBottom = '36px';
+
       const slotHeader = document.createElement('div');
       slotHeader.innerHTML = `
-        <div style="background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 20px;">
-          <h2 style="margin: 0; font-size: 22px; font-weight: bold;">${slot.name}</h2>
-          ${slot.selectedMeals.length > 1 ? `<p style="margin: 5px 0 0 0; font-size: 14px; opacity: 0.9;">${slot.selectedMeals.length} Options Available - Choose One</p>` : ''}
+        <div style="background:linear-gradient(135deg,#dc2626 0%,#b91c1c 100%);color:#fff;padding:14px 18px;border-radius:10px;margin-bottom:16px;">
+          <h2 style="margin:0;font-size:20px;font-weight:bold;">${escapeHtml(slot.name || 'Meal')}</h2>
+          ${
+            selectedMeals.length > 1
+              ? `<p style="margin:6px 0 0 0;font-size:13px;opacity:0.9;">${selectedMeals.length} options — choose one</p>`
+              : ''
+          }
         </div>
       `;
       slotSection.appendChild(slotHeader);
 
-      // Add all meal options
-      slot.selectedMeals.forEach((meal, mealIndex) => {
+      selectedMeals.forEach((rawMeal, mealIndex) => {
+        const effective = getEffectiveSelectedMeal(rawMeal);
+        const nutrition = calculateMealNutrition(effective);
+        const mealName = effective.meal?.name || 'Meal';
+        const ingredients = getMealIngredients(effective);
+        const instructions =
+          effective.meal?.cookingInstructions ||
+          rawMeal.meal?.cookingInstructions ||
+          '';
+
         const mealDiv = document.createElement('div');
-        mealDiv.style.marginBottom = '25px';
-        mealDiv.style.padding = '20px';
-        mealDiv.style.border = '2px solid #e5e7eb';
-        mealDiv.style.borderRadius = '10px';
-        mealDiv.style.backgroundColor = '#ffffff';
+        mealDiv.style.cssText =
+          'margin-bottom:20px;padding:18px;border:2px solid #e5e7eb;border-radius:10px;background:#fff;';
 
-        // Meal option header (if multiple options)
-        if (slot.selectedMeals.length > 1) {
-          const optionHeader = document.createElement('div');
-          optionHeader.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #dc2626;">
-              <h3 style="margin: 0; color: #dc2626; font-size: 18px; font-weight: bold;">Option ${mealIndex + 1}: ${meal.name}</h3>
-              <div style="background: #fee2e2; color: #dc2626; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
-                ${Math.round(meal.totalCalories)} cal
-              </div>
-            </div>
-          `;
-          mealDiv.appendChild(optionHeader);
-        } else {
-          const singleHeader = document.createElement('div');
-          singleHeader.innerHTML = `
-            <div style="display: flex; align-items: center; justify-between; margin-bottom: 15px;">
-              <h3 style="margin: 0; color: #dc2626; font-size: 18px; font-weight: bold;">${meal.name}</h3>
-              <div style="background: #fee2e2; color: #dc2626; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">
-                ${Math.round(meal.totalCalories)} cal
-              </div>
-            </div>
-          `;
-          mealDiv.appendChild(singleHeader);
-        }
+        const title =
+          selectedMeals.length > 1
+            ? `Option ${mealIndex + 1}: ${mealName}`
+            : mealName;
 
-        // Nutrition info
-        const nutritionDiv = document.createElement('div');
-        nutritionDiv.innerHTML = `
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; padding: 15px; background: #f9fafb; border-radius: 8px;">
-            <div style="text-align: center;">
-              <div style="font-size: 16px; font-weight: bold; color: #3b82f6;">${Math.round(meal.totalProtein)}g</div>
-              <div style="font-size: 11px; color: #666;">Protein</div>
-            </div>
-            <div style="text-align: center;">
-              <div style="font-size: 16px; font-weight: bold; color: #10b981;">${Math.round(meal.totalCarbs)}g</div>
-              <div style="font-size: 11px; color: #666;">Carbs</div>
-            </div>
-            <div style="text-align: center;">
-              <div style="font-size: 16px; font-weight: bold; color: #f59e0b;">${Math.round(meal.totalFats)}g</div>
-              <div style="font-size: 11px; color: #666;">Fats</div>
+        mealDiv.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid #fee2e2;">
+            <h3 style="margin:0;color:#dc2626;font-size:17px;font-weight:bold;">${escapeHtml(title)}</h3>
+            <div style="background:#fee2e2;color:#dc2626;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;">
+              ${Math.round(nutrition.kcal || 0)} kcal
             </div>
           </div>
-        `;
-        mealDiv.appendChild(nutritionDiv);
-
-        // Ingredients section
-        const ingredientsDiv = document.createElement('div');
-        ingredientsDiv.innerHTML = `
-          <div style="margin-bottom: 15px;">
-            <h4 style="color: #374151; font-size: 14px; font-weight: 600; margin: 0 0 10px 0; display: flex; align-items: center;">
-              <span style="display: inline-block; width: 4px; height: 14px; background: #dc2626; margin-right: 8px; border-radius: 2px;"></span>
-              Ingredients
-            </h4>
-            <ul style="margin: 0; padding-left: 20px; list-style: disc;">
-              ${meal.ingredients.map(ing => `
-                <li style="margin-bottom: 6px; color: #4b5563; font-size: 13px;">
-                  <strong>${ing.food.name}</strong> - ${ing.quantity}g 
-                  <span style="color: #9ca3af;">(${Math.round(ing.calories)} cal)</span>
-                </li>
-              `).join('')}
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;padding:12px;background:#f9fafb;border-radius:8px;">
+            <div style="text-align:center;">
+              <div style="font-size:16px;font-weight:bold;color:#3b82f6;">${Math.round(nutrition.protein || 0)}g</div>
+              <div style="font-size:11px;color:#666;">Protein</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:16px;font-weight:bold;color:#10b981;">${Math.round(nutrition.carbs || 0)}g</div>
+              <div style="font-size:11px;color:#666;">Carbs</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:16px;font-weight:bold;color:#f59e0b;">${Math.round(nutrition.fat || 0)}g</div>
+              <div style="font-size:11px;color:#666;">Fat</div>
+            </div>
+          </div>
+          <div style="margin-bottom:${instructions ? '14px' : '0'};">
+            <h4 style="color:#374151;font-size:14px;font-weight:600;margin:0 0 8px 0;">Ingredients</h4>
+            <ul style="margin:0;padding-left:18px;">
+              ${
+                ingredients.length
+                  ? ingredients
+                      .map((ing) => {
+                        const foodName = ing.food?.name || 'Ingredient';
+                        const qtyLabel = formatIngredientQuantityLabel(foodName, Number(ing.quantity) || 0);
+                        return `<li style="margin-bottom:6px;color:#4b5563;font-size:13px;">
+                          <strong>${escapeHtml(foodName)}</strong> — ${escapeHtml(qtyLabel)}
+                          <span style="color:#9ca3af;">(${ingredientLineCalories(ing)} kcal)</span>
+                        </li>`;
+                      })
+                      .join('')
+                  : `<li style="color:#9ca3af;font-size:13px;">No ingredients listed</li>`
+              }
             </ul>
           </div>
+          ${
+            instructions
+              ? `<div>
+                  <h4 style="color:#374151;font-size:14px;font-weight:600;margin:0 0 8px 0;">Cooking Instructions</h4>
+                  <p style="margin:0;color:#4b5563;font-size:13px;line-height:1.6;white-space:pre-line;">${escapeHtml(instructions)}</p>
+                </div>`
+              : ''
+          }
         `;
-        mealDiv.appendChild(ingredientsDiv);
-
-        // Cooking instructions
-        if (meal.cookingInstructions) {
-          const instructionsDiv = document.createElement('div');
-          instructionsDiv.innerHTML = `
-            <div>
-              <h4 style="color: #374151; font-size: 14px; font-weight: 600; margin: 0 0 10px 0; display: flex; align-items: center;">
-                <span style="display: inline-block; width: 4px; height: 14px; background: #dc2626; margin-right: 8px; border-radius: 2px;"></span>
-                Cooking Instructions
-              </h4>
-              <p style="margin: 0; color: #4b5563; font-size: 13px; line-height: 1.6; white-space: pre-line;">
-                ${meal.cookingInstructions}
-              </p>
-            </div>
-          `;
-          mealDiv.appendChild(instructionsDiv);
-        }
 
         slotSection.appendChild(mealDiv);
       });
@@ -180,71 +212,76 @@ export const exportEnhancedNutritionPDF = async (options: PDFExportOptions) => {
       tempContainer.appendChild(slotSection);
     });
 
-    // Add footer notes
     const footer = document.createElement('div');
     footer.innerHTML = `
-      <div style="margin-top: 40px; padding: 20px; background: #f9fafb; border-radius: 10px; border-left: 4px solid #dc2626;">
-        <h3 style="color: #dc2626; font-size: 16px; font-weight: bold; margin: 0 0 10px 0;">Important Notes</h3>
-        <ul style="margin: 0; padding-left: 20px; color: #4b5563; font-size: 13px; line-height: 1.8;">
-          <li>When multiple options are provided for a meal, choose ONE option that fits your preferences</li>
-          <li>All ingredients are measured in grams for accuracy</li>
-          <li>Meal prep tips: You can prepare multiple meals in advance and store them properly</li>
-          <li>Feel free to swap similar ingredients if needed (consult with Mehdi first)</li>
-          <li>Stay hydrated throughout the day - aim for 2-3 liters of water</li>
+      <div style="margin-top:28px;padding:18px;background:#f9fafb;border-radius:10px;border-left:4px solid #dc2626;">
+        <h3 style="color:#dc2626;font-size:15px;font-weight:bold;margin:0 0 8px 0;">Notes</h3>
+        <ul style="margin:0;padding-left:18px;color:#4b5563;font-size:13px;line-height:1.7;">
+          <li>If a slot has multiple options, pick one that fits your day.</li>
+          <li>Portions are in grams (with scoop/piece hints where available).</li>
+          <li>Message your coach for swaps or adjustments.</li>
         </ul>
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
-          <p style="margin: 0; color: #666; font-size: 12px;">
-            📞 For questions or meal modifications, contact Mehdi<br/>
-            💪 UnbreakableSteam - Professional Nutrition Coaching
-          </p>
-        </div>
       </div>
     `;
     tempContainer.appendChild(footer);
 
     document.body.appendChild(tempContainer);
 
-    // Convert to canvas and PDF
+    // Let layout settle before capture
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
     const canvas = await html2canvas(tempContainer, {
       scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
-      width: 800,
-      height: tempContainer.scrollHeight
+      logging: false,
+      windowWidth: 800,
     });
 
-    // Create PDF
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgWidth = 210;
-    const pageHeight = 295;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 8;
+    const usableWidth = pageWidth - margin * 2;
+    const imgHeight = (canvas.height * usableWidth) / canvas.width;
+
     let heightLeft = imgHeight;
+    let position = margin;
 
-    let position = 0;
+    pdf.addImage(imgData, 'PNG', margin, position, usableWidth, imgHeight);
+    heightLeft -= pageHeight - margin;
 
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-
-    while (heightLeft >= 0) {
-      position = heightLeft - imgHeight;
+    while (heightLeft > 0) {
+      position = margin - (imgHeight - heightLeft);
       pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'PNG', margin, position, usableWidth, imgHeight);
       heightLeft -= pageHeight;
     }
 
-    // Save the PDF
-    pdf.save(`${clientName.replace(/\s+/g, '_')}_NutritionPlan_${new Date().toISOString().split('T')[0]}.pdf`);
+    const pageCount = pdf.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(9);
+      pdf.setTextColor(120);
+      pdf.text('Unbreakables — Nutrition Plan', margin, pageHeight - 6);
+      pdf.text(`Page ${i} / ${pageCount}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
+    }
 
-    // Clean up
-    document.body.removeChild(tempContainer);
+    const fileSafe = String(clientName || 'Client')
+      .replace(/[^\w\-]+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
+    pdf.save(`${fileSafe || 'Client'}_NutritionPlan_${new Date().toISOString().slice(0, 10)}.pdf`);
 
     return true;
   } catch (error) {
     console.error('Error exporting PDF:', error);
-    alert('Error generating PDF. Please try again.');
-    return false;
+    throw error;
+  } finally {
+    if (tempContainer?.parentNode) {
+      tempContainer.parentNode.removeChild(tempContainer);
+    }
   }
 };
-
