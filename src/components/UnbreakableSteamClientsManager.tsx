@@ -1210,7 +1210,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     className="w-full px-4 py-2 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2"
                   >
                     <Archive className="w-4 h-4" />
-                    <span>Archive</span>
+                    <span>Archive client</span>
                   </button>
                   <button
                     type="button"
