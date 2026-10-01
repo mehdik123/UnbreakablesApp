@@ -30,6 +30,7 @@ import {
   ArrowRight,
   Zap,
   PenLine,
+  Handshake,
 } from 'lucide-react';
 import { Client, ClientWorkoutAssignment } from '../types';
 import { ClientCredentialsManager } from './ClientCredentialsManager';
@@ -85,6 +86,7 @@ interface UnbreakableSteamClientsManagerProps {
   onDeleteClient: (clientId: string) => void;
   onArchiveClient: (clientId: string) => void | Promise<void>;
   onRestoreClient: (clientId: string) => void | Promise<void>;
+  onEndCoaching: (clientId: string) => void | Promise<void>;
   onAssignNutritionPlan: (clientId: string, plan: any) => void;
   onAssignWorkoutPlan: (clientId: string, assignment: ClientWorkoutAssignment) => void;
   onShareWithClient: (client: Client) => void;
@@ -104,6 +106,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
   onDeleteClient,
   onArchiveClient,
   onRestoreClient,
+  onEndCoaching,
   onShareWithClient,
   onNavigateToClientPlan,
   onDuplicateClient,
@@ -573,7 +576,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               </h2>
               <p className="text-xs sm:text-sm" style={{ color: 'var(--txt-mid)' }}>
                 {showArchived
-                  ? 'Ended clients cannot open their link — restore to give access again'
+                  ? 'Paused clients keep their data. Ended clients only keep a thank-you stub.'
                   : 'Open a client to edit nutrition and workouts'}
               </p>
             </div>
@@ -697,8 +700,8 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                           <div className="font-display tnum">{clientWeightLabel(client)}</div>
                         </td>
                         <td>
-                          <span className={`coach-client-status ${client.isActive ? 'is-on' : ''}`}>
-                            {client.isActive ? 'Active' : 'Inactive'}
+                          <span className={`coach-client-status ${client.isActive !== false && !client.isArchived ? 'is-on' : ''}`}>
+                            {client.isActive === false ? 'Ended' : client.isArchived ? 'Paused' : 'Active'}
                           </span>
                         </td>
                         <td>
@@ -785,7 +788,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     <div className="min-w-0 flex-1">
                       <h3 className="coach-client-name font-saira truncate">{client.name}</h3>
                       <p className="coach-client-email">
-                        {client.isActive ? 'Active' : 'Inactive'}
+                        {client.isActive === false ? 'Ended' : client.isArchived ? 'Paused' : 'Active'}
                         {client.email ? ` · ${client.email}` : ''}
                       </p>
                     </div>
@@ -841,8 +844,8 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                       <h3 className="coach-client-name font-saira truncate">{client.name}</h3>
                       <p className="coach-client-email">{client.email}</p>
                     </div>
-                    <span className={`coach-client-status ${client.isActive ? 'is-on' : ''}`}>
-                      {client.isActive ? 'Active' : 'Inactive'}
+                    <span className={`coach-client-status ${client.isActive !== false && !client.isArchived ? 'is-on' : ''}`}>
+                      {client.isActive === false ? 'Ended' : client.isArchived ? 'Paused' : 'Active'}
                     </span>
                   </div>
 
@@ -917,7 +920,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
               </h3>
               <p className="text-xs sm:text-sm mb-5" style={{ color: 'var(--txt-mid)' }}>
                 {showArchived
-                  ? 'Ended coaching — they see a thank-you page on their link. Restore to give access again.'
+                  ? 'Archive pauses someone without deleting data. End coaching wipes their program permanently.'
                   : 'Add your first client to get started'}
               </p>
               {!showArchived && (
@@ -1159,6 +1162,16 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     <span>Manage Credentials</span>
                   </button>
                   {showArchived ? (
+                  currentClient.isActive === false ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full px-4 py-2 text-left text-slate-500 flex items-center space-x-2 cursor-default"
+                  >
+                    <Archive className="w-4 h-4" />
+                    <span>Coaching ended (data removed)</span>
+                  </button>
+                  ) : (
                   <button
                     type="button"
                     onClick={async (e) => {
@@ -1172,9 +1185,11 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     className="w-full px-4 py-2 text-left text-green-400 hover:bg-slate-700 flex items-center space-x-2"
                   >
                     <Archive className="w-4 h-4" />
-                    <span>Restore access</span>
+                    <span>Restore from archive</span>
                   </button>
+                  )
                   ) : (
+                  <>
                   <button
                     type="button"
                     onClick={async (e) => {
@@ -1184,19 +1199,49 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                       setDropdownPosition(null);
                       if (
                         !window.confirm(
-                          `End coaching for ${currentClient.name}?\n\nThey will be moved to Archived and can no longer open their app link — they will see a thank-you message instead. You can restore them later.`
+                          `Archive ${currentClient.name}?\n\nThey leave the main list until you restore them. Their program and data stay intact (pause for personal reasons).`
                         )
                       ) {
                         return;
                       }
                       await onArchiveClient(currentClient.id);
-                      toast.success(`${currentClient.name} coaching ended`);
+                      toast.success(`${currentClient.name} archived`);
                     }}
                     className="w-full px-4 py-2 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2"
                   >
                     <Archive className="w-4 h-4" />
+                    <span>Archive</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setOpenDropdownId(null);
+                      setDropdownPosition(null);
+                      if (
+                        !window.confirm(
+                          `End coaching for ${currentClient.name}?\n\nThis permanently deletes their meals, workout, cardio, photos, weight logs, and performance data. Their link will only show a thank-you message from you. This cannot be undone.`
+                        )
+                      ) {
+                        return;
+                      }
+                      if (
+                        !window.confirm(
+                          `Last check: wipe all coaching data for ${currentClient.name}?`
+                        )
+                      ) {
+                        return;
+                      }
+                      await onEndCoaching(currentClient.id);
+                      toast.success(`Coaching ended for ${currentClient.name}`);
+                    }}
+                    className="w-full px-4 py-2 text-left text-amber-400 hover:bg-slate-700 flex items-center space-x-2"
+                  >
+                    <Handshake className="w-4 h-4" />
                     <span>End coaching</span>
                   </button>
+                  </>
                   )}
                   <button
                     onClick={() => {

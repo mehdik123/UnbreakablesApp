@@ -35,7 +35,7 @@ import { foods as defaultFoods } from './data/foods';
 import { meals as defaultMeals } from './data/meals';
 import { exercises as defaultExercises } from './data/exercises';
 import { supabase, isSupabaseReady } from './lib/supabaseClient';
-import { dbListClients, dbListClientsWithWorkoutAssignments, dbGetClientWithWorkoutAssignment, dbAddClient, dbUpdateClient, dbDeleteClient, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment, dbUpsertNutritionPlan, dbGetNutritionPlan, dbGetCardioPlan, dbListWorkoutPrograms } from './lib/db';
+import { dbListClients, dbListClientsWithWorkoutAssignments, dbGetClientWithWorkoutAssignment, dbAddClient, dbUpdateClient, dbDeleteClient, dbEndClientCoaching, dbListExercises, dbAddExercise, dbUpdateExercise, dbDeleteExercise, dbCreateWorkoutAssignment, dbUpdateWorkoutAssignment, dbGetClientWorkoutAssignment, dbUpsertNutritionPlan, dbGetNutritionPlan, dbGetCardioPlan, dbListWorkoutPrograms } from './lib/db';
 import {
   buildClientFromSnapshot,
   isAppOnline,
@@ -253,21 +253,6 @@ function App() {
             if (authType === 'client') clearClientSessionForEnded();
             return;
           }
-          // Local archive fallback when DB column missing / not yet synced
-          if (resolveClientArchived(clientId, row?.is_archived)) {
-            setEndedCoaching({
-              clientId,
-              name: row?.full_name || fromList?.name,
-            });
-            if (authType === 'client') clearClientSessionForEnded();
-            return;
-          }
-        } else if (resolveClientArchived(clientId, null)) {
-          if (!cancelled) {
-            setEndedCoaching({ clientId, name: fromList?.name });
-            if (authType === 'client') clearClientSessionForEnded();
-          }
-          return;
         }
 
         if (!cancelled) setEndedCoaching(null);
@@ -829,8 +814,9 @@ function App() {
       const client = prev.clients.find((c) => c.id === clientId);
       if (!client || client.isArchived) return prev;
       addLocalArchivedId(clientId);
+      // Pause only: hide from main list, keep data + app access
       updatedClients = prev.clients.map((c) =>
-        c.id === clientId ? { ...c, isArchived: true, isActive: false } : c
+        c.id === clientId ? { ...c, isArchived: true } : c
       );
       return { ...prev, clients: updatedClients };
     });
@@ -841,16 +827,10 @@ function App() {
       return;
     }
 
-    const { data, error } = await dbUpdateClient(clientId, {
-      is_archived: true,
-      is_active: false,
-    });
+    const { data, error } = await dbUpdateClient(clientId, { is_archived: true });
     if (error) {
       if (!isMissingArchiveColumnError(error.message)) {
         console.error('Failed to archive client:', error);
-      } else {
-        // Column missing: still deactivate so the thank-you gate can use is_active
-        await dbUpdateClient(clientId, { is_active: false });
       }
       return;
     }
@@ -865,10 +845,11 @@ function App() {
     let updatedClients: Client[] | null = null;
     setAppState((prev) => {
       const client = prev.clients.find((c) => c.id === clientId);
-      if (!client || !client.isArchived) return prev;
+      // Do not "restore" permanently ended clients (data already wiped)
+      if (!client || !client.isArchived || client.isActive === false) return prev;
       removeLocalArchivedId(clientId);
       updatedClients = prev.clients.map((c) =>
-        c.id === clientId ? { ...c, isArchived: false, isActive: true } : c
+        c.id === clientId ? { ...c, isArchived: false } : c
       );
       return { ...prev, clients: updatedClients };
     });
@@ -879,10 +860,7 @@ function App() {
       return;
     }
 
-    const { data, error } = await dbUpdateClient(clientId, {
-      is_archived: false,
-      is_active: true,
-    });
+    const { data, error } = await dbUpdateClient(clientId, { is_archived: false });
     if (error) {
       if (!isMissingArchiveColumnError(error.message)) {
         console.error('Failed to restore client:', error);
@@ -890,11 +868,9 @@ function App() {
         setAppState((prev) => ({
           ...prev,
           clients: prev.clients.map((c) =>
-            c.id === clientId ? { ...c, isArchived: true, isActive: false } : c
+            c.id === clientId ? { ...c, isArchived: true } : c
           ),
         }));
-      } else {
-        await dbUpdateClient(clientId, { is_active: true });
       }
       return;
     }
@@ -904,10 +880,64 @@ function App() {
       setAppState((prev) => ({
         ...prev,
         clients: prev.clients.map((c) =>
-          c.id === clientId ? { ...c, isArchived: true, isActive: false } : c
+          c.id === clientId ? { ...c, isArchived: true } : c
         ),
       }));
     }
+  };
+
+  /** Permanent goodbye: wipe plans/performance, thank-you on their link. */
+  const handleEndCoaching = async (clientId: string) => {
+    const client = appState.clients.find((c) => c.id === clientId);
+    if (!client) return;
+
+    if (isSupabaseReady) {
+      await dbEndClientCoaching(clientId);
+    }
+
+    addLocalArchivedId(clientId);
+
+    // Clear local drafts / offline snapshot for this client
+    try {
+      localStorage.removeItem(`nutrition_plan_${clientId}`);
+      localStorage.removeItem(`nutrition_editor_${clientId}`);
+      localStorage.removeItem(`cardio_plan_${clientId}`);
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.includes(clientId)) keysToRemove.push(k);
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+    } catch {
+      /* ignore */
+    }
+
+    setAppState((prev) => {
+      const updatedClients = prev.clients.map((c) =>
+        c.id === clientId
+          ? {
+              ...c,
+              isActive: false,
+              isArchived: true,
+              nutritionPlan: undefined,
+              workoutAssignment: undefined,
+              cardioPlan: undefined,
+              weightLog: [],
+              favorites: [],
+              startingWeight: undefined,
+            }
+          : c
+      );
+      persistClientsLocally(updatedClients);
+      return {
+        ...prev,
+        clients: updatedClients,
+        selectedClient:
+          prev.selectedClient?.id === clientId ? null : prev.selectedClient,
+        currentView:
+          prev.selectedClient?.id === clientId ? 'clients' : prev.currentView,
+      };
+    });
   };
 
   const handleDuplicateClient = async (
@@ -1641,6 +1671,7 @@ function App() {
               onDeleteClient={handleDeleteClient}
               onArchiveClient={handleArchiveClient}
               onRestoreClient={handleRestoreClient}
+              onEndCoaching={handleEndCoaching}
               onAssignNutritionPlan={handleAssignNutritionPlan}
               onAssignWorkoutPlan={handleAssignWorkoutPlan}
               onShareWithClient={handleShareWithClient}

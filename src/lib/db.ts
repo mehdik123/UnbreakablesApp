@@ -739,4 +739,89 @@ export async function dbDeleteCardioTemplate(id: string): Promise<DBResult<boole
   return { data: !error, error };
 }
 
+/**
+ * Permanently end coaching: wipe plan/performance data, deactivate access.
+ * Keeps the client row (name) so their link can show the thank-you screen.
+ */
+export async function dbEndClientCoaching(clientId: string): Promise<DBResult<boolean>> {
+  if (!isSupabaseReady || !supabase) return { data: false };
+
+  const errors: string[] = [];
+
+  const run = async (label: string, fn: () => PromiseLike<{ error: any }>) => {
+    const { error } = await fn();
+    if (error) {
+      console.warn(`[end coaching] ${label}:`, error.message || error);
+      errors.push(label);
+    }
+  };
+
+  // Progress photos (DB + storage folder)
+  const { data: photos } = await supabase
+    .from('weekly_photos')
+    .select('id, image_url')
+    .eq('client_id', clientId);
+  if (photos?.length) {
+    const paths: string[] = [];
+    for (const p of photos) {
+      const url = String(p.image_url || '');
+      const marker = '/weekly-photos/';
+      const idx = url.indexOf(marker);
+      if (idx >= 0) paths.push(decodeURIComponent(url.slice(idx + marker.length).split('?')[0]));
+    }
+    if (paths.length) {
+      await supabase.storage.from('weekly-photos').remove(paths);
+    }
+  }
+  await run('weekly_photos', () =>
+    supabase!.from('weekly_photos').delete().eq('client_id', clientId)
+  );
+
+  await run('nutrition_plans', () =>
+    supabase!.from('nutrition_plans').delete().eq('client_id', clientId)
+  );
+  await run('workout_assignments', () =>
+    supabase!.from('workout_assignments').delete().eq('client_id', clientId)
+  );
+  await run('cardio_plans', () =>
+    supabase!.from('cardio_plans').delete().eq('client_id', clientId)
+  );
+  await run('weekly_volume_tracking', () =>
+    supabase!.from('weekly_volume_tracking').delete().eq('client_id', clientId)
+  );
+  await run('client_weight_logs', () =>
+    supabase!.from('client_weight_logs').delete().eq('client_id', clientId)
+  );
+  await run('client_personal_records', () =>
+    supabase!.from('client_personal_records').delete().eq('client_id', clientId)
+  );
+  await run('client_supplements', () =>
+    supabase!.from('client_supplements').delete().eq('client_id', clientId)
+  );
+  await run('client_hydration', () =>
+    supabase!.from('client_hydration').delete().eq('client_id', clientId)
+  );
+  await run('client_credentials', () =>
+    supabase!.from('client_credentials').delete().eq('client_id', clientId)
+  );
+
+  // Stub remains for thank-you gate; archive so they leave the active list
+  const { error: clientErr } = await supabase
+    .from('clients')
+    .update({
+      is_active: false,
+      is_archived: true,
+      weight_log: [],
+      favorites: [],
+      starting_weight: null,
+    })
+    .eq('id', clientId);
+  if (clientErr) {
+    console.warn('[end coaching] clients update:', clientErr.message);
+    errors.push('clients');
+  }
+
+  return { data: errors.length === 0, error: errors.length ? { message: errors.join(', ') } : null };
+}
+
 
