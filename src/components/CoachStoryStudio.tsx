@@ -7,6 +7,7 @@ import {
   DEFAULT_STORY_FOCUS,
   loadStoryImage,
   renderCheckInStory,
+  renderCollageStory,
   renderReceiptStory,
   renderTrendStory,
   type StoryImageFocus,
@@ -19,14 +20,40 @@ type Props = {
   onBack: () => void;
 };
 
+type CollageSlot = {
+  clientId: string;
+  pose: StoryPose;
+  week: number | null;
+  focus: StoryImageFocus;
+};
+
 const POSES: StoryPose[] = ['front', 'side', 'back'];
 const KINDS: { id: StoryKind; label: string }[] = [
   { id: 'checkin', label: 'Check-in' },
   { id: 'trend', label: 'Trend' },
   { id: 'receipt', label: 'Receipt' },
+  { id: 'collage4', label: '4 photos' },
+  { id: 'collage6', label: '6 photos' },
 ];
 
 const DEFAULT_CTA = 'DM to start your plan';
+
+function isCollageKind(kind: StoryKind): kind is 'collage4' | 'collage6' {
+  return kind === 'collage4' || kind === 'collage6';
+}
+
+function collageSlotCount(kind: StoryKind): number {
+  return kind === 'collage6' ? 6 : 4;
+}
+
+function emptyCollageSlots(count: number, fallbackClientId: string): CollageSlot[] {
+  return Array.from({ length: count }, () => ({
+    clientId: fallbackClientId,
+    pose: 'front' as StoryPose,
+    week: null,
+    focus: { ...DEFAULT_STORY_FOCUS },
+  }));
+}
 
 function countSessions(client: Client): number {
   const weeks = client.workoutAssignment?.weeks || [];
@@ -149,10 +176,15 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
   const [endWeek, setEndWeek] = useState<number | null>(null);
   const [showName, setShowName] = useState(true);
   const [cta, setCta] = useState(DEFAULT_CTA);
+  const [collageTitle, setCollageTitle] = useState('');
   const [startFocus, setStartFocus] = useState<StoryImageFocus>({ ...DEFAULT_STORY_FOCUS });
   const [endFocus, setEndFocus] = useState<StoryImageFocus>({ ...DEFAULT_STORY_FOCUS });
   const [photos, setPhotos] = useState<WeeklyPhoto[]>([]);
   const [weights, setWeights] = useState<{ weight: number; weekNumber?: number; date: Date }[]>([]);
+  const [photoCache, setPhotoCache] = useState<Record<string, WeeklyPhoto[]>>({});
+  const [collageSlots, setCollageSlots] = useState<CollageSlot[]>(() =>
+    emptyCollageSlots(4, activeClients[0]?.id || '')
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
@@ -160,9 +192,29 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
   const [saving, setSaving] = useState(false);
 
   const client = activeClients.find((c) => c.id === clientId) || null;
+  const collageMode = isCollageKind(kind);
 
   useEffect(() => {
-    if (!clientId) return;
+    if (!collageMode) return;
+    const count = collageSlotCount(kind);
+    setCollageSlots((prev) => {
+      const fallback = activeClients[0]?.id || '';
+      if (prev.length === count) return prev;
+      if (prev.length < count) {
+        return [
+          ...prev,
+          ...emptyCollageSlots(count - prev.length, fallback).map((slot, i) => ({
+            ...slot,
+            clientId: prev[i % Math.max(prev.length, 1)]?.clientId || fallback,
+          })),
+        ];
+      }
+      return prev.slice(0, count);
+    });
+  }, [kind, collageMode, activeClients]);
+
+  useEffect(() => {
+    if (!clientId || collageMode) return;
     let cancelled = false;
     setLoading(true);
     setError('');
@@ -192,7 +244,67 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
     return () => {
       cancelled = true;
     };
-  }, [clientId]);
+  }, [clientId, collageMode]);
+
+  // Load photos for every client used in collage slots
+  useEffect(() => {
+    if (!collageMode) return;
+    const ids = [...new Set(collageSlots.map((s) => s.clientId).filter(Boolean))];
+    const missing = ids.filter((id) => !photoCache[id]);
+    if (!missing.length) return;
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const results = await Promise.all(
+          missing.map(async (id) => {
+            const res = await dbGetClientPhotos(id);
+            return [id, res.data || []] as const;
+          })
+        );
+        if (cancelled) return;
+        setPhotoCache((prev) => {
+          const next = { ...prev };
+          for (const [id, list] of results) next[id] = list;
+          return next;
+        });
+      } catch {
+        if (!cancelled) setError('Could not load photos for collage. Try again.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [collageMode, collageSlots.map((s) => s.clientId).join('|'), Object.keys(photoCache).join('|')]);
+
+  // Auto-pick first available week when slot client/pose changes
+  useEffect(() => {
+    if (!collageMode) return;
+    setCollageSlots((prev) => {
+      let changed = false;
+      const next = prev.map((slot) => {
+        const list = (photoCache[slot.clientId] || []).filter(
+          (p) => p.type === slot.pose && photoUrl(p)
+        );
+        const weeks = [...new Set(list.map((p) => p.week))].sort((a, b) => a - b);
+        if (!weeks.length) {
+          if (slot.week != null) {
+            changed = true;
+            return { ...slot, week: null };
+          }
+          return slot;
+        }
+        if (slot.week == null || !weeks.includes(slot.week)) {
+          changed = true;
+          return { ...slot, week: weeks[weeks.length - 1] };
+        }
+        return slot;
+      });
+      return changed ? next : prev;
+    });
+  }, [collageMode, photoCache, collageSlots.map((s) => `${s.clientId}:${s.pose}`).join('|')]);
 
   const posePhotos = useMemo(
     () => photos.filter((p) => p.type === pose && photoUrl(p)),
@@ -204,6 +316,7 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
   );
 
   useEffect(() => {
+    if (collageMode) return;
     if (!weeks.length) {
       setStartWeek(null);
       setEndWeek(null);
@@ -211,7 +324,7 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
     }
     setStartWeek(weeks[0]);
     setEndWeek(weeks[weeks.length - 1]);
-  }, [clientId, pose, weeks.join(',')]);
+  }, [clientId, pose, weeks.join(','), collageMode]);
 
   useEffect(() => {
     setStartFocus({ ...DEFAULT_STORY_FOCUS });
@@ -226,8 +339,81 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
     [weights]
   );
 
+  const updateCollageSlot = (index: number, patch: Partial<CollageSlot>) => {
+    setCollageSlots((prev) =>
+      prev.map((slot, i) => {
+        if (i !== index) return slot;
+        const next = { ...slot, ...patch };
+        if (patch.clientId != null || patch.pose != null) {
+          next.focus = { ...DEFAULT_STORY_FOCUS };
+          if (patch.week === undefined) next.week = null;
+        }
+        return next;
+      })
+    );
+  };
+
+  const weeksForSlot = (slot: CollageSlot): number[] => {
+    const list = (photoCache[slot.clientId] || []).filter(
+      (p) => p.type === slot.pose && photoUrl(p)
+    );
+    return [...new Set(list.map((p) => p.week))].sort((a, b) => a - b);
+  };
+
+  const photoForSlot = (slot: CollageSlot): WeeklyPhoto | null => {
+    if (slot.week == null) return null;
+    return (
+      (photoCache[slot.clientId] || []).find(
+        (p) => p.type === slot.pose && p.week === slot.week && photoUrl(p)
+      ) || null
+    );
+  };
+
   useEffect(() => {
     let cancelled = false;
+
+    if (collageMode) {
+      setRendering(true);
+      const timer = window.setTimeout(() => {
+        (async () => {
+          try {
+            const slots = await Promise.all(
+              collageSlots.map(async (slot) => {
+                const photo = photoForSlot(slot);
+                const clientRow = activeClients.find((c) => c.id === slot.clientId);
+                const image = photo
+                  ? await loadStoryImage(photoUrl(photo)).catch(() => null)
+                  : null;
+                return {
+                  image,
+                  week: slot.week,
+                  pose: slot.pose,
+                  firstName: showName && clientRow ? firstName(clientRow.name) : null,
+                  focus: slot.focus,
+                };
+              })
+            );
+            if (cancelled) return;
+            const canvas = await renderCollageStory({
+              title: collageTitle.trim() || undefined,
+              slots,
+              showNames: showName,
+              cta,
+            });
+            if (!cancelled) setPreviewUrl(canvas.toDataURL('image/png'));
+          } catch {
+            if (!cancelled) setError('Could not build the story preview.');
+          } finally {
+            if (!cancelled) setRendering(false);
+          }
+        })();
+      }, 140);
+      return () => {
+        cancelled = true;
+        window.clearTimeout(timer);
+      };
+    }
+
     if (!client) {
       setPreviewUrl('');
       return;
@@ -297,18 +483,40 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [kind, client, pose, startWeek, endWeek, showName, startPhoto, endPhoto, weights, sortedWeights, photos, startFocus, endFocus, cta]);
+  }, [
+    kind,
+    client,
+    pose,
+    startWeek,
+    endWeek,
+    showName,
+    startPhoto,
+    endPhoto,
+    weights,
+    sortedWeights,
+    photos,
+    startFocus,
+    endFocus,
+    cta,
+    collageMode,
+    collageSlots,
+    photoCache,
+    collageTitle,
+    activeClients,
+  ]);
 
   const saveStory = async () => {
-    if (!previewUrl || !client) return;
+    if (!previewUrl) return;
+    if (!collageMode && !client) return;
     setSaving(true);
     setError('');
     try {
       const res = await fetch(previewUrl);
       const blob = await res.blob();
-      const file = new File([blob], `unbreakables-${kind}-${firstName(client.name) || 'client'}.png`, {
-        type: 'image/png',
-      });
+      const tag = collageMode
+        ? kind
+        : `${kind}-${firstName(client!.name) || 'client'}`;
+      const file = new File([blob], `unbreakables-${tag}.png`, { type: 'image/png' });
       const canShare = typeof navigator.share === 'function' && (!navigator.canShare || navigator.canShare({ files: [file] }));
       if (canShare) {
         await navigator.share({ files: [file], title: 'Unbreakables story' });
@@ -371,19 +579,21 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
             </div>
           </div>
 
-          <label className="block">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">Client</span>
-            <select
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              className="mt-1 w-full min-h-12 rounded-xl px-3 text-[color:var(--txt-hi)]"
-              style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', fontSize: 16 }}
-            >
-              {activeClients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </label>
+          {!collageMode && (
+            <label className="block">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">Client</span>
+              <select
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                className="mt-1 w-full min-h-12 rounded-xl px-3 text-[color:var(--txt-hi)]"
+                style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', fontSize: 16 }}
+              >
+                {activeClients.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {kind === 'checkin' && (
             <>
@@ -457,13 +667,124 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
             </>
           )}
 
+          {collageMode && (
+            <div className="space-y-3">
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">Title</span>
+                <input
+                  value={collageTitle}
+                  onChange={(e) => setCollageTitle(e.target.value)}
+                  placeholder={kind === 'collage6' ? 'SQUAD' : 'CHECK-INS'}
+                  className="mt-1 w-full min-h-12 rounded-xl px-3 text-[color:var(--txt-hi)]"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', fontSize: 16 }}
+                />
+              </label>
+              <p className="text-xs text-[color:var(--txt-mid)]">
+                Pick any client, week, and angle per slot. Mix people freely.
+              </p>
+              {collageSlots.map((slot, index) => {
+                const slotWeeks = weeksForSlot(slot);
+                const slotPhoto = photoForSlot(slot);
+                const thumb = slotPhoto ? photoUrl(slotPhoto) : '';
+                return (
+                  <div
+                    key={index}
+                    className="rounded-xl p-3 space-y-2"
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">
+                        Slot {index + 1}
+                      </span>
+                      {thumb ? (
+                        <img
+                          src={thumb}
+                          alt=""
+                          className="w-10 h-10 rounded-lg object-cover"
+                          style={{ border: '1px solid var(--hair)' }}
+                        />
+                      ) : (
+                        <div
+                          className="w-10 h-10 rounded-lg flex items-center justify-center"
+                          style={{ background: 'var(--surface-3)', border: '1px solid var(--hair)' }}
+                        >
+                          <ImageIcon className="w-4 h-4 text-[color:var(--txt-lo)]" />
+                        </div>
+                      )}
+                    </div>
+                    <label className="block">
+                      <span className="text-[11px] text-[color:var(--txt-lo)]">Client</span>
+                      <select
+                        value={slot.clientId}
+                        onChange={(e) => updateCollageSlot(index, { clientId: e.target.value })}
+                        className="mt-1 w-full min-h-11 rounded-xl px-3 text-[color:var(--txt-hi)]"
+                        style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)', fontSize: 16 }}
+                      >
+                        {activeClients.map((c) => (
+                          <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <div>
+                      <span className="text-[11px] text-[color:var(--txt-lo)]">Angle</span>
+                      <div className="mt-1 grid grid-cols-3 gap-1.5">
+                        {POSES.map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            onClick={() => updateCollageSlot(index, { pose: item })}
+                            className="min-h-10 rounded-lg text-xs font-semibold capitalize"
+                            style={{
+                              background: slot.pose === item ? 'var(--grad-red)' : 'var(--surface-1)',
+                              color: slot.pose === item ? '#fff' : 'var(--txt-hi)',
+                              border: '1px solid var(--hair)',
+                              touchAction: 'manipulation',
+                            }}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <label className="block">
+                      <span className="text-[11px] text-[color:var(--txt-lo)]">Week</span>
+                      <select
+                        value={slot.week ?? ''}
+                        onChange={(e) => updateCollageSlot(index, { week: Number(e.target.value) })}
+                        disabled={!slotWeeks.length}
+                        className="mt-1 w-full min-h-11 rounded-xl px-3 text-[color:var(--txt-hi)]"
+                        style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)', fontSize: 16 }}
+                      >
+                        {!slotWeeks.length && <option value="">No photos</option>}
+                        {slotWeeks.map((week) => (
+                          <option key={week} value={week}>Week {week} · {slot.pose}</option>
+                        ))}
+                      </select>
+                    </label>
+                    {slotPhoto && (
+                      <FocusControls
+                        label="Frame"
+                        focus={slot.focus}
+                        onChange={(focus) => updateCollageSlot(index, { focus })}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => setShowName((v) => !v)}
             className="min-h-12 w-full rounded-xl px-3 text-sm font-semibold text-left"
             style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)', touchAction: 'manipulation' }}
           >
-            {showName ? 'First name is shown' : 'Name is hidden'}
+            {showName
+              ? collageMode
+                ? 'First names on each photo'
+                : 'First name is shown'
+              : 'Name is hidden'}
           </button>
 
           <label className="block">
@@ -497,7 +818,13 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
               ) : (
                 <div className="h-full flex flex-col items-center justify-center gap-2 text-[color:var(--txt-mid)] px-6 text-center">
                   <ImageIcon className="w-8 h-8" />
-                  <p className="text-sm">{loading || rendering ? 'Building preview…' : 'Pick a client to preview the story'}</p>
+                  <p className="text-sm">
+                    {loading || rendering
+                      ? 'Building preview…'
+                      : collageMode
+                        ? 'Pick photos for each slot'
+                        : 'Pick a client to preview the story'}
+                  </p>
                 </div>
               )}
             </div>

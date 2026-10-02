@@ -1,4 +1,4 @@
-export type StoryKind = 'checkin' | 'trend' | 'receipt';
+export type StoryKind = 'checkin' | 'trend' | 'receipt' | 'collage4' | 'collage6';
 
 export type StoryPose = 'front' | 'side' | 'back';
 
@@ -525,6 +525,119 @@ export async function renderReceiptStory(input: ReceiptStoryInput): Promise<HTML
     ctx.font = '600 20px Inter, system-ui, sans-serif';
     ctx.fillText(row.hint, 112, y + 186);
   });
+
+  paintCta(ctx, input.cta);
+  return canvas;
+}
+
+export type CollageStorySlot = {
+  image: CanvasImageSource | null;
+  week: number | null;
+  pose: StoryPose | null;
+  firstName: string | null;
+  focus?: StoryImageFocus;
+};
+
+export type CollageStoryInput = {
+  title?: string;
+  slots: CollageStorySlot[];
+  showNames?: boolean;
+  cta?: string;
+};
+
+function poseLabel(pose: StoryPose | null): string {
+  if (pose === 'front') return 'FRONT';
+  if (pose === 'side') return 'SIDE';
+  if (pose === 'back') return 'BACK';
+  return '';
+}
+
+/** 4-up (2×2) or 6-up (2×3) Instagram collage with week + angle on each cell. */
+export async function renderCollageStory(input: CollageStoryInput): Promise<HTMLCanvasElement> {
+  const canvas = document.createElement('canvas');
+  canvas.width = STORY_W;
+  canvas.height = STORY_H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas unavailable');
+
+  const count = input.slots.length >= 6 ? 6 : 4;
+  const cols = 2;
+  const rows = count === 6 ? 3 : 2;
+  const gap = 10;
+  const padX = 36;
+  const topY = 210;
+  const bottomReserve = 210;
+  const gridW = STORY_W - padX * 2;
+  const gridH = STORY_H - topY - bottomReserve;
+  const cellW = (gridW - gap * (cols - 1)) / cols;
+  const cellH = (gridH - gap * (rows - 1)) / rows;
+
+  paintBase(ctx);
+  paintHeader(ctx, (input.title || (count === 6 ? 'SQUAD' : 'CHECK-INS')).toUpperCase(), null);
+
+  for (let i = 0; i < count; i++) {
+    const slot = input.slots[i] || {
+      image: null,
+      week: null,
+      pose: null,
+      firstName: null,
+    };
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const x = padX + col * (cellW + gap);
+    const y = topY + row * (cellH + gap);
+
+    ctx.save();
+    roundRect(ctx, x, y, cellW, cellH, 18);
+    ctx.clip();
+
+    if (slot.image) {
+      coverImage(ctx, slot.image, x, y, cellW, cellH, slot.focus);
+      const fade = ctx.createLinearGradient(0, y + cellH * 0.45, 0, y + cellH);
+      fade.addColorStop(0, 'rgba(6,7,10,0)');
+      fade.addColorStop(1, 'rgba(6,7,10,0.88)');
+      ctx.fillStyle = fade;
+      ctx.fillRect(x, y, cellW, cellH);
+    } else {
+      ctx.fillStyle = '#14161c';
+      ctx.fillRect(x, y, cellW, cellH);
+      ctx.fillStyle = '#3a3f4d';
+      ctx.font = '700 22px Inter, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Empty', x + cellW / 2, y + cellH / 2);
+      ctx.textAlign = 'left';
+    }
+
+    const weekTxt = slot.week != null ? `W${slot.week}` : '';
+    const poseTxt = poseLabel(slot.pose);
+    const meta = [weekTxt, poseTxt].filter(Boolean).join(' · ');
+    const nameTxt =
+      input.showNames && slot.firstName
+        ? slot.firstName.split(/\s+/)[0]?.toUpperCase() || ''
+        : '';
+
+    if (meta || nameTxt) {
+      ctx.fillStyle = '#f4f5f7';
+      ctx.font = '800 28px "Saira Condensed", Impact, sans-serif';
+      if (nameTxt) {
+        ctx.fillText(nameTxt, x + 16, y + cellH - (meta ? 42 : 18));
+      }
+      if (meta) {
+        ctx.fillStyle = nameTxt ? '#ff6a55' : '#f4f5f7';
+        ctx.font = nameTxt
+          ? '700 18px Inter, system-ui, sans-serif'
+          : '800 26px "Saira Condensed", Impact, sans-serif';
+        ctx.fillText(meta, x + 16, y + cellH - 16);
+      }
+    }
+
+    ctx.restore();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1.5;
+    roundRect(ctx, x, y, cellW, cellH, 18);
+    ctx.stroke();
+  }
 
   paintCta(ctx, input.cta);
   return canvas;
