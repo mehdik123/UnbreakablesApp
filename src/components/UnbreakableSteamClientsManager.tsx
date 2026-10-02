@@ -50,7 +50,7 @@ export type NewClientSetupOptions = {
   workoutProgramId?: string;
 };
 
-/** Compact plan-period bar: fill = % remaining before end of coaching. */
+/** Compact plan-period bar: fill grows left→right as the plan is used; red near the end. */
 const ClientPeriodBar: React.FC<{ client: Client; compact?: boolean }> = ({
   client,
   compact = false,
@@ -62,38 +62,39 @@ const ClientPeriodBar: React.FC<{ client: Client; compact?: boolean }> = ({
           <span>Ended</span>
         </div>
         <div className="coach-period-track" aria-hidden>
-          <span className="coach-period-fill is-ended" style={{ width: '0%' }} />
+          <span className="coach-period-fill is-ended" style={{ width: '100%' }} />
         </div>
       </div>
     );
   }
 
-  const { totalWeeks, currentWeek, percentLeft, weeksLeft } = getClientPeriodProgress(client);
+  const { totalWeeks, currentWeek, percentDone, weeksLeft } = getClientPeriodProgress(client);
+  // Closer to the end → warmer / redder fill
   const tone =
-    percentLeft <= 15 ? 'is-low' : percentLeft <= 40 ? 'is-mid' : 'is-ok';
+    percentDone >= 85 ? 'is-low' : percentDone >= 60 ? 'is-mid' : 'is-ok';
 
   return (
     <div
       className={`coach-period${compact ? ' is-compact' : ''}`}
-      title={`Week ${currentWeek} of ${totalWeeks} · ${weeksLeft} week${weeksLeft === 1 ? '' : 's'} left (${percentLeft}%)`}
+      title={`Week ${currentWeek} of ${totalWeeks} · ${percentDone}% through · ${weeksLeft} week${weeksLeft === 1 ? '' : 's'} left`}
     >
       <div className="coach-period-meta">
         <span className="font-display tnum">
           W{currentWeek}/{totalWeeks}
         </span>
         <span className={`coach-period-left ${tone}`}>
-          {weeksLeft === 0 ? 'Last week' : `${weeksLeft}w left · ${percentLeft}%`}
+          {weeksLeft === 0 ? 'Last week' : `${percentDone}% · ${weeksLeft}w left`}
         </span>
       </div>
       <div
         className="coach-period-track"
         role="progressbar"
-        aria-valuenow={percentLeft}
+        aria-valuenow={percentDone}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`${percentLeft}% of coaching period remaining`}
+        aria-label={`${percentDone}% of coaching period completed`}
       >
-        <span className={`coach-period-fill ${tone}`} style={{ width: `${percentLeft}%` }} />
+        <span className={`coach-period-fill ${tone}`} style={{ width: `${percentDone}%` }} />
       </div>
     </div>
   );
