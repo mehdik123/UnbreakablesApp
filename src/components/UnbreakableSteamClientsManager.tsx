@@ -42,11 +42,61 @@ import {
 } from '../utils/bulkProgression';
 import { dbListWorkoutPrograms } from '../lib/db';
 import { getMealSlotNames } from '../utils/nutritionMealSlots';
+import { getClientPeriodProgress } from '../utils/clientPeriodProgress';
 import { useToast } from '../contexts/ToastContext';
 
 export type NewClientSetupOptions = {
   mealsPerDay: number;
   workoutProgramId?: string;
+};
+
+/** Compact plan-period bar: fill = % remaining before end of coaching. */
+const ClientPeriodBar: React.FC<{ client: Client; compact?: boolean }> = ({
+  client,
+  compact = false,
+}) => {
+  if (client.isActive === false) {
+    return (
+      <div className={`coach-period${compact ? ' is-compact' : ''}`} title="Coaching ended">
+        <div className="coach-period-meta">
+          <span>Ended</span>
+        </div>
+        <div className="coach-period-track" aria-hidden>
+          <span className="coach-period-fill is-ended" style={{ width: '0%' }} />
+        </div>
+      </div>
+    );
+  }
+
+  const { totalWeeks, currentWeek, percentLeft, weeksLeft } = getClientPeriodProgress(client);
+  const tone =
+    percentLeft <= 15 ? 'is-low' : percentLeft <= 40 ? 'is-mid' : 'is-ok';
+
+  return (
+    <div
+      className={`coach-period${compact ? ' is-compact' : ''}`}
+      title={`Week ${currentWeek} of ${totalWeeks} · ${weeksLeft} week${weeksLeft === 1 ? '' : 's'} left (${percentLeft}%)`}
+    >
+      <div className="coach-period-meta">
+        <span className="font-display tnum">
+          W{currentWeek}/{totalWeeks}
+        </span>
+        <span className={`coach-period-left ${tone}`}>
+          {weeksLeft === 0 ? 'Last week' : `${weeksLeft}w left · ${percentLeft}%`}
+        </span>
+      </div>
+      <div
+        className="coach-period-track"
+        role="progressbar"
+        aria-valuenow={percentLeft}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`${percentLeft}% of coaching period remaining`}
+      >
+        <span className={`coach-period-fill ${tone}`} style={{ width: `${percentLeft}%` }} />
+      </div>
+    </div>
+  );
 };
 
 // Animated Counter Component
@@ -682,6 +732,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                       <th>Client</th>
                       <th>Goal</th>
                       <th>Weight</th>
+                      <th>Period</th>
                       <th>Status</th>
                       <th>Plans</th>
                       <th>Actions</th>
@@ -716,6 +767,9 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                         </td>
                         <td>
                           <div className="font-display tnum">{clientWeightLabel(client)}</div>
+                        </td>
+                        <td style={{ minWidth: '9.5rem' }}>
+                          <ClientPeriodBar client={client} compact />
                         </td>
                         <td>
                           <span className={`coach-client-status ${client.isActive !== false && !client.isArchived ? 'is-on' : ''}`}>
@@ -819,6 +873,9 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                         {client.isActive === false ? 'Ended' : client.isArchived ? 'Paused' : 'Active'}
                         {client.email ? ` · ${client.email}` : ''}
                       </p>
+                      <div className="mt-2">
+                        <ClientPeriodBar client={client} compact />
+                      </div>
                     </div>
                     {!selectionMode && (
                       <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -893,6 +950,8 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     {getGoalIcon(client.goal)}
                     <span>{client.goal}</span>
                   </div>
+
+                  <ClientPeriodBar client={client} />
 
                   <div className="coach-client-pips">
                     <span className={`coach-client-pip ${client.nutritionPlan ? 'is-on' : ''}`}>

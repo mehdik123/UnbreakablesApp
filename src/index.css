@@ -944,6 +944,56 @@
 }
 .coach-client-pip.is-on { color: var(--txt-mid); }
 .coach-client-pip.is-on i { background: var(--green); }
+
+.coach-period {
+  margin-bottom: 12px;
+}
+.coach-period.is-compact {
+  margin-bottom: 0;
+}
+.coach-period-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--txt-mid);
+}
+.coach-period-left.is-ok { color: var(--green); }
+.coach-period-left.is-mid { color: var(--amber); }
+.coach-period-left.is-low { color: var(--coral); }
+.coach-period-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  border: 1px solid var(--hair);
+  overflow: hidden;
+}
+.coach-period.is-compact .coach-period-track {
+  height: 5px;
+}
+.coach-period-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--grad-green);
+  transition: width 0.45s var(--ease);
+}
+.coach-period-fill.is-mid {
+  background: var(--grad-orange);
+}
+.coach-period-fill.is-low {
+  background: var(--grad-coral);
+}
+.coach-period-fill.is-ended {
+  background: var(--txt-lo);
+}
+@media (prefers-reduced-motion: reduce) {
+  .coach-period-fill { transition: none; }
+}
+
 .coach-client-actions {
   display: flex;
   align-items: center;
