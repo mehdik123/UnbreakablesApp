@@ -165,7 +165,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
     }
   };
 
-  // Handle dropdown positioning
+  // Handle dropdown positioning (keep menu on-screen)
   const handleDropdownClick = (e: React.MouseEvent, clientId: string) => {
     const button = e.currentTarget as HTMLElement;
     const rect = button.getBoundingClientRect();
@@ -174,12 +174,30 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
       setOpenDropdownId(null);
       setDropdownPosition(null);
     } else {
+      const menuWidth = 224;
+      const menuApproxHeight = 320;
+      const gap = 8;
+      let top = rect.bottom + gap;
+      if (top + menuApproxHeight > window.innerHeight - 12) {
+        top = Math.max(12, rect.top - menuApproxHeight - gap);
+      }
+      let left = rect.right - menuWidth;
+      left = Math.min(Math.max(8, left), window.innerWidth - menuWidth - 8);
       setOpenDropdownId(clientId);
-      setDropdownPosition({
-        top: rect.bottom + 8,
-        left: rect.right - 224 // 224px = w-56 (14rem * 16px)
-      });
+      setDropdownPosition({ top, left });
     }
+  };
+
+  const confirmArchiveClient = async (client: Client) => {
+    if (
+      !window.confirm(
+        `Archive ${client.name}?\n\nThey leave the main list until you restore them. Their program and data stay intact (pause for personal reasons).`
+      )
+    ) {
+      return;
+    }
+    await onArchiveClient(client.id);
+    toast.success(`${client.name} archived`);
   };
 
   useEffect(() => {
@@ -740,6 +758,16 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                             >
                               <Share2 className="w-4 h-4" />
                             </button>
+                            {!showArchived && (
+                              <button
+                                type="button"
+                                onClick={() => confirmArchiveClient(client)}
+                                className="coach-client-iconbtn"
+                                title="Archive client (pause — keeps data)"
+                              >
+                                <Archive className="w-4 h-4" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={(e) => handleDropdownClick(e, client.id)}
@@ -793,18 +821,30 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                       </p>
                     </div>
                     {!selectionMode && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDropdownClick(e, client.id);
-                        }}
-                        className="coach-client-iconbtn is-more"
-                        title="More options"
-                        aria-label="More options"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {!showArchived && (
+                          <button
+                            type="button"
+                            onClick={() => confirmArchiveClient(client)}
+                            className="coach-client-iconbtn"
+                            title="Archive client (pause — keeps data)"
+                            aria-label="Archive client"
+                          >
+                            <Archive className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            handleDropdownClick(e, client.id);
+                          }}
+                          className="coach-client-iconbtn is-more"
+                          title="More options"
+                          aria-label="More options"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -892,6 +932,16 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                       >
                         <Share2 className="w-4 h-4" />
                       </button>
+                      {!showArchived && (
+                        <button
+                          type="button"
+                          onClick={() => confirmArchiveClient(client)}
+                          className="coach-client-iconbtn"
+                          title="Archive client (pause — keeps data)"
+                        >
+                          <Archive className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={(e) => handleDropdownClick(e, client.id)}
@@ -1104,7 +1154,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
       {/* Portal Dropdown Menu */}
       {openDropdownId && dropdownPosition && createPortal(
         <div 
-          className="dropdown-menu fixed w-56 rounded-lg shadow-2xl z-[10000]"
+          className="dropdown-menu fixed w-56 rounded-lg shadow-2xl z-[10000] max-h-[min(70dvh,24rem)] overflow-y-auto"
           style={{
             top: `${dropdownPosition.top}px`,
             left: `${dropdownPosition.left}px`,
@@ -1129,11 +1179,58 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                       setOpenDropdownId(null);
                       setDropdownPosition(null);
                     }}
-                    className="w-full px-4 py-2 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2"
+                    className="w-full px-4 py-2.5 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2 min-h-[44px]"
                   >
                     <PenLine className="w-4 h-4" />
                     <span>Rename client</span>
                   </button>
+                  {!showArchived && (
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setOpenDropdownId(null);
+                        setDropdownPosition(null);
+                        await confirmArchiveClient(currentClient);
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-slate-200 hover:bg-slate-700 flex items-center space-x-2 min-h-[44px]"
+                    >
+                      <Archive className="w-4 h-4" />
+                      <span>Archive client</span>
+                    </button>
+                  )}
+                  {!showArchived && (
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setOpenDropdownId(null);
+                        setDropdownPosition(null);
+                        if (
+                          !window.confirm(
+                            `End coaching for ${currentClient.name}?\n\nThis permanently deletes their meals, workout, cardio, photos, weight logs, and performance data. Their link will only show a thank-you message from you. This cannot be undone.`
+                          )
+                        ) {
+                          return;
+                        }
+                        if (
+                          !window.confirm(
+                            `Last check: wipe all coaching data for ${currentClient.name}?`
+                          )
+                        ) {
+                          return;
+                        }
+                        await onEndCoaching(currentClient.id);
+                        toast.success(`Coaching ended for ${currentClient.name}`);
+                      }}
+                      className="w-full px-4 py-2.5 text-left text-amber-400 hover:bg-slate-700 flex items-center space-x-2 min-h-[44px]"
+                    >
+                      <Handshake className="w-4 h-4" />
+                      <span>End coaching</span>
+                    </button>
+                  )}
                   <button
                     onClick={(e) => {
                       e.preventDefault();
@@ -1142,7 +1239,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                       setOpenDropdownId(null);
                       setDropdownPosition(null);
                     }}
-                    className="w-full px-4 py-2 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2"
+                    className="w-full px-4 py-2.5 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2 min-h-[44px]"
                   >
                     <Copy className="w-4 h-4" />
                     <span>Duplicate Program</span>
@@ -1151,27 +1248,16 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('🔑 Opening credentials manager for:', currentClient.name, currentClient.id);
                       setCredentialsManagerClient(currentClient);
                       setOpenDropdownId(null);
                       setDropdownPosition(null);
                     }}
-                    className="w-full px-4 py-2 text-left text-blue-400 hover:bg-slate-700 flex items-center space-x-2"
+                    className="w-full px-4 py-2.5 text-left text-blue-400 hover:bg-slate-700 flex items-center space-x-2 min-h-[44px]"
                   >
                     <Key className="w-4 h-4" />
                     <span>Manage Credentials</span>
                   </button>
-                  {showArchived ? (
-                  currentClient.isActive === false ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full px-4 py-2 text-left text-slate-500 flex items-center space-x-2 cursor-default"
-                  >
-                    <Archive className="w-4 h-4" />
-                    <span>Coaching ended (data removed)</span>
-                  </button>
-                  ) : (
+                  {showArchived && currentClient.isActive !== false && (
                   <button
                     type="button"
                     onClick={async (e) => {
@@ -1182,66 +1268,21 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                       await onRestoreClient(currentClient.id);
                       toast.success(`${currentClient.name} restored`);
                     }}
-                    className="w-full px-4 py-2 text-left text-green-400 hover:bg-slate-700 flex items-center space-x-2"
+                    className="w-full px-4 py-2.5 text-left text-green-400 hover:bg-slate-700 flex items-center space-x-2 min-h-[44px]"
                   >
                     <Archive className="w-4 h-4" />
                     <span>Restore from archive</span>
                   </button>
-                  )
-                  ) : (
-                  <>
+                  )}
+                  {showArchived && currentClient.isActive === false && (
                   <button
                     type="button"
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setOpenDropdownId(null);
-                      setDropdownPosition(null);
-                      if (
-                        !window.confirm(
-                          `Archive ${currentClient.name}?\n\nThey leave the main list until you restore them. Their program and data stay intact (pause for personal reasons).`
-                        )
-                      ) {
-                        return;
-                      }
-                      await onArchiveClient(currentClient.id);
-                      toast.success(`${currentClient.name} archived`);
-                    }}
-                    className="w-full px-4 py-2 text-left text-slate-300 hover:bg-slate-700 flex items-center space-x-2"
+                    disabled
+                    className="w-full px-4 py-2.5 text-left text-slate-500 flex items-center space-x-2 cursor-default min-h-[44px]"
                   >
                     <Archive className="w-4 h-4" />
-                    <span>Archive client</span>
+                    <span>Coaching ended (data removed)</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={async (e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setOpenDropdownId(null);
-                      setDropdownPosition(null);
-                      if (
-                        !window.confirm(
-                          `End coaching for ${currentClient.name}?\n\nThis permanently deletes their meals, workout, cardio, photos, weight logs, and performance data. Their link will only show a thank-you message from you. This cannot be undone.`
-                        )
-                      ) {
-                        return;
-                      }
-                      if (
-                        !window.confirm(
-                          `Last check: wipe all coaching data for ${currentClient.name}?`
-                        )
-                      ) {
-                        return;
-                      }
-                      await onEndCoaching(currentClient.id);
-                      toast.success(`Coaching ended for ${currentClient.name}`);
-                    }}
-                    className="w-full px-4 py-2 text-left text-amber-400 hover:bg-slate-700 flex items-center space-x-2"
-                  >
-                    <Handshake className="w-4 h-4" />
-                    <span>End coaching</span>
-                  </button>
-                  </>
                   )}
                   <button
                     onClick={() => {
@@ -1251,7 +1292,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                       setOpenDropdownId(null);
                       setDropdownPosition(null);
                     }}
-                    className="w-full px-4 py-2 text-left text-red-400 hover:bg-slate-700 flex items-center space-x-2"
+                    className="w-full px-4 py-2.5 text-left text-red-400 hover:bg-slate-700 flex items-center space-x-2 min-h-[44px]"
                   >
                     <X className="w-4 h-4" />
                     <span>Delete Client</span>
