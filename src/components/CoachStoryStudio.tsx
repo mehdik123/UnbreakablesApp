@@ -401,8 +401,12 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
               cta,
             });
             if (!cancelled) setPreviewUrl(canvas.toDataURL('image/png'));
-          } catch {
-            if (!cancelled) setError('Could not build the story preview.');
+          } catch (err) {
+            console.error(err);
+            if (!cancelled) {
+              setError('Could not build the story preview.');
+              setPreviewUrl('');
+            }
           } finally {
             if (!cancelled) setRendering(false);
           }
