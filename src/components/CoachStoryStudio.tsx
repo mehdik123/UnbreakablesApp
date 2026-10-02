@@ -380,7 +380,6 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
             const slots = await Promise.all(
               collageSlots.map(async (slot) => {
                 const photo = photoForSlot(slot);
-                const clientRow = activeClients.find((c) => c.id === slot.clientId);
                 const image = photo
                   ? await loadStoryImage(photoUrl(photo)).catch(() => null)
                   : null;
@@ -388,7 +387,7 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
                   image,
                   week: slot.week,
                   pose: slot.pose,
-                  firstName: showName && clientRow ? firstName(clientRow.name) : null,
+                  firstName: null,
                   focus: slot.focus,
                 };
               })
@@ -397,7 +396,7 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
             const canvas = await renderCollageStory({
               title: collageTitle.trim() || undefined,
               slots,
-              showNames: showName,
+              showNames: false,
               cta,
             });
             if (!cancelled) setPreviewUrl(canvas.toDataURL('image/png'));
@@ -778,18 +777,16 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={() => setShowName((v) => !v)}
-            className="min-h-12 w-full rounded-xl px-3 text-sm font-semibold text-left"
-            style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)', touchAction: 'manipulation' }}
-          >
-            {showName
-              ? collageMode
-                ? 'First names on each photo'
-                : 'First name is shown'
-              : 'Name is hidden'}
-          </button>
+          {!collageMode && (
+            <button
+              type="button"
+              onClick={() => setShowName((v) => !v)}
+              className="min-h-12 w-full rounded-xl px-3 text-sm font-semibold text-left"
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)', color: 'var(--txt-hi)', touchAction: 'manipulation' }}
+            >
+              {showName ? 'First name is shown' : 'Name is hidden'}
+            </button>
+          )}
 
           <label className="block">
             <span className="text-[11px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)]">CTA</span>
