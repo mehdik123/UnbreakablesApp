@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, Upload, X, ChevronDown, ArrowLeftRight } from 'lucide-react';
 import { dbSaveWeeklyPhoto, dbDeleteWeeklyPhoto, dbGetClientPhotos, uploadWeeklyPhoto, WeeklyPhoto } from '../lib/db';
 import { useClientLocale } from '../contexts/ClientLocaleContext';
-import { isLikelyImageFile, prepareProgressPhoto } from '../utils/prepareProgressPhoto';
+import { isLikelyImageFile, prepareProgressPhotoPair } from '../utils/prepareProgressPhoto';
 
 interface WeeklyPhotoUploadProps {
   clientId: string;
@@ -158,9 +158,9 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
         return;
       }
 
-      let photoFile: File;
+      let prepared: { full: File; thumb: File };
       try {
-        photoFile = await prepareProgressPhoto(file);
+        prepared = await prepareProgressPhotoPair(file);
       } catch (prepError) {
         console.error('Error preparing photo:', prepError);
         alert(
@@ -175,7 +175,12 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
       let savedPhoto, error;
       
       try {
-        const result = await uploadWeeklyPhoto(photoFile, clientId, selectedWeek, photoType);
+        const result = await uploadWeeklyPhoto(
+          { full: prepared.full, thumb: prepared.thumb },
+          clientId,
+          selectedWeek,
+          photoType
+        );
         savedPhoto = result.data;
         error = result.error;
       } catch (storageError) {
@@ -184,7 +189,7 @@ const WeeklyPhotoUpload: React.FC<WeeklyPhotoUploadProps> = ({
           reader.onload = (e) => resolve(e.target?.result as string);
           reader.onerror = reject;
         });
-        reader.readAsDataURL(photoFile);
+        reader.readAsDataURL(prepared.full);
         const imageUrl = await base64Promise;
         
         const dbResult = await dbSaveWeeklyPhoto({

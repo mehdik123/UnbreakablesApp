@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { Client, ClientWorkoutAssignment } from '../types';
 import { ClientCredentialsManager } from './ClientCredentialsManager';
+import { CoachPlanRiskBanner } from './CoachPlanRiskBanner';
 import { authService } from '../lib/authService';
 import {
   planBulkProgression,
@@ -600,6 +601,8 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
       </header>
 
       <div className="coach-hub-main">
+        <CoachPlanRiskBanner />
+
         <div className="coach-hub-welcome home-anim">
           <h1 className="font-saira">Welcome back</h1>
           <p>Manage clients, plans, and programs from one place.</p>

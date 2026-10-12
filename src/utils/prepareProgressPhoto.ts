@@ -1,11 +1,12 @@
 /**
- * Bake progress photos to SDR JPEG before storage.
- * iPhone HDR / HEIC files stay huge and look washed or neon in screenshots;
- * drawing onto an sRGB canvas tone-maps to normal color and drops the HDR gain map.
+ * Bake progress photos to compact SDR JPEGs before storage.
+ * Full + thumb keep Free-plan egress under control (photos are the main bandwidth cost).
  */
 
-const MAX_EDGE = 1600;
-const JPEG_QUALITY = 0.82;
+const FULL_MAX_EDGE = 1200;
+const FULL_JPEG_QUALITY = 0.72;
+const THUMB_MAX_EDGE = 480;
+const THUMB_JPEG_QUALITY = 0.65;
 const MAX_SOURCE_BYTES = 30 * 1024 * 1024;
 
 export function isLikelyImageFile(file: File): boolean {
@@ -49,39 +50,62 @@ async function decodeToDrawable(file: File): Promise<CanvasImageSource & { width
   }
 }
 
-function canvasToJpegBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+function canvasToJpegBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error('jpeg'))),
       'image/jpeg',
-      JPEG_QUALITY
+      quality
     );
   });
 }
 
-/** Convert any camera photo to a compact SDR JPEG (no HDR). */
-export async function prepareProgressPhoto(file: File): Promise<File> {
-  if (file.size > MAX_SOURCE_BYTES) {
-    throw new Error('too-large');
-  }
-
-  const source = await decodeToDrawable(file);
-  const { width, height } = fitWithin(source.width, source.height, MAX_EDGE);
-
+async function renderJpeg(
+  source: CanvasImageSource & { width: number; height: number },
+  maxEdge: number,
+  quality: number,
+  name: string
+): Promise<File> {
+  const { width, height } = fitWithin(source.width, source.height, maxEdge);
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) throw new Error('canvas');
-
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(source, 0, 0, width, height);
+  const blob = await canvasToJpegBlob(canvas, quality);
+  return new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() });
+}
 
-  if (typeof ImageBitmap !== 'undefined' && source instanceof ImageBitmap) {
-    source.close();
+export type PreparedProgressPhotos = {
+  full: File;
+  thumb: File;
+};
+
+/** Full display JPEG + small grid thumb (same bake, two sizes). */
+export async function prepareProgressPhotoPair(file: File): Promise<PreparedProgressPhotos> {
+  if (file.size > MAX_SOURCE_BYTES) {
+    throw new Error('too-large');
   }
 
-  const blob = await canvasToJpegBlob(canvas);
-  return new File([blob], 'progress.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+  const source = await decodeToDrawable(file);
+  try {
+    const [full, thumb] = await Promise.all([
+      renderJpeg(source, FULL_MAX_EDGE, FULL_JPEG_QUALITY, 'progress.jpg'),
+      renderJpeg(source, THUMB_MAX_EDGE, THUMB_JPEG_QUALITY, 'progress.thumb.jpg'),
+    ]);
+    return { full, thumb };
+  } finally {
+    if (typeof ImageBitmap !== 'undefined' && source instanceof ImageBitmap) {
+      source.close();
+    }
+  }
+}
+
+/** Convert any camera photo to a compact SDR JPEG (no HDR). */
+export async function prepareProgressPhoto(file: File): Promise<File> {
+  const { full } = await prepareProgressPhotoPair(file);
+  return full;
 }

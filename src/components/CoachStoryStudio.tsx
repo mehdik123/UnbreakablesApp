@@ -3,6 +3,7 @@ import { ArrowLeft, Download, ImageIcon, RotateCcw } from 'lucide-react';
 import type { Client } from '../types';
 import { dbGetClientPhotos, type WeeklyPhoto } from '../lib/db';
 import { getClientWeightLogs } from '../lib/progressTracking';
+import { progressPhotoThumbUrl } from '../utils/progressPhotoDownload';
 import {
   DEFAULT_STORY_FOCUS,
   loadStoryImage,
@@ -688,7 +689,8 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
               {collageSlots.map((slot, index) => {
                 const slotWeeks = weeksForSlot(slot);
                 const slotPhoto = photoForSlot(slot);
-                const thumb = slotPhoto ? photoUrl(slotPhoto) : '';
+                const thumb = slotPhoto ? progressPhotoThumbUrl(slotPhoto) || photoUrl(slotPhoto) : '';
+                const full = slotPhoto ? photoUrl(slotPhoto) : '';
                 return (
                   <div
                     key={index}
@@ -705,6 +707,11 @@ export const CoachStoryStudio: React.FC<Props> = ({ clients, onBack }) => {
                           alt=""
                           className="w-10 h-10 rounded-lg object-cover"
                           style={{ border: '1px solid var(--hair)' }}
+                          loading="lazy"
+                          decoding="async"
+                          onError={(e) => {
+                            if (full && e.currentTarget.src !== full) e.currentTarget.src = full;
+                          }}
                         />
                       ) : (
                         <div

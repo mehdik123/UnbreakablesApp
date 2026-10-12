@@ -1,9 +1,38 @@
 import type { WeeklyPhoto } from '../lib/db';
+import { fetchPhotoCached } from './photoEgressCache';
 
 export type ProgressPhotoPose = 'front' | 'side' | 'back';
 
 export function progressPhotoUrl(photo: WeeklyPhoto): string {
   return photo.imageUrl || photo.image_url || '';
+}
+
+/** Small grid thumb next to full JPEG (`*.thumb.jpg`). Falls back to full for legacy files. */
+export function progressPhotoThumbUrl(photo: WeeklyPhoto): string {
+  const url = progressPhotoUrl(photo);
+  if (!url) return '';
+  if (/\.thumb\.jpe?g($|\?)/i.test(url)) return url;
+  if (/\.jpe?g($|\?)/i.test(url)) {
+    return url.replace(/\.jpe?g(?=$|\?)/i, '.thumb.jpg');
+  }
+  return url;
+}
+
+export function storagePathFromPublicUrl(url: string): string | null {
+  if (!url) return null;
+  const marker = '/weekly-photos/';
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  try {
+    return decodeURIComponent(url.slice(idx + marker.length).split('?')[0] || '');
+  } catch {
+    return url.slice(idx + marker.length).split('?')[0] || null;
+  }
+}
+
+export function thumbPathFromFullPath(fullPath: string): string {
+  if (/\.thumb\.jpe?g$/i.test(fullPath)) return fullPath;
+  return fullPath.replace(/\.jpe?g$/i, '.thumb.jpg');
 }
 
 export function progressPhotoTypeLabel(type: ProgressPhotoPose | string): string {
@@ -36,9 +65,7 @@ function fileBase(photo: WeeklyPhoto): string {
 }
 
 async function fetchPhotoBlob(url: string): Promise<Blob> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Could not download photo');
-  return res.blob();
+  return fetchPhotoCached(url);
 }
 
 /** Download the original image bytes without burning any label. */

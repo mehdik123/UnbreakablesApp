@@ -4,9 +4,12 @@ import { WeeklyPhoto } from '../lib/db';
 import {
   downloadProgressPhotoRaw,
   downloadProgressPhotoTagged,
+  progressPhotoThumbUrl,
   progressPhotoTypeLabel,
   progressPhotoUrl,
 } from '../utils/progressPhotoDownload';
+import { CachedProgressImage } from './CachedProgressImage';
+import { EgressUsageHint } from './EgressUsageHint';
 
 interface WeeklyPhotoGalleryProps {
   photos: WeeklyPhoto[];
@@ -51,6 +54,7 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
   const [downloadError, setDownloadError] = useState('');
 
   const getImageUrl = (photo: WeeklyPhoto) => progressPhotoUrl(photo);
+  const getThumbUrl = (photo: WeeklyPhoto) => progressPhotoThumbUrl(photo);
 
   const getUploadedDate = (photo: WeeklyPhoto) => {
     if (photo.uploadedAt) return photo.uploadedAt;
@@ -163,8 +167,10 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
         onClick={() => openPreview(photo)}
         className={`block w-full ${compact ? 'aspect-square' : 'aspect-[3/4]'} overflow-hidden`}
       >
-        <img
-          src={getImageUrl(photo)}
+        <CachedProgressImage
+          fullSrc={getImageUrl(photo)}
+          thumbSrc={getThumbUrl(photo)}
+          prefer="thumb"
           alt={`${photo.type} - Week ${photo.week}`}
           className="w-full h-full object-cover"
         />
@@ -261,6 +267,10 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
           ))}
         </div>
       </div>
+
+      {isCoachView && <EgressUsageHint />}
+
+      {isCoachView && <EgressUsageHint />}
 
       <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-0.5 px-0.5" style={{ WebkitOverflowScrolling: 'touch' }}>
         <button
@@ -395,7 +405,13 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
                       {photo ? (
                         <div className="relative rounded-xl overflow-hidden aspect-[3/4] max-h-[72dvh]" style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}>
                           <button type="button" onClick={() => openPreview(photo)} className="block w-full h-full">
-                            <img src={getImageUrl(photo)} alt="" className="w-full h-full object-cover" />
+                            <CachedProgressImage
+                              fullSrc={getImageUrl(photo)}
+                              thumbSrc={getThumbUrl(photo)}
+                              prefer="thumb"
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
                           </button>
                         </div>
                       ) : (
@@ -465,7 +481,13 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
                   style={{ background: 'var(--surface-1)', border: '1px solid var(--hair)' }}
                 >
                   <button type="button" onClick={() => openPreview(photo)} className="w-14 h-14 rounded-lg overflow-hidden shrink-0">
-                    <img src={getImageUrl(photo)} alt="" className="w-full h-full object-cover" />
+                    <CachedProgressImage
+                      fullSrc={getImageUrl(photo)}
+                      thumbSrc={getThumbUrl(photo)}
+                      prefer="thumb"
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
                   </button>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold" style={{ color: 'var(--txt-hi)' }}>{getPhotoTypeLabel(photo.type)}</div>
@@ -550,11 +572,12 @@ const WeeklyPhotoGallery: React.FC<WeeklyPhotoGalleryProps> = ({
           </div>
 
           <div className="relative flex-1 min-h-0 flex items-center justify-center px-2">
-            <img
-              src={getImageUrl(previewPhoto)}
+            <CachedProgressImage
+              fullSrc={getImageUrl(previewPhoto)}
+              thumbSrc={getThumbUrl(previewPhoto)}
+              prefer="full"
               alt={`${getPhotoTypeLabel(previewPhoto.type)} week ${previewPhoto.week}`}
               className="max-w-full max-h-full object-contain select-none"
-              draggable={false}
             />
             <button
               type="button"

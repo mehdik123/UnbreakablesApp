@@ -643,9 +643,8 @@ export function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 }
 
 export async function loadStoryImage(url: string): Promise<HTMLImageElement> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Could not load photo');
-  const blob = await res.blob();
+  const { fetchPhotoCached } = await import('./photoEgressCache');
+  const blob = await fetchPhotoCached(url);
   const objectUrl = URL.createObjectURL(blob);
   const img = new Image();
   img.decoding = 'async';

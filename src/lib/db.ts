@@ -590,55 +590,126 @@ export async function dbSaveWeeklyPhoto(photo: Omit<WeeklyPhoto, 'id' | 'uploade
   return { data, error };
 }
 
-// Upload photo to Supabase Storage and save reference to database
+function weeklyPhotoStoragePathsFromUrl(imageUrl: string): string[] {
+  const marker = '/weekly-photos/';
+  const idx = imageUrl.indexOf(marker);
+  if (idx === -1) return [];
+  let fullPath = imageUrl.slice(idx + marker.length).split('?')[0] || '';
+  try {
+    fullPath = decodeURIComponent(fullPath);
+  } catch {
+    /* keep raw */
+  }
+  if (!fullPath) return [];
+  const thumbPath = /\.thumb\.jpe?g$/i.test(fullPath)
+    ? fullPath
+    : fullPath.replace(/\.jpe?g$/i, '.thumb.jpg');
+  return fullPath === thumbPath ? [fullPath] : [fullPath, thumbPath];
+}
+
+/**
+ * Upload full + thumb JPEGs. Replaces any existing photo for the same
+ * client/week/pose so Storage does not accumulate orphan retakes (egress + size).
+ */
 export async function uploadWeeklyPhoto(
-  file: File, 
-  clientId: string, 
-  week: number, 
+  file: File | { full: File; thumb?: File },
+  clientId: string,
+  week: number,
   type: 'front' | 'side' | 'back'
 ): Promise<DBResult<WeeklyPhoto>> {
   if (!isSupabaseReady || !supabase) return { data: null };
-  
+
+  const fullFile = file instanceof File ? file : file.full;
+  const thumbFile = file instanceof File ? undefined : file.thumb;
+
   try {
-    // Always JPEG after client-side SDR bake (no HDR / HEIC).
-    const fileName = `${clientId}/${week}/${type}-${Date.now()}.jpg`;
-    
-    // Upload to Supabase Storage
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const stamp = Date.now();
+    const fullPath = `${clientId}/${week}/${type}-${stamp}.jpg`;
+    const thumbPath = `${clientId}/${week}/${type}-${stamp}.thumb.jpg`;
+
+    const { data: existingRows } = await supabase
+      .from('weekly_photos')
+      .select('id, image_url')
+      .eq('client_id', clientId)
+      .eq('week', week)
+      .eq('type', type);
+
+    const { error: uploadError } = await supabase.storage
       .from('weekly-photos')
-      .upload(fileName, file, { contentType: 'image/jpeg', upsert: false });
-    
+      .upload(fullPath, fullFile, {
+        contentType: 'image/jpeg',
+        upsert: false,
+        cacheControl: '31536000',
+      });
+
     if (uploadError) {
       console.error('Upload error:', uploadError);
       return { data: null, error: uploadError };
     }
-    
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from('weekly-photos')
-      .getPublicUrl(fileName);
-    
+
+    if (thumbFile) {
+      const { error: thumbError } = await supabase.storage
+        .from('weekly-photos')
+        .upload(thumbPath, thumbFile, {
+          contentType: 'image/jpeg',
+          upsert: false,
+          cacheControl: '31536000',
+        });
+      if (thumbError) {
+        console.warn('Thumb upload failed (full photo kept):', thumbError);
+      }
+    }
+
+    const { data: urlData } = supabase.storage.from('weekly-photos').getPublicUrl(fullPath);
     const imageUrl = urlData.publicUrl;
-    
-    // Save to database
-    const { data: savedPhoto, error: dbError } = await supabase
-      .from('weekly_photos')
-      .insert({
-        client_id: clientId,
-        week: week,
-        type: type,
-        image_url: imageUrl,
-        uploaded_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-    
-    if (dbError) {
-      // If database save fails, clean up the uploaded file
-      await supabase.storage.from('weekly-photos').remove([fileName]);
+    const uploadedAt = new Date().toISOString();
+
+    const primaryId = existingRows?.[0]?.id;
+    let savedPhoto: WeeklyPhoto | null = null;
+    let dbError: unknown = null;
+
+    if (primaryId) {
+      const { data, error } = await supabase
+        .from('weekly_photos')
+        .update({ image_url: imageUrl, uploaded_at: uploadedAt })
+        .eq('id', primaryId)
+        .select()
+        .single();
+      savedPhoto = data;
+      dbError = error;
+
+      const duplicateIds = (existingRows || []).slice(1).map((row) => row.id).filter(Boolean);
+      if (duplicateIds.length) {
+        await supabase.from('weekly_photos').delete().in('id', duplicateIds);
+      }
+    } else {
+      const { data, error } = await supabase
+        .from('weekly_photos')
+        .insert({
+          client_id: clientId,
+          week,
+          type,
+          image_url: imageUrl,
+          uploaded_at: uploadedAt,
+        })
+        .select()
+        .single();
+      savedPhoto = data;
+      dbError = error;
+    }
+
+    if (dbError || !savedPhoto) {
+      await supabase.storage.from('weekly-photos').remove([fullPath, thumbPath]);
       return { data: null, error: dbError };
     }
-    
+
+    const stalePaths = (existingRows || []).flatMap((row) =>
+      weeklyPhotoStoragePathsFromUrl(String(row.image_url || ''))
+    );
+    if (stalePaths.length) {
+      await supabase.storage.from('weekly-photos').remove(stalePaths);
+    }
+
     return { data: savedPhoto, error: null };
   } catch (error) {
     console.error('Error uploading photo:', error);
@@ -665,12 +736,25 @@ export async function dbGetClientPhotos(clientId: string): Promise<DBResult<Week
 
 export async function dbDeleteWeeklyPhoto(photoId: string): Promise<DBResult<boolean>> {
   if (!isSupabaseReady || !supabase) return { data: false };
-  
+
+  const { data: row } = await supabase
+    .from('weekly_photos')
+    .select('image_url')
+    .eq('id', photoId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from('weekly_photos')
     .delete()
     .eq('id', photoId);
-  
+
+  if (!error && row?.image_url) {
+    const paths = weeklyPhotoStoragePathsFromUrl(String(row.image_url));
+    if (paths.length) {
+      await supabase.storage.from('weekly-photos').remove(paths);
+    }
+  }
+
   return { data: !error, error };
 }
 
