@@ -589,6 +589,12 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
       'I hope you enjoyed the work we did together: the training, the meals, and every step along the way.',
     'ended.wish': 'I wish you the very best in everything that comes next.',
     'ended.signoff': 'Mehdi',
+
+    'portalDown.title': 'Updates in progress',
+    'portalDown.body':
+      'Your program is temporarily unavailable. Please try again in a few moments.',
+    'portalDown.contact': 'If it keeps happening, contact Mehdi.',
+    'portalDown.retry': 'Try again',
   },
   ar: {
     'modern.welcomeBack': 'مرحبًا بعودتك، {name}!',
@@ -1176,6 +1182,12 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
       'أتمنى أن تكون قد استمتعت بالعمل معًا: التمارين، الوجبات، وكل خطوة في الطريق.',
     'ended.wish': 'أتمنى لك كل التوفيق في ما ينتظرك بعد ذلك.',
     'ended.signoff': 'مهدي',
+
+    'portalDown.title': 'تحديثات جارية',
+    'portalDown.body':
+      'برنامجك غير متاح مؤقتًا. حاول مرة أخرى بعد لحظات.',
+    'portalDown.contact': 'إذا استمرت المشكلة، تواصل مع مهدي.',
+    'portalDown.retry': 'حاول مرة أخرى',
   },
   fr: {
     'modern.welcomeBack': 'Bon retour, {name} !',
@@ -1764,5 +1776,11 @@ export const clientMessages: Record<ClientLocale, Record<string, string>> = {
       'J’espère que tu as apprécié le travail ensemble: l’entraînement, les repas, et chaque étape du chemin.',
     'ended.wish': 'Je te souhaite le meilleur pour la suite.',
     'ended.signoff': 'Mehdi',
+
+    'portalDown.title': 'Mises à jour en cours',
+    'portalDown.body':
+      'Ton programme est temporairement indisponible. Réessaie dans quelques instants.',
+    'portalDown.contact': 'Si ça continue, contacte Mehdi.',
+    'portalDown.retry': 'Réessayer',
   },
 };

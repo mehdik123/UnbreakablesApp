@@ -3,6 +3,8 @@ import { ModernLoadingScreen } from './components/ModernLoadingScreen';
 import { CoachLogin } from './components/CoachLogin';
 import { ClientLogin } from './components/ClientLogin';
 import { CoachingEndedScreen } from './components/CoachingEndedScreen';
+import { ClientPortalUnavailableScreen } from './components/ClientPortalUnavailableScreen';
+import { ClientSafeBoundary } from './components/ClientSafeBoundary';
 import { ToastProvider } from './contexts/ToastContext';
 import { ClientLocaleProvider } from './contexts/ClientLocaleContext';
 
@@ -563,17 +565,19 @@ function App() {
         const foundClient = clients.find((c: any) => c.id === extractedClientId);
         
         if (foundClient) {
-
-          setAppState(prev => ({ 
-            ...prev, 
+          setAppState(prev => ({
+            ...prev,
             currentView: 'client-interface',
-            selectedClient: foundClient
+            selectedClient: foundClient,
           }));
         } else {
           console.error('❌ Client not found for share ID:', clientShareId);
-
-          // Fallback to clients view if client not found
-          setAppState(prev => ({ ...prev, currentView: 'clients' }));
+          // Stay in client context with no selected client → safe unavailable screen
+          setAppState(prev => ({
+            ...prev,
+            currentView: 'client-interface',
+            selectedClient: null,
+          }));
         }
       }
     })();
@@ -1590,68 +1594,89 @@ function App() {
     }
   }
 
+  const clientShareId =
+    typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('client')
+      : null;
+  const isClientLink = !!clientShareId;
+  /** Any client URL or client session — never allowed into coach UI. */
+  const isClientContext = isClientLink || authType === 'client';
+  const loadingMessage = isClientContext
+    ? 'Loading your program…'
+    : 'Loading your coaching hub…';
+
   return (
     <ToastProvider>
-      {/* Show loading while checking authentication */}
       {(isCheckingAuth || isLoading || checkingClientAccess) ? (
-        <ModernLoadingScreen message="Loading your coaching hub…" />
+        <ModernLoadingScreen message={loadingMessage} />
       ) : endedCoaching ? (
         <ClientLocaleProvider>
           <CoachingEndedScreen clientName={endedCoaching.name} />
         </ClientLocaleProvider>
-      ) : (() => {
-        // Check if this is a client link
-        const urlParams = new URLSearchParams(window.location.search);
-        const clientShareId = urlParams.get('client');
-        const isClientLink = !!clientShareId;
+      ) : isClientContext ? (
+        // ── CLIENT SAFE ZONE: never render coach dashboard / databases ──
+        (() => {
+          const extractedClientId = clientShareId
+            ? extractClientIdFromShareParam(clientShareId)
+            : authService.getCurrentUser()?.clientId || '';
 
-        // Show appropriate login screen if not authenticated
-        if (!isAuthenticated) {
-          if (isClientLink) {
-            // Extract client ID from share URL
-            const uuidPattern = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
-            const uuidMatch = clientShareId.match(uuidPattern);
-            const extractedClientId = uuidMatch ? uuidMatch[1] : clientShareId;
-            
+          if (!isAuthenticated || authType !== 'client') {
+            if (extractedClientId) {
+              return (
+                <ClientLocaleProvider>
+                  <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />
+                </ClientLocaleProvider>
+              );
+            }
             return (
               <ClientLocaleProvider>
-                <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />
+                <ClientPortalUnavailableScreen />
               </ClientLocaleProvider>
             );
-          } else {
-            return <CoachLogin onLoginSuccess={handleCoachLoginSuccess} />;
           }
-        }
 
-        // Protect coach views
-        if (!isClientLink && authType !== 'coach') {
-          return <CoachLogin onLoginSuccess={handleCoachLoginSuccess} />;
-        }
+          if (!appState.selectedClient) {
+            if (!sessionRestored) {
+              return <ModernLoadingScreen message="Restoring your session..." />;
+            }
+            return (
+              <ClientLocaleProvider>
+                <ClientPortalUnavailableScreen />
+              </ClientLocaleProvider>
+            );
+          }
 
-        // Protect client views
-        if (isClientLink && authType !== 'client') {
-          const extractedClientId = extractClientIdFromShareParam(clientShareId);
           return (
-            <ClientLocaleProvider>
-              <ClientLogin clientId={extractedClientId} onLoginSuccess={handleClientLoginSuccess} />
-            </ClientLocaleProvider>
+            <ClientSafeBoundary>
+              <div className="min-h-screen workout-shell">
+                <div className="fixed inset-0 z-0 pointer-events-none flex items-center justify-center overflow-hidden" aria-hidden="true">
+                  <img
+                    src="/brand-logo-light.png"
+                    alt=""
+                    className="w-[55%] max-w-[620px] object-contain"
+                    style={{ opacity: 0.05, filter: 'blur(1px)' }}
+                  />
+                </div>
+                <div className="relative z-10">
+                  <Suspense fallback={<ModernLoadingScreen message="Loading your program…" />}>
+                    <ClientLocaleProvider>
+                      <ModernClientInterface
+                        client={appState.selectedClient}
+                        isDark={appState.isDark}
+                        onLogout={handleClientLogout}
+                      />
+                    </ClientLocaleProvider>
+                  </Suspense>
+                </div>
+              </div>
+            </ClientSafeBoundary>
           );
-        }
-
-        if (
-          isAuthenticated &&
-          authType === 'client' &&
-          isClientLink &&
-          !appState.selectedClient &&
-          !sessionRestored
-        ) {
-          return <ModernLoadingScreen message="Restoring your session..." />;
-        }
-
-        // Main app content
-        return (
+        })()
+      ) : !isAuthenticated || authType !== 'coach' ? (
+        <CoachLogin onLoginSuccess={handleCoachLoginSuccess} />
+      ) : (
+        // ── COACH ONLY ──
       <div className="min-h-screen workout-shell">
-        {/* Subtle brand watermark blended behind all content */}
         <div className="fixed inset-0 z-0 pointer-events-none flex items-center justify-center overflow-hidden" aria-hidden="true">
           <img
             src="/brand-logo-light.png"
@@ -1682,7 +1707,6 @@ function App() {
               onNavigateToIngredients={handleNavigateToDatabaseSelector}
               onNavigateToTemplates={handleNavigateToDatabaseSelector}
               onNavigateToStories={() => {
-                if (authType !== 'coach') return;
                 setAppState(prev => ({ ...prev, currentView: 'story-studio' }));
               }}
             />
@@ -1710,16 +1734,6 @@ function App() {
             onUpdateClient={handleUpdateClient}
             isDark={appState.isDark}
           />
-        )}
-
-        {appState.currentView === 'client-interface' && appState.selectedClient && (
-          <ClientLocaleProvider>
-            <ModernClientInterface
-              client={appState.selectedClient}
-              isDark={appState.isDark}
-              onLogout={handleClientLogout}
-            />
-          </ClientLocaleProvider>
         )}
 
         {appState.currentView === 'client-view' && clientViewData && (
@@ -1759,7 +1773,7 @@ function App() {
           />
         )}
 
-        {appState.currentView === 'story-studio' && authType === 'coach' && (
+        {appState.currentView === 'story-studio' && (
           <CoachStoryStudio
             clients={appState.clients}
             onBack={() => setAppState(prev => ({ ...prev, currentView: 'clients' }))}
@@ -1774,8 +1788,7 @@ function App() {
         </Suspense>
       </div>
     </div>
-        );
-      })()}
+      )}
     </ToastProvider>
   );
 }
