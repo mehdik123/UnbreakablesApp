@@ -55,6 +55,7 @@ import {
 } from './lib/sessionRestore';
 import { getMarketingDemoClient } from './data/marketingDemoClient';
 import type { NewClientSetupOptions } from './components/UnbreakableSteamClientsManager';
+import { normalizeDumbbellIncrement } from './utils/dumbbellIncrement';
 import { persistClientsLocally, safeLocalStorageSet, mirrorPlanLocally, reclaimLocalStorageQuotaIfNeeded } from './utils/localStorageClients';
 import {
   addLocalArchivedId,
@@ -175,6 +176,11 @@ function App() {
               progressionRules: program?.progressionRules ?? [],
               isActive: assignment.is_active,
               lastModifiedBy: assignment.last_modified_by,
+              weightUnit:
+                program?.weightUnit === 'lbs' || program?.weightUnit === 'kg'
+                  ? program.weightUnit
+                  : undefined,
+              dumbbellIncrementKg: normalizeDumbbellIncrement(program?.dumbbellIncrementKg),
             }
           : undefined;
 
@@ -199,6 +205,7 @@ function App() {
             row.starting_weight != null && Number.isFinite(Number(row.starting_weight))
               ? Number(row.starting_weight)
               : undefined,
+          dumbbellIncrementKg: workoutAssignment?.dumbbellIncrementKg,
           workoutAssignment,
           nutritionPlan: nutritionPlan || undefined,
           cardioPlan: cardioPlan || undefined,
@@ -468,6 +475,9 @@ function App() {
                   enrichedProgram?.weightUnit === 'lbs' || enrichedProgram?.weightUnit === 'kg'
                     ? enrichedProgram.weightUnit
                     : undefined,
+                dumbbellIncrementKg: normalizeDumbbellIncrement(
+                  enrichedProgram?.dumbbellIncrementKg
+                ),
               };
               
               console.log('🔍 APP DEBUG - Mapped workout assignment:', {
@@ -494,6 +504,7 @@ function App() {
                 row.starting_weight != null && Number.isFinite(Number(row.starting_weight))
                   ? Number(row.starting_weight)
                   : undefined,
+              dumbbellIncrementKg: workoutAssignment?.dumbbellIncrementKg,
               workoutAssignment
             };
           }));
@@ -657,6 +668,9 @@ function App() {
               weeks: [week1],
               progressionRules: [],
               isActive: true,
+              dumbbellIncrementKg: normalizeDumbbellIncrement(
+                setup?.dumbbellIncrementKg ?? mapped.dumbbellIncrementKg
+              ),
             };
             // Persist via existing assign path (DB + enrich). State is fixed below.
             await handleAssignWorkoutPlan(mapped.id, workoutAssignment);

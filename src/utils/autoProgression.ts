@@ -1,4 +1,9 @@
 import { WorkoutWeek, WorkoutExercise, WorkoutSet } from '../types';
+import {
+  DEFAULT_DUMBBELL_INCREMENT_KG,
+  normalizeDumbbellIncrement,
+  type DumbbellIncrementKg,
+} from './dumbbellIncrement';
 
 /**
  * Auto-Progression Logic — Weekly Update
@@ -29,7 +34,7 @@ const REP_INCREMENT = 2;
 
 const EQUIPMENT_INCREMENT: Record<EquipmentType, number> = {
   barbell: 5,
-  dumbbell: 2.5,
+  dumbbell: DEFAULT_DUMBBELL_INCREMENT_KG,
   machine: 5,
   cable: 5,
   bodyweight: 0,
@@ -47,6 +52,24 @@ const WEIGHTED_BODYWEIGHT_INCREMENT: Record<string, number> = {
   jumpsquat: 2.5,
   jumplunge: 2.5,
 };
+
+/**
+ * Per-exercise weight jump overrides (beats equipment defaults / client DB step).
+ * Keys are normalizeName() results.
+ */
+const EXERCISE_INCREMENT_OVERRIDE: Record<string, number> = {
+  // +2.5 kg
+  barbellskullcrusher: 2.5,
+  // "…Skull Crushers Smith Machine" → …crusherssmithmachine (trailing s not stripped)
+  barbellskullcrusherssmithmachine: 2.5,
+  cablelateralraise: 2.5,
+  chestflye: 2.5,
+  closegripezbarcurl: 2.5,
+  // +10 kg — "Leg Press" normalizes to legpres (trailing s stripped)
+  legpres: 10,
+  machinelegextension: 10,
+  seatedcalfraise: 10,
+}
 
 /** Normalize an exercise name: lowercase, letters only, drop trailing plural "s". */
 function normalizeName(name: string | undefined): string {
@@ -129,9 +152,15 @@ export function classifyEquipment(
 /** Standard weight increment (kg) for a weighted exercise, by equipment (+ name fallback). */
 export function getStandardIncrement(
   equipment: string | undefined,
-  name?: string
+  name?: string,
+  dumbbellIncrementKg: DumbbellIncrementKg = DEFAULT_DUMBBELL_INCREMENT_KG
 ): number {
-  return EQUIPMENT_INCREMENT[classifyEquipment(equipment, name)] ?? 5;
+  const override = EXERCISE_INCREMENT_OVERRIDE[normalizeName(name)];
+  if (typeof override === 'number') return override;
+
+  const kind = classifyEquipment(equipment, name);
+  if (kind === 'dumbbell') return normalizeDumbbellIncrement(dumbbellIncrementKg);
+  return EQUIPMENT_INCREMENT[kind] ?? 5;
 }
 
 /** True for bodyweight moves that gain load at the cap (pull-ups, dips, etc.). */
@@ -242,7 +271,8 @@ function planPlainSets(sets: WorkoutSet[], exercise: WorkoutExercise): SetPlan {
 function computeProgression(
   reps: number,
   weight: number,
-  exercise: WorkoutExercise
+  exercise: WorkoutExercise,
+  dumbbellIncrementKg: DumbbellIncrementKg = DEFAULT_DUMBBELL_INCREMENT_KG
 ): Prescription {
   const name = exercise.exercise?.name;
   const weightedBodyweight = isWeightedBodyweightExercise(name);
@@ -271,7 +301,11 @@ function computeProgression(
     reps: STANDARD_RESET_REPS,
     weight: roundToHalf(
       weight +
-        getStandardIncrement(exercise.exercise?.equipment, exercise.exercise?.name)
+        getStandardIncrement(
+          exercise.exercise?.equipment,
+          exercise.exercise?.name,
+          dumbbellIncrementKg
+        )
     ),
   };
 }
@@ -289,7 +323,11 @@ function applyPrescriptionToSets(
   }));
 }
 
-function progressDropset(set: WorkoutSet, exercise: WorkoutExercise): WorkoutSet {
+function progressDropset(
+  set: WorkoutSet,
+  exercise: WorkoutExercise,
+  dumbbellIncrementKg: DumbbellIncrementKg
+): WorkoutSet {
   const reps = (set.reps as unknown[]).map(asQty);
   const weights = Array.isArray(set.weight)
     ? (set.weight as unknown[]).map(asQty)
@@ -319,7 +357,12 @@ function progressDropset(set: WorkoutSet, exercise: WorkoutExercise): WorkoutSet
       nextWeights.push(0);
       continue;
     }
-    const prescription = computeProgression(reps[i], dropWeight, exercise);
+    const prescription = computeProgression(
+      reps[i],
+      dropWeight,
+      exercise,
+      dumbbellIncrementKg
+    );
     nextReps.push(prescription.reps);
     nextWeights.push(prescription.weight);
   }
@@ -343,7 +386,11 @@ function resetCompletion(set: WorkoutSet, reps: number, weight: number): Workout
   };
 }
 
-function progressPlainSets(sets: WorkoutSet[], exercise: WorkoutExercise): WorkoutSet[] {
+function progressPlainSets(
+  sets: WorkoutSet[],
+  exercise: WorkoutExercise,
+  dumbbellIncrementKg: DumbbellIncrementKg
+): WorkoutSet[] {
   const plan = planPlainSets(sets, exercise);
 
   if (plan.kind === 'unchanged') {
@@ -358,17 +405,26 @@ function progressPlainSets(sets: WorkoutSet[], exercise: WorkoutExercise): Worko
     return applyPrescriptionToSets(sets, { reps: plan.reps, weight: plan.weight });
   }
 
-  const prescription = computeProgression(plan.reps, plan.weight, exercise);
+  const prescription = computeProgression(
+    plan.reps,
+    plan.weight,
+    exercise,
+    dumbbellIncrementKg
+  );
   return applyPrescriptionToSets(sets, prescription);
 }
 
 /** Progress a single exercise. Returns a new exercise with updated sets. */
-export function progressExercise(exercise: WorkoutExercise): WorkoutExercise {
+export function progressExercise(
+  exercise: WorkoutExercise,
+  dumbbellIncrementKg: DumbbellIncrementKg = DEFAULT_DUMBBELL_INCREMENT_KG
+): WorkoutExercise {
   const sets = exercise.sets || [];
   if (sets.length === 0) return exercise;
+  const dbInc = normalizeDumbbellIncrement(dumbbellIncrementKg);
 
   const newSets = sets.map((set) => {
-    if (isDropsetArray(set)) return progressDropset(set, exercise);
+    if (isDropsetArray(set)) return progressDropset(set, exercise, dbInc);
     if (isPlainSet(set)) return set;
     return set;
   });
@@ -380,7 +436,8 @@ export function progressExercise(exercise: WorkoutExercise): WorkoutExercise {
   if (plainIndexes.length > 0) {
     const progressed = progressPlainSets(
       plainIndexes.map((i) => newSets[i]),
-      exercise
+      exercise,
+      dbInc
     );
     plainIndexes.forEach((setIndex, j) => {
       newSets[setIndex] = progressed[j];
@@ -428,6 +485,8 @@ export function deloadExercise(exercise: WorkoutExercise): WorkoutExercise {
 export interface ProgressionOptions {
   /** 0-based day indexes to leave unchanged (not trained this week). */
   excludedDayIndexes?: number[];
+  /** Gym dumbbell jump for this client (1 / 2 / 2.5 kg). */
+  dumbbellIncrementKg?: DumbbellIncrementKg;
 }
 
 function skippedDayNames(week: WorkoutWeek, excludedDayIndexes: number[]): string[] {
@@ -465,13 +524,14 @@ export function applyAutoProgression(
   options?: ProgressionOptions
 ): WorkoutWeek {
   const excludedDayIndexes = options?.excludedDayIndexes || [];
+  const dumbbellIncrementKg = normalizeDumbbellIncrement(options?.dumbbellIncrementKg);
   const skipped = skippedDayNames(week, excludedDayIndexes);
   const progressionNotes = skipped.length
     ? `Auto-progression from previous week. Kept same (not trained): ${skipped.join(', ')}.`
     : 'Auto-progression from previous week';
   return transformWeekExercises(
     { ...week, progressionNotes },
-    progressExercise,
+    (ex) => progressExercise(ex, dumbbellIncrementKg),
     excludedDayIndexes
   );
 }

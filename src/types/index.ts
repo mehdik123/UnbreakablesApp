@@ -153,6 +153,8 @@ export interface Client {
   shareUrl?: string;
   /** Preferred workout load unit (mirrors assignment.weightUnit when present) */
   weightUnit?: 'kg' | 'lbs';
+  /** Gym dumbbell jump for auto-progression (mirrors assignment when present) */
+  dumbbellIncrementKg?: 1 | 2 | 2.5;
 }
 
 export interface WeightEntry {
@@ -353,6 +355,8 @@ export interface ClientWorkoutAssignment {
   lastSavedWeek?: number;
   /** Client preferred workout load unit. Stored loads remain kg; UI converts. */
   weightUnit?: 'kg' | 'lbs';
+  /** Dumbbell plate/step for this client’s gym (kg). Used by auto-progression. */
+  dumbbellIncrementKg?: 1 | 2 | 2.5;
 }
 
 export interface ProgressionRule {

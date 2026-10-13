@@ -49,6 +49,7 @@ import { useToast } from '../contexts/ToastContext';
 export type NewClientSetupOptions = {
   mealsPerDay: number;
   workoutProgramId?: string;
+  dumbbellIncrementKg?: 1 | 2 | 2.5;
 };
 
 /** Compact plan-period bar: fill grows left→right as the plan is used; red near the end. */
@@ -188,6 +189,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
     isActive: true,
     startingWeight: '' as string,
   });
+  const [dumbbellIncrementKg, setDumbbellIncrementKg] = useState<1 | 2 | 2.5>(2.5);
   const [mealsPerDay, setMealsPerDay] = useState(3);
   const [workoutProgramId, setWorkoutProgramId] = useState('');
   const [workoutTemplates, setWorkoutTemplates] = useState<{ id: string; name: string }[]>([]);
@@ -373,10 +375,14 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
     const setup: NewClientSetupOptions = {
       mealsPerDay,
       workoutProgramId: workoutProgramId || undefined,
+      dumbbellIncrementKg,
     };
     setIsAddingClient(true);
     try {
-      await onAddClient(client, setup);
+      await onAddClient(
+        { ...client, dumbbellIncrementKg },
+        setup
+      );
       setShowAddModal(false);
       setNewClient({
         name: '',
@@ -388,6 +394,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
         isActive: true,
         startingWeight: '',
       });
+      setDumbbellIncrementKg(2.5);
       setMealsPerDay(3);
       setWorkoutProgramId('');
     } finally {
@@ -1145,6 +1152,33 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                   />
                   <p className="mt-1.5 text-xs text-slate-400">
                     Baseline for the home weight highlight. Shown once the client logs their first weight.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-300 mb-2">
+                    Dumbbell increment (gym)
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([1, 2, 2.5] as const).map((step) => (
+                      <button
+                        key={step}
+                        type="button"
+                        onClick={() => setDumbbellIncrementKg(step)}
+                        className="min-h-11 rounded-xl text-sm font-semibold"
+                        style={{
+                          background: dumbbellIncrementKg === step ? 'var(--grad-red)' : 'var(--surface-2)',
+                          color: dumbbellIncrementKg === step ? '#fff' : 'var(--txt-hi)',
+                          border: '1px solid var(--hair)',
+                          touchAction: 'manipulation',
+                        }}
+                      >
+                        +{step} kg
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    How dumbbells jump at their gym. Used when auto-progression adds weight on DB moves.
                   </p>
                 </div>
 

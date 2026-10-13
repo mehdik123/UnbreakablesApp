@@ -6,6 +6,7 @@ import {
   markWeekAsDeployed,
 } from './weekCreation';
 import { applyAutoProgression, applyDeload } from './autoProgression';
+import { normalizeDumbbellIncrement } from './dumbbellIncrement';
 
 /**
  * Bulk progression — create the next training week for many clients at once.
@@ -43,12 +44,15 @@ export interface BulkPlanEntry {
 function buildNextWeek(
   prevWeek: WorkoutWeek,
   nextNum: number,
-  mode: ProgressionMode
+  mode: ProgressionMode,
+  dumbbellIncrementKg?: number
 ): WorkoutWeek {
   const base = createNextWeekFromActuals(prevWeek, nextNum);
   if (mode === 'deload') return applyDeload(base);
   if (mode === 'copy') return base;
-  return applyAutoProgression(base);
+  return applyAutoProgression(base, {
+    dumbbellIncrementKg: normalizeDumbbellIncrement(dumbbellIncrementKg),
+  });
 }
 
 /** Compute what would happen for a single client (no side effects). */
@@ -97,8 +101,16 @@ export function planClientProgression(
     };
   }
 
-  const deployed = markWeekAsDeployed(buildNextWeek(prevWeek, nextNum, mode));
-  const updatedAssignment = addWeekToAssignment(assignment, deployed);
+  const dumbbellIncrementKg = normalizeDumbbellIncrement(
+    assignment.dumbbellIncrementKg ?? client.dumbbellIncrementKg
+  );
+  const deployed = markWeekAsDeployed(
+    buildNextWeek(prevWeek, nextNum, mode, dumbbellIncrementKg)
+  );
+  const updatedAssignment = addWeekToAssignment(
+    { ...assignment, dumbbellIncrementKg },
+    deployed
+  );
 
   return {
     ...base,

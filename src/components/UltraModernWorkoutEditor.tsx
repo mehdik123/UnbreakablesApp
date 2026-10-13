@@ -37,6 +37,11 @@ import {
   getDaysSinceWeekCreated,
 } from '../utils/weekCreation';
 import { applyAutoProgression, applyDeload } from '../utils/autoProgression';
+import {
+  DUMBBELL_INCREMENTS,
+  normalizeDumbbellIncrement,
+  type DumbbellIncrementKg,
+} from '../utils/dumbbellIncrement';
 import { getExerciseRestSeconds, formatRestSeconds } from '../utils/exerciseRest';
 import { countSetsByMuscleGroup } from '../utils/volumeCalculator';
 import { safeLocalStorageSet } from '../utils/localStorageClients';
@@ -74,10 +79,21 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
   const [weightUnit, setWeightUnit] = useState<WeightUnit>(() =>
     loadClientWeightUnit(client.id, client.workoutAssignment)
   );
+  const [dumbbellIncrementKg, setDumbbellIncrementKg] = useState<DumbbellIncrementKg>(() =>
+    normalizeDumbbellIncrement(client.workoutAssignment?.dumbbellIncrementKg ?? client.dumbbellIncrementKg)
+  );
 
   useEffect(() => {
     setWeightUnit(loadClientWeightUnit(client.id, client.workoutAssignment));
   }, [client.id, client.workoutAssignment?.weightUnit]);
+
+  useEffect(() => {
+    setDumbbellIncrementKg(
+      normalizeDumbbellIncrement(
+        client.workoutAssignment?.dumbbellIncrementKg ?? client.dumbbellIncrementKg
+      )
+    );
+  }, [client.id, client.workoutAssignment?.dumbbellIncrementKg, client.dumbbellIncrementKg]);
 
   const handleWeightUnitChange = (unit: WeightUnit) => {
     setWeightUnit(unit);
@@ -229,7 +245,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     excludedDayIndexes: number[] = []
   ): WorkoutWeek => {
     const base = createNextWeekFromActuals(prevWeek, nextNum);
-    const options = { excludedDayIndexes };
+    const options = { excludedDayIndexes, dumbbellIncrementKg };
     if (mode === 'deload') return applyDeload(base, options);
     if (mode === 'copy') return base;
     return applyAutoProgression(base, options);
@@ -1691,6 +1707,7 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
       lastModifiedBy: 'coach',
       lastModifiedAt: new Date(),
       weightUnit,
+      dumbbellIncrementKg,
       // Do NOT set lastSavedDay / numbersSaved here — preparing a week must not mark sessions done
     } as ClientWorkoutAssignment;
 
@@ -1883,6 +1900,40 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                     </button>
                   );
                 })}
+              </div>
+              <div
+                className="flex flex-col gap-1 min-w-0"
+                title="Dumbbell jump at this client’s gym (used when auto-progression adds weight)"
+              >
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--txt-lo)] px-0.5">
+                  DB step
+                </span>
+                <div
+                  className="flex items-center gap-1 p-1 rounded-xl"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--hair)' }}
+                >
+                  {DUMBBELL_INCREMENTS.map((step) => {
+                    const active = dumbbellIncrementKg === step;
+                    return (
+                      <button
+                        key={step}
+                        type="button"
+                        onClick={() => {
+                          setDumbbellIncrementKg(step);
+                          setHasModifications(true);
+                        }}
+                        className="min-h-10 min-w-[2.75rem] px-2 rounded-lg text-xs font-bold touch-manipulation"
+                        style={{
+                          background: active ? 'var(--grad-red)' : 'transparent',
+                          color: active ? '#fff' : 'var(--txt-mid)',
+                          WebkitTapHighlightColor: 'transparent',
+                        }}
+                      >
+                        {step}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <button
                 onClick={() => handleSaveAssignment()}
