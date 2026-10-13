@@ -242,10 +242,11 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
     prevWeek: WorkoutWeek,
     nextNum: number,
     mode: WeekGenMode,
-    excludedDayIndexes: number[] = []
+    excludedDayIndexes: number[] = [],
+    dbStep: DumbbellIncrementKg = dumbbellIncrementKg
   ): WorkoutWeek => {
     const base = createNextWeekFromActuals(prevWeek, nextNum);
-    const options = { excludedDayIndexes, dumbbellIncrementKg };
+    const options = { excludedDayIndexes, dumbbellIncrementKg: dbStep };
     if (mode === 'deload') return applyDeload(base, options);
     if (mode === 'copy') return base;
     return applyAutoProgression(base, options);
@@ -4345,6 +4346,50 @@ export const UltraModernWorkoutEditor: React.FC<UltraModernWorkoutEditorProps> =
                         {weekGenMode === 'copy' && `Week ${draftNewWeek.weekNumber} starts with the exact same exercises, reps and weights as Week ${draftNewWeek.weekNumber - 1}.`}
                       </span>
                     </div>
+
+                    {weekGenMode === 'progress' && (
+                      <div>
+                        <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+                          Dumbbell increment (this gym)
+                        </div>
+                        <p className="text-xs text-slate-500 mb-2">
+                          Used when auto-progress adds weight on dumbbell moves. Cap is 14 reps — at 13, next week is 8 reps + weight.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {DUMBBELL_INCREMENTS.map((step) => {
+                            const active = dumbbellIncrementKg === step;
+                            return (
+                              <button
+                                key={step}
+                                type="button"
+                                onClick={() => {
+                                  setDumbbellIncrementKg(step);
+                                  setHasModifications(true);
+                                  if (progressionSourceWeek) {
+                                    setDraftNewWeek(
+                                      buildDraftWeek(
+                                        progressionSourceWeek,
+                                        draftNewWeek.weekNumber,
+                                        'progress',
+                                        excludedProgressionDayIndexes,
+                                        step
+                                      )
+                                    );
+                                  }
+                                }}
+                                className={`min-h-11 px-4 rounded-xl text-sm font-semibold touch-manipulation ${
+                                  active
+                                    ? 'bg-red-600 text-white shadow-lg'
+                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                }`}
+                              >
+                                +{step} kg
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     {weekGenMode !== 'copy' && (progressionSourceWeek?.days?.length || 0) > 0 && (
                       <div>

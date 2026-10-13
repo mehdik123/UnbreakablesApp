@@ -22,11 +22,16 @@ import {
  *  - Bodyweight exercise, same reps → +2 reps (keep 0 kg).
  *  - Bodyweight, mixed reps → unify to top reps, 0 kg.
  *  - Not bodyweight → leave as-is (coach edits).
+ *
+ * Loaded progression (after unify):
+ *  - +2 reps while next ≤ 14 (so 9→11→13→14 max).
+ *  - At 13 unified: next would be 15 → reset to 8 and add equipment weight.
  */
 
 export type EquipmentType = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight';
 
-const STANDARD_REP_CAP = 12;
+/** Max reps after a +2 bump. At 13 (or 14), next week resets to 8 and adds weight — never 15+. */
+const STANDARD_REP_CAP = 14;
 const STANDARD_RESET_REPS = 8;
 const BODYWEIGHT_REP_CAP = 14;
 const BODYWEIGHT_RESET_REPS = 8;
@@ -279,7 +284,8 @@ function computeProgression(
 
   if (weightedBodyweight && weight > 0) {
     const candidateReps = reps + REP_INCREMENT;
-    if (candidateReps >= BODYWEIGHT_REP_CAP) {
+    // Same rule as standard: 14 is allowed; next (+2) past 14 → reset + weight.
+    if (candidateReps > BODYWEIGHT_REP_CAP) {
       return {
         reps: BODYWEIGHT_RESET_REPS,
         weight: roundToHalf(weight + getWeightedBodyweightIncrement(name)),
@@ -288,26 +294,32 @@ function computeProgression(
     return { reps: candidateReps, weight };
   }
 
-  // Bodyweight (or 0 kg on a BW move): keep adding +2. Loaded 0 kg is not
-  // progressed here — planPlainSets leaves non-BW 0 kg unchanged.
+  // Bodyweight (or 0 kg on a BW move): keep adding +2 until the same rep cap.
+  // Loaded 0 kg on non-BW is left as-is in planPlainSets.
   if (weight === 0) {
-    return { reps: reps + REP_INCREMENT, weight: 0 };
+    const bwNext = reps + REP_INCREMENT;
+    if (bwNext > STANDARD_REP_CAP) {
+      return { reps: STANDARD_RESET_REPS, weight: 0 };
+    }
+    return { reps: bwNext, weight: 0 };
   }
 
-  if (reps < STANDARD_REP_CAP) {
-    return { reps: reps + REP_INCREMENT, weight };
+  // Prefer "would next exceed the cap?" so 13 → 8+weight (not 15).
+  const candidateReps = reps + REP_INCREMENT;
+  if (candidateReps > STANDARD_REP_CAP) {
+    return {
+      reps: STANDARD_RESET_REPS,
+      weight: roundToHalf(
+        weight +
+          getStandardIncrement(
+            exercise.exercise?.equipment,
+            exercise.exercise?.name,
+            dumbbellIncrementKg
+          )
+      ),
+    };
   }
-  return {
-    reps: STANDARD_RESET_REPS,
-    weight: roundToHalf(
-      weight +
-        getStandardIncrement(
-          exercise.exercise?.equipment,
-          exercise.exercise?.name,
-          dumbbellIncrementKg
-        )
-    ),
-  };
+  return { reps: candidateReps, weight };
 }
 
 function applyPrescriptionToSets(
