@@ -129,8 +129,9 @@ const CLIENT_DATA_TABLES = [
   'nutrition_plans',
   'workout_assignments',
   'cardio_plans',
-  'weekly_volume_tracking',
+  // Prefer the table that exists in this project; the other may 404 (ignored).
   'weekly_training_volume',
+  'weekly_volume_tracking',
   'client_weight_logs',
   'client_personal_records',
   'exercise_performance_logs',
@@ -148,6 +149,20 @@ export type OrphanClientDataReport = {
   liveClientCount: number;
 };
 
+/** PostgREST 404 / missing relation — table not in this project's schema. */
+function isMissingRelationError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const e = error as { code?: string; message?: string; status?: number; details?: string };
+  if (e.code === 'PGRST205' || e.code === '42P01' || e.status === 404) return true;
+  const msg = `${e.message || ''} ${e.details || ''}`.toLowerCase();
+  return (
+    msg.includes('does not exist') ||
+    msg.includes('could not find the table') ||
+    msg.includes('schema cache') ||
+    (msg.includes('could not find') && msg.includes('schema'))
+  );
+}
+
 /**
  * Delete every known child row + storage objects for a client.
  * Does not touch the clients row itself (caller deactivates or hard-deletes).
@@ -158,11 +173,11 @@ async function wipeClientRelatedData(clientId: string): Promise<DBResult<boolean
   const errors: string[] = [];
   const run = async (label: string, fn: () => PromiseLike<{ error: any }>) => {
     const { error } = await fn();
-    if (error) {
-      // Missing table / RLS — log and continue so one gap doesn't abort the wipe
-      console.warn(`[wipe client] ${label}:`, error.message || error);
-      errors.push(label);
-    }
+    if (!error) return;
+    // Table missing in this project — skip quietly (e.g. weekly_volume_tracking)
+    if (isMissingRelationError(error)) return;
+    console.warn(`[wipe client] ${label}:`, error.message || error);
+    errors.push(label);
   };
 
   // Progress photos: DB rows + storage (full + thumb) + leftover folder objects
@@ -216,48 +231,9 @@ async function wipeClientRelatedData(clientId: string): Promise<DBResult<boolean
     }
   }
 
-  await run('weekly_photos', () =>
-    supabase!.from('weekly_photos').delete().eq('client_id', clientId)
-  );
-  await run('nutrition_plans', () =>
-    supabase!.from('nutrition_plans').delete().eq('client_id', clientId)
-  );
-  await run('workout_assignments', () =>
-    supabase!.from('workout_assignments').delete().eq('client_id', clientId)
-  );
-  await run('cardio_plans', () =>
-    supabase!.from('cardio_plans').delete().eq('client_id', clientId)
-  );
-  await run('weekly_volume_tracking', () =>
-    supabase!.from('weekly_volume_tracking').delete().eq('client_id', clientId)
-  );
-  await run('weekly_training_volume', () =>
-    supabase!.from('weekly_training_volume').delete().eq('client_id', clientId)
-  );
-  await run('client_weight_logs', () =>
-    supabase!.from('client_weight_logs').delete().eq('client_id', clientId)
-  );
-  await run('client_personal_records', () =>
-    supabase!.from('client_personal_records').delete().eq('client_id', clientId)
-  );
-  await run('exercise_performance_logs', () =>
-    supabase!.from('exercise_performance_logs').delete().eq('client_id', clientId)
-  );
-  await run('weekly_performance_summary', () =>
-    supabase!.from('weekly_performance_summary').delete().eq('client_id', clientId)
-  );
-  await run('body_measurements', () =>
-    supabase!.from('body_measurements').delete().eq('client_id', clientId)
-  );
-  await run('client_supplements', () =>
-    supabase!.from('client_supplements').delete().eq('client_id', clientId)
-  );
-  await run('client_hydration', () =>
-    supabase!.from('client_hydration').delete().eq('client_id', clientId)
-  );
-  await run('client_credentials', () =>
-    supabase!.from('client_credentials').delete().eq('client_id', clientId)
-  );
+  for (const table of CLIENT_DATA_TABLES) {
+    await run(table, () => supabase!.from(table).delete().eq('client_id', clientId));
+  }
 
   return {
     data: errors.length === 0,
@@ -279,7 +255,9 @@ export async function dbDeleteClient(id: string): Promise<DBResult<null>> {
   return { data: null, error: null };
 }
 
-async function collectDistinctClientIds(table: string): Promise<{ ids: string[]; error?: string }> {
+async function collectDistinctClientIds(
+  table: string
+): Promise<{ ids: string[]; error?: string; missing?: boolean }> {
   if (!supabase) return { ids: [] };
   const ids = new Set<string>();
   const pageSize = 1000;
@@ -288,7 +266,10 @@ async function collectDistinctClientIds(table: string): Promise<{ ids: string[];
       .from(table)
       .select('client_id')
       .range(from, from + pageSize - 1);
-    if (error) return { ids: [...ids], error: error.message };
+    if (error) {
+      if (isMissingRelationError(error)) return { ids: [], missing: true };
+      return { ids: [...ids], error: error.message };
+    }
     if (!data?.length) break;
     for (const row of data) {
       const id = String((row as { client_id?: string }).client_id || '');
@@ -323,7 +304,8 @@ export async function dbFindOrphanedClientData(): Promise<DBResult<OrphanClientD
   const byTable: Record<string, number> = {};
 
   for (const table of CLIENT_DATA_TABLES) {
-    const { ids, error } = await collectDistinctClientIds(table);
+    const { ids, error, missing } = await collectDistinctClientIds(table);
+    if (missing) continue; // table not in this project
     if (error) {
       console.warn(`[orphan scan] ${table}:`, error);
       continue;
