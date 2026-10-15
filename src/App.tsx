@@ -820,9 +820,39 @@ function App() {
   };
 
   const handleDeleteClient = async (clientId: string) => {
-    if (isSupabaseReady) await dbDeleteClient(clientId);
-    const filteredClients = appState.clients.filter(client => client.id !== clientId);
-    setAppState(prev => ({ ...prev, clients: filteredClients }));
+    if (isSupabaseReady) {
+      const { error } = await dbDeleteClient(clientId);
+      if (error) {
+        console.error('Failed to fully delete client data:', error);
+        alert(
+          `Client removed from the list, but some database cleanup reported: ${error.message || 'unknown error'}. Check the console / Supabase tables if anything remains.`
+        );
+      }
+    }
+
+    // Clear local drafts / offline snapshot for this client
+    try {
+      localStorage.removeItem(`nutrition_plan_${clientId}`);
+      localStorage.removeItem(`nutrition_editor_${clientId}`);
+      localStorage.removeItem(`cardio_plan_${clientId}`);
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.includes(clientId)) keysToRemove.push(k);
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+    } catch {
+      /* ignore */
+    }
+
+    removeLocalArchivedId(clientId);
+
+    const filteredClients = appState.clients.filter((client) => client.id !== clientId);
+    setAppState((prev) => ({
+      ...prev,
+      clients: filteredClients,
+      selectedClient: prev.selectedClient?.id === clientId ? null : prev.selectedClient,
+    }));
     if (!isSupabaseReady) persistClientsLocally(filteredClients);
   };
 

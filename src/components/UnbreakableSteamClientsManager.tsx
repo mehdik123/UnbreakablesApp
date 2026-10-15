@@ -35,6 +35,7 @@ import {
 import { Client, ClientWorkoutAssignment } from '../types';
 import { ClientCredentialsManager } from './ClientCredentialsManager';
 import { CoachPlanRiskBanner } from './CoachPlanRiskBanner';
+import { CoachOrphanDataCleanup } from './CoachOrphanDataCleanup';
 import { authService } from '../lib/authService';
 import {
   planBulkProgression,
@@ -136,7 +137,7 @@ interface UnbreakableSteamClientsManagerProps {
   clients: Client[];
   onAddClient: (client: Client, setup?: NewClientSetupOptions) => void | Promise<void>;
   onUpdateClient: (clientId: string, updates: Partial<Client>) => void | Promise<void>;
-  onDeleteClient: (clientId: string) => void;
+  onDeleteClient: (clientId: string) => void | Promise<void>;
   onArchiveClient: (clientId: string) => void | Promise<void>;
   onRestoreClient: (clientId: string) => void | Promise<void>;
   onEndCoaching: (clientId: string) => void | Promise<void>;
@@ -609,6 +610,7 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
 
       <div className="coach-hub-main">
         <CoachPlanRiskBanner />
+        <CoachOrphanDataCleanup />
 
         <div className="coach-hub-welcome home-anim">
           <h1 className="font-saira">Welcome back</h1>
@@ -1382,12 +1384,25 @@ export const UnbreakableSteamClientsManager: React.FC<UnbreakableSteamClientsMan
                   </button>
                   )}
                   <button
-                    onClick={() => {
-                      if (window.confirm(`Are you sure you want to permanently delete ${currentClient.name}? This action cannot be undone.`)) {
-                        onDeleteClient(currentClient.id);
-                      }
+                    onClick={async () => {
                       setOpenDropdownId(null);
                       setDropdownPosition(null);
+                      if (
+                        !window.confirm(
+                          `Permanently delete ${currentClient.name}?\n\nThis removes their row AND all related data: meals, workout, cardio, photos (files + thumbs), weight logs, PRs, supplements, credentials. This cannot be undone.`
+                        )
+                      ) {
+                        return;
+                      }
+                      if (
+                        !window.confirm(
+                          `Last check: erase ${currentClient.name} completely from the database?`
+                        )
+                      ) {
+                        return;
+                      }
+                      await onDeleteClient(currentClient.id);
+                      toast.success(`${currentClient.name} deleted from the database`);
                     }}
                     className="w-full px-4 py-2.5 text-left text-red-400 hover:bg-slate-700 flex items-center space-x-2 min-h-[44px]"
                   >

@@ -106,10 +106,298 @@ export async function dbUpdateClient(id: string, updates: {
   return { data, error };
 }
 
+function weeklyPhotoStoragePathsFromUrl(imageUrl: string): string[] {
+  const marker = '/weekly-photos/';
+  const idx = imageUrl.indexOf(marker);
+  if (idx === -1) return [];
+  let fullPath = imageUrl.slice(idx + marker.length).split('?')[0] || '';
+  try {
+    fullPath = decodeURIComponent(fullPath);
+  } catch {
+    /* keep raw */
+  }
+  if (!fullPath) return [];
+  const thumbPath = /\.thumb\.jpe?g$/i.test(fullPath)
+    ? fullPath
+    : fullPath.replace(/\.jpe?g$/i, '.thumb.jpg');
+  return fullPath === thumbPath ? [fullPath] : [fullPath, thumbPath];
+}
+
+/** Tables keyed by client_id that must be cleared when a client is removed. */
+const CLIENT_DATA_TABLES = [
+  'weekly_photos',
+  'nutrition_plans',
+  'workout_assignments',
+  'cardio_plans',
+  'weekly_volume_tracking',
+  'weekly_training_volume',
+  'client_weight_logs',
+  'client_personal_records',
+  'exercise_performance_logs',
+  'weekly_performance_summary',
+  'body_measurements',
+  'client_supplements',
+  'client_hydration',
+  'client_credentials',
+] as const;
+
+export type OrphanClientDataReport = {
+  orphanClientIds: string[];
+  byTable: Record<string, number>;
+  storageFolderIds: string[];
+  liveClientCount: number;
+};
+
+/**
+ * Delete every known child row + storage objects for a client.
+ * Does not touch the clients row itself (caller deactivates or hard-deletes).
+ */
+async function wipeClientRelatedData(clientId: string): Promise<DBResult<boolean>> {
+  if (!isSupabaseReady || !supabase) return { data: false };
+
+  const errors: string[] = [];
+  const run = async (label: string, fn: () => PromiseLike<{ error: any }>) => {
+    const { error } = await fn();
+    if (error) {
+      // Missing table / RLS — log and continue so one gap doesn't abort the wipe
+      console.warn(`[wipe client] ${label}:`, error.message || error);
+      errors.push(label);
+    }
+  };
+
+  // Progress photos: DB rows + storage (full + thumb) + leftover folder objects
+  const { data: photos } = await supabase
+    .from('weekly_photos')
+    .select('id, image_url')
+    .eq('client_id', clientId);
+
+  const pathSet = new Set<string>();
+  for (const p of photos || []) {
+    for (const path of weeklyPhotoStoragePathsFromUrl(String(p.image_url || ''))) {
+      pathSet.add(path);
+    }
+  }
+
+  try {
+    const { data: top } = await supabase.storage.from('weekly-photos').list(clientId, {
+      limit: 1000,
+      offset: 0,
+    });
+    for (const entry of top || []) {
+      if (!entry?.name) continue;
+      const topPath = `${clientId}/${entry.name}`;
+      // File at client root
+      if (entry.id != null || (entry.metadata && (entry.metadata as { size?: number }).size != null)) {
+        pathSet.add(topPath);
+        continue;
+      }
+      // Week (or other) subfolder — list files inside
+      const { data: nested } = await supabase.storage
+        .from('weekly-photos')
+        .list(topPath, { limit: 1000, offset: 0 });
+      for (const file of nested || []) {
+        if (file?.name) pathSet.add(`${topPath}/${file.name}`);
+      }
+    }
+  } catch (err) {
+    console.warn('[wipe client] storage list:', err);
+  }
+
+  const paths = [...pathSet];
+  if (paths.length) {
+    // Storage remove accepts batches; chunk to stay under request limits
+    for (let i = 0; i < paths.length; i += 100) {
+      const chunk = paths.slice(i, i + 100);
+      const { error } = await supabase.storage.from('weekly-photos').remove(chunk);
+      if (error) {
+        console.warn('[wipe client] storage remove:', error.message || error);
+        errors.push('storage');
+      }
+    }
+  }
+
+  await run('weekly_photos', () =>
+    supabase!.from('weekly_photos').delete().eq('client_id', clientId)
+  );
+  await run('nutrition_plans', () =>
+    supabase!.from('nutrition_plans').delete().eq('client_id', clientId)
+  );
+  await run('workout_assignments', () =>
+    supabase!.from('workout_assignments').delete().eq('client_id', clientId)
+  );
+  await run('cardio_plans', () =>
+    supabase!.from('cardio_plans').delete().eq('client_id', clientId)
+  );
+  await run('weekly_volume_tracking', () =>
+    supabase!.from('weekly_volume_tracking').delete().eq('client_id', clientId)
+  );
+  await run('weekly_training_volume', () =>
+    supabase!.from('weekly_training_volume').delete().eq('client_id', clientId)
+  );
+  await run('client_weight_logs', () =>
+    supabase!.from('client_weight_logs').delete().eq('client_id', clientId)
+  );
+  await run('client_personal_records', () =>
+    supabase!.from('client_personal_records').delete().eq('client_id', clientId)
+  );
+  await run('exercise_performance_logs', () =>
+    supabase!.from('exercise_performance_logs').delete().eq('client_id', clientId)
+  );
+  await run('weekly_performance_summary', () =>
+    supabase!.from('weekly_performance_summary').delete().eq('client_id', clientId)
+  );
+  await run('body_measurements', () =>
+    supabase!.from('body_measurements').delete().eq('client_id', clientId)
+  );
+  await run('client_supplements', () =>
+    supabase!.from('client_supplements').delete().eq('client_id', clientId)
+  );
+  await run('client_hydration', () =>
+    supabase!.from('client_hydration').delete().eq('client_id', clientId)
+  );
+  await run('client_credentials', () =>
+    supabase!.from('client_credentials').delete().eq('client_id', clientId)
+  );
+
+  return {
+    data: errors.length === 0,
+    error: errors.length ? { message: `Partial wipe: ${errors.join(', ')}` } : null,
+  };
+}
+
+/**
+ * Hard-delete a client: wipe all related plan/performance/photo data, then
+ * remove the clients row. Prefer this over a bare DELETE on clients.
+ */
 export async function dbDeleteClient(id: string): Promise<DBResult<null>> {
   if (!isSupabaseReady || !supabase) return { data: null };
+
+  const wipe = await wipeClientRelatedData(id);
   const { error } = await supabase.from('clients').delete().eq('id', id);
-  return { data: null, error };
+  if (error) return { data: null, error };
+  if (wipe.error) return { data: null, error: wipe.error };
+  return { data: null, error: null };
+}
+
+async function collectDistinctClientIds(table: string): Promise<{ ids: string[]; error?: string }> {
+  if (!supabase) return { ids: [] };
+  const ids = new Set<string>();
+  const pageSize = 1000;
+  for (let from = 0; from < 50_000; from += pageSize) {
+    const { data, error } = await supabase
+      .from(table)
+      .select('client_id')
+      .range(from, from + pageSize - 1);
+    if (error) return { ids: [...ids], error: error.message };
+    if (!data?.length) break;
+    for (const row of data) {
+      const id = String((row as { client_id?: string }).client_id || '');
+      if (id) ids.add(id);
+    }
+    if (data.length < pageSize) break;
+  }
+  return { ids: [...ids] };
+}
+
+/**
+ * Find client_ids that still have plan/photo/performance rows (or storage folders)
+ * but no longer exist in `clients` — leftovers from deletes before full wipe.
+ */
+export async function dbFindOrphanedClientData(): Promise<DBResult<OrphanClientDataReport>> {
+  if (!isSupabaseReady || !supabase) {
+    return {
+      data: {
+        orphanClientIds: [],
+        byTable: {},
+        storageFolderIds: [],
+        liveClientCount: 0,
+      },
+    };
+  }
+
+  const { data: clients, error: clientsErr } = await supabase.from('clients').select('id');
+  if (clientsErr) return { data: null, error: clientsErr };
+
+  const live = new Set((clients || []).map((c) => String(c.id)));
+  const orphanSet = new Set<string>();
+  const byTable: Record<string, number> = {};
+
+  for (const table of CLIENT_DATA_TABLES) {
+    const { ids, error } = await collectDistinctClientIds(table);
+    if (error) {
+      console.warn(`[orphan scan] ${table}:`, error);
+      continue;
+    }
+    let orphanRows = 0;
+    for (const id of ids) {
+      if (!live.has(id)) {
+        orphanSet.add(id);
+        orphanRows += 1;
+      }
+    }
+    if (orphanRows > 0) byTable[table] = orphanRows;
+  }
+
+  const storageFolderIds: string[] = [];
+  try {
+    const { data: folders } = await supabase.storage.from('weekly-photos').list('', {
+      limit: 1000,
+      offset: 0,
+    });
+    for (const entry of folders || []) {
+      const name = entry?.name;
+      if (!name) continue;
+      // UUID-like client folders only
+      if (!/^[0-9a-f-]{36}$/i.test(name) && !/^[0-9a-f]{8}-/i.test(name)) continue;
+      if (!live.has(name)) {
+        storageFolderIds.push(name);
+        orphanSet.add(name);
+      }
+    }
+  } catch (err) {
+    console.warn('[orphan scan] storage:', err);
+  }
+
+  return {
+    data: {
+      orphanClientIds: [...orphanSet],
+      byTable,
+      storageFolderIds,
+      liveClientCount: live.size,
+    },
+    error: null,
+  };
+}
+
+/**
+ * Wipe all leftover rows/files for orphan client ids (no clients row exists).
+ */
+export async function dbPurgeOrphanedClientData(
+  orphanClientIds?: string[]
+): Promise<DBResult<{ purged: number; failed: string[] }>> {
+  if (!isSupabaseReady || !supabase) return { data: { purged: 0, failed: [] } };
+
+  let ids = orphanClientIds;
+  if (!ids) {
+    const scan = await dbFindOrphanedClientData();
+    if (scan.error || !scan.data) return { data: null, error: scan.error };
+    ids = scan.data.orphanClientIds;
+  }
+
+  const failed: string[] = [];
+  let purged = 0;
+  for (const id of ids) {
+    const wipe = await wipeClientRelatedData(id);
+    if (wipe.error) failed.push(id);
+    else purged += 1;
+  }
+
+  return {
+    data: { purged, failed },
+    error: failed.length
+      ? { message: `Purged ${purged}; failed ${failed.length}: ${failed.join(', ')}` }
+      : null,
+  };
 }
 
 // ---------- Exercises CRUD ----------
@@ -590,23 +878,6 @@ export async function dbSaveWeeklyPhoto(photo: Omit<WeeklyPhoto, 'id' | 'uploade
   return { data, error };
 }
 
-function weeklyPhotoStoragePathsFromUrl(imageUrl: string): string[] {
-  const marker = '/weekly-photos/';
-  const idx = imageUrl.indexOf(marker);
-  if (idx === -1) return [];
-  let fullPath = imageUrl.slice(idx + marker.length).split('?')[0] || '';
-  try {
-    fullPath = decodeURIComponent(fullPath);
-  } catch {
-    /* keep raw */
-  }
-  if (!fullPath) return [];
-  const thumbPath = /\.thumb\.jpe?g$/i.test(fullPath)
-    ? fullPath
-    : fullPath.replace(/\.jpe?g$/i, '.thumb.jpg');
-  return fullPath === thumbPath ? [fullPath] : [fullPath, thumbPath];
-}
-
 /**
  * Upload full + thumb JPEGs. Replaces any existing photo for the same
  * client/week/pose so Storage does not accumulate orphan retakes (egress + size).
@@ -830,64 +1101,10 @@ export async function dbDeleteCardioTemplate(id: string): Promise<DBResult<boole
 export async function dbEndClientCoaching(clientId: string): Promise<DBResult<boolean>> {
   if (!isSupabaseReady || !supabase) return { data: false };
 
-  const errors: string[] = [];
-
-  const run = async (label: string, fn: () => PromiseLike<{ error: any }>) => {
-    const { error } = await fn();
-    if (error) {
-      console.warn(`[end coaching] ${label}:`, error.message || error);
-      errors.push(label);
-    }
-  };
-
-  // Progress photos (DB + storage folder)
-  const { data: photos } = await supabase
-    .from('weekly_photos')
-    .select('id, image_url')
-    .eq('client_id', clientId);
-  if (photos?.length) {
-    const paths: string[] = [];
-    for (const p of photos) {
-      const url = String(p.image_url || '');
-      const marker = '/weekly-photos/';
-      const idx = url.indexOf(marker);
-      if (idx >= 0) paths.push(decodeURIComponent(url.slice(idx + marker.length).split('?')[0]));
-    }
-    if (paths.length) {
-      await supabase.storage.from('weekly-photos').remove(paths);
-    }
-  }
-  await run('weekly_photos', () =>
-    supabase!.from('weekly_photos').delete().eq('client_id', clientId)
-  );
-
-  await run('nutrition_plans', () =>
-    supabase!.from('nutrition_plans').delete().eq('client_id', clientId)
-  );
-  await run('workout_assignments', () =>
-    supabase!.from('workout_assignments').delete().eq('client_id', clientId)
-  );
-  await run('cardio_plans', () =>
-    supabase!.from('cardio_plans').delete().eq('client_id', clientId)
-  );
-  await run('weekly_volume_tracking', () =>
-    supabase!.from('weekly_volume_tracking').delete().eq('client_id', clientId)
-  );
-  await run('client_weight_logs', () =>
-    supabase!.from('client_weight_logs').delete().eq('client_id', clientId)
-  );
-  await run('client_personal_records', () =>
-    supabase!.from('client_personal_records').delete().eq('client_id', clientId)
-  );
-  await run('client_supplements', () =>
-    supabase!.from('client_supplements').delete().eq('client_id', clientId)
-  );
-  await run('client_hydration', () =>
-    supabase!.from('client_hydration').delete().eq('client_id', clientId)
-  );
-  await run('client_credentials', () =>
-    supabase!.from('client_credentials').delete().eq('client_id', clientId)
-  );
+  const wipe = await wipeClientRelatedData(clientId);
+  const errors: string[] = wipe.error?.message
+    ? String(wipe.error.message).replace(/^Partial wipe:\s*/, '').split(', ').filter(Boolean)
+    : [];
 
   // Stub remains for thank-you gate; archive so they leave the active list
   const { error: clientErr } = await supabase
