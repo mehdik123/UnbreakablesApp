@@ -681,220 +681,169 @@ export const ModernClientInterface: React.FC<ModernClientInterfaceProps> = ({
     applySyncedWeekIfUnpinned(w);
   }, [client.workoutAssignment, applySyncedWeekIfUnpinned]);
 
-  // Real-time sync for current week from database
+  /**
+   * Assignment sync — egress-safe.
+   * Previously polled full program_json every 1s (+ again every 5s), which alone
+   * can burn hundreds of MB/hour per open client session.
+   * Now: realtime for coach pushes; lightweight metadata poll; full JSON only when changed.
+   */
   useEffect(() => {
     if (!isOnline || !isSupabaseReady || !supabase) return;
 
-    const syncCurrentWeek = async () => {
-      if (!supabase) return;
-      
-      try {
-        const { data: cRow } = await supabase
-          .from('clients')
-          .select('id')
-          .eq('full_name', client.name)
-          .maybeSingle();
-        
-        if (cRow?.id) {
-          const { data: assignment } = await supabase
-            .from('workout_assignments')
-            .select('current_week, last_modified_by, program_json')
-            .eq('client_id', cRow.id)
-            .eq('is_active', true)
-            .order('last_modified_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+    let cancelled = false;
+    const lastModifiedRef = { current: '' as string };
 
-          if (!assignment) return;
-          const fromJson = getLatestDeployedWeekNumber({
-            weeks: (assignment.program_json as any)?.weeks,
-            currentWeek: assignment.current_week,
-          });
-          const resolved = Math.max(fromJson, assignment.current_week || 1);
-          applySyncedWeekIfUnpinned(resolved);
-        }
-      } catch (error) {
-        console.error('Error syncing current week:', error);
+    const resolveClientId = async (): Promise<string | null> => {
+      if (databaseClientId) return databaseClientId;
+      if (client.id && !client.id.startsWith('local')) return client.id;
+      return dbResolveClientIdByName(client.name);
+    };
+
+    const applyFullAssignment = async (assignment: {
+      program_json: any;
+      current_week?: number;
+      current_day?: number;
+      last_modified_by?: string;
+      last_modified_at?: string;
+      id?: string;
+    }) => {
+      if (!supabase || !assignment?.program_json) return;
+      const raw = assignment.program_json as any;
+      const { program: enrichedProgram, weeks: enrichedWeeks } =
+        await enrichProgramAndWeeksWithExercises(supabase, raw);
+      if (cancelled) return;
+      const base = client.workoutAssignment;
+      const freshAssignment: ClientWorkoutAssignment = {
+        id: assignment.id ?? base?.id ?? '',
+        clientId: base?.clientId ?? client.id,
+        clientName: base?.clientName ?? client.name,
+        startDate: base?.startDate ?? new Date(),
+        duration: base?.duration ?? 12,
+        currentWeek: assignment.current_week ?? base?.currentWeek ?? 1,
+        currentDay: assignment.current_day ?? raw.currentDay ?? base?.currentDay ?? 0,
+        weeks: enrichedWeeks.length ? enrichedWeeks : raw.weeks || [],
+        progressionRules: base?.progressionRules ?? [],
+        isActive: base?.isActive ?? true,
+        program: enrichedProgram?.days?.length ? enrichedProgram : raw.program || raw,
+        lastModifiedBy: (assignment.last_modified_by as any) ?? raw.lastModifiedBy,
+        lastModifiedAt: assignment.last_modified_at
+          ? new Date(assignment.last_modified_at)
+          : raw.lastModifiedAt
+            ? new Date(raw.lastModifiedAt)
+            : undefined,
+        ...(raw.lastSavedDay != null ? { lastSavedDay: raw.lastSavedDay } : {}),
+        ...(raw.lastSavedWeek != null ? { lastSavedWeek: raw.lastSavedWeek } : {}),
+      } as ClientWorkoutAssignment;
+      setEffectiveWorkoutAssignment(freshAssignment);
+      saveClientOfflineSnapshot(client.id, {
+        client: {
+          ...client,
+          workoutAssignment: freshAssignment,
+          nutritionPlan: nutritionPlan ?? client.nutritionPlan,
+          cardioPlan: client.cardioPlan,
+        },
+        nutritionPlan: nutritionPlan ?? client.nutritionPlan ?? null,
+        cardioPlan: client.cardioPlan ?? null,
+        syncedAt: new Date().toISOString(),
+      });
+      const freshWeeks = raw.weeks || [];
+      if (freshWeeks.length > 0) {
+        const deployedWeekNumbers = freshWeeks.map((w: any) => w.weekNumber);
+        const latestDeployed = getLatestDeployedWeekNumber(freshAssignment);
+        const rawWeek = assignment.current_week || latestDeployed || 1;
+        const newCurrentWeek = deployedWeekNumbers.includes(latestDeployed)
+          ? latestDeployed
+          : deployedWeekNumbers.includes(rawWeek)
+            ? rawWeek
+            : Math.min(rawWeek, Math.max(...deployedWeekNumbers)) || deployedWeekNumbers[0];
+        applySyncedWeekIfUnpinned(newCurrentWeek);
       }
     };
 
-    // Initial sync
-    syncCurrentWeek();
+    const pollMetadata = async () => {
+      if (!supabase || cancelled) return;
+      try {
+        const clientDbId = await resolveClientId();
+        if (!clientDbId || cancelled) return;
 
-    // Set up periodic sync every 5 seconds as backup
-    const intervalId = setInterval(syncCurrentWeek, 5000);
+        // Tiny payload — never pull program_json on the timer
+        const { data: meta } = await supabase
+          .from('workout_assignments')
+          .select('id, current_week, last_modified_by, last_modified_at')
+          .eq('client_id', clientDbId)
+          .eq('is_active', true)
+          .order('last_modified_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-    // Set up real-time subscription
-    const channel = supabase
-      .channel(`client-${client.name}-week-sync`)
-      .on('postgres_changes', 
-        { 
-          event: 'UPDATE', 
-          schema: 'public', 
-          table: 'workout_assignments',
-          filter: `client_id=eq.${client.id}`
-        }, 
-        (payload) => {
-          const row: any = payload.new;
-          const fromJson = getLatestDeployedWeekNumber({
-            weeks: row.program_json?.weeks,
-            currentWeek: row.current_week,
-          });
-          const resolved = Math.max(fromJson, Number(row.current_week) || 1);
-          applySyncedWeekIfUnpinned(resolved);
+        if (!meta || cancelled) return;
+
+        const week = Number(meta.current_week) || 1;
+        applySyncedWeekIfUnpinned(week);
+
+        const stamp = String(meta.last_modified_at || '');
+        if (!stamp || stamp === lastModifiedRef.current) return;
+        // Coach (or other) changed the assignment — fetch full JSON once
+        if (meta.last_modified_by === 'client') {
+          lastModifiedRef.current = stamp;
+          return;
         }
-      )
-      .subscribe();
+
+        const { data: full } = await supabase
+          .from('workout_assignments')
+          .select('id, current_week, current_day, last_modified_by, last_modified_at, program_json')
+          .eq('id', meta.id)
+          .maybeSingle();
+
+        if (!full || cancelled) return;
+        lastModifiedRef.current = String(full.last_modified_at || stamp);
+        await applyFullAssignment(full);
+      } catch (error) {
+        console.error('Error syncing workout assignment:', error);
+      }
+    };
+
+    void pollMetadata();
+    // Backup only — realtime handles coach updates; 60s is enough for Fair Use
+    const intervalId = window.setInterval(pollMetadata, 60_000);
+
+    const filterClientId = databaseClientId || (client.id && !String(client.id).startsWith('local') ? client.id : null);
+    let channel: ReturnType<NonNullable<typeof supabase>['channel']> | null = null;
+    if (filterClientId) {
+      channel = supabase
+        .channel(`client-${filterClientId}-week-sync`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'workout_assignments',
+            filter: `client_id=eq.${filterClientId}`,
+          },
+          (payload) => {
+            const row: any = payload.new;
+            if (!row) return;
+            const stamp = String(row.last_modified_at || '');
+            if (stamp) lastModifiedRef.current = stamp;
+            const fromJson = getLatestDeployedWeekNumber({
+              weeks: row.program_json?.weeks,
+              currentWeek: row.current_week,
+            });
+            applySyncedWeekIfUnpinned(Math.max(fromJson, Number(row.current_week) || 1));
+            if (row.program_json && row.last_modified_by !== 'client') {
+              void applyFullAssignment(row);
+            }
+          }
+        )
+        .subscribe();
+    }
 
     return () => {
+      cancelled = true;
       clearInterval(intervalId);
-      if (supabase) {
-        supabase.removeChannel(channel);
-      }
+      if (channel) supabase.removeChannel(channel);
     };
-  }, [client.id, client.name, isOnline, applySyncedWeekIfUnpinned]);
-
-  // Update weeks with real-time sync
-  useEffect(() => {
-    if (!isOnline) return;
-
-    const interval = setInterval(async () => {
-      try {
-        console.log('🔄 CLIENT SYNC DEBUG - Starting sync check...', {
-          isSupabaseReady,
-          hasSupabase: !!supabase,
-          clientId: client.id,
-          clientName: client.name,
-          currentWeek: currentWeek
-        });
-        
-        if (isSupabaseReady && supabase && client.id) {
-          try {
-            const { data: cRow } = await supabase
-              .from('clients')
-              .select('id')
-              .eq('full_name', client.name)
-              .maybeSingle();
-            
-
-            
-            if (cRow?.id) {
-              // Retry logic for workout assignments query
-              let assignment = null;
-              let assignmentError = null;
-              let retries = 3;
-              
-              while (retries > 0) {
-                try {
-                  const result = await supabase
-                    .from('workout_assignments')
-                    .select('*')
-                    .eq('client_id', cRow.id)
-                    .eq('is_active', true)
-                    .order('last_modified_at', { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-                  
-                  assignment = result.data;
-                  assignmentError = result.error;
-                  
-                  // If successful, break the retry loop
-                  if (!assignmentError || assignmentError.code !== '') {
-                    break;
-                  }
-                } catch (fetchError) {
-                  console.warn(`⚠️ Network error, retrying... (${retries} attempts left)`, fetchError);
-                  retries--;
-                  if (retries > 0) {
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s before retry
-                  } else {
-                    assignmentError = { message: 'Network error after retries', details: String(fetchError), hint: '', code: 'NETWORK_ERROR' };
-                  }
-                }
-              }
-              
-              console.log('🔄 CLIENT SYNC DEBUG - Assignment query result:', {
-                assignment,
-                assignmentError,
-                hasProgramJson: !!assignment?.program_json,
-                programJson: assignment?.program_json,
-                currentWeek: assignment?.current_week,
-                lastModifiedAt: assignment?.last_modified_at
-              });
-              
-              if (assignmentError) {
-                console.error('❌ CLIENT SYNC ERROR - Assignment query failed:', assignmentError);
-                // Don't return - continue with local data
-                return;
-              }
-            
-            if (assignment?.program_json) {
-              const raw = assignment.program_json as any;
-              const { program: enrichedProgram, weeks: enrichedWeeks } = await enrichProgramAndWeeksWithExercises(supabase, raw);
-              const base = client.workoutAssignment;
-              const freshAssignment: ClientWorkoutAssignment = {
-                id: base?.id ?? '',
-                clientId: base?.clientId ?? client.id,
-                clientName: base?.clientName ?? client.name,
-                startDate: base?.startDate ?? new Date(),
-                duration: base?.duration ?? 12,
-                currentWeek: assignment.current_week ?? base?.currentWeek ?? 1,
-                currentDay: assignment.current_day ?? raw.currentDay ?? base?.currentDay ?? 0,
-                weeks: enrichedWeeks.length ? enrichedWeeks : (raw.weeks || []),
-                progressionRules: base?.progressionRules ?? [],
-                isActive: base?.isActive ?? true,
-                program: enrichedProgram?.days?.length ? enrichedProgram : (raw.program || raw),
-                lastModifiedBy: (assignment.last_modified_by as any) ?? raw.lastModifiedBy,
-                lastModifiedAt: raw.lastModifiedAt ? new Date(raw.lastModifiedAt) : undefined,
-                ...(raw.lastSavedDay != null ? { lastSavedDay: raw.lastSavedDay } : {}),
-                ...(raw.lastSavedWeek != null ? { lastSavedWeek: raw.lastSavedWeek } : {}),
-              } as ClientWorkoutAssignment;
-              setEffectiveWorkoutAssignment(freshAssignment);
-              saveClientOfflineSnapshot(client.id, {
-                client: {
-                  ...client,
-                  workoutAssignment: freshAssignment,
-                  nutritionPlan: nutritionPlan ?? client.nutritionPlan,
-                  cardioPlan: client.cardioPlan,
-                },
-                nutritionPlan: nutritionPlan ?? client.nutritionPlan ?? null,
-                cardioPlan: client.cardioPlan ?? null,
-                syncedAt: new Date().toISOString(),
-              });
-              const freshWeeks = raw.weeks || [];
-              if (freshWeeks.length > 0) {
-                const deployedWeekNumbers = freshWeeks.map((w: any) => w.weekNumber);
-                const latestDeployed = getLatestDeployedWeekNumber(freshAssignment);
-                const rawWeek = assignment.current_week || latestDeployed || 1;
-                const newCurrentWeek = deployedWeekNumbers.includes(latestDeployed)
-                  ? latestDeployed
-                  : deployedWeekNumbers.includes(rawWeek)
-                  ? rawWeek
-                  : Math.min(rawWeek, Math.max(...deployedWeekNumbers)) || deployedWeekNumbers[0];
-                applySyncedWeekIfUnpinned(newCurrentWeek);
-              }
-            }
-          } else {
-
-          }
-          } catch (networkError) {
-            console.error('❌ NETWORK ERROR - Failed to fetch workout assignment:', networkError);
-            // Continue with local data if network fails
-          }
-        } else {
-          console.log('⚠️ CLIENT SYNC - Missing requirements:', {
-            isSupabaseReady,
-            hasSupabase: !!supabase,
-            clientId: client.id
-          });
-        }
-      } catch (error) {
-        console.error('❌ CLIENT SYNC ERROR - Error refreshing workout assignment:', error);
-      }
-    }, 1000); // Check every 1 second for faster sync
-
-    return () => clearInterval(interval);
-  }, [client.id, client.name, currentWeek, isOnline, nutritionPlan, applySyncedWeekIfUnpinned]);
+  }, [client.id, client.name, databaseClientId, isOnline, applySyncedWeekIfUnpinned]);
 
   const assignmentForWeeks = effectiveWorkoutAssignment ?? client.workoutAssignment;
   const clientForCharts = useMemo(() => {
