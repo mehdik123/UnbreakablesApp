@@ -3,10 +3,11 @@
  * Full + thumb keep Free-plan egress under control (photos are the main bandwidth cost).
  */
 
-const FULL_MAX_EDGE = 1200;
-const FULL_JPEG_QUALITY = 0.72;
-const THUMB_MAX_EDGE = 480;
-const THUMB_JPEG_QUALITY = 0.65;
+/** Keep Free-plan egress viable: smaller files on every upload / download. */
+const FULL_MAX_EDGE = 960;
+const FULL_JPEG_QUALITY = 0.62;
+const THUMB_MAX_EDGE = 360;
+const THUMB_JPEG_QUALITY = 0.58;
 const MAX_SOURCE_BYTES = 30 * 1024 * 1024;
 
 export function isLikelyImageFile(file: File): boolean {

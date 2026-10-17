@@ -188,7 +188,7 @@ export function buildUsageSuggestions(report: CoachPlanUsageReport | null): Usag
       level: eLv,
       title: eLv === 'critical' ? 'Cut photo bandwidth now' : 'Slow down photo browsing',
       action:
-        'Prefer thumbs in galleries, avoid opening full photos in bulk, skip Stories collage spam, delete ended-client photos.',
+        'Prefer thumbs in galleries, avoid opening full photos in bulk, delete ended-client photos.',
     });
   } else if (eLv === 'watch') {
     out.push({
@@ -253,11 +253,12 @@ export function buildUsageSuggestions(report: CoachPlanUsageReport | null): Usag
 }
 
 export const EGRESS_PLAYBOOK: string[] = [
-  'Uploads already compress to JPEG full + thumb — never store original phone HEIC/PNG.',
-  'Galleries and Stories should use thumbs; open full size only when needed.',
-  'Browser cache reuses photos you’ve already opened (same device).',
-  'Delete photos when a client ends coaching — biggest long-term egress saver.',
-  'Avoid bulk-opening every week’s photos in one session near month-end.',
+  'Uploads compress to small JPEG full (~960px) + thumb (~360px) — never store phone originals.',
+  'Grids use thumbs + device cache; open full size only when reviewing detail.',
+  'At ~400 MB/day you burn Free’s 5 GB in ~12 days. Aim for under ~150 MB/day (~3 GB/month).',
+  'Delete photos when a client ends — biggest long-term saver (storage + every future view).',
+  'Avoid bulk week browsing near month-end; each device pays egress once.',
+  'Database JSON (workouts/meals) also counts as egress — don’t hammer refresh all day.',
   `Soft target: stay under ~${EGRESS_SOFT_TARGET_GB} GB so a spike can’t trip Free Fair Use at ${FREE_EGRESS_GB} GB.`,
 ];
 
